@@ -10,7 +10,7 @@ This document describes the database schema for the AnnieCannons Learning Manage
 
 | Enum | Values |
 |------|--------|
-| `user_role` | `admin`, `instructor`, `student` |
+| `user_role` | `admin`, `instructor`, `learner` |
 | `resource_type` | `video`, `reading`, `link`, `file` |
 | `submission_type` | `text`, `file`, `link` |
 | `submission_status` | `draft`, `submitted`, `graded` |
@@ -26,7 +26,7 @@ Stores all user accounts in the system.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `email` | text | Unique, required |
-| `role` | user_role | Default: `student` |
+| `role` | user_role | Default: `learner` |
 | `name` | text | |
 | `created_at` | timestamptz | Default: now() |
 
@@ -49,14 +49,14 @@ Represents a course offered on the platform. Can be marked as a template for reu
 ---
 
 ### course_enrollments
-Links users to courses with a specific role (e.g. student or instructor).
+Links users to courses with a specific role (e.g. learner or instructor).
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `course_id` | uuid | FK → courses |
 | `user_id` | uuid | FK → users |
-| `role` | user_role | Default: `student` |
+| `role` | user_role | Default: `learner` |
 
 Unique constraint on `(course_id, user_id)`.
 
@@ -127,7 +127,7 @@ Individual checklist criteria that make up an assignment's grading rubric.
 ---
 
 ### submissions
-A student's submission for an assignment.
+A learner's submission for an assignment.
 
 | Column | Type | Notes |
 |--------|------|-------|
