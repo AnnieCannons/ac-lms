@@ -88,9 +88,6 @@ function SortableModule({
   const [expanded, setExpanded] = useState(true);
   const [newDayName, setNewDayName] = useState("");
 
-  console.log('SortableModule render', module.id, module.module_days.map(d => d.day_name))
-
-
   return (
     <div
       ref={setNodeRef}
@@ -126,12 +123,12 @@ function SortableModule({
       {expanded && (
         <div className="px-6 pb-4 flex flex-col gap-2 border-t border-gray-50 pt-4">
           <SortableContext
-            items={module.module_days
+            items={[...module.module_days]
               .sort((a, b) => a.order - b.order)
               .map((d) => `day-${d.id}`)}
             strategy={verticalListSortingStrategy}
           >
-            {module.module_days
+            {[...module.module_days]
               .sort((a, b) => a.order - b.order)
               .map((day) => (
                 <SortableDay
@@ -238,7 +235,7 @@ export default function CourseEditor({
 
     if (activeData?.type === "day") {
       const moduleId = activeData.moduleId;
-      const mod = currentModules.find((m) => m.id === moduleId);
+      const mod = modulesRef.current.find((m) => m.id === moduleId);
       if (!mod) return;
       const oldIndex = mod.module_days.findIndex(
         (d) => `day-${d.id}` === active.id,
@@ -247,12 +244,20 @@ export default function CourseEditor({
         (d) => `day-${d.id}` === over.id,
       );
       if (oldIndex === -1 || newIndex === -1) return;
-      const reorderedDays = arrayMove([...mod.module_days], oldIndex, newIndex);
-      setModules((prev) =>
-        prev.map((m) =>
-          m.id === moduleId ? { ...m, module_days: reorderedDays } : m,
-        ),
-      );
+      const reorderedDays = arrayMove(
+        [...mod.module_days],
+        oldIndex,
+        newIndex,
+      ).map((d, i) => ({ ...d, order: i })); // update order property
+      // Small delay to let dnd-kit finish its animation
+      setTimeout(() => {
+        setModules((prev) =>
+          prev.map((m) =>
+            m.id === moduleId ? { ...m, module_days: reorderedDays } : m,
+          ),
+        );
+      }, 10);
+
       await Promise.all(
         reorderedDays.map((d, i) =>
           supabase.from("module_days").update({ order: i }).eq("id", d.id),
