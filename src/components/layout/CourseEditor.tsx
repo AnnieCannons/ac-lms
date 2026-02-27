@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -20,7 +21,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-type Day = { id: string; day_name: string; order: number; module_id: string };
+type Assignment = {
+  id: string;
+  title: string;
+  due_date: string | null;
+  description?: string | null;
+  module_day_id: string;
+};
+
+type Day = {
+  id: string;
+  day_name: string;
+  order: number;
+  module_id: string;
+  assignments?: Assignment[];
+};
+
 type Module = {
   id: string;
   title: string;
@@ -42,28 +58,89 @@ function SortableDay({
       id: `day-${day.id}`,
       data: { type: "day", moduleId: day.module_id },
     });
+
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const [open, setOpen] = useState(false);
+  const assignments = day.assignments ?? [];
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-3 bg-background rounded-lg px-4 py-2"
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="text-gray-300 hover:text-gray-500 cursor-grab"
-      >
-        ⠿
-      </button>
-      <span className="text-sm text-dark-text flex-1">{day.day_name}</span>
-      <button
-        onClick={() => onDelete(day.id)}
-        className="text-gray-300 hover:text-red-400 text-xs"
-      >
-        ✕
-      </button>
+    <div ref={setNodeRef} style={style} className="bg-background rounded-lg">
+      <div className="flex items-center gap-3 px-4 py-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-gray-300 hover:text-gray-500 cursor-grab"
+          aria-label={`Drag day ${day.day_name}`}
+          type="button"
+        >
+          ⠿
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-sm text-dark-text flex-1 text-left flex items-center gap-2"
+          aria-expanded={open}
+          aria-controls={`day-panel-${day.id}`}
+        >
+          <span>{day.day_name}</span>
+          <span className="text-xs text-gray-400">
+            ({assignments.length})
+          </span>
+        </button>
+
+        <button
+          onClick={() => onDelete(day.id)}
+          className="text-gray-300 hover:text-red-400 text-xs"
+          aria-label={`Delete day ${day.day_name}`}
+          type="button"
+        >
+          ✕
+        </button>
+      </div>
+
+      {open && (
+        <div
+          id={`day-panel-${day.id}`}
+          className="px-10 pb-3 pt-1 border-t border-gray-100"
+        >
+          {assignments.length === 0 ? (
+            <p className="text-xs text-gray-400">No assignments.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {assignments
+                .slice()
+                .sort((a, b) => {
+                  // Put null due dates at the end
+                  if (!a.due_date && !b.due_date) return 0;
+                  if (!a.due_date) return 1;
+                  if (!b.due_date) return -1;
+                  return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                })
+                .map((a) => (
+                  <li
+                    key={a.id}
+                    className="bg-white rounded-lg border border-gray-100 px-3 py-2"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-dark-text truncate">
+                          {a.title}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Due:{" "}
+                          {a.due_date
+                            ? new Date(a.due_date).toLocaleString()
+                            : "None"}
+                        </p>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -84,6 +161,7 @@ function SortableModule({
       id: `module-${module.id}`,
       data: { type: "module" },
     });
+
   const style = { transform: CSS.Transform.toString(transform), transition };
   const [expanded, setExpanded] = useState(true);
   const [newDayName, setNewDayName] = useState("");
@@ -99,6 +177,8 @@ function SortableModule({
           {...attributes}
           {...listeners}
           className="text-gray-300 hover:text-gray-500 cursor-grab text-lg"
+          aria-label={`Drag module ${module.title}`}
+          type="button"
         >
           ⠿
         </button>
@@ -109,12 +189,16 @@ function SortableModule({
         <button
           onClick={() => setExpanded(!expanded)}
           className="text-gray-400 hover:text-teal-primary text-sm px-3"
+          aria-label={expanded ? "Collapse module" : "Expand module"}
+          type="button"
         >
           {expanded ? "▲" : "▼"}
         </button>
         <button
           onClick={() => onDelete(module.id)}
           className="text-gray-300 hover:text-red-400 text-sm"
+          aria-label={`Delete module ${module.title}`}
+          type="button"
         >
           ✕
         </button>
@@ -152,6 +236,7 @@ function SortableModule({
                 }
               }}
               className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              aria-label="New day name"
             />
             <button
               onClick={() => {
@@ -161,6 +246,7 @@ function SortableModule({
                 }
               }}
               className="bg-teal-light text-teal-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-primary hover:text-white transition-colors"
+              type="button"
             >
               Add
             </button>
@@ -197,7 +283,7 @@ export default function CourseEditor({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const modulesRef = useRef(modules);
@@ -217,18 +303,20 @@ export default function CourseEditor({
 
     if (activeData?.type === "module") {
       const oldIndex = currentModules.findIndex(
-        (m) => `module-${m.id}` === active.id,
+        (m) => `module-${m.id}` === active.id
       );
       const newIndex = currentModules.findIndex(
-        (m) => `module-${m.id}` === over.id,
+        (m) => `module-${m.id}` === over.id
       );
       if (oldIndex === -1 || newIndex === -1) return;
+
       const reordered = arrayMove([...currentModules], oldIndex, newIndex);
       setModules(reordered);
+
       await Promise.all(
         reordered.map((m, i) =>
-          supabase.from("modules").update({ order: i }).eq("id", m.id),
-        ),
+          supabase.from("modules").update({ order: i }).eq("id", m.id)
+        )
       );
       return;
     }
@@ -237,37 +325,38 @@ export default function CourseEditor({
       const moduleId = activeData.moduleId;
       const mod = modulesRef.current.find((m) => m.id === moduleId);
       if (!mod) return;
+
       const oldIndex = mod.module_days.findIndex(
-        (d) => `day-${d.id}` === active.id,
+        (d) => `day-${d.id}` === active.id
       );
       const newIndex = mod.module_days.findIndex(
-        (d) => `day-${d.id}` === over.id,
+        (d) => `day-${d.id}` === over.id
       );
       if (oldIndex === -1 || newIndex === -1) return;
-      const reorderedDays = arrayMove(
-        [...mod.module_days],
-        oldIndex,
-        newIndex,
-      ).map((d, i) => ({ ...d, order: i })); // update order property
-      // Small delay to let dnd-kit finish its animation
+
+      const reorderedDays = arrayMove([...mod.module_days], oldIndex, newIndex).map(
+        (d, i) => ({ ...d, order: i })
+      );
+
       setTimeout(() => {
         setModules((prev) =>
           prev.map((m) =>
-            m.id === moduleId ? { ...m, module_days: reorderedDays } : m,
-          ),
+            m.id === moduleId ? { ...m, module_days: reorderedDays } : m
+          )
         );
       }, 10);
 
       await Promise.all(
         reorderedDays.map((d, i) =>
-          supabase.from("module_days").update({ order: i }).eq("id", d.id),
-        ),
+          supabase.from("module_days").update({ order: i }).eq("id", d.id)
+        )
       );
     }
   };
 
   const addModule = async () => {
     if (!newModuleTitle.trim()) return;
+
     const { data, error } = await supabase
       .from("modules")
       .insert({
@@ -294,6 +383,7 @@ export default function CourseEditor({
   const addDay = async (moduleId: string, dayName: string) => {
     const mod = modules.find((m) => m.id === moduleId);
     if (!mod) return;
+
     const { data, error } = await supabase
       .from("module_days")
       .insert({
@@ -308,21 +398,22 @@ export default function CourseEditor({
       setModules((prev) =>
         prev.map((m) =>
           m.id === moduleId
-            ? { ...m, module_days: [...m.module_days, data] }
-            : m,
-        ),
+            ? { ...m, module_days: [...m.module_days, { ...data, assignments: [] }] }
+            : m
+        )
       );
     }
   };
 
   const deleteDay = async (dayId: string, moduleId: string) => {
     await supabase.from("module_days").delete().eq("id", dayId);
+
     setModules((prev) =>
       prev.map((m) =>
         m.id === moduleId
           ? { ...m, module_days: m.module_days.filter((d) => d.id !== dayId) }
-          : m,
-      ),
+          : m
+      )
     );
   };
 
@@ -364,6 +455,7 @@ export default function CourseEditor({
                     if (e.key === "Enter") addModule();
                   }}
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  aria-label="Module title"
                 />
                 <input
                   type="number"
@@ -371,10 +463,12 @@ export default function CourseEditor({
                   value={newModuleWeek}
                   onChange={(e) => setNewModuleWeek(e.target.value)}
                   className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  aria-label="Week number"
                 />
                 <button
                   onClick={addModule}
                   className="bg-teal-primary text-white px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+                  type="button"
                 >
                   Add
                 </button>
