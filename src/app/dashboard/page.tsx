@@ -47,7 +47,7 @@ export default async function DashboardPage() {
 
           {/* Quick action card */}
           {isInstructor && (
-            <a href="/instructor" className="bg-purple-primary rounded-2xl p-6 text-white hover:opacity-90 transition-opacity">
+            <a href="/instructor/courses" className="bg-purple-primary rounded-2xl p-6 text-white hover:opacity-90 transition-opacity">
               <h3 className="font-semibold mb-1">Instructor Area</h3>
               <p className="text-purple-200 text-sm">Manage courses and grade submissions</p>
             </a>
