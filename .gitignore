@@ -11,6 +11,7 @@
 !.yarn/versions
 .env.local
 
+/public/course-images/itp/video1080037323.mp4
 # testing
 /coverage
 
