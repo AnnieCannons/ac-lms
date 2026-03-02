@@ -1,0 +1,3230 @@
+{
+    "course": {
+      "title": "Frontend - Advanced Module (Jan 2026)",
+      "source": "Canvas course export"
+    },
+    "assessments": [
+    {
+      "identifier": "gfc8d391a06349c7fc3e7cafdff797866",
+      "type": "quiz",
+      "title": "Arrow Functions",
+      "due_at": "",
+      "quiz_type": "assignment",
+      "module_title": "Week 6: APIs",
+      "manifest_title": "Arrow Functions",
+      "questions": [
+        {
+          "ident": "g6687d80dd4cba2489ca182845462ccf0",
+          "question_text": "<div>What is a key feature of arrow functions in JavaScript?</div>",
+          "choices": [
+            {
+              "ident": "8318",
+              "text": "They use a more modern, shorter syntax for writing functions"
+            },
+            {
+              "ident": "285",
+              "text": "They require a return keyword in all cases"
+            },
+            {
+              "ident": "4901",
+              "text": "They are used only inside classes"
+            },
+            {
+              "ident": "5755",
+              "text": "They cannot take parameters"
+            }
+          ],
+          "correct_response_ident": "8318"
+        },
+        {
+          "ident": "ga7f8db763a34d33d69a5c7e3063f205d",
+          "question_text": "<div>What does <em data-start=\"614\" data-end=\"631\">implicit return</em> mean in an arrow function?</div>",
+          "choices": [
+            {
+              "ident": "9099",
+              "text": "The function automatically returns the result of the expression without using the return keyword"
+            },
+            {
+              "ident": "5357",
+              "text": "The function will always return undefined"
+            },
+            {
+              "ident": "2697",
+              "text": "The function will throw an error if no return keyword is used"
+            },
+            {
+              "ident": "4458",
+              "text": "The function returns its parameters"
+            }
+          ],
+          "correct_response_ident": "9099"
+        },
+        {
+          "ident": "ge085f6a7067b76bb2dab679a28c02c3f",
+          "question_text": "<div>Which of the following uses <em data-start=\"999\" data-end=\"1016\">implicit return</em> correctly?</div>",
+          "choices": [
+            {
+              "ident": "9764",
+              "text": "const add = (x, y) => x + y;"
+            },
+            {
+              "ident": "2708",
+              "text": "const add = (x, y) => { return x + y; }"
+            },
+            {
+              "ident": "6567",
+              "text": "const add = x, y => x + y;"
+            },
+            {
+              "ident": "933",
+              "text": "const add = (x, y) => { x + y }"
+            }
+          ],
+          "correct_response_ident": "9764"
+        },
+        {
+          "ident": "g5f60011275e301afee24327b20f198cb",
+          "question_text": "<div>If you want to add more lines of code before your return statement in an arrow function, what should you do?</div>",
+          "choices": [
+            {
+              "ident": "2694",
+              "text": "Use curly braces and add a return statement"
+            },
+            {
+              "ident": "2437",
+              "text": "Add a comma after each line"
+            },
+            {
+              "ident": "4573",
+              "text": "Use parentheses instead of curly braces"
+            },
+            {
+              "ident": "3514",
+              "text": "Wrap the code in an array"
+            }
+          ],
+          "correct_response_ident": "2694"
+        },
+        {
+          "ident": "gd78aa4cd49f15f46642a037736e06382",
+          "question_text": "<div>Which of the following is NOT true about arrow functions?</div>",
+          "choices": [
+            {
+              "ident": "385",
+              "text": "They cannot be used to define anonymous functions (they must have a name)"
+            },
+            {
+              "ident": "7016",
+              "text": "They are a more modern alternative to traditional function expressions"
+            },
+            {
+              "ident": "1518",
+              "text": "They need to be called to run"
+            },
+            {
+              "ident": "1906",
+              "text": "They can be used for both one-liners and multi-line functions"
+            }
+          ],
+          "correct_response_ident": "385"
+        },
+        {
+          "ident": "gc3edc5a9c333f8482231d163761ec2ba",
+          "question_text": "<div>What is a valid way to write an arrow function that takes one parameter and returns a greeting?</div>",
+          "choices": [
+            {
+              "ident": "7341",
+              "text": "const greet = (name) => \"Hello, \" + name;"
+            },
+            {
+              "ident": "3799",
+              "text": "const greet = (name) => { return \"Hello, \" + name; }"
+            },
+            {
+              "ident": "5670",
+              "text": "const greet = name => \"Hello, \" + name;"
+            },
+            {
+              "ident": "7367",
+              "text": "const greet = name => { \"Hello, \" + name; }"
+            }
+          ],
+          "correct_response_ident": "7341"
+        },
+        {
+          "ident": "g2551e716a8d4a92ccc10a2f7a17852da",
+          "question_text": "<div>Which of the following arrow functions will NOT return the square of a number correctly?</div>",
+          "choices": [
+            {
+              "ident": "7593",
+              "text": "const square = x => { x * x };"
+            },
+            {
+              "ident": "7409",
+              "text": "const square = x => x * x;"
+            },
+            {
+              "ident": "2820",
+              "text": "const square = (x) => { return x * x; }"
+            },
+            {
+              "ident": "7672",
+              "text": "const square = (x) => x * x;"
+            }
+          ],
+          "correct_response_ident": "7593"
+        },
+        {
+          "ident": "gbb38a00754f7a88e1d5887cd2345d9fb",
+          "question_text": "<div>What happens if you use curly braces in an arrow function but forget to write <code data-start=\"2921\" data-end=\"2929\">return</code>?</div>",
+          "choices": [
+            {
+              "ident": "4807",
+              "text": "The function will return undefined"
+            },
+            {
+              "ident": "9992",
+              "text": "The function will return null"
+            },
+            {
+              "ident": "6443",
+              "text": "The function will throw an error"
+            },
+            {
+              "ident": "822",
+              "text": "The function will return the last expression"
+            }
+          ],
+          "correct_response_ident": "4807"
+        },
+        {
+          "ident": "ga7ffa05688706c22e75fd6120edab947",
+          "question_text": "<div>Which of these arrow functions is incorrectly written?</div>",
+          "choices": [
+            {
+              "ident": "3738",
+              "text": "const sum = (a, b) => { a + b; }"
+            },
+            {
+              "ident": "7457",
+              "text": "const sayHi = () => \"Hi!\";"
+            },
+            {
+              "ident": "6737",
+              "text": "const double = n => n * 2;"
+            },
+            {
+              "ident": "3677",
+              "text": "const sum = (a, b) => { return a + b; }"
+            }
+          ],
+          "correct_response_ident": "3738"
+        }
+      ]
+    },
+    {
+      "identifier": "g2d83914afb290f70a7394eb835b250fb",
+      "type": "quiz",
+      "title": "For loops",
+      "due_at": "2026-01-31T04:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 3: Loops Intro",
+      "manifest_title": "For loops",
+      "questions": [
+        {
+          "ident": "gca3bdb92a6fe48ec58c50ffce8cef080",
+          "question_text": "<div><p data-start=\"294\" data-end=\"370\">What is the main reason developers use loops in code?</p></div>",
+          "choices": [
+            {
+              "ident": "6889",
+              "text": "To repeat a task multiple times automatically"
+            },
+            {
+              "ident": "9180",
+              "text": "To confuse people reading the code"
+            },
+            {
+              "ident": "8037",
+              "text": "To run a block of code one time only"
+            },
+            {
+              "ident": "6635",
+              "text": "To stop the program from running"
+            }
+          ],
+          "correct_response_ident": "6889"
+        },
+        {
+          "ident": "gbc9875087ae8d1fdfce4411363baf7aa",
+          "question_text": "<div>Which of the following best describes a <strong><code data-start=\"615\" data-end=\"620\">for</code> loop</strong>?</div>",
+          "choices": [
+            {
+              "ident": "3965",
+              "text": "A structure that repeats code a specific number of times"
+            },
+            {
+              "ident": "135",
+              "text": "A block of code that runs forever"
+            },
+            {
+              "ident": "407",
+              "text": "A way to repeat code while a condition is true"
+            },
+            {
+              "ident": "2831",
+              "text": "A function that runs code when a button is clicked"
+            }
+          ],
+          "correct_response_ident": "3965"
+        },
+        {
+          "ident": "g952cb3e70bc95eed91655c03150d7514",
+          "question_text": "<div>What does <code data-start=\"885\" data-end=\"890\"><strong>i++</strong></code> do in a <strong><code data-start=\"899\" data-end=\"904\">for</code></strong> loop?</div>",
+          "choices": [
+            {
+              "ident": "5030",
+              "text": "Increases the value of i by 1"
+            },
+            {
+              "ident": "7192",
+              "text": "Sets i to 0"
+            },
+            {
+              "ident": "624",
+              "text": "Adds 2 to i"
+            },
+            {
+              "ident": "7384",
+              "text": "Ends the loop"
+            }
+          ],
+          "correct_response_ident": "5030"
+        },
+        {
+          "ident": "gf94b48c7581740e561c1f0d22c175288",
+          "question_text": "<div><p>Look at this code:</p>\n<p><code>for (let i = 0; i < 3; i++) {<br>  console.log(\"hi\");<br>}</code></p>\n<p><strong>How many times will “hi” be logged?</strong></p></div>",
+          "choices": [
+            {
+              "ident": "7678",
+              "text": "3"
+            },
+            {
+              "ident": "1948",
+              "text": "2"
+            },
+            {
+              "ident": "4587",
+              "text": "1"
+            },
+            {
+              "ident": "5485",
+              "text": "4"
+            }
+          ],
+          "correct_response_ident": "7678"
+        },
+        {
+          "ident": "g31da48a46f56bb1bed8b09aaa66251ba",
+          "question_text": "<div><p>In this loop, what is the starting value of <code data-start=\"1273\" data-end=\"1276\">i</code>?</p>\n<p><code>for (let i = 5; i < 10; i++) {<br>  console.log(i);<br>}</code></p></div>",
+          "choices": [
+            {
+              "ident": "6011",
+              "text": "5"
+            },
+            {
+              "ident": "7158",
+              "text": "10"
+            },
+            {
+              "ident": "4325",
+              "text": "0"
+            },
+            {
+              "ident": "8745",
+              "text": "6"
+            }
+          ],
+          "correct_response_ident": "6011"
+        },
+        {
+          "ident": "gb5f08f19cba0d3c9d9f8f1d37c23e746",
+          "question_text": "<div>In a typical <code data-start=\"1418\" data-end=\"1423\">for</code> loop, which of the following is <strong>NOT</strong> one of the three required parts in the parentheses?</div>",
+          "choices": [
+            {
+              "ident": "6168",
+              "text": "A function call"
+            },
+            {
+              "ident": "5332",
+              "text": "A starting point"
+            },
+            {
+              "ident": "6095",
+              "text": "A stopping condition"
+            },
+            {
+              "ident": "5786",
+              "text": "An increment or update"
+            }
+          ],
+          "correct_response_ident": "6168"
+        },
+        {
+          "ident": "g3ee454f351149e127a2d280f41717f31",
+          "question_text": "<div><p>What will this code print?</p>\n<p><code>const nums = [10, 20, 30];<br>for (let i = 0; i < nums.length; i++) {<br>  console.log(nums[i]);<br>}</code></p></div>",
+          "choices": [
+            {
+              "ident": "9723",
+              "text": "10, 20, 30"
+            },
+            {
+              "ident": "2033",
+              "text": "0, 1, 2"
+            },
+            {
+              "ident": "5493",
+              "text": "i, i, i"
+            },
+            {
+              "ident": "8717",
+              "text": "undefined"
+            }
+          ],
+          "correct_response_ident": "9723"
+        },
+        {
+          "ident": "g9e396b71476a74cd040930d7791bee13",
+          "question_text": "<div><p data-start=\"1851\" data-end=\"1934\">What happens if a loop never reaches its stopping condition?</p></div>",
+          "choices": [
+            {
+              "ident": "8656",
+              "text": "It causes an infinite loop"
+            },
+            {
+              "ident": "8404",
+              "text": "It runs once and stops"
+            },
+            {
+              "ident": "5618",
+              "text": "It skips the code inside"
+            },
+            {
+              "ident": "9568",
+              "text": "It resets to zero"
+            }
+          ],
+          "correct_response_ident": "8656"
+        },
+        {
+          "ident": "ga1b28d5163697dc07ee36ad102c89865",
+          "question_text": "<div>Which of the following would correctly loop through an array of 5 items?</div>",
+          "choices": [
+            {
+              "ident": "2044",
+              "text": "for (let i = 0; i < 5; i++)"
+            },
+            {
+              "ident": "2626",
+              "text": "for (let i = 1; i <= 5; i++)"
+            },
+            {
+              "ident": "6076",
+              "text": "for (let i = 5; i > 0; i++)"
+            },
+            {
+              "ident": "5668",
+              "text": "for (let i = 0; i <= 5; i--)"
+            }
+          ],
+          "correct_response_ident": "2044"
+        },
+        {
+          "ident": "ge549d299d4b4a29402b2125025d5b2d1",
+          "question_text": "<div><p>What is the value of <strong><code data-start=\"2355\" data-end=\"2358\">i</code></strong> after this loop ends?</p>\n<p><code>for (let i = 0; i < 4; i++) {<br>  console.log(i);<br>}</code></p></div>",
+          "choices": [
+            {
+              "ident": "9988",
+              "text": "4"
+            },
+            {
+              "ident": "8479",
+              "text": "3"
+            },
+            {
+              "ident": "8307",
+              "text": "5"
+            },
+            {
+              "ident": "3328",
+              "text": "0"
+            }
+          ],
+          "correct_response_ident": "9988"
+        }
+      ]
+    },
+    {
+      "identifier": "ga6702c16c1ac703085045d29e01e7318",
+      "type": "quiz",
+      "title": "'if/else' and 'if/ else if'",
+      "due_at": "2026-01-24T04:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 2: Dot/Bracket + If/else",
+      "manifest_title": "'if/else' and 'if/ else if'",
+      "questions": [
+        {
+          "ident": "gefef2d4a289c0442038152a3be6d326f",
+          "question_text": "<div>What is the purpose of an if statement in JavaScript?</div>",
+          "choices": [
+            {
+              "ident": "8446",
+              "text": "To run code only when a condition is true"
+            },
+            {
+              "ident": "7184",
+              "text": "To repeat code multiple times"
+            },
+            {
+              "ident": "323",
+              "text": "To store values"
+            },
+            {
+              "ident": "4777",
+              "text": "To define a function"
+            }
+          ],
+          "correct_response_ident": "8446"
+        },
+        {
+          "ident": "g39da61b2667e7953792f9bb45e1a42e6",
+          "question_text": "<div><p>What will this code output?</p>\n<p><img src=\"/public/course-images/frontend/image-3.png\" alt=\"let age = 20;  \nif (age >= 18) {  \n  console.log('Adult');  \n} else {  \n  console.log('Minor');  \n}\" width=\"334\" height=\"241\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "3528",
+              "text": "Adult"
+            },
+            {
+              "ident": "3442",
+              "text": "Minor"
+            },
+            {
+              "ident": "5901",
+              "text": "Undefined"
+            },
+            {
+              "ident": "5136",
+              "text": "Error"
+            }
+          ],
+          "correct_response_ident": "3528",
+          "image": "image-3.png"
+        },
+        {
+          "ident": "g4c8646f9fa921f5c206a422af31e2672",
+          "question_text": "<div>What is the purpose of the else block?</div>",
+          "choices": [
+            {
+              "ident": "9017",
+              "text": "To run code if the if condition is false"
+            },
+            {
+              "ident": "7613",
+              "text": "To create a loop"
+            },
+            {
+              "ident": "5209",
+              "text": "To stop the code"
+            },
+            {
+              "ident": "898",
+              "text": "To run code before the if block"
+            }
+          ],
+          "correct_response_ident": "9017"
+        },
+        {
+          "ident": "g2d72d7abb6abc1ce49e7ad62ef8456a8",
+          "question_text": "<div>Which of the following is the correct syntax for else if?</div>",
+          "choices": [
+            {
+              "ident": "7038",
+              "text": "else if (x > 10) { //code to run if true}"
+            },
+            {
+              "ident": "3740",
+              "text": "if else (x > 10) { //code to run if true}"
+            },
+            {
+              "ident": "5426",
+              "text": "else if { //code to run if true}"
+            },
+            {
+              "ident": "5699",
+              "text": "else (x > 10)"
+            }
+          ],
+          "correct_response_ident": "7038"
+        },
+        {
+          "ident": "gedd891f7e331f8c222cd30a906f065ff",
+          "question_text": "<div>What will this code output?<br><img src=\"/public/course-images/frontend/image-4.png\" alt=\"let score = 75;  \nif (score >= 90) {  \n  console.log('A');  \n} else if (score >= 80) {  \n  console.log('B');  \n} else if (score >= 70) {  \n  console.log('C');  \n} else {  \n  console.log('F');  \n}\" width=\"311\" height=\"315\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "9299",
+              "text": "C"
+            },
+            {
+              "ident": "6791",
+              "text": "A"
+            },
+            {
+              "ident": "9502",
+              "text": "B"
+            },
+            {
+              "ident": "1042",
+              "text": "D"
+            }
+          ],
+          "correct_response_ident": "9299",
+          "image": "image-4.png"
+        },
+        {
+          "ident": "gf5fc4e3fba97c44739567b82179d9e97",
+          "question_text": "<div>What happens if none of the if or else if conditions are true, and there is no else block?</div>",
+          "choices": [
+            {
+              "ident": "3813",
+              "text": "Nothing happens, the code between the curly braces will not run and the browser will move on to the next line of code."
+            },
+            {
+              "ident": "827",
+              "text": "The code crashes/breaks"
+            },
+            {
+              "ident": "3327",
+              "text": "The last condition runs"
+            },
+            {
+              "ident": "9842",
+              "text": "The first block runs anyway"
+            }
+          ],
+          "correct_response_ident": "3813"
+        },
+        {
+          "ident": "g390898ab0e447caf20f2f8a0ec0c78c0",
+          "question_text": "<div>Why would a developer use else if instead of multiple if statements?</div>",
+          "choices": [
+            {
+              "ident": "7539",
+              "text": "To group conditions that depend on each other"
+            },
+            {
+              "ident": "8780",
+              "text": "To store more data"
+            },
+            {
+              "ident": "4738",
+              "text": "To reduce performance"
+            },
+            {
+              "ident": "8219",
+              "text": "To add comments"
+            }
+          ],
+          "correct_response_ident": "7539"
+        }
+      ]
+    },
+    {
+      "identifier": "g498a38f120d5a1d60dba14b235962d93",
+      "type": "quiz",
+      "title": "JavaScript functions",
+      "due_at": "2026-01-24T06:59:00",
+      "quiz_type": "assignment",
+      "module_title": "",
+      "manifest_title": "",
+      "questions": [
+        {
+          "ident": "g6a60e610cb2e9fe186effcc6b7590bcc",
+          "question_text": "<div><p class=\"\" data-start=\"393\" data-end=\"452\">What is the correct way to define a function in JavaScript?</p></div>",
+          "choices": [
+            {
+              "ident": "415",
+              "text": "function myFunction() { //code here }"
+            },
+            {
+              "ident": "7649",
+              "text": "let myFunction = ()"
+            },
+            {
+              "ident": "8081",
+              "text": "myFunction: function {}"
+            },
+            {
+              "ident": "7201",
+              "text": "function = myFunction() {}"
+            }
+          ],
+          "correct_response_ident": "415"
+        },
+        {
+          "ident": "g019486c8e239dbf24f105e488d11a200",
+          "question_text": "<div><p class=\"\" data-start=\"632\" data-end=\"670\">Why do we use functions in JavaScript?</p></div>",
+          "choices": [
+            {
+              "ident": "4840",
+              "text": "So that code runs only when we want it to"
+            },
+            {
+              "ident": "2176",
+              "text": "To declare variables"
+            },
+            {
+              "ident": "4962",
+              "text": "To write CSS styles"
+            },
+            {
+              "ident": "5894",
+              "text": "To comment out code"
+            }
+          ],
+          "correct_response_ident": "4840"
+        },
+        {
+          "ident": "g6dab4433548a2b7bf770d2d6a4415677",
+          "question_text": "<div><p class=\"\" data-start=\"849\" data-end=\"907\">What happens when you define a function but don’t call it?</p></div>",
+          "choices": [
+            {
+              "ident": "5674",
+              "text": "Nothing happens until you call it"
+            },
+            {
+              "ident": "3575",
+              "text": "The code runs automatically"
+            },
+            {
+              "ident": "6469",
+              "text": "It causes an error"
+            },
+            {
+              "ident": "7405",
+              "text": "The function disappears"
+            }
+          ],
+          "correct_response_ident": "5674"
+        },
+        {
+          "ident": "g857eab3d8c27d1f3931a026e3231937d",
+          "question_text": "<div><p class=\"\" data-start=\"1094\" data-end=\"1121\">What does this function do?</p>\n<div class=\"contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary\">\n<div class=\"sticky top-9\">\n<div class=\"absolute end-0 bottom-0 flex h-9 items-center pe-2\"></div>\n</div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-js\"><span><span class=\"hljs-keyword\">function</span> <span class=\"hljs-title function_\">greet</span>() {\n<br>  <span class=\"hljs-variable language_\">   console</span>.<span class=\"hljs-title function_\">log</span>(<span class=\"hljs-string\">\"Hi!\"</span>);\n<br>}</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "6847",
+              "text": "It stores code that will run later when we call greet()"
+            },
+            {
+              "ident": "8732",
+              "text": "It prints “Hi!” right away when the page loads"
+            },
+            {
+              "ident": "3384",
+              "text": "It defines a variable"
+            },
+            {
+              "ident": "6710",
+              "text": "It adds HTML to the page"
+            }
+          ],
+          "correct_response_ident": "6847"
+        },
+        {
+          "ident": "gd9d6c7c1d240947010f526364ce72a2a",
+          "question_text": "<div>Which line correctly calls a function named <code data-start=\"1453\" data-end=\"1464\">startGame</code>?</div>",
+          "choices": [
+            {
+              "ident": "9331",
+              "text": "startGame();"
+            },
+            {
+              "ident": "5136",
+              "text": "startGame;"
+            },
+            {
+              "ident": "9945",
+              "text": "function startGame()"
+            },
+            {
+              "ident": "8293",
+              "text": "call startGame()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "identifier": "g1a4bc3ff35be9747c0feb9546b300640",
+      "type": "quiz",
+      "title": "Logical Operators",
+      "due_at": "2026-01-24T04:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 2: Dot/Bracket + If/else",
+      "manifest_title": "Logical Operators",
+      "questions": [
+        {
+          "ident": "g372a959fefecd0b7e8647cc20a3e6164",
+          "question_text": "<div>Which operator is used for logical AND in JavaScript?</div>",
+          "choices": [
+            {
+              "ident": "5774",
+              "text": "&&"
+            },
+            {
+              "ident": "2871",
+              "text": "||"
+            },
+            {
+              "ident": "1041",
+              "text": "=="
+            },
+            {
+              "ident": "5220",
+              "text": "!"
+            }
+          ],
+          "correct_response_ident": "5774"
+        },
+        {
+          "ident": "g5eb1dac55138b106570402a17dcc4327",
+          "question_text": "<div>Which operator represents logical OR?</div>",
+          "choices": [
+            {
+              "ident": "2885",
+              "text": "||"
+            },
+            {
+              "ident": "9553",
+              "text": "!="
+            },
+            {
+              "ident": "5330",
+              "text": "&&"
+            },
+            {
+              "ident": "3815",
+              "text": "="
+            }
+          ],
+          "correct_response_ident": "2885"
+        },
+        {
+          "ident": "gfd97032958f2a17423e7d0bab182e8c9",
+          "question_text": "<div>What does the ! (NOT) operator do?</div>",
+          "choices": [
+            {
+              "ident": "5662",
+              "text": "Reverses the boolean value"
+            },
+            {
+              "ident": "1445",
+              "text": "Adds two values"
+            },
+            {
+              "ident": "6548",
+              "text": "Makes a string lowercase"
+            },
+            {
+              "ident": "8149",
+              "text": "Checks for equality"
+            }
+          ],
+          "correct_response_ident": "5662"
+        },
+        {
+          "ident": "g437bbe03ba11895c2cd2b64d2cf85126",
+          "question_text": "<div>What does this code output?<br><img src=\"/public/course-images/frontend/image-5.png\" alt=\"let isHungry = true;  \nlet hasFood = false;  \nif (isHungry && hasFood) {  \n  console.log('Eat now');  \n} else {  \n  console.log('Can't eat');  \n}\" width=\"364\" height=\"258\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "8059",
+              "text": "Can't eat"
+            },
+            {
+              "ident": "668",
+              "text": "Eat now"
+            },
+            {
+              "ident": "3957",
+              "text": "Undefined"
+            },
+            {
+              "ident": "3796",
+              "text": "Error"
+            }
+          ],
+          "correct_response_ident": "8059",
+          "image": "image-5.png"
+        },
+        {
+          "ident": "gfc7441c2459f730d91df87b3cf38083a",
+          "question_text": "<div><p>What will this code log?<br><img src=\"/public/course-images/frontend/image-6.png\" alt=\"let loggedIn = false;  \nlet isGuest = true;  \nif (loggedIn || isGuest) {  \n  console.log('Access granted');  \n} else {  \n  console.log('Access denied');  \n}\" width=\"411\" height=\"237\" loading=\"lazy\"></p>\n<p> </p></div>",
+          "choices": [
+            {
+              "ident": "4957",
+              "text": "Access granted"
+            },
+            {
+              "ident": "438",
+              "text": "Access denied"
+            },
+            {
+              "ident": "9239",
+              "text": "Undefined"
+            },
+            {
+              "ident": "5303",
+              "text": "Syntax error"
+            }
+          ],
+          "correct_response_ident": "4957",
+          "image": "image-6.png"
+        },
+        {
+          "ident": "gcd7bd5b16b30234d9161d4339334a1eb",
+          "question_text": "<div>What will this log?<br><img src=\"/public/course-images/frontend/image-d034f709-eb20-4c98-8e08-0b391f56c475.png\" alt=\"let age = 17;  \nlet hasID = true;  \nif (age >= 18 && hasID) {  \n  console.log('Allowed in');  \n} else {  \n  console.log('Not allowed');  \n}\" width=\"278\" height=\"197\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "4158",
+              "text": "Not allowed"
+            },
+            {
+              "ident": "6225",
+              "text": "Allowed in"
+            },
+            {
+              "ident": "2733",
+              "text": "true"
+            },
+            {
+              "ident": "4091",
+              "text": "Error"
+            }
+          ],
+          "correct_response_ident": "4158",
+          "image": "image-d034f709-eb20-4c98-8e08-0b391f56c475.png"
+        },
+        {
+          "ident": "g91d9bf417876a3677e3c9b6b2e63e0c4",
+          "question_text": "<div>What will this code print?<br><img src=\"/public/course-images/frontend/image-274a83ba-1d10-494d-8640-80db7035faa4.png\" alt=\"let username = 'sam';  \nlet isAdmin = false;  \nif (username === 'sam' || isAdmin) {  \n  console.log('Welcome!');  \n} else {  \n  console.log('Access denied');  \n}\" width=\"364\" height=\"195\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "8726",
+              "text": "Welcome!"
+            },
+            {
+              "ident": "9029",
+              "text": "Access denied"
+            },
+            {
+              "ident": "6388",
+              "text": "Error"
+            },
+            {
+              "ident": "4828",
+              "text": "Nothing"
+            }
+          ],
+          "correct_response_ident": "8726",
+          "image": "image-274a83ba-1d10-494d-8640-80db7035faa4.png"
+        },
+        {
+          "ident": "ga9145ca351c859a900dc6123722312ea",
+          "question_text": "<div>What condition would allow this to run <strong><code data-start=\"1017\" data-end=\"1050\">console.log(\"Discount applied\")</code></strong>?<br><img src=\"/public/course-images/frontend/image-f8fc6fe6-4dc8-4d5f-9bbf-6c6a7480016c.png\" alt=\"let isStudent = true;  \nlet hasCoupon = false;  \nif (isStudent || hasCoupon) {  \n  console.log('Discount applied');  \n}\" width=\"474\" height=\"204\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "8863",
+              "text": "If at least one is true"
+            },
+            {
+              "ident": "9184",
+              "text": "Only if both are true"
+            },
+            {
+              "ident": "7964",
+              "text": "If neither is true"
+            },
+            {
+              "ident": "6096",
+              "text": "Only if isStudent is false"
+            }
+          ],
+          "correct_response_ident": "8863",
+          "image": "image-f8fc6fe6-4dc8-4d5f-9bbf-6c6a7480016c.png"
+        },
+        {
+          "ident": "g755f3c9e3452c1c8d2facb111e80bbdc",
+          "question_text": "<div>What will this code output?<br><img src=\"/public/course-images/frontend/image-02f02f27-6a54-4404-abb8-6b53b3b5c789.png\" alt=\"let loggedIn = true;  \nlet isPremium = false;  \nif (loggedIn && isPremium) {  \n  console.log('Show premium content');  \n} else {  \n  console.log('Show basic content');  \n}\" width=\"372\" height=\"200\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "1596",
+              "text": "Show basic content"
+            },
+            {
+              "ident": "3033",
+              "text": "Show premium content"
+            },
+            {
+              "ident": "4890",
+              "text": "true"
+            },
+            {
+              "ident": "4967",
+              "text": "false"
+            }
+          ],
+          "correct_response_ident": "1596",
+          "image": "image-02f02f27-6a54-4404-abb8-6b53b3b5c789.png"
+        },
+        {
+          "ident": "g5e0152266f39f7afac3723ab50ee0a15",
+          "question_text": "<div>What will this code output?<br><img src=\"/public/course-images/frontend/image-f3154f4a-7f35-45ce-bcde-354e0dfadec9.png\" alt=\"let temperature = 85;  \nlet isSunny = true;  \nif (temperature > 80 && isSunny) {  \n  console.log('Go to the beach');  \n} else {  \n  console.log('Stay indoors');  \n}\" width=\"303\" height=\"181\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "9561",
+              "text": "Go to the beach"
+            },
+            {
+              "ident": "4712",
+              "text": "Stay indoors"
+            },
+            {
+              "ident": "6046",
+              "text": "Error"
+            },
+            {
+              "ident": "8304",
+              "text": "true"
+            }
+          ],
+          "correct_response_ident": "9561",
+          "image": "image-f3154f4a-7f35-45ce-bcde-354e0dfadec9.png"
+        },
+        {
+          "ident": "g2fe03cb9d8181ab115e47f15b74aa76f",
+          "question_text": "<div>Which condition would let this message print: \"Send email\"?<br><img src=\"/public/course-images/frontend/image-c940ee52-f4ee-48b2-b232-507d52a29b14.png\" alt=\"let emailVerified = true;  \nlet userIsGuest = false;  \nif (emailVerified && !userIsGuest) {  \n  console.log('Send email');  \n}\" width=\"358\" height=\"147\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "1432",
+              "text": "If user is not a guest and their email is verified"
+            },
+            {
+              "ident": "2436",
+              "text": "If email is not verified"
+            },
+            {
+              "ident": "9885",
+              "text": "If both are false"
+            },
+            {
+              "ident": "7389",
+              "text": "If user is a guest"
+            }
+          ],
+          "correct_response_ident": "1432",
+          "image": "image-c940ee52-f4ee-48b2-b232-507d52a29b14.png"
+        },
+        {
+          "ident": "g85e566d3fe3fec7fe85a690803ce4916",
+          "question_text": "<div>What does this check?<br><img src=\"/public/course-images/frontend/image-232a7efe-26df-4698-aeb4-84aebe57e628.png\" alt=\"let hasMembership = true;  \nlet itemsInCart = 0;  \nif (hasMembership || itemsInCart > 0) {  \n  console.log('Show checkout button');  \n}\" width=\"437\" height=\"159\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "6622",
+              "text": "One or both must be true"
+            },
+            {
+              "ident": "7979",
+              "text": "Only hasMembership must be false"
+            },
+            {
+              "ident": "7667",
+              "text": "Both must be true"
+            },
+            {
+              "ident": "2306",
+              "text": "Neither must be true"
+            }
+          ],
+          "correct_response_ident": "6622",
+          "image": "image-232a7efe-26df-4698-aeb4-84aebe57e628.png"
+        }
+      ]
+    },
+    {
+      "identifier": "g79a77b9646e0345bacbe1d34e7b5b213",
+      "type": "quiz",
+      "title": "Parameters + Arguments Quiz",
+      "due_at": "2026-02-14T04:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 5: More Loops + Functions + Scope",
+      "manifest_title": "Parameters + Arguments Quiz",
+      "questions": [
+        {
+          "ident": "gdf394dbb813dc99bc83384d2ca3c68f6",
+          "question_text": "<div><p>Refer to the <strong><code>addPoints()</code></strong> function.</p>\n<p>At the <strong><code>addPoints()</code></strong> function declaration, what is the value of '<strong>points</strong>'?</p></div>",
+          "choices": [
+            {
+              "ident": "5765",
+              "text": "It does not have value yet"
+            },
+            {
+              "ident": "1824",
+              "text": "0"
+            },
+            {
+              "ident": "9966",
+              "text": "1"
+            },
+            {
+              "ident": "2483",
+              "text": "totalScore"
+            }
+          ],
+          "correct_response_ident": "5765"
+        },
+        {
+          "ident": "g7568a5ce7bc25e484e00d388aa2bf08c",
+          "question_text": "<div>The <code><strong>addPoints()</strong></code> function uses a parameter called <strong><code>points</code>. </strong>Where in the program does '<strong><code>points</code>'</strong> get its value?</div>",
+          "choices": [
+            {
+              "ident": "6823",
+              "text": "All of the above"
+            },
+            {
+              "ident": "6407",
+              "text": "In the single function calls, addPoints is called and 50 is passed in as the argument"
+            },
+            {
+              "ident": "6891",
+              "text": "The earnBonus() function calls the addPoints function and passes in bonusPoints as the argument."
+            },
+            {
+              "ident": "9494",
+              "text": "The awardAchievement() function calls addPoints() and passes in pointReward as an argument"
+            }
+          ],
+          "correct_response_ident": "6823"
+        },
+        {
+          "ident": "g420affafeb1305eb0850ac48dd013429",
+          "question_text": "<div>In the <code>addPoints()</code> function, why do we want <code>points</code> to be dynamic?</div>",
+          "choices": [
+            {
+              "ident": "1289",
+              "text": "Because every player will have a different number of points to add to, and we want to be able to use the same function for all players, instead of making a different function for every possible points value."
+            },
+            {
+              "ident": "7480",
+              "text": "We don't know what the value of points is yet"
+            },
+            {
+              "ident": "8566",
+              "text": "We don't want to use global scope for points"
+            },
+            {
+              "ident": "7982",
+              "text": "None of the above"
+            }
+          ],
+          "correct_response_ident": "1289"
+        },
+        {
+          "ident": "g4ab372a9506c7f4d1746995baaa9fd73",
+          "question_text": "<div>When <code>updatePlayer()</code> is declared, what are the values of <code>name</code> and <code>level</code>?</div>",
+          "choices": [
+            {
+              "ident": "2268",
+              "text": "Parameters do not have values when the function is declared, so we don't know yet"
+            },
+            {
+              "ident": "2381",
+              "text": "FirstName, levelOne"
+            },
+            {
+              "ident": "274",
+              "text": "\"Jordan\", 1"
+            },
+            {
+              "ident": "9927",
+              "text": "\"AnnieCannons\", LevelOneThousand"
+            }
+          ],
+          "correct_response_ident": "2268"
+        },
+        {
+          "ident": "gfc0794a80b29e1e47390f33c1a64f64b",
+          "question_text": "<div>How many pieces of data does the <code>updatePlayer()</code> function need to run?</div>",
+          "choices": [
+            {
+              "ident": "1582",
+              "text": "2: name and level"
+            },
+            {
+              "ident": "9860",
+              "text": "3: name, level, playerName"
+            },
+            {
+              "ident": "2384",
+              "text": "4: name, level, playerName, gameLevel"
+            },
+            {
+              "ident": "1419",
+              "text": "1: playerName"
+            }
+          ],
+          "correct_response_ident": "1582"
+        },
+        {
+          "ident": "g4dc0810b18bb66d0324a2f5fd12bc1ac",
+          "question_text": "<div><p>What happens to the global variables when <code>updatePlayer()</code> function runs? </p></div>",
+          "choices": [
+            {
+              "ident": "5180",
+              "text": "They get reassigned to be the value of name and level"
+            },
+            {
+              "ident": "1443",
+              "text": "\"Jordan\" and 1 get passed into the function"
+            },
+            {
+              "ident": "5429",
+              "text": "They are not used in this function"
+            },
+            {
+              "ident": "7456",
+              "text": "All of the above"
+            }
+          ],
+          "correct_response_ident": "5180"
+        },
+        {
+          "ident": "g6eb942bac4bf6d54f04d5c6f755e3a70",
+          "question_text": "<div>What does <code>earnBonus()</code> do with the <code>bonusPoints</code> variable?</div>",
+          "choices": [
+            {
+              "ident": "8382",
+              "text": "Passes the variable into the addPoints() function as an argument"
+            },
+            {
+              "ident": "4117",
+              "text": "Calculates basePoints times multiplier"
+            },
+            {
+              "ident": "6330",
+              "text": "Creates a sentence"
+            },
+            {
+              "ident": "7387",
+              "text": "Nothing"
+            }
+          ],
+          "correct_response_ident": "8382"
+        },
+        {
+          "ident": "gb8f97aae441c706fb2ce45b315f1b2ec",
+          "question_text": "<div><p>When <code>earnBonus</code> calls <code>addPoints(bonusPoints)</code>, what value gets passed to the '<code>points</code>' parameter?</p>\n<p><strong>NOTE:</strong> take your time on this one! You will have to follow the data to find the answer.</p></div>",
+          "choices": [
+            {
+              "ident": "7688",
+              "text": "50"
+            },
+            {
+              "ident": "9293",
+              "text": "25"
+            },
+            {
+              "ident": "4515",
+              "text": "1"
+            },
+            {
+              "ident": "8925",
+              "text": "300"
+            }
+          ],
+          "correct_response_ident": "7688"
+        },
+        {
+          "ident": "gaa565d3a57356f20459c19e3b49a2de8",
+          "question_text": "<div>Why is it useful for one function to call another?</div>",
+          "choices": [
+            {
+              "ident": "8353",
+              "text": "All of the above"
+            },
+            {
+              "ident": "7767",
+              "text": "We can pass local variables to the next function and avoid using too many globals"
+            },
+            {
+              "ident": "1424",
+              "text": "Large, complicated tasks become easier to understand and manage when broken into smaller pieces. For example, earnBonus() has one job (calculate bonus points) and then hands off the separate job of updating the score to addPoints(). Each function has a clear, single responsibility."
+            },
+            {
+              "ident": "3508",
+              "text": "If you need to change how something works, you only change it in one place. If the way points are added needs to change (maybe add sound effects or animations), you only update the addPoints() function, and all the other functions that call it automatically get the improvement."
+            }
+          ],
+          "correct_response_ident": "8353"
+        },
+        {
+          "ident": "g415cf96537046f81f994998612ca217d",
+          "question_text": "<div><p>The function <code>processGameResults()</code> </p>\n<ol style=\"list-style-type: decimal;\">\n<li>Calculates the <code>winRate</code> and the <code>winPercentage</code>.</li>\n<li>Logs a sentence for testing to the console. </li>\n<li>Calls <code>displayStats</code> and passes in <code>winRate</code>, along with two other parameters</li>\n</ol></div>",
+          "choices": [
+            {
+              "ident": "7355",
+              "text": "True"
+            },
+            {
+              "ident": "6979",
+              "text": "False"
+            }
+          ],
+          "correct_response_ident": "6979"
+        },
+        {
+          "ident": "g5ce2be10d28a2498b917297832351c89",
+          "question_text": "<div>When <code>displayStats()</code> is called, what value does '<code>percentage</code>' receive?</div>",
+          "choices": [
+            {
+              "ident": "6226",
+              "text": "Math.round(winRate * 100), or 70"
+            },
+            {
+              "ident": "9859",
+              "text": "14"
+            },
+            {
+              "ident": "785",
+              "text": "winPercentage"
+            },
+            {
+              "ident": "8694",
+              "text": "None of the above"
+            }
+          ],
+          "correct_response_ident": "6226"
+        },
+        {
+          "ident": "g340c59088c9d6520713aaaaa0150e8cc",
+          "question_text": "<div>Why are the parameter names in <code>displayStats()</code> different from the argument names?</div>",
+          "choices": [
+            {
+              "ident": "8503",
+              "text": "The parameters when the function is declared are placeholders. We can pass in any value as an argument when the function is called. Either a hard coded value or a different variable from our program"
+            },
+            {
+              "ident": "7906",
+              "text": "They should not be different, that is not best practices"
+            },
+            {
+              "ident": "6591",
+              "text": "You can always change the parameter name to match the argument"
+            },
+            {
+              "ident": "3129",
+              "text": "All of the above"
+            }
+          ],
+          "correct_response_ident": "8503"
+        },
+        {
+          "ident": "gd00fc9a05cda1f51f38739171a2655fc",
+          "question_text": "<div>Trace the data: <code>wins</code> becomes what parameter in <code>displayStats</code>?</div>",
+          "choices": [
+            {
+              "ident": "9782",
+              "text": "totalWins"
+            },
+            {
+              "ident": "9182",
+              "text": "winPercentage"
+            },
+            {
+              "ident": "6661",
+              "text": "percentage"
+            },
+            {
+              "ident": "6164",
+              "text": "winnerWinner"
+            }
+          ],
+          "correct_response_ident": "9782"
+        },
+        {
+          "ident": "g90af37ce7e34a114726b7c08545592d1",
+          "question_text": "<div><code>awardAchievement</code> is called 3 times with different arguments. <br>What will <code>achievementName</code> be in the third call? </div>",
+          "choices": [
+            {
+              "ident": "1664",
+              "text": "Perfect Game"
+            },
+            {
+              "ident": "3879",
+              "text": "First Victory"
+            },
+            {
+              "ident": "7835",
+              "text": "200"
+            },
+            {
+              "ident": "1081",
+              "text": "75"
+            }
+          ],
+          "correct_response_ident": "1664"
+        },
+        {
+          "ident": "g177cba09d5d36bbb6b204aed4a0d79dd",
+          "question_text": "<div><code>awardAchievement</code> is called 3 times with different arguments. <br>What will <code>pointReward</code> be in the second call? </div>",
+          "choices": [
+            {
+              "ident": "6309",
+              "text": "75"
+            },
+            {
+              "ident": "4536",
+              "text": "50"
+            },
+            {
+              "ident": "208",
+              "text": "200"
+            },
+            {
+              "ident": "9220",
+              "text": "First Victory"
+            }
+          ],
+          "correct_response_ident": "6309"
+        },
+        {
+          "ident": "gbbb4761615c4418e087ea806e702bd58",
+          "question_text": "<div>If you did the bonus, add your link here. If you skipped the bonus this time, type <strong>N/A</strong> here.</div>",
+          "choices": []
+        }
+      ]
+    },
+    {
+      "identifier": "g2a840b67294ed0af93601f2a75abfbad",
+      "type": "quiz",
+      "title": "Student Handbook",
+      "due_at": "2026-01-17T04:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 1: Onboarding + Review",
+      "manifest_title": "Student Handbook",
+      "questions": [
+        {
+          "ident": "g6a12d99286fd710ad578b1ca90529ae2",
+          "question_text": "<div>What is the weekly schedule for advanced classes?</div>",
+          "choices": [
+            {
+              "ident": "7033",
+              "text": "Monday to Friday, 25 hours"
+            },
+            {
+              "ident": "682",
+              "text": "Monday to Thursday, 20 hours"
+            },
+            {
+              "ident": "3895",
+              "text": "Monday to Friday, 20 hours"
+            },
+            {
+              "ident": "2057",
+              "text": "Monday to Thursday, 25 hours"
+            }
+          ],
+          "correct_response_ident": "7033"
+        },
+        {
+          "ident": "g1c83b545a94d1d34ed5ac51ad5e844c3",
+          "question_text": "<div>What happens if an advanced student cannot complete an assignment by the due date?</div>",
+          "choices": [
+            {
+              "ident": "9724",
+              "text": "They must submit the late statement"
+            },
+            {
+              "ident": "8365",
+              "text": "Nothing, we don't track assignments"
+            },
+            {
+              "ident": "2120",
+              "text": "They must email the instructor explaining why"
+            },
+            {
+              "ident": "5644",
+              "text": "They will be automatically dropped from the course"
+            }
+          ],
+          "correct_response_ident": "9724"
+        },
+        {
+          "ident": "g83ed88b584989d6c66ce2b086635125a",
+          "question_text": "<div>When are assignments due for advanced students?</div>",
+          "choices": [
+            {
+              "ident": "6481",
+              "text": "It depends, please refer to your assignment due dates"
+            },
+            {
+              "ident": "590",
+              "text": "End of Block C on Thursday"
+            },
+            {
+              "ident": "1400",
+              "text": "Monday morning of the following week"
+            },
+            {
+              "ident": "8825",
+              "text": "End of day Thursday"
+            }
+          ],
+          "correct_response_ident": "6481"
+        },
+        {
+          "ident": "g5e8b63ebc54f79c8ce9bc068e240d531",
+          "question_text": "<div>What must happen before a student can move on to the next course?</div>",
+          "choices": [
+            {
+              "ident": "5012",
+              "text": "All assignments for the current course must be completed"
+            },
+            {
+              "ident": "6645",
+              "text": "All comments must be submitted"
+            },
+            {
+              "ident": "633",
+              "text": "Nothing, students advance automatically"
+            },
+            {
+              "ident": "9269",
+              "text": "All quizzes must be retaken"
+            }
+          ],
+          "correct_response_ident": "5012"
+        },
+        {
+          "ident": "ge535edaccaba54fca1bc716c58bab6cf",
+          "question_text": "<div>What should advanced students do when copying code from the internet?</div>",
+          "choices": [
+            {
+              "ident": "7940",
+              "text": "Cite the source URL and add a comment explaining what the code does"
+            },
+            {
+              "ident": "4682",
+              "text": "Only copy from Stack Overflow"
+            },
+            {
+              "ident": "4",
+              "text": "Rewrite it in their own words"
+            },
+            {
+              "ident": "4104",
+              "text": "Paste it as-is with no comment"
+            }
+          ],
+          "correct_response_ident": "7940"
+        },
+        {
+          "ident": "gb650b5373aa744b24254d357f0cf6a90",
+          "question_text": "<div>What happens if you turn in another student’s code as your own?</div>",
+          "choices": [
+            {
+              "ident": "1481",
+              "text": "The assignment will be marked as incomplete"
+            },
+            {
+              "ident": "1134",
+              "text": "You must credit the student in Slack"
+            },
+            {
+              "ident": "1410",
+              "text": "It's ok as long as you include comments"
+            },
+            {
+              "ident": "2246",
+              "text": "No answer text provided."
+            }
+          ],
+          "correct_response_ident": "1481"
+        },
+        {
+          "ident": "g5e7791992b92fefbf8e82fea092d2757",
+          "question_text": "<div>What is the purpose of a Professional Improvement Plan (PIP)?</div>",
+          "choices": [
+            {
+              "ident": "3698",
+              "text": "To provide structured support and help students reach their professional goals"
+            },
+            {
+              "ident": "7794",
+              "text": "To punish students for being behind"
+            },
+            {
+              "ident": "4862",
+              "text": "To require students to reapply for the program"
+            }
+          ],
+          "correct_response_ident": "3698"
+        },
+        {
+          "ident": "gf02fb9c9c8c755107f6a0c5f7418da4d",
+          "question_text": "<div>In order to be clocked in, you...</div>",
+          "choices": [
+            {
+              "ident": "4143",
+              "text": "Can login from a computer, are able to be upright, camera on"
+            },
+            {
+              "ident": "9109",
+              "text": "Can login from a phone so you can hear"
+            },
+            {
+              "ident": "819",
+              "text": "Can run errands as long as you have your hot spot"
+            },
+            {
+              "ident": "7814",
+              "text": "Can work on other assignments during lecture"
+            }
+          ],
+          "correct_response_ident": "4143"
+        },
+        {
+          "ident": "ga215c2b7ca5e68b8bddaf2fb5b7fef9c",
+          "question_text": "<div>Although we highly encourage people to continue to learn outside of class time, when are you allowed to fulfill your 25 hours of <strong>paid</strong> work?</div>",
+          "choices": [
+            {
+              "ident": "6832",
+              "text": "Only during class hours. We do not offer flexible hours."
+            },
+            {
+              "ident": "2186",
+              "text": "Whenever I want, as long as I work for 25 hours"
+            },
+            {
+              "ident": "597",
+              "text": "If I'm 20 mins late, I can make that up later and still clock in for the full five hours"
+            },
+            {
+              "ident": "7392",
+              "text": "If I have an important doctor's appointment on Friday, I can make it up on the weekend."
+            }
+          ],
+          "correct_response_ident": "6832"
+        }
+      ]
+    },
+    {
+      "identifier": "g1554974c0524582d674aaca02b8373ec",
+      "type": "question_bank",
+      "title": "Unfiled Questions",
+      "due_at": "",
+      "quiz_type": "question_bank",
+      "module_title": "",
+      "manifest_title": "",
+      "questions": [
+        {
+          "ident": "g764cb39653bcdea9ac99e77d04b69a90",
+          "question_text": "<div><code>awardAchievement</code> is called 3 times with different arguments. <br>What will <code>achievementName</code> be in the third call? </div>",
+          "choices": [
+            {
+              "ident": "1664",
+              "text": "Perfect Game"
+            },
+            {
+              "ident": "3879",
+              "text": "First Victory"
+            },
+            {
+              "ident": "7835",
+              "text": "200"
+            },
+            {
+              "ident": "1081",
+              "text": "75"
+            }
+          ],
+          "correct_response_ident": "1664"
+        },
+        {
+          "ident": "g131674e7e456ddb02e9353c8ea32c65c",
+          "question_text": "<div><code>awardAchievement</code> is called 3 times with different arguments. <br>What will <code>pointReward</code> be in the second call? </div>",
+          "choices": [
+            {
+              "ident": "6309",
+              "text": "75"
+            },
+            {
+              "ident": "4536",
+              "text": "50"
+            },
+            {
+              "ident": "208",
+              "text": "200"
+            },
+            {
+              "ident": "9220",
+              "text": "First Victory"
+            }
+          ],
+          "correct_response_ident": "6309"
+        },
+        {
+          "ident": "g517effd1f422e91c518debebc82ad31e",
+          "question_text": "<div>What does <code>earnBonus()</code> do with the <code>bonusPoints</code> variable?</div>",
+          "choices": [
+            {
+              "ident": "8382",
+              "text": "Passes the variable into the addPoints() function as an argument"
+            },
+            {
+              "ident": "4117",
+              "text": "Calculates basePoints times multiplier"
+            },
+            {
+              "ident": "6330",
+              "text": "Creates a sentence"
+            },
+            {
+              "ident": "7387",
+              "text": "Nothing"
+            }
+          ],
+          "correct_response_ident": "8382"
+        },
+        {
+          "ident": "g0a7b000aa0e00049646a84c8278b754e",
+          "question_text": "<div><p>When <code>earnBonus</code> calls <code>addPoints(bonusPoints)</code>, what value gets passed to the '<code>points</code>' parameter?</p>\n<p><strong>NOTE:</strong> take your time on this one! You will have to follow the data to find the answer.</p></div>",
+          "choices": [
+            {
+              "ident": "7688",
+              "text": "50"
+            },
+            {
+              "ident": "9293",
+              "text": "25"
+            },
+            {
+              "ident": "4515",
+              "text": "1"
+            },
+            {
+              "ident": "8925",
+              "text": "300"
+            }
+          ],
+          "correct_response_ident": "7688"
+        },
+        {
+          "ident": "gf16f5cbca59067bae80372ce8488f6d7",
+          "question_text": "<div>Why is it useful for one function to call another?</div>",
+          "choices": [
+            {
+              "ident": "8353",
+              "text": "All of the above"
+            },
+            {
+              "ident": "7767",
+              "text": "We can pass local variables to the next function and avoid using too many globals"
+            },
+            {
+              "ident": "1424",
+              "text": "Large, complicated tasks become easier to understand and manage when broken into smaller pieces. For example, earnBonus() has one job (calculate bonus points) and then hands off the separate job of updating the score to addPoints(). Each function has a clear, single responsibility."
+            },
+            {
+              "ident": "3508",
+              "text": "If you need to change how something works, you only change it in one place. If the way points are added needs to change (maybe add sound effects or animations), you only update the addPoints() function, and all the other functions that call it automatically get the improvement."
+            }
+          ],
+          "correct_response_ident": "8353"
+        },
+        {
+          "ident": "gc4b58fcae94821841005ce06ff36ea09",
+          "question_text": "<div><p>The function <code>processGameResults()</code> </p>\n<ol style=\"list-style-type: decimal;\">\n<li>Calculates the <code>winRate</code> and the <code>winPercentage</code>.</li>\n<li>Logs a sentence for testing to the console. </li>\n<li>Calls <code>displayStats</code> and passes in <code>winRate</code>, along with two other parameters</li>\n</ol></div>",
+          "choices": [
+            {
+              "ident": "7355",
+              "text": "True"
+            },
+            {
+              "ident": "6979",
+              "text": "False"
+            }
+          ],
+          "correct_response_ident": "7355"
+        },
+        {
+          "ident": "g4390ae637f02619150c0a7224819b38c",
+          "question_text": "<div>When <code>displayStats()</code> is called, what value does '<code>percentage</code>' receive?</div>",
+          "choices": [
+            {
+              "ident": "6226",
+              "text": "Math.round(winRate * 100), or 70"
+            },
+            {
+              "ident": "9859",
+              "text": "14"
+            },
+            {
+              "ident": "785",
+              "text": "winPercentage"
+            },
+            {
+              "ident": "8694",
+              "text": "None of the above"
+            }
+          ],
+          "correct_response_ident": "6226"
+        },
+        {
+          "ident": "gdb6b2fe94554efbf847eefba928692f7",
+          "question_text": "<div>Trace the data: <code>wins</code> becomes what parameter in <code>displayStats</code>?</div>",
+          "choices": [
+            {
+              "ident": "9782",
+              "text": "totalWins"
+            },
+            {
+              "ident": "9182",
+              "text": "winPercentage"
+            },
+            {
+              "ident": "6661",
+              "text": "percentage"
+            },
+            {
+              "ident": "6164",
+              "text": "winnerWinner"
+            }
+          ],
+          "correct_response_ident": "9782"
+        },
+        {
+          "ident": "g7bdd812f21c425f5f07f0b657da6bf29",
+          "question_text": "<div><p>Refer to the <strong><code>addPoints()</code></strong> function.</p>\n<p>At the <strong><code>addPoints()</code></strong> function declaration, what is the value of '<strong>points</strong>'?</p></div>",
+          "choices": [
+            {
+              "ident": "5765",
+              "text": "It does not have value yet"
+            },
+            {
+              "ident": "1824",
+              "text": "0"
+            },
+            {
+              "ident": "9966",
+              "text": "1"
+            },
+            {
+              "ident": "2483",
+              "text": "totalScore"
+            }
+          ],
+          "correct_response_ident": "5765"
+        },
+        {
+          "ident": "g30544aa1105594f4fea570366fe2a940",
+          "question_text": "<div>The <strong>addPoints()</strong> function uses a parameter called <strong>points. </strong>Where in the program does '<strong>points'</strong> get its value?</div>",
+          "choices": [
+            {
+              "ident": "6823",
+              "text": "All of the above"
+            },
+            {
+              "ident": "6407",
+              "text": "In the single function calls, addPoints is called and 50 is passed in as the argument"
+            },
+            {
+              "ident": "6891",
+              "text": "The earnBonus() function calls the addPoints function and passes in bonusPoints as the argument."
+            },
+            {
+              "ident": "9494",
+              "text": "The awardAchievement() function calls addPoints() and passes in pointReward as an argument"
+            }
+          ],
+          "correct_response_ident": "6823"
+        },
+        {
+          "ident": "gba87a2566b920631c5a27ccf210dd510",
+          "question_text": "<div>In the <code>addPoints()</code> function, why do we want <code>points</code> to be dynamic?</div>",
+          "choices": [
+            {
+              "ident": "1289",
+              "text": "Because every player will have a different number of points to add to, and we want to be able to use the same function for all players, instead of making a different function for every possible points value."
+            },
+            {
+              "ident": "7480",
+              "text": "We don't know what the value of points is yet"
+            },
+            {
+              "ident": "8566",
+              "text": "We don't want to use global scope for points"
+            },
+            {
+              "ident": "7982",
+              "text": "None of the above"
+            }
+          ],
+          "correct_response_ident": "1289"
+        },
+        {
+          "ident": "gf2a6a1707a37a55a8f607ad23dbca5c9",
+          "question_text": "<div>Why are the parameter names in <code>displayStats()</code> different from the argument names?</div>",
+          "choices": [
+            {
+              "ident": "8503",
+              "text": "The parameters when the function is declared are placeholders. We can pass in any value as an argument when the function is called. Either a hard coded value or a different variable from our program"
+            },
+            {
+              "ident": "7906",
+              "text": "They should not be different, that is not best practices"
+            },
+            {
+              "ident": "6591",
+              "text": "You can always change the parameter name to match the argument"
+            },
+            {
+              "ident": "3129",
+              "text": "All of the above"
+            }
+          ],
+          "correct_response_ident": "8503"
+        },
+        {
+          "ident": "gb49ffa9606febd354e4fa21c38a2ff3a",
+          "question_text": "<div>If you did the bonus, add your link here. If you skipped the bonus this time, type <strong>N/A</strong> here.</div>",
+          "choices": []
+        },
+        {
+          "ident": "g1f6d4d1b6609ec7e96cdce9d25e81d32",
+          "question_text": "<div>What is the weekly schedule for advanced classes?</div>",
+          "choices": [
+            {
+              "ident": "7033",
+              "text": "Monday to Friday, 25 hours"
+            },
+            {
+              "ident": "682",
+              "text": "Monday to Thursday, 20 hours"
+            },
+            {
+              "ident": "3895",
+              "text": "Monday to Friday, 20 hours"
+            },
+            {
+              "ident": "2057",
+              "text": "Monday to Thursday, 25 hours"
+            }
+          ],
+          "correct_response_ident": "7033"
+        },
+        {
+          "ident": "g2183146edf8d373270ec90b0cb6c180d",
+          "question_text": "<div>What happens if an advanced student cannot complete an assignment by the due date?</div>",
+          "choices": [
+            {
+              "ident": "9724",
+              "text": "They must submit the late statement"
+            },
+            {
+              "ident": "8365",
+              "text": "Nothing, we don't track assignments"
+            },
+            {
+              "ident": "2120",
+              "text": "They must email the instructor explaining why"
+            },
+            {
+              "ident": "5644",
+              "text": "They will be automatically dropped from the course"
+            }
+          ],
+          "correct_response_ident": "9724"
+        },
+        {
+          "ident": "g4a47a6d9d9c9b8ec17f5e4975c154f85",
+          "question_text": "<div>When are assignments due for advanced students?</div>",
+          "choices": [
+            {
+              "ident": "6481",
+              "text": "It depends, please refer to your assignment due dates"
+            },
+            {
+              "ident": "590",
+              "text": "End of Block C on Thursday"
+            },
+            {
+              "ident": "1400",
+              "text": "Monday morning of the following week"
+            },
+            {
+              "ident": "8825",
+              "text": "End of day Thursday"
+            }
+          ],
+          "correct_response_ident": "6481"
+        },
+        {
+          "ident": "gfc33b8fb49ddc9b6da91e8923719a967",
+          "question_text": "<div>What must happen before a student can move on to the next course?</div>",
+          "choices": [
+            {
+              "ident": "5012",
+              "text": "All assignments for the current course must be completed"
+            },
+            {
+              "ident": "6645",
+              "text": "All comments must be submitted"
+            },
+            {
+              "ident": "633",
+              "text": "Nothing, students advance automatically"
+            },
+            {
+              "ident": "9269",
+              "text": "All quizzes must be retaken"
+            }
+          ],
+          "correct_response_ident": "5012"
+        },
+        {
+          "ident": "g1fdd4a278c438ab10df9cb9f39a4343f",
+          "question_text": "<div>What should advanced students do when copying code from the internet?</div>",
+          "choices": [
+            {
+              "ident": "7940",
+              "text": "Cite the source URL and add a comment explaining what the code does"
+            },
+            {
+              "ident": "4682",
+              "text": "Only copy from Stack Overflow"
+            },
+            {
+              "ident": "4",
+              "text": "Rewrite it in their own words"
+            },
+            {
+              "ident": "4104",
+              "text": "Paste it as-is with no comment"
+            }
+          ],
+          "correct_response_ident": "7940"
+        },
+        {
+          "ident": "gea9b7658cdd4fbc4d9e072119e7bf913",
+          "question_text": "<div>What happens if you turn in another student’s code as your own?</div>",
+          "choices": [
+            {
+              "ident": "1481",
+              "text": "The assignment will be marked as incomplete"
+            },
+            {
+              "ident": "1134",
+              "text": "You must credit the student in Slack"
+            },
+            {
+              "ident": "1410",
+              "text": "It's ok as long as you include comments"
+            },
+            {
+              "ident": "2246",
+              "text": "No answer text provided."
+            }
+          ],
+          "correct_response_ident": "1481"
+        },
+        {
+          "ident": "g6403c00b46df6794f5b084e7efeaea2e",
+          "question_text": "<div>What is the purpose of a Professional Improvement Plan (PIP)?</div>",
+          "choices": [
+            {
+              "ident": "3698",
+              "text": "To provide structured support and help students reach their professional goals"
+            },
+            {
+              "ident": "7794",
+              "text": "To punish students for being behind"
+            },
+            {
+              "ident": "4862",
+              "text": "To require students to reapply for the program"
+            }
+          ],
+          "correct_response_ident": "3698"
+        },
+        {
+          "ident": "g09c77fd24a0a1dc8f7820042671a1eb4",
+          "question_text": "<div>In order to be clocked in, you...</div>",
+          "choices": [
+            {
+              "ident": "4143",
+              "text": "Can login from a computer, are able to be upright, camera on"
+            },
+            {
+              "ident": "9109",
+              "text": "Can login from a phone so you can hear"
+            },
+            {
+              "ident": "819",
+              "text": "Can run errands as long as you have your hot spot"
+            },
+            {
+              "ident": "7814",
+              "text": "Can work on other assignments during lecture"
+            }
+          ],
+          "correct_response_ident": "4143"
+        },
+        {
+          "ident": "gf935d280cd91fd396bde0a17ad48bbf6",
+          "question_text": "<div><p class=\"\" data-start=\"393\" data-end=\"452\">What is the correct way to define a function in JavaScript?</p></div>",
+          "choices": [
+            {
+              "ident": "415",
+              "text": "function myFunction() { //code here }"
+            },
+            {
+              "ident": "7649",
+              "text": "let myFunction = ()"
+            },
+            {
+              "ident": "8081",
+              "text": "myFunction: function {}"
+            },
+            {
+              "ident": "7201",
+              "text": "function = myFunction() {}"
+            }
+          ],
+          "correct_response_ident": "415"
+        },
+        {
+          "ident": "g934f5e35503aa327a6d286e42e94d6ae",
+          "question_text": "<div><p class=\"\" data-start=\"632\" data-end=\"670\">Why do we use functions in JavaScript?</p></div>",
+          "choices": [
+            {
+              "ident": "4840",
+              "text": "So that code runs only when we want it to"
+            },
+            {
+              "ident": "2176",
+              "text": "To declare variables"
+            },
+            {
+              "ident": "4962",
+              "text": "To write CSS styles"
+            },
+            {
+              "ident": "5894",
+              "text": "To comment out code"
+            }
+          ],
+          "correct_response_ident": "4840"
+        },
+        {
+          "ident": "g66949d9dd5882dcd323da2cf02e1fb58",
+          "question_text": "<div><p class=\"\" data-start=\"849\" data-end=\"907\">What happens when you define a function but don’t call it?</p></div>",
+          "choices": [
+            {
+              "ident": "5674",
+              "text": "Nothing happens until you call it"
+            },
+            {
+              "ident": "3575",
+              "text": "The code runs automatically"
+            },
+            {
+              "ident": "6469",
+              "text": "It causes an error"
+            },
+            {
+              "ident": "7405",
+              "text": "The function disappears"
+            }
+          ],
+          "correct_response_ident": "5674"
+        },
+        {
+          "ident": "g485a6ba78db78cdc5592bd3de1b5de07",
+          "question_text": "<div><p class=\"\" data-start=\"1094\" data-end=\"1121\">What does this function do?</p>\n<div class=\"contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary\">\n<div class=\"sticky top-9\">\n<div class=\"absolute end-0 bottom-0 flex h-9 items-center pe-2\"></div>\n</div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-js\"><span><span class=\"hljs-keyword\">function</span> <span class=\"hljs-title function_\">greet</span>() {\n<br>  <span class=\"hljs-variable language_\">   console</span>.<span class=\"hljs-title function_\">log</span>(<span class=\"hljs-string\">\"Hi!\"</span>);\n<br>}</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "6847",
+              "text": "It stores code that will run later when we call greet()"
+            },
+            {
+              "ident": "8732",
+              "text": "It prints “Hi!” right away when the page loads"
+            },
+            {
+              "ident": "3384",
+              "text": "It defines a variable"
+            },
+            {
+              "ident": "6710",
+              "text": "It adds HTML to the page"
+            }
+          ],
+          "correct_response_ident": "6847"
+        },
+        {
+          "ident": "g11e4174739b7538ab20bd0f9f24288dd",
+          "question_text": "<div>Which line correctly calls a function named <code data-start=\"1453\" data-end=\"1464\">startGame</code>?</div>",
+          "choices": [
+            {
+              "ident": "9331",
+              "text": "startGame();"
+            },
+            {
+              "ident": "5136",
+              "text": "startGame;"
+            },
+            {
+              "ident": "9945",
+              "text": "function startGame()"
+            },
+            {
+              "ident": "8293",
+              "text": "call startGame()"
+            }
+          ]
+        },
+        {
+          "ident": "g21c098cc7a027e1c1e1e58c83cdf18dd",
+          "question_text": "<div><p class=\"\" data-start=\"85\" data-end=\"165\">What is another way to call the <code data-start=\"117\" data-end=\"128\">startGame</code> function when a user submits a form?</p></div>",
+          "choices": [
+            {
+              "ident": "482",
+              "text": "No answer text provided."
+            },
+            {
+              "ident": "6216",
+              "text": "No answer text provided."
+            },
+            {
+              "ident": "1154",
+              "text": "No answer text provided."
+            },
+            {
+              "ident": "1658",
+              "text": "No answer text provided."
+            }
+          ]
+        },
+        {
+          "ident": "g6c24ad544481768f87a267d841c4cd51",
+          "question_text": "<div>Although we highly encourage people to continue to learn outside of class time, when are you allowed to fulfill your 25 hours of <strong>paid</strong> work?</div>",
+          "choices": [
+            {
+              "ident": "6832",
+              "text": "Only during class hours. We do not offer flexible hours."
+            },
+            {
+              "ident": "2186",
+              "text": "Whenever I want, as long as I work for 25 hours"
+            },
+            {
+              "ident": "597",
+              "text": "If I'm 20 mins late, I can make that up later and still clock in for the full five hours"
+            },
+            {
+              "ident": "7392",
+              "text": "If I have an important doctor's appointment on Friday, I can make it up on the weekend."
+            }
+          ],
+          "correct_response_ident": "6832"
+        },
+        {
+          "ident": "g46c4fc081827d9e71331bcf9a8307dbf",
+          "question_text": "<div>What is the purpose of an if statement in JavaScript?</div>",
+          "choices": [
+            {
+              "ident": "8446",
+              "text": "To run code only when a condition is true"
+            },
+            {
+              "ident": "7184",
+              "text": "To repeat code multiple times"
+            },
+            {
+              "ident": "323",
+              "text": "To store values"
+            },
+            {
+              "ident": "4777",
+              "text": "To define a function"
+            }
+          ],
+          "correct_response_ident": "8446"
+        },
+        {
+          "ident": "g6deb30e8d7372c7753ee88db72a5101f",
+          "question_text": "<div><p>What will this code output?</p>\n<p><img src=\"/public/course-images/frontend/image-3.png\" alt=\"image.png\" width=\"334\" height=\"241\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "3528",
+              "text": "Adult"
+            },
+            {
+              "ident": "3442",
+              "text": "Minor"
+            },
+            {
+              "ident": "5901",
+              "text": "Undefined"
+            },
+            {
+              "ident": "5136",
+              "text": "Error"
+            }
+          ],
+          "correct_response_ident": "3528",
+          "image": "image-3.png"
+        },
+        {
+          "ident": "g4730fd1ce956de51275f6fd1a89b2324",
+          "question_text": "<div>What is the purpose of the else block?</div>",
+          "choices": [
+            {
+              "ident": "9017",
+              "text": "To run code if the if condition is false"
+            },
+            {
+              "ident": "7613",
+              "text": "To create a loop"
+            },
+            {
+              "ident": "5209",
+              "text": "To stop the code"
+            },
+            {
+              "ident": "898",
+              "text": "To run code before the if block"
+            }
+          ],
+          "correct_response_ident": "9017"
+        },
+        {
+          "ident": "g4ad8d074ab574fdd46defc86e7a0cc90",
+          "question_text": "<div>Which of the following is the correct syntax for else if?</div>",
+          "choices": [
+            {
+              "ident": "7038",
+              "text": "else if (x > 10) { //code to run if true}"
+            },
+            {
+              "ident": "3740",
+              "text": "if else (x > 10) { //code to run if true}"
+            },
+            {
+              "ident": "5426",
+              "text": "else if { //code to run if true}"
+            },
+            {
+              "ident": "5699",
+              "text": "else (x > 10)"
+            }
+          ],
+          "correct_response_ident": "7038"
+        },
+        {
+          "ident": "g52813b752735c49dbeb1155db3ea70bc",
+          "question_text": "<div>What will this code output?<br><img src=\"/public/course-images/frontend/image-4.png?\" alt=\"image.png\" width=\"311\" height=\"315\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "9299",
+              "text": "C"
+            },
+            {
+              "ident": "6791",
+              "text": "A"
+            },
+            {
+              "ident": "9502",
+              "text": "B"
+            },
+            {
+              "ident": "1042",
+              "text": "D"
+            }
+          ],
+          "correct_response_ident": "9299",
+          "image": "image-4.png"
+        },
+        {
+          "ident": "g337b70d408a67012683ebb6a8ac79cc3",
+          "question_text": "<div>What happens if none of the if or else if conditions are true, and there is no else block?</div>",
+          "choices": [
+            {
+              "ident": "3813",
+              "text": "Nothing happens, the code between the curly braces will not run and the browser will move on to the next line of code."
+            },
+            {
+              "ident": "827",
+              "text": "The code crashes/breaks"
+            },
+            {
+              "ident": "3327",
+              "text": "The last condition runs"
+            },
+            {
+              "ident": "9842",
+              "text": "The first block runs anyway"
+            }
+          ],
+          "correct_response_ident": "3813"
+        },
+        {
+          "ident": "g502839e8e15d7b4c0f023e3d29a08fb1",
+          "question_text": "<div>Why would a developer use else if instead of multiple if statements?</div>",
+          "choices": [
+            {
+              "ident": "7539",
+              "text": "To group conditions that depend on each other"
+            },
+            {
+              "ident": "8780",
+              "text": "To store more data"
+            },
+            {
+              "ident": "4738",
+              "text": "To reduce performance"
+            },
+            {
+              "ident": "8219",
+              "text": "To add comments"
+            }
+          ],
+          "correct_response_ident": "7539"
+        },
+        {
+          "ident": "ga5ecd1be438bc8b1bfe1a3861487eed1",
+          "question_text": "<div>Which operator is used for logical AND in JavaScript?</div>",
+          "choices": [
+            {
+              "ident": "5774",
+              "text": "&&"
+            },
+            {
+              "ident": "2871",
+              "text": "||"
+            },
+            {
+              "ident": "1041",
+              "text": "=="
+            },
+            {
+              "ident": "5220",
+              "text": "!"
+            }
+          ],
+          "correct_response_ident": "5774"
+        },
+        {
+          "ident": "g52f34d7c4c57ff6ca22268443d266431",
+          "question_text": "<div>Which operator represents logical OR?</div>",
+          "choices": [
+            {
+              "ident": "2885",
+              "text": "||"
+            },
+            {
+              "ident": "9553",
+              "text": "!="
+            },
+            {
+              "ident": "5330",
+              "text": "&&"
+            },
+            {
+              "ident": "3815",
+              "text": "="
+            }
+          ],
+          "correct_response_ident": "2885"
+        },
+        {
+          "ident": "gda71978b80a8dd54e766ce2b73933718",
+          "question_text": "<div>What does the ! (NOT) operator do?</div>",
+          "choices": [
+            {
+              "ident": "5662",
+              "text": "Reverses the boolean value"
+            },
+            {
+              "ident": "1445",
+              "text": "Adds two values"
+            },
+            {
+              "ident": "6548",
+              "text": "Makes a string lowercase"
+            },
+            {
+              "ident": "8149",
+              "text": "Checks for equality"
+            }
+          ],
+          "correct_response_ident": "5662"
+        },
+        {
+          "ident": "g1f8137d28812fb6eba5610c6bf1ae6c1",
+          "question_text": "<div>What does this code output?<br><img src=\"/public/course-images/frontend/image-5.png?\" alt=\"image.png\" width=\"364\" height=\"258\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "8059",
+              "text": "Can't eat"
+            },
+            {
+              "ident": "668",
+              "text": "Eat now"
+            },
+            {
+              "ident": "3957",
+              "text": "Undefined"
+            },
+            {
+              "ident": "3796",
+              "text": "Error"
+            }
+          ],
+          "correct_response_ident": "8059",
+          "image": "image-5.png"
+        },
+        {
+          "ident": "g8d0bc175372593769fb7b25bd67b9ecb",
+          "question_text": "<div><p>What will this code log?<br><img src=\"/public/course-images/frontend/image-6.png?\" alt=\"image.png\" width=\"411\" height=\"237\" loading=\"lazy\"></p>\n<p> </p></div>",
+          "choices": [
+            {
+              "ident": "4957",
+              "text": "Access granted"
+            },
+            {
+              "ident": "438",
+              "text": "Access denied"
+            },
+            {
+              "ident": "9239",
+              "text": "Undefined"
+            },
+            {
+              "ident": "5303",
+              "text": "Syntax error"
+            }
+          ],
+          "correct_response_ident": "4957",
+          "image": "image-6.png"
+        },
+        {
+          "ident": "g0bc21813f8e2b9bcde075d5a92855f37",
+          "question_text": "<div>What does this return?<br><img src=\"/public/course-images/frontend/image-7.png?\" alt=\"image.png\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "5617",
+              "text": "false"
+            },
+            {
+              "ident": "642",
+              "text": "true"
+            },
+            {
+              "ident": "4154",
+              "text": "null"
+            },
+            {
+              "ident": "1826",
+              "text": "0"
+            }
+          ],
+          "correct_response_ident": "5617",
+          "image": "image-7.png"
+        },
+        {
+          "ident": "g08b7bb31111c50314846eca05e1660d4",
+          "question_text": "<div>What will this log?<br><img src=\"/public/course-images/frontend/image-d034f709-eb20-4c98-8e08-0b391f56c475.png?\" alt=\"image.png\" width=\"278\" height=\"197\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "4158",
+              "text": "Not allowed"
+            },
+            {
+              "ident": "6225",
+              "text": "Allowed in"
+            },
+            {
+              "ident": "2733",
+              "text": "true"
+            },
+            {
+              "ident": "4091",
+              "text": "Error"
+            }
+          ],
+          "correct_response_ident": "4158",
+          "image": "image-d034f709-eb20-4c98-8e08-0b391f56c475.png"
+        },
+        {
+          "ident": "ge86690f18f59199153d012d1d0f55ce0",
+          "question_text": "<div>What will this code print?<br><img src=\"/public/course-images/frontend/image-274a83ba-1d10-494d-8640-80db7035faa4.png?\" alt=\"image.png\" width=\"364\" height=\"195\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "8726",
+              "text": "Welcome!"
+            },
+            {
+              "ident": "9029",
+              "text": "Access denied"
+            },
+            {
+              "ident": "6388",
+              "text": "Error"
+            },
+            {
+              "ident": "4828",
+              "text": "Nothing"
+            }
+          ],
+          "correct_response_ident": "8726",
+          "image": "image-274a83ba-1d10-494d-8640-80db7035faa4.png"
+        },
+        {
+          "ident": "gacb1c4c4429fd9e1d1c103de7025bf41",
+          "question_text": "<div>What condition would allow this to run <strong><code data-start=\"1017\" data-end=\"1050\">console.log(\"Discount applied\")</code></strong>?<br><img src=\"/public/course-images/frontend/image-f8fc6fe6-4dc8-4d5f-9bbf-6c6a7480016c.png?\" alt=\"image.png\" width=\"474\" height=\"204\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "8863",
+              "text": "If at least one is true"
+            },
+            {
+              "ident": "9184",
+              "text": "Only if both are true"
+            },
+            {
+              "ident": "7964",
+              "text": "If neither is true"
+            },
+            {
+              "ident": "6096",
+              "text": "Only if isStudent is false"
+            }
+          ],
+          "correct_response_ident": "8863",
+          "image": "image-f8fc6fe6-4dc8-4d5f-9bbf-6c6a7480016c.png"
+        },
+        {
+          "ident": "ga9abc97ab6dfec1bbd2bed0207108c78",
+          "question_text": "<div>What will this code output?<br><img src=\"/public/course-images/frontend/image-02f02f27-6a54-4404-abb8-6b53b3b5c789.png?\" alt=\"image.png\" width=\"372\" height=\"200\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "1596",
+              "text": "Show basic content"
+            },
+            {
+              "ident": "3033",
+              "text": "Show premium content"
+            },
+            {
+              "ident": "4890",
+              "text": "true"
+            },
+            {
+              "ident": "4967",
+              "text": "false"
+            }
+          ],
+          "correct_response_ident": "1596",
+          "image": "image-02f02f27-6a54-4404-abb8-6b53b3b5c789.png"
+        },
+        {
+          "ident": "g908fd3f7ac8df50c7ec1e37862b7f01f",
+          "question_text": "<div>What will this code output?<br><img src=\"/public/course-images/frontend/image-f3154f4a-7f35-45ce-bcde-354e0dfadec9.png?\" alt=\"image.png\" width=\"303\" height=\"181\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "9561",
+              "text": "Go to the beach"
+            },
+            {
+              "ident": "4712",
+              "text": "Stay indoors"
+            },
+            {
+              "ident": "6046",
+              "text": "Error"
+            },
+            {
+              "ident": "8304",
+              "text": "true"
+            }
+          ],
+          "correct_response_ident": "9561",
+          "image": "image-f3154f4a-7f35-45ce-bcde-354e0dfadec9.png"
+        },
+        {
+          "ident": "g10b88ea0657f62f0ea7befa7a5bb260c",
+          "question_text": "<div>Which condition would let this message print: \"Send email\"?<br><img src=\"/public/course-images/frontend/image-c940ee52-f4ee-48b2-b232-507d52a29b14.png?\" alt=\"image.png\" width=\"358\" height=\"147\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "1432",
+              "text": "If user is not a guest and their email is verified"
+            },
+            {
+              "ident": "2436",
+              "text": "If email is not verified"
+            },
+            {
+              "ident": "9885",
+              "text": "If both are false"
+            },
+            {
+              "ident": "7389",
+              "text": "If user is a guest"
+            }
+          ],
+          "correct_response_ident": "1432",
+          "image": "image-c940ee52-f4ee-48b2-b232-507d52a29b14.png"
+        },
+        {
+          "ident": "g96fd2a57ace3f00acfe098f71f950e1a",
+          "question_text": "<div>What does this check?<br><img src=\"/public/course-images/frontend/image-232a7efe-26df-4698-aeb4-84aebe57e628.png?\" alt=\"image.png\" width=\"437\" height=\"159\" loading=\"lazy\"></div>",
+          "choices": [
+            {
+              "ident": "6622",
+              "text": "One or both must be true"
+            },
+            {
+              "ident": "7979",
+              "text": "Only hasMembership must be false"
+            },
+            {
+              "ident": "7667",
+              "text": "Both must be true"
+            },
+            {
+              "ident": "2306",
+              "text": "Neither must be true"
+            }
+          ],
+          "correct_response_ident": "6622",
+          "image": "image-232a7efe-26df-4698-aeb4-84aebe57e628.png"
+        },
+        {
+          "ident": "g6ed3b7d5657c6bc076ebf9b882a4c4aa",
+          "question_text": "<div>Which of the following best describes a <strong><code data-start=\"615\" data-end=\"620\">for</code> loop</strong>?</div>",
+          "choices": [
+            {
+              "ident": "3965",
+              "text": "A structure that repeats code a specific number of times"
+            },
+            {
+              "ident": "135",
+              "text": "A block of code that runs forever"
+            },
+            {
+              "ident": "407",
+              "text": "A way to repeat code while a condition is true"
+            },
+            {
+              "ident": "2831",
+              "text": "A function that runs code when a button is clicked"
+            }
+          ],
+          "correct_response_ident": "3965"
+        },
+        {
+          "ident": "gc220972e26141647d7591c5335adb6f4",
+          "question_text": "<div>What does <code data-start=\"885\" data-end=\"890\"><strong>i++</strong></code> do in a <strong><code data-start=\"899\" data-end=\"904\">for</code></strong> loop?</div>",
+          "choices": [
+            {
+              "ident": "5030",
+              "text": "Increases the value of i by 1"
+            },
+            {
+              "ident": "7192",
+              "text": "Sets i to 0"
+            },
+            {
+              "ident": "624",
+              "text": "Adds 2 to i"
+            },
+            {
+              "ident": "7384",
+              "text": "Ends the loop"
+            }
+          ],
+          "correct_response_ident": "5030"
+        },
+        {
+          "ident": "g8c52bc977caa8c8151e6ed8bf3ae8b73",
+          "question_text": "<div><p>Look at this code:</p>\n<p><code>for (let i = 0; i < 3; i++) {<br>  console.log(\"hi\");<br>}</code></p>\n<p><strong>How many times will “hi” be logged?</strong></p></div>",
+          "choices": [
+            {
+              "ident": "7678",
+              "text": "3"
+            },
+            {
+              "ident": "1948",
+              "text": "2"
+            },
+            {
+              "ident": "4587",
+              "text": "1"
+            },
+            {
+              "ident": "5485",
+              "text": "4"
+            }
+          ],
+          "correct_response_ident": "7678"
+        },
+        {
+          "ident": "g351d6eca2bfc45b5172f7fbfa2102a6f",
+          "question_text": "<div><p>In this loop, what is the starting value of <code data-start=\"1273\" data-end=\"1276\">i</code>?</p>\n<p><code>for (let i = 5; i < 10; i++) {<br>  console.log(i);<br>}</code></p></div>",
+          "choices": [
+            {
+              "ident": "6011",
+              "text": "5"
+            },
+            {
+              "ident": "7158",
+              "text": "10"
+            },
+            {
+              "ident": "4325",
+              "text": "0"
+            },
+            {
+              "ident": "8745",
+              "text": "6"
+            }
+          ],
+          "correct_response_ident": "6011"
+        },
+        {
+          "ident": "ge8bd4123e5f6b0e0a45d385d21005e9d",
+          "question_text": "<div>In a typical <code data-start=\"1418\" data-end=\"1423\">for</code> loop, which of the following is <strong>NOT</strong> one of the three required parts in the parentheses?</div>",
+          "choices": [
+            {
+              "ident": "6168",
+              "text": "A function call"
+            },
+            {
+              "ident": "5332",
+              "text": "A starting point"
+            },
+            {
+              "ident": "6095",
+              "text": "A stopping condition"
+            },
+            {
+              "ident": "5786",
+              "text": "An increment or update"
+            }
+          ],
+          "correct_response_ident": "6168"
+        },
+        {
+          "ident": "g3f995df27bef8abcbec4b847eba6ba67",
+          "question_text": "<div><p>What will this code print?</p>\n<p><code>const nums = [10, 20, 30];<br>for (let i = 0; i < nums.length; i++) {<br>  console.log(nums[i]);<br>}</code></p></div>",
+          "choices": [
+            {
+              "ident": "9723",
+              "text": "10, 20, 30"
+            },
+            {
+              "ident": "2033",
+              "text": "0, 1, 2"
+            },
+            {
+              "ident": "5493",
+              "text": "i, i, i"
+            },
+            {
+              "ident": "8717",
+              "text": "undefined"
+            }
+          ],
+          "correct_response_ident": "9723"
+        },
+        {
+          "ident": "g879a027e89a2a484c3472ac6cb34dc0f",
+          "question_text": "<div><p data-start=\"1851\" data-end=\"1934\">What happens if a loop never reaches its stopping condition?</p></div>",
+          "choices": [
+            {
+              "ident": "8656",
+              "text": "It causes an infinite loop"
+            },
+            {
+              "ident": "8404",
+              "text": "It runs once and stops"
+            },
+            {
+              "ident": "5618",
+              "text": "It skips the code inside"
+            },
+            {
+              "ident": "9568",
+              "text": "It resets to zero"
+            }
+          ],
+          "correct_response_ident": "8656"
+        },
+        {
+          "ident": "g4e5e631382b642c4b5e8a16eaaf90312",
+          "question_text": "<div>Which of the following would correctly loop through an array of 5 items?</div>",
+          "choices": [
+            {
+              "ident": "2044",
+              "text": "for (let i = 0; i < 5; i++)"
+            },
+            {
+              "ident": "2626",
+              "text": "for (let i = 1; i <= 5; i++)"
+            },
+            {
+              "ident": "6076",
+              "text": "for (let i = 5; i > 0; i++)"
+            },
+            {
+              "ident": "5668",
+              "text": "for (let i = 0; i <= 5; i--)"
+            }
+          ],
+          "correct_response_ident": "2044"
+        },
+        {
+          "ident": "ga8064403466650e71af6de1c3b62d9ed",
+          "question_text": "<div><p>What is the value of <strong><code data-start=\"2355\" data-end=\"2358\">i</code></strong> after this loop ends?</p>\n<p><code>for (let i = 0; i < 4; i++) {<br>  console.log(i);<br>}</code></p></div>",
+          "choices": [
+            {
+              "ident": "9988",
+              "text": "4"
+            },
+            {
+              "ident": "8479",
+              "text": "3"
+            },
+            {
+              "ident": "8307",
+              "text": "5"
+            },
+            {
+              "ident": "3328",
+              "text": "0"
+            }
+          ],
+          "correct_response_ident": "9988"
+        },
+        {
+          "ident": "gd1c06abd50c1967fcc866b136dd23340",
+          "question_text": "<div>What is a key feature of arrow functions in JavaScript?</div>",
+          "choices": [
+            {
+              "ident": "8318",
+              "text": "They use a more modern, shorter syntax for writing functions"
+            },
+            {
+              "ident": "285",
+              "text": "They require a return keyword in all cases"
+            },
+            {
+              "ident": "4901",
+              "text": "They are used only inside classes"
+            },
+            {
+              "ident": "5755",
+              "text": "They cannot take parameters"
+            }
+          ],
+          "correct_response_ident": "8318"
+        },
+        {
+          "ident": "g70ac47497a7e07d824ed3ff96a97c8d6",
+          "question_text": "<div>What does <em data-start=\"614\" data-end=\"631\">implicit return</em> mean in an arrow function?</div>",
+          "choices": [
+            {
+              "ident": "9099",
+              "text": "The function automatically returns the result of the expression without using the return keyword"
+            },
+            {
+              "ident": "5357",
+              "text": "The function will always return undefined"
+            },
+            {
+              "ident": "2697",
+              "text": "The function will throw an error if no return keyword is used"
+            },
+            {
+              "ident": "4458",
+              "text": "The function returns its parameters"
+            }
+          ],
+          "correct_response_ident": "9099"
+        },
+        {
+          "ident": "g42a3a8d7f09e4bd10cea6de51413256e",
+          "question_text": "<div>Which of the following uses <em data-start=\"999\" data-end=\"1016\">implicit return</em> correctly?</div>",
+          "choices": [
+            {
+              "ident": "9764",
+              "text": "const add = (x, y) => x + y;"
+            },
+            {
+              "ident": "2708",
+              "text": "const add = (x, y) => { return x + y; }"
+            },
+            {
+              "ident": "6567",
+              "text": "const add = x, y => x + y;"
+            },
+            {
+              "ident": "933",
+              "text": "const add = (x, y) => { x + y }"
+            }
+          ],
+          "correct_response_ident": "9764"
+        },
+        {
+          "ident": "gb2155bd05134a7de865e6ad44325a23f",
+          "question_text": "<div>If you want to add more lines of code before your return statement in an arrow function, what should you do?</div>",
+          "choices": [
+            {
+              "ident": "2694",
+              "text": "Use curly braces and add a return statement"
+            },
+            {
+              "ident": "2437",
+              "text": "Add a comma after each line"
+            },
+            {
+              "ident": "4573",
+              "text": "Use parentheses instead of curly braces"
+            },
+            {
+              "ident": "3514",
+              "text": "Wrap the code in an array"
+            }
+          ],
+          "correct_response_ident": "2694"
+        },
+        {
+          "ident": "g6f018360e63720fa8cd71e0ef15df1ca",
+          "question_text": "<div>Which of the following is NOT true about arrow functions?</div>",
+          "choices": [
+            {
+              "ident": "385",
+              "text": "They cannot be used to define anonymous functions (they must have a name)"
+            },
+            {
+              "ident": "7016",
+              "text": "They are a more modern alternative to traditional function expressions"
+            },
+            {
+              "ident": "1518",
+              "text": "They need to be called to run"
+            },
+            {
+              "ident": "1906",
+              "text": "They can be used for both one-liners and multi-line functions"
+            }
+          ],
+          "correct_response_ident": "385"
+        },
+        {
+          "ident": "gfaa58eb405a0747c0ea7d3af71d4810f",
+          "question_text": "<div>What is a valid way to write an arrow function that takes one parameter and returns a greeting?</div>",
+          "choices": [
+            {
+              "ident": "7341",
+              "text": "const greet = (name) => { return \"Hello, \" + name; }"
+            },
+            {
+              "ident": "3799",
+              "text": "const greet = (name) => \"Hello, \" + name;"
+            },
+            {
+              "ident": "5670",
+              "text": "const greet = name => \"Hello, \" + name;"
+            },
+            {
+              "ident": "7367",
+              "text": "const greet = name => { \"Hello, \" + name; }"
+            }
+          ],
+          "correct_response_ident": "7341"
+        },
+        {
+          "ident": "gf4a4b6df328321d0f8d50d6abd373051",
+          "question_text": "<div>Which of the following arrow functions will NOT return the square of a number correctly?</div>",
+          "choices": [
+            {
+              "ident": "7593",
+              "text": "const square = x => { x * x };"
+            },
+            {
+              "ident": "7409",
+              "text": "const square = x => x * x;"
+            },
+            {
+              "ident": "2820",
+              "text": "const square = (x) => { return x * x; }"
+            },
+            {
+              "ident": "7672",
+              "text": "const square = (x) => x * x;"
+            }
+          ],
+          "correct_response_ident": "7593"
+        },
+        {
+          "ident": "g7f67ed1b6cb76491b0d55b8b95033c02",
+          "question_text": "<div>What happens if you use curly braces in an arrow function but forget to write <code data-start=\"2921\" data-end=\"2929\">return</code>?</div>",
+          "choices": [
+            {
+              "ident": "4807",
+              "text": "The function will return undefined"
+            },
+            {
+              "ident": "9992",
+              "text": "The function will return null"
+            },
+            {
+              "ident": "6443",
+              "text": "The function will throw an error"
+            },
+            {
+              "ident": "822",
+              "text": "The function will return the last expression"
+            }
+          ],
+          "correct_response_ident": "4807"
+        },
+        {
+          "ident": "g931e25fd9d594b2e617fe20c6eab65c8",
+          "question_text": "<div>Which of these arrow functions is incorrectly written?</div>",
+          "choices": [
+            {
+              "ident": "3738",
+              "text": "const sum = (a, b) => { a + b; }"
+            },
+            {
+              "ident": "7457",
+              "text": "const sayHi = () => \"Hi!\";"
+            },
+            {
+              "ident": "6737",
+              "text": "const double = n => n * 2;"
+            },
+            {
+              "ident": "3677",
+              "text": "const sum = (a, b) => { return a + b; }"
+            }
+          ],
+          "correct_response_ident": "3738"
+        },
+        {
+          "ident": "g371642a66b9767fd65a497436fd9a7e5",
+          "question_text": "<div><p data-start=\"294\" data-end=\"370\">What is the main reason developers use loops in code?</p></div>",
+          "choices": [
+            {
+              "ident": "6889",
+              "text": "To repeat a task multiple times automatically"
+            },
+            {
+              "ident": "9180",
+              "text": "To confuse people reading the code"
+            },
+            {
+              "ident": "8037",
+              "text": "To run a block of code one time only"
+            },
+            {
+              "ident": "6635",
+              "text": "To stop the program from running"
+            }
+          ],
+          "correct_response_ident": "6889"
+        },
+        {
+          "ident": "g15acd0e3d332c7a3309bd9a6a10c08ff",
+          "question_text": "<div>When <code>updatePlayer()</code> is declared, what are the values of <code>name</code> and <code>level</code>?</div>",
+          "choices": [
+            {
+              "ident": "2268",
+              "text": "Parameters do not have values when the function is declared, so we don't know yet"
+            },
+            {
+              "ident": "2381",
+              "text": "FirstName, levelOne"
+            },
+            {
+              "ident": "274",
+              "text": "\"Jordan\", 1"
+            },
+            {
+              "ident": "9927",
+              "text": "\"AnnieCannons\", LevelOneThousand"
+            }
+          ],
+          "correct_response_ident": "2268"
+        },
+        {
+          "ident": "gd997910676f1b4c570418c9be0161f97",
+          "question_text": "<div>How many pieces of data does the <code>updatePlayer()</code> function need to run?</div>",
+          "choices": [
+            {
+              "ident": "1582",
+              "text": "2: name and level"
+            },
+            {
+              "ident": "9860",
+              "text": "3: name, level, playerName"
+            },
+            {
+              "ident": "2384",
+              "text": "4: name, level, playerName, gameLevel"
+            },
+            {
+              "ident": "1419",
+              "text": "1: playerName"
+            }
+          ],
+          "correct_response_ident": "1582"
+        },
+        {
+          "ident": "gc8d07705ddba6d3e245feb03b991a123",
+          "question_text": "<div>What happens to the global variables when this function runs? </div>",
+          "choices": [
+            {
+              "ident": "5180",
+              "text": "They get reassigned to be the value of name and level"
+            },
+            {
+              "ident": "1443",
+              "text": "\"Jordan\" and 1 get passed into the function"
+            },
+            {
+              "ident": "5429",
+              "text": "They are not used in this function"
+            },
+            {
+              "ident": "7456",
+              "text": "All of the above"
+            }
+          ],
+          "correct_response_ident": "5180"
+        }
+      ]
+    }
+  ]
+}

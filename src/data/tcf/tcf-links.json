@@ -1,0 +1,442 @@
+{
+    "course": {
+      "title": "TCF (Jan 2026)",
+      "source": "imsmanifest.xml"
+    },
+    "links": [
+    {
+      "identifier": "g79c4dc1112b16fc9b416bf2383500d2d",
+      "title": "AI Prompts for Studying",
+      "url": "https://docs.google.com/document/d/18oct_K9_m8-5W-TqgoWL-nEWwB6GeIhsXDwnm9FzE24/edit?usp=sharing",
+      "module_title": "Course Resources",
+      "manifest_title": "AI Prompts for Studying"
+    },
+    {
+      "identifier": "g0477d87ab974b8e0d818c0f75371da5f",
+      "title": "Additional MacBook Monitors Guide",
+      "url": "https://docs.google.com/document/d/18JbR7UDGsdGs6XYbY27lqg17g0durDS7ZsFvSPDbhvk/edit?tab=t.0#heading=h.f7m3bolplf6z",
+      "module_title": "Course Resources",
+      "manifest_title": "Additional MacBook Monitors Guide"
+    },
+    {
+      "identifier": "gae2c23d7a91dbcfb2d96c16788c393f4",
+      "title": "Class Notes",
+      "url": "https://www.notion.so/anniecannons/TCF-ITP-Class-Notes-Sept-2025-25abb7044bb1801d8e0ef3ceda8f6991",
+      "module_title": "Course Resources",
+      "manifest_title": "Class Notes"
+    },
+    {
+      "identifier": "g364a34d53919b9d1cdc4dc0eb95664a9",
+      "title": "Keyboard Shortcuts",
+      "url": "https://support.apple.com/en-us/102650",
+      "module_title": "Course Resources",
+      "manifest_title": "Keyboard Shortcuts"
+    },
+    {
+      "identifier": "gea70bf5257f28f6560e1a49728e376ed",
+      "title": "Resource: How to take a screenshot on your Mac",
+      "url": "https://support.apple.com/en-us/102646",
+      "module_title": "Course Resources",
+      "manifest_title": "Resource: How to take a screenshot on your Mac"
+    },
+    {
+      "identifier": "g6dc1d989afe9ce5f4347eb0c6852fb6b",
+      "title": "Self-Directed Learning Tips and Resources",
+      "url": "https://www.notion.so/anniecannons/Self-Directed-Learning-Tips-Resources-b97c73b93d8c4ff5852a30916eb05cbf",
+      "module_title": "Course Resources",
+      "manifest_title": "Self-Directed Learning Tips and Resources"
+    },
+    {
+      "identifier": "gd7fdf429590e32598eeff0a203c0d253",
+      "title": "Doc: Blogging prompts",
+      "url": "https://docs.google.com/document/d/1DYrrDba9jHz-qMedezG6l43MFpjheooy5nD43H1f6f4/edit",
+      "module_title": "Instructor resources - DO NOT PUBLISH",
+      "manifest_title": "Doc: Blogging prompts"
+    },
+    {
+      "identifier": "g0e6291bfc3cedccd6d582495a4eaafac",
+      "title": "Doc: Daily structure for AC courses",
+      "url": "https://docs.google.com/document/d/1JCeX36ElBbhVQU8oidaw5wOEHNC6ZvBhZXbrw9dMtX8/edit#heading=h.1jzzwm7xwdfx",
+      "module_title": "Instructor resources - DO NOT PUBLISH",
+      "manifest_title": "Doc: Daily structure for AC courses"
+    },
+    {
+      "identifier": "g24ccbaca83be02f7ebba4f9196b5b1e8",
+      "title": "Week 1 Instructor Guides",
+      "url": "https://drive.google.com/drive/u/0/folders/1D7tekeChq92ANLxydn_TCk6wbqK0rtu9",
+      "module_title": "Instructor resources - DO NOT PUBLISH",
+      "manifest_title": "Week 1 Instructor Guides"
+    },
+    {
+      "identifier": "g6faeceda96568ad1660cb820b87c2bff",
+      "title": "Week 2 Instructor Guides",
+      "url": "https://drive.google.com/drive/u/0/folders/1aVAkdAZ3HbgITmV0yqd4qTcvSxPxGMeH",
+      "module_title": "Instructor resources - DO NOT PUBLISH",
+      "manifest_title": "Week 2 Instructor Guides"
+    },
+    {
+      "identifier": "g503825285feec694b22f30aac9312c1b",
+      "title": "Week 3 Instructor Guides",
+      "url": "https://drive.google.com/drive/u/0/folders/1cELhDzJW0GPdzGhgKVYfqmcXRx9WG-fU",
+      "module_title": "Instructor resources - DO NOT PUBLISH",
+      "manifest_title": "Week 3 Instructor Guides"
+    },
+    {
+      "identifier": "g370dccfebc7eaabf14accf015d5df48f",
+      "title": "Week 4 Instructor Guide",
+      "url": "https://drive.google.com/drive/u/0/folders/1HEUgCkOX_l5PfTj13oUz49rdDMJ2b1zg",
+      "module_title": "Instructor resources - DO NOT PUBLISH",
+      "manifest_title": "Week 4 Instructor Guide"
+    },
+    {
+      "identifier": "ge4e7289e2b9136abf180837074835295",
+      "title": "AI Fluency: Framework and Foundations Course",
+      "url": "https://anthropic.skilljar.com/ai-fluency-framework-foundations",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "AI Fluency: Framework and Foundations Course"
+    },
+    {
+      "identifier": "g8d2b0cad758c06f8c668203c6c8e8eaa",
+      "title": "Doc: AC Student Handbook",
+      "url": "https://drive.google.com/file/d/1tSHjZIYV3UjOrcugn_bRpMfJAc8IKT8F/view",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Doc: AC Student Handbook"
+    },
+    {
+      "identifier": "g4ade14e839e5bf0573f78fbbbc6735ff",
+      "title": "Doc: Email Best Practices in the Professional Tech Sector",
+      "url": "https://docs.google.com/document/d/1km9PTuscVU_L34Plck8F72HS1XLJbArLmI3La4U-ygM/edit?usp=sharing",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Doc: Email Best Practices in the Professional Tech Sector"
+    },
+    {
+      "identifier": "g6dade5fc5e29d4a9aa9509dc6aa01ce9",
+      "title": "Doc: Setting up your professional email",
+      "url": "https://docs.google.com/document/d/1QtlNS8h9lw5lOxc1-8T24Vh8KQzDqG_K5OfBOzNrowU/edit?usp=sharing",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Doc: Setting up your professional email"
+    },
+    {
+      "identifier": "g7f7a36e920c8ea85ce7e07943b684eae",
+      "title": "Doc: Zoom Style & Camera Etiquette Guide",
+      "url": "https://docs.google.com/document/d/1_4A70oyY027gEJ5fzxwOyMos15JZ40qzSGtbgDau8Cg/edit?tab=t.0#heading=h.32nzkj7upf7n",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Doc: Zoom Style & Camera Etiquette Guide"
+    },
+    {
+      "identifier": "gc014ba0cf00827d7ac4ca75dbaa90f5e",
+      "title": "Form: Student Handbook Acknowledgement",
+      "url": "https://forms.gle/JydShRMhaQVERJhu7",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Form: Student Handbook Acknowledgement"
+    },
+    {
+      "identifier": "ga77d5e7b2dbdbcaa9412850a4ae05404",
+      "title": "Form: Your WHY",
+      "url": "https://forms.gle/HQJdA4GDST3rWp4K6",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Form: Your WHY"
+    },
+    {
+      "identifier": "g8f82d13aba7e9844280cf0ed6ea3f6c4",
+      "title": "Resource: An easy guide to creating a presentation in Canva",
+      "url": "https://www.canva.com/learn/an-easy-guide-to-creating-a-presentation-in-canva/",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Resource: An easy guide to creating a presentation in Canva"
+    },
+    {
+      "identifier": "g9d716548cba2d24fb62bf9621090d4eb",
+      "title": "Slides: All Classes Onboarding",
+      "url": "https://www.canva.com/design/DAGxYCOiXWw/XzLI7FwbivEYDVU-uJ8p8A/edit?utm_content=DAGxYCOiXWw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Slides: All Classes Onboarding"
+    },
+    {
+      "identifier": "g6f8e32405d2c07ee812b88ceac84ef28",
+      "title": "Slides: Community Agreements",
+      "url": "https://www.canva.com/design/DAGyZpn61UE/3Jg33LIqZFp9DaaVKxAojg/edit?ui=eyJEIjp7IlAiOnsiQiI6ZmFsc2V9fX0",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Slides: Community Agreements"
+    },
+    {
+      "identifier": "gcef570ef083bb12c14b64be135a7cc45",
+      "title": "Slides: Growth Mindset",
+      "url": "https://www.canva.com/design/DAGMW5msWGM/H7hJqbFlIsumKajd0OPbuQ/view",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Slides: Growth Mindset"
+    },
+    {
+      "identifier": "g323c9bbb4b2392b5713d963ae9450666",
+      "title": "Slides: Handbook Presentation",
+      "url": "https://www.canva.com/design/DAGNBe1U-50/5CoednUSXiv6PiuAtyVaKA/view?utm_content=DAGNBe1U-50&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h11f37b8001",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Slides: Handbook Presentation"
+    },
+    {
+      "identifier": "g2810c459ddc86ab1174ba1f1d4ec017a",
+      "title": "Slides: Roadmap of Learning at AC",
+      "url": "https://www.canva.com/design/DAFhm4qeYds/7im9Zx99ym6WyrpLC7Llcw/view",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Slides: Roadmap of Learning at AC"
+    },
+    {
+      "identifier": "g2efc812cdb9ae138d2a210adac59b39f",
+      "title": "Slides: Swift Trust",
+      "url": "https://www.canva.com/design/DAGLWjwPONI/zg-Z-HKUh9UPWGYDV3dZ7Q/view",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Slides: Swift Trust"
+    },
+    {
+      "identifier": "g6dbc4d92ce20766f5521235f5ca4e691",
+      "title": "Video: How to create a presentation in Canva in 20 minutes",
+      "url": "https://www.youtube.com/watch?v=hrgrFmV7aCM",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Video: How to create a presentation in Canva in 20 minutes"
+    },
+    {
+      "identifier": "g60bd9bad5688ad1cb91b99ae7c2b6644",
+      "title": "Video: Intro to AI Fluency",
+      "url": "https://www.youtube.com/watch?v=JpGtOfSgR-c",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Video: Intro to AI Fluency"
+    },
+    {
+      "identifier": "g12a7a808591b643032e174565dfd467c",
+      "title": "Video: Why do we need AI Fluency?",
+      "url": "https://www.youtube.com/watch?v=4szRHy_CT7s&t=3s",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "Video: Why do we need AI Fluency?"
+    },
+    {
+      "identifier": "g0f6a5821371e84b4f45a20a05bad9718",
+      "title": "Form: Baseline Demographic Survey",
+      "url": "https://airtable.com/app4qZ9NIMIXXgX59/pagPHFYwYNcOFQOW3/form",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Form: Baseline Demographic Survey"
+    },
+    {
+      "identifier": "gd928240e3e6d6f80ab2d8caa7dc77a0c",
+      "title": "Gmail Video",
+      "url": "https://www.youtube.com/watch?v=jd9Led_e1ZQ",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Gmail Video"
+    },
+    {
+      "identifier": "g62e64ca1582f2f8659c4a97b9572b915",
+      "title": "Google Calendar Video",
+      "url": "https://www.youtube.com/watch?v=ya1LWttUXqM",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Google Calendar Video"
+    },
+    {
+      "identifier": "g0295c5013b86ae6baf4498e86240e119",
+      "title": "Google Docs Video",
+      "url": "https://www.youtube.com/watch?v=pKUJ6HF5tLo",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Google Docs Video"
+    },
+    {
+      "identifier": "gcde34650b73f311482c2d9c149866ab8",
+      "title": "Google Drive Video",
+      "url": "https://www.youtube.com/watch?v=AxwWiX_AJuY",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Google Drive Video"
+    },
+    {
+      "identifier": "g2c594ddef83f52680f0f533169174b5a",
+      "title": "Google Drive Video",
+      "url": "https://www.youtube.com/watch?v=Z7cfze737ws",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Google Drive Video"
+    },
+    {
+      "identifier": "g999900b170c18a53ab849dda6fb0d8aa",
+      "title": "Slides: About AnnieCannons",
+      "url": "https://www.canva.com/design/DAGymkQnRn0/Iamt_q7exJPg-eCtUi-Uyw/edit",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Slides: About AnnieCannons"
+    },
+    {
+      "identifier": "g14acd31917d7fe0aea59ede64f7d347a",
+      "title": "Slides: How Code Powers Our World",
+      "url": "https://www.canva.com/design/DAGxdxrBVhM/3KbsY4I1375QFmK5sY9p0w/view?utm_content=DAGxdxrBVhM&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h69d5a02cd7",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Slides: How Code Powers Our World"
+    },
+    {
+      "identifier": "ga1ba383cfec8583da45c76f64f58dfc9",
+      "title": "Slides: Navigating PTSD at AnnieCannons and in the Workplace",
+      "url": "https://www.canva.com/design/DAGNZM6RqxA/sIE879d-ovInBQMJNHu3Hg/view?utm_content=DAGNZM6RqxA&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hb60d1c5cd3",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Slides: Navigating PTSD at AnnieCannons and in the Workplace"
+    },
+    {
+      "identifier": "g0977756f2a8164f629744589e78e2ae3",
+      "title": "Slides: Research a Tech Company",
+      "url": "https://www.canva.com/design/DAGBeFuRTiY/9Hq9p_cuaJ4zfx24hyKT7w/view?utm_content=DAGBeFuRTiY&utm_campaign=designshare&utm_medium=link&utm_source=editor",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Slides: Research a Tech Company"
+    },
+    {
+      "identifier": "g19ba66686db77cb3642e402971a6fdfd",
+      "title": "Slides: The Coding Mindset",
+      "url": "https://www.canva.com/design/DAGNYGpXmKU/jN7l-DtL0HGGLO_s-j6GRQ/view?utm_content=DAGNYGpXmKU&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h3882ce7f1a",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Slides: The Coding Mindset"
+    },
+    {
+      "identifier": "g19eda5aed6178096ffc78de21da88c09",
+      "title": "Students Meet and Greet",
+      "url": "https://docs.google.com/document/d/1eahFjFIN1dLExdJ4bw7VnuiFMwUSz_REAjJyxWEpQ4Q/edit?usp=sharing",
+      "module_title": "Week 2: Career Workshops",
+      "manifest_title": "Students Meet and Greet"
+    },
+    {
+      "identifier": "g375fdf4357bfae94c7eb7bf140a5f58f",
+      "title": "Doc: General Strategies for Learning with Neurodiversity",
+      "url": "https://docs.google.com/document/d/1ptjAilWJEbTcnBndjexfyqU96aEU7wLqBCSSw0LoXuk/edit?usp=sharing",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Doc: General Strategies for Learning with Neurodiversity"
+    },
+    {
+      "identifier": "g443cb974b48bb1290264178435a3d23e",
+      "title": "Doc: Let's Research a Tech Company",
+      "url": "https://docs.google.com/document/d/1IbUKH41LqEEvPdEvh7sQQI_Le6Z-8z8n1VGlIkFCXaU/edit?usp=sharing",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Doc: Let's Research a Tech Company"
+    },
+    {
+      "identifier": "g7273591113552e806051d346b8893d95",
+      "title": "Doc: Roles in Tech Industry",
+      "url": "https://docs.google.com/document/d/1zHteCi6ywA_73_RKuj3-e_6IOvJIqGp2K7UQNiS9_Lc/edit?usp=sharing",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Doc: Roles in Tech Industry"
+    },
+    {
+      "identifier": "g9cb8bfe44674793400a47221cf81a73d",
+      "title": "Doc: Roles you can get after completing TCF",
+      "url": "https://docs.google.com/document/d/1m4wqKQCgTBhsL6OkyI8xoi3cd449VA-hq2OLpIfWmaA/edit#heading=h.xcbcw4c6lv5x",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Doc: Roles you can get after completing TCF"
+    },
+    {
+      "identifier": "g8a64cb8f30ad9c2890352ee6287bc3d1",
+      "title": "Link: Take the typing test",
+      "url": "https://agilefingers.com/lessons-programming",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Link: Take the typing test"
+    },
+    {
+      "identifier": "geceb0355285e1df1a2503a5feead7964",
+      "title": "Register for Agile Fingers (typing site)",
+      "url": "https://agilefingers.com/en/register",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Register for Agile Fingers (typing site)"
+    },
+    {
+      "identifier": "gb1411687a493de8ed78e6f498c76bba3",
+      "title": "Slides: Career Goals",
+      "url": "https://www.canva.com/design/DAGMrMLKEdU/eVhcDKbzWbkWygZTfWokhg/view?utm_content=DAGMrMLKEdU&utm_campaign=designshare&utm_medium=link&utm_source=editor",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Slides: Career Goals"
+    },
+    {
+      "identifier": "g109638916714a648a42c68a801b489ca",
+      "title": "Slides: Frustration Tolerance",
+      "url": "https://www.canva.com/design/DAGNRQLUT9Y/aNv6u0JSnwgSGzdK_HVc_g/view",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Slides: Frustration Tolerance"
+    },
+    {
+      "identifier": "g9d23aa3cdf431fb2748b0af9baed7124",
+      "title": "Slides: Job Process in Tech Sector",
+      "url": "https://www.canva.com/design/DAGBVBEWiFU/Kpt8PGYXb5rKx23lIo5psQ/view?utm_content=DAGBVBEWiFU&utm_campaign=designshare&utm_medium=link&utm_source=editor",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Slides: Job Process in Tech Sector"
+    },
+    {
+      "identifier": "g2ed0283598b8adfde29e0f9a3a07d1b9",
+      "title": "Slides: Set up for success workshop",
+      "url": "https://www.canva.com/design/DAGL_1nWEXk/s3uZcOm7IaLc2iRhd6FMJA/view?utm_content=DAGL_1nWEXk&utm_campaign=designshare&utm_medium=link&utm_source=editor",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Slides: Set up for success workshop"
+    },
+    {
+      "identifier": "gc76855fd007172154db34386855914b0",
+      "title": "Slides: Who works at Tech Companies?",
+      "url": "https://www.canva.com/design/DAGBU2cC07I/Y6Qwce0TQKtBZw3MwAQCrQ/view?utm_content=DAGBU2cC07I&utm_campaign=designshare&utm_medium=link&utm_source=editor",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "Slides: Who works at Tech Companies?"
+    },
+    {
+      "identifier": "g4da46670ff27d740c2cfe8de5a9480a3",
+      "title": "What qualifies students to move onto the next module",
+      "url": "https://docs.google.com/document/d/1fxeiijAhUw02XOpCBHoWpgIg1gcg6CLTx91cZckFUVY/edit?tab=t.0#heading=h.yept03q66eq1",
+      "module_title": "Week 3: Research a Tech Company Artificial Intelligence Intro",
+      "manifest_title": "What qualifies students to move onto the next module"
+    },
+    {
+      "identifier": "gec899e4d1d4391b3480150f93b202ee3",
+      "title": "BONUS: About me/my hobbies",
+      "url": "https://codepen.io/team/anniecannons/pen/pomMdWg?editors=1010",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "BONUS: About me/my hobbies"
+    },
+    {
+      "identifier": "g3bcb16a47be1c4fced417a8d45241882",
+      "title": "CodePen: Apples HTML guided practice",
+      "url": "https://codepen.io/team/anniecannons/pen/pommPro",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "CodePen: Apples HTML guided practice"
+    },
+    {
+      "identifier": "g6c68ea193a6cc936e6a75158f8685dd3",
+      "title": "CodePen: Pumpkin Pie Debugging Exercise",
+      "url": "https://codepen.io/team/anniecannons/pen/VwOoYPo",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "CodePen: Pumpkin Pie Debugging Exercise"
+    },
+    {
+      "identifier": "gef528ee5261e563fa67335d330748a32",
+      "title": "CodePen: Stone Fruit Reading Docs Exercise",
+      "url": "https://codepen.io/team/anniecannons/pen/QWRRqWY",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "CodePen: Stone Fruit Reading Docs Exercise"
+    },
+    {
+      "identifier": "gdc37a694bb167b10fa675687efe14f26",
+      "title": "How Focus Friday Works",
+      "url": "https://docs.google.com/document/d/1j12yIPxab6XMMnng2qYjbvMN-J9KiiQgXWpEFga6V60/edit?tab=t.0#heading=h.n3wppllh4075",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "How Focus Friday Works"
+    },
+    {
+      "identifier": "g1f79dd402969bdd919f51d7d48af21c1",
+      "title": "Slides: The Art of Asking for Help",
+      "url": "https://www.canva.com/design/DAGNFLGPs4A/ilSpGdXOaoOknbT-q5y8cg/view",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "Slides: The Art of Asking for Help"
+    },
+    {
+      "identifier": "g581f41aa0a016cc3b1bca44203b254a1",
+      "title": "Slides: The Power of Pause - Learning to Slow Down",
+      "url": "https://www.canva.com/design/DAGyCKGogD8/JmNeN0sjgDciK22ylRbz9g/view?utm_content=DAGyCKGogD8&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hf635a4499e",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "Slides: The Power of Pause - Learning to Slow Down"
+    },
+    {
+      "identifier": "g3e030e8dd1487cc4eff62e6ea43a9f6f",
+      "title": "Slides: What is HTML?",
+      "url": "https://www.canva.com/design/DAGJQBWNvlo/rgFREA82aNNKjqNBXwchLQ/edit",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "Slides: What is HTML?"
+    },
+    {
+      "identifier": "gd486bfba39e98cbc85513cb1d06a357d",
+      "title": "Transitioning from TCF to ITP",
+      "url": "https://docs.google.com/document/d/1w238PBx-ICP9fiyWC_2G8Pw-JZbOJzuScn8h4sumXKU/edit?tab=t.0",
+      "module_title": "Week 4: Intro to Web",
+      "manifest_title": "Transitioning from TCF to ITP"
+    }
+  ]
+}

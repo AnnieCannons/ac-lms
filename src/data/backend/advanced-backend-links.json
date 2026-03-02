@@ -1,5 +1,9 @@
 {
-    "links": [
+  "course": {
+    "title": "Advanced Backend (Jan 2026)",
+    "source": "imsmanifest.xml"
+  },
+  "links": [
     {
       "identifier": "g2d66fe9f101c91c68a6569f9d73cc13f",
       "title": "Backend curriculum on Notion",
