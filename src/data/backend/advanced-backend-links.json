@@ -1,0 +1,379 @@
+{
+  "course": {
+    "title": "Advanced Backend (Jan 2026)",
+    "source": "imsmanifest.xml"
+  },
+  "links": [
+    {
+      "identifier": "g2d66fe9f101c91c68a6569f9d73cc13f",
+      "title": "Backend curriculum on Notion",
+      "url": "https://www.notion.so/anniecannons/Backend-Curriculum-177bb7044bb1806498a2cca634487a68",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Backend curriculum on Notion"
+    },
+    {
+      "identifier": "gc5893302f73b921178a3a00692f4b72c",
+      "title": "Backend Answer Keys on Github",
+      "url": "https://github.com/AnnieCannons/backend-answer-keys/tree/main",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Backend Answer Keys on Github"
+    },
+    {
+      "identifier": "gc681a4e7f892409ddcbba0c9fbbbc1f2",
+      "title": "Backend docs on Google Drive",
+      "url": "https://drive.google.com/drive/folders/1E6HYk8OzAq98WUjCUd1_gpocYAujy4Zb",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Backend docs on Google Drive"
+    },
+    {
+      "identifier": "g50552e9d70965e9b3ee630216a018cdf",
+      "title": "Backend CodePen collection",
+      "url": "https://codepen.io/collection/zzvbgV",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Backend CodePen collection"
+    },
+    {
+      "identifier": "g94b05bcc0ec1eab82195e4a4d963e1e1",
+      "title": "Backend Canva Slides",
+      "url": "https://www.canva.com/folder/FAFW33OWSd0?utm_source=foldershare&utm_medium=email&utm_campaign=social",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Backend Canva Slides"
+    },
+    {
+      "identifier": "g15bbe28d7b9650948bc88d356dec7bd5",
+      "title": "Backend Stackbliz collection",
+      "url": "https://stackblitz.com/@ninhja/collections/backend",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Backend Stackbliz collection"
+    },
+    {
+      "identifier": "g31f110592be7a3578932e3a1479604da",
+      "title": "Doc: Programming documentation guides (Git, Github, React, Vite, etc)",
+      "url": "https://docs.google.com/document/d/18jxCUA0bebCyYaIHy8aaKMgOQH4w5-b-iCGDWpV4K4M/edit?usp=sharing",
+      "module_title": "Course Resources",
+      "manifest_title": "Doc: Programming documentation guides (Git, Github, React, Vite, etc)"
+    },
+    {
+      "identifier": "g8bd5df0544020997bd353d48efda0f9c",
+      "title": "Zoom link",
+      "url": "https://zoom.us/j/94652807213",
+      "module_title": "Course Resources",
+      "manifest_title": "Zoom link"
+    },
+    {
+      "identifier": "g436adb9f94f6368c4fa7e084ba094da8",
+      "title": "Zoom Recordings",
+      "url": "https://drive.google.com/drive/folders/14PaCC1G-1p3c0fCQfOo2QTiujVA2eRt8",
+      "module_title": "Course Resources",
+      "manifest_title": "Zoom Recordings"
+    },
+    {
+      "identifier": "g0a6ef4a3283c3cc6f3532d05bce6871a",
+      "title": "Student Support & Accountability Process",
+      "url": "https://docs.google.com/document/d/1SSOG4mhmj6qFPxTRRrM168dyK8ENsuu4gtLRJOg63y8/edit?tab=t.0",
+      "module_title": "Course Resources",
+      "manifest_title": "Student Support & Accountability Process"
+    },
+    {
+      "identifier": "g79623114dcd3a380b9a3e47b4ccfae20",
+      "title": "Portfolio Content Building Worksheet (complete FIRST, before building site)",
+      "url": "https://docs.google.com/document/d/1YX3rJyFyP0wbooKTeeyKNzxJuQaQ3Oq8oDoTNjzRsU0/edit?tab=t.0#heading=h.ay4hh5sqb33y",
+      "module_title": "Career Development",
+      "manifest_title": "Portfolio Content Building Worksheet (complete FIRST, before building site)"
+    },
+    {
+      "identifier": "g1633a4da7788a428e0cf2aaa3e4f7314",
+      "title": "Portfolio Design Building Worksheet (complete AFTER content)",
+      "url": "https://docs.google.com/document/d/1OGHp-kfuhqNOtNaqZGNT8M59CPYVZ4acIZFg1VGIMyY/edit?tab=t.0#heading=h.ay4hh5sqb33y",
+      "module_title": "Career Development",
+      "manifest_title": "Portfolio Design Building Worksheet (complete AFTER content)"
+    },
+    {
+      "identifier": "gc675eab7ab6ded4ccb2ee5566617122b",
+      "title": "Conference Notes worksheet (Google Doc)",
+      "url": "https://docs.google.com/document/d/1KXNTjS3hsF_QbFRlPp5L5DcbxFB7-9RsekDpgEi-zHc/edit?usp=sharing",
+      "module_title": "Career Development",
+      "manifest_title": "Conference Notes worksheet (Google Doc)"
+    },
+    {
+      "identifier": "g91783eadf85f2fc64f54fc9e96a64d2b",
+      "title": "Countries App: Version 0 Instructions",
+      "url": "https://github.com/ac-backend/countries-app-instructions/tree/main/version-0",
+      "module_title": "Week 0: Pre-work",
+      "manifest_title": "Countries App: Version 0 Instructions"
+    },
+    {
+      "identifier": "gbbd95214951219dc3db2eadd1359f3df",
+      "title": "Slides: Onboarding — All Classes",
+      "url": "https://www.canva.com/design/DAGxYCOiXWw/k2mz1KHWRxAMEhOOh3tq-w/view?utm_content=DAGxYCOiXWw&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hf0122d5801",
+      "module_title": "Week 1: Frontend Review",
+      "manifest_title": "Slides: Onboarding — All Classes"
+    },
+    {
+      "identifier": "gf3004e62ff9a53f81371c71660f82c88",
+      "title": "Slides: Onboarding —  Advanced Modules",
+      "url": "https://www.canva.com/design/DAGxYHzjsxY/sb31eDpi7IiDZj44bVGm0Q/view?utm_content=DAGxYHzjsxY&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h74842fa7c1",
+      "module_title": "Week 1: Frontend Review",
+      "manifest_title": "Slides: Onboarding —  Advanced Modules"
+    },
+    {
+      "identifier": "gd3cc36cb04dc52a5c0fdcde9dfe32103",
+      "title": "Slides: Onboarding — Backend",
+      "url": "https://www.canva.com/design/DAGTkn6iytI/XmmbMKl8L5HJexzM1v0vhQ/view?utm_content=DAGTkn6iytI&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h56533dc647",
+      "module_title": "Week 1: Frontend Review",
+      "manifest_title": "Slides: Onboarding — Backend"
+    },
+    {
+      "identifier": "g52021ad7881d6738fd2cd211c5635f0b",
+      "title": "Countries App: Version 1 Instructions",
+      "url": "https://github.com/ac-backend/countries-app-instructions/tree/main/version-1",
+      "module_title": "Week 1: Frontend Review",
+      "manifest_title": "Countries App: Version 1 Instructions"
+    },
+    {
+      "identifier": "gf8fbc063e0208801fb29097141978b91",
+      "title": "Stackblitz: Anatomy of a React Component Review",
+      "url": "https://stackblitz.com/edit/vitejs-vite-apqlrplk?file=src%2FApp.jsx",
+      "module_title": "Week 1: Frontend Review",
+      "manifest_title": "Stackblitz: Anatomy of a React Component Review"
+    },
+    {
+      "identifier": "g3560e7900c945b218fc49d12da331bc2",
+      "title": "Stackblitz Demo: Writing an API Call with useEffect",
+      "url": "https://stackblitz.com/edit/vitejs-vite-beynqhn2?file=src%2FApp.jsx",
+      "module_title": "Week 1: Frontend Review",
+      "manifest_title": "Stackblitz Demo: Writing an API Call with useEffect"
+    },
+    {
+      "identifier": "gd376a84fa1691ea2153154527bd64613",
+      "title": "Countries App: Version 2 Instructions",
+      "url": "https://github.com/ac-backend/countries-app-instructions/tree/main/version-2",
+      "module_title": "Week 2: HTTP Requests",
+      "manifest_title": "Countries App: Version 2 Instructions"
+    },
+    {
+      "identifier": "g281cd81d401939f82326294439c94797",
+      "title": "Countries App: API Documentation",
+      "url": "https://github.com/ac-backend/countries-app-instructions/blob/main/version-2/api-documentation.md",
+      "module_title": "Week 2: HTTP Requests",
+      "manifest_title": "Countries App: API Documentation"
+    },
+    {
+      "identifier": "g21f462926aaae02b5249285e331cd92b",
+      "title": "Slides: HTTP Requests",
+      "url": "https://www.canva.com/design/DAGoJJEquys/6rg792JB3CVZyLTCUwGB2w/view?utm_content=DAGoJJEquys&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h460574836f",
+      "module_title": "Week 2: HTTP Requests",
+      "manifest_title": "Slides: HTTP Requests"
+    },
+    {
+      "identifier": "gc7170335292a882920fc51817ca0b5e6",
+      "title": "Slides: Git & Github Basics",
+      "url": "https://www.canva.com/design/DAG_GK3iAbc/A-sRorhH3jcf970wbpdSGQ/edit?utm_content=DAG_GK3iAbc&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 3: HTTP Requests",
+      "manifest_title": "Slides: Git & Github Basics"
+    },
+    {
+      "identifier": "g6f747f219a7bf8528407e8e36b23e08c",
+      "title": "Slides: Introduction to Databases & Structured Data",
+      "url": "https://www.canva.com/design/DAFz4uwRd5k/IKQUYD_TfSjSgjrR_B_VGw/view?utm_content=DAFz4uwRd5k&utm_campaign=designshare&utm_medium=link&utm_source=editor",
+      "module_title": "Week 3: HTTP Requests",
+      "manifest_title": "Slides: Introduction to Databases & Structured Data"
+    },
+    {
+      "identifier": "g4f8309e82b21b5e13c59185d9f83247f",
+      "title": "Slides: Intro to SQL",
+      "url": "https://www.canva.com/design/DAGd-mOST94/ZJSwz9CVkMSZbl0QvUcqDw/view?utm_content=DAGd-mOST94&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h3d2c6d4dae",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "Slides: Intro to SQL"
+    },
+    {
+      "identifier": "gc0f0245f38867baed4a52010fee6bd42",
+      "title": "SQL Cheatsheet on CodeAcademy",
+      "url": "https://www.codecademy.com/learn/learn-sql/modules/learn-sql-manipulation/cheatsheet",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "SQL Cheatsheet on CodeAcademy"
+    },
+    {
+      "identifier": "gdbb97fb9d82ef64d3936b12dad8137fe",
+      "title": "Tutorial: SQL Zoo",
+      "url": "https://sqlzoo.net/wiki/SQL_Tutorial",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "Tutorial: SQL Zoo"
+    },
+    {
+      "identifier": "gae143a3273b76a3fcd6c1213aa922e1e",
+      "title": "Tutorial: Creating a Database on Neon.tech",
+      "url": "https://anniecannons.notion.site/Creating-a-Database-on-Neon-tech-20ebb7044bb18061a3b1caccaa664b52",
+      "module_title": "Week 6: SQL Continued: Aggregate Functions & Joins",
+      "manifest_title": "Tutorial: Creating a Database on Neon.tech"
+    },
+    {
+      "identifier": "g59421066857beb95b2d60932bcd04179",
+      "title": "Complete FIRST: Portfolio Content Worksheet",
+      "url": "https://docs.google.com/document/d/1YX3rJyFyP0wbooKTeeyKNzxJuQaQ3Oq8oDoTNjzRsU0/edit?tab=t.0#heading=h.ay4hh5sqb33y",
+      "module_title": "Week 7: Career Week",
+      "manifest_title": "Complete FIRST: Portfolio Content Worksheet"
+    },
+    {
+      "identifier": "g7e103056905a0e952aa4859caf08ad80",
+      "title": "After content is done: Portfolio Design Worksheet",
+      "url": "https://docs.google.com/document/d/1OGHp-kfuhqNOtNaqZGNT8M59CPYVZ4acIZFg1VGIMyY/edit?tab=t.0#heading=h.ay4hh5sqb33y",
+      "module_title": "Week 7: Career Week",
+      "manifest_title": "After content is done: Portfolio Design Worksheet"
+    },
+    {
+      "identifier": "gd5c343dafb7987eec4e36f0f95981b70",
+      "title": "Conference notes worksheet (Google doc)",
+      "url": "https://docs.google.com/document/d/1KXNTjS3hsF_QbFRlPp5L5DcbxFB7-9RsekDpgEi-zHc/edit?usp=sharing",
+      "module_title": "Week 7: Career Week",
+      "manifest_title": "Conference notes worksheet (Google doc)"
+    },
+    {
+      "identifier": "g1a4bb548c632d91d84561b035fdcca8a",
+      "title": "Slides: Collaborating on Github: Branches & Pull Requests",
+      "url": "https://www.canva.com/design/DAG2WEc88XQ/djvs86iZZRrdRi2b1nyxnQ/edit?utm_content=DAG2WEc88XQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 7: Github Collaboration & Intro to Node.js",
+      "manifest_title": "Slides: Collaborating on Github: Branches & Pull Requests"
+    },
+    {
+      "identifier": "gc4090afd83712fdb15c577afba58942d",
+      "title": "Slides: Intro to Node.js",
+      "url": "https://www.canva.com/design/DAF0tw0l5KA/vjfLhilMy7AUJNocjEiiRw/view?utm_content=DAF0tw0l5KA&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h59e2ff98e7",
+      "module_title": "Week 7: Github Collaboration & Intro to Node.js",
+      "manifest_title": "Slides: Intro to Node.js"
+    },
+    {
+      "identifier": "g5305fcc3bfae2fcceb682b6043ddbc1a",
+      "title": "Frontend Masters course: Intro to Node.js with Scott Moss",
+      "url": "https://frontendmasters.com/courses/node-js-v3/",
+      "module_title": "Week 7: Github Collaboration & Intro to Node.js",
+      "manifest_title": "Frontend Masters course: Intro to Node.js with Scott Moss"
+    },
+    {
+      "identifier": "g01d927b02115afbba1f4c3199fc3d4eb",
+      "title": "Slides: Tech Stacks and Technical Docs - Part 2",
+      "url": "https://calendar.app.google/rjVoemHhSbkJxP3h6",
+      "module_title": "Week 7: Github Collaboration & Intro to Node.js",
+      "manifest_title": "Slides: Tech Stacks and Technical Docs - Part 2"
+    },
+    {
+      "identifier": "gb07a104ebb3cc5f2938394fd6e167346",
+      "title": "Slides: Tech Stacks and Technical Docs - Part 1",
+      "url": "https://www.canva.com/design/DAFxu8bcGUg/w1-zI5ED8UwiFxEmoug8ig/view?utm_content=DAFxu8bcGUg&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h08e29935c6#1",
+      "module_title": "Week 7: Github Collaboration & Intro to Node.js",
+      "manifest_title": "Slides: Tech Stacks and Technical Docs - Part 1"
+    },
+    {
+      "identifier": "g8b0ff35359937fd0574aa139536e9a1c",
+      "title": "Slides: Node Modules",
+      "url": "https://www.canva.com/design/DAGhQ-NvUBM/I_CTn2EGAqrvMY3IoISjhg/view?utm_content=DAGhQ-NvUBM&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hbd9c6cd964",
+      "module_title": "Week 8: Node and Express",
+      "manifest_title": "Slides: Node Modules"
+    },
+    {
+      "identifier": "g88a811e6c04f83fc9de67a5723c56a0e",
+      "title": "Slides: Intro to Web Servers & Express.js",
+      "url": "https://www.canva.com/design/DAFzzMGpQe4/eRvDjXCnTScYauab9Jw8tA/view?utm_content=DAFzzMGpQe4&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hf802c4e3c6",
+      "module_title": "Week 8: Node and Express",
+      "manifest_title": "Slides: Intro to Web Servers & Express.js"
+    },
+    {
+      "identifier": "gf2cb163f1a21faab4a695725007e5021",
+      "title": "Doc: Javascript Jargon-ology",
+      "url": "https://docs.google.com/document/d/14yymG3KX1ypL_-S0XZvLfuWel5KUyN-yASvctgnXGMU/edit?tab=t.0",
+      "module_title": "Week 8: Node and Express",
+      "manifest_title": "Doc: Javascript Jargon-ology"
+    },
+    {
+      "identifier": "g66a4491bec09818213054637a9b906c1",
+      "title": "Slides: Intro to APIs",
+      "url": "https://www.canva.com/design/DAG3aGqcu9U/rqOQ-sWpl7CNRLvasOuIZQ/edit?utm_content=DAG3aGqcu9U&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 9: Node and Express and SQL",
+      "manifest_title": "Slides: Intro to APIs"
+    },
+    {
+      "identifier": "gf77705c0fd8f9a7f8733286790f1f0c0",
+      "title": "Version 4 Instructions — Countries API Project",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/tree/main/version-4",
+      "module_title": "Week 10: Node, Express, SQL, and APIs",
+      "manifest_title": "Version 4 Instructions — Countries API Project"
+    },
+    {
+      "identifier": "g409bd0fed091b4fd53e459c3cb77c387",
+      "title": "Version 4 API Documentation — Countries API Project",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/blob/main/version-4/api-documentation.md",
+      "module_title": "Week 10: Node, Express, SQL, and APIs",
+      "manifest_title": "Version 4 API Documentation — Countries API Project"
+    },
+    {
+      "identifier": "gee9c54bb425b39506e79647bee19b022",
+      "title": "Data Diagram",
+      "url": "https://www.canva.com/design/DAGfrKJMnXg/yseudzsvCFzN92nl4v1yDA/view?utm_content=DAGfrKJMnXg&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h46e4f9a9b6",
+      "module_title": "Week 10: Node, Express, SQL, and APIs",
+      "manifest_title": "Data Diagram"
+    },
+    {
+      "identifier": "gd252cfeaedb292affeb4f868f97af874",
+      "title": "Version 4 Instructions — Countries API Project",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/tree/main/version-4",
+      "module_title": "Week 11: Countries App Version 4",
+      "manifest_title": "Version 4 Instructions — Countries API Project"
+    },
+    {
+      "identifier": "gea5053040267e2bde337cf9134f530b1",
+      "title": "Version 4 API Documentation — Countries API Project",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/blob/main/version-4/api-documentation.md",
+      "module_title": "Week 11: Countries App Version 4",
+      "manifest_title": "Version 4 API Documentation — Countries API Project"
+    },
+    {
+      "identifier": "ge4b81d524098b20bf0b0acc999743652",
+      "title": "Version 4 Instructions — Countries API Project",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/tree/main/version-4",
+      "module_title": "Week 12: Countries App Version 4 and Assessments",
+      "manifest_title": "Version 4 Instructions — Countries API Project"
+    },
+    {
+      "identifier": "g9553223572dbc78f8f8bcc4a01e90b39",
+      "title": "Version 4 API Documentation — Countries API Project",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/blob/main/version-4/api-documentation.md",
+      "module_title": "Week 12: Countries App Version 4 and Assessments",
+      "manifest_title": "Version 4 API Documentation — Countries API Project"
+    },
+    {
+      "identifier": "g603b560cc30ccb413075dcb3a1e701c3",
+      "title": "Product Feedback App — Instructions",
+      "url": "https://github.com/ac-backend/product-feedback-app/blob/main/README.md",
+      "module_title": "Week 13: Product Feedback Fullstack App",
+      "manifest_title": "Product Feedback App — Instructions"
+    },
+    {
+      "identifier": "g97f06c500f1467b73e7c852fabc44957",
+      "title": "Guide: Deploying Your Server/API to Render",
+      "url": "https://github.com/AnnieCannons/countries-app-instructions/blob/main/version-5/deploy-server-to-render.md",
+      "module_title": "Week 13: Product Feedback Fullstack App",
+      "manifest_title": "Guide: Deploying Your Server/API to Render"
+    },
+    {
+      "identifier": "ga9eb8fd7d079b361a9ee6803aaa22b46",
+      "title": "Slides: Tech Stacks",
+      "url": "https://www.canva.com/design/DAFxu8bcGUg/8Ae4ItpQX5E_OWdo4M19MA/edit?utm_content=DAFxu8bcGUg&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 14: Product Feedback Fullstack App",
+      "manifest_title": "Slides: Tech Stacks"
+    },
+    {
+      "identifier": "gf9bd2527f4c93583727708300b751eb3",
+      "title": "Product Feedback App — Instructions",
+      "url": "https://github.com/ac-backend/product-feedback-app/blob/main/README.md",
+      "module_title": "Week 14: Product Feedback Fullstack App",
+      "manifest_title": "Product Feedback App — Instructions"
+    },
+    {
+      "identifier": "g1c2da7f0913cb41110eceb562901a2da",
+      "title": "Watch the Bookmarks and Tabs video",
+      "url": "https://drive.google.com/file/d/1MLwlqsQGKbH3ofUTkjfpBqP7rBV_TGL0/view?usp=sharing",
+      "module_title": "Extra Help",
+      "manifest_title": "Watch the Bookmarks and Tabs video"
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+{
+    "course": {
+      "title": "Advanced Frontend (Jan 2026)",
+      "source": "imsmanifest.xml"
+    },
+    "links": [
+    {
+      "identifier": "g52c525b8b461c6f429e28f38102d520f",
+      "title": "Front End Curriculum on Notion - (current)",
+      "url": "https://www.notion.so/anniecannons/Frontend-January-2026-2c3bb7044bb1814685cdcc29ff5ab6ae",
+      "module_title": "Instructor Resources - DO NOT PUBLISH",
+      "manifest_title": "Front End Curriculum on Notion - (current)"
+    },
+    {
+      "identifier": "ge4b459a8c34b598770c957be178cf247",
+      "title": "Zoom Link",
+      "url": "https://zoom.us/j/96927248933?pwd=8FIK35dHr0tAcHRT7hcgT30AzTnMhR.1",
+      "module_title": "Useful Resources",
+      "manifest_title": "Zoom Link"
+    },
+    {
+      "identifier": "g64a29fff7e56c19c700278ea57b663d5",
+      "title": "Class Recordings",
+      "url": "https://drive.google.com/drive/folders/1AyWF7UtY7OUm30UC8BQsUkZI-fSNn_WG?usp=sharing",
+      "module_title": "Useful Resources",
+      "manifest_title": "Class Recordings"
+    },
+    {
+      "identifier": "gef83fb158ebe256e9c0bf4f247191066",
+      "title": "What do do when you miss a class",
+      "url": "https://docs.google.com/document/d/1Tdj0PFWu98j3JDTBsvHHszxOKGazHUvt0faf2Ftogss/edit?tab=t.0#heading=h.1vg41lkd6ugb",
+      "module_title": "Useful Resources",
+      "manifest_title": "What do do when you miss a class"
+    },
+    {
+      "identifier": "g225b85e973552ba73d869ad76923b480",
+      "title": "Documentation Guides (Git, Github, React, Vite, etc)",
+      "url": "https://docs.google.com/document/d/18jxCUA0bebCyYaIHy8aaKMgOQH4w5-b-iCGDWpV4K4M/edit?usp=sharing",
+      "module_title": "Useful Resources",
+      "manifest_title": "Documentation Guides (Git, Github, React, Vite, etc)"
+    },
+    {
+      "identifier": "gde03373bd9f3a6938613adaaa0ea46c2",
+      "title": "AnnieCannons AI Policy",
+      "url": "https://docs.google.com/document/d/1m_lUC2rqIKd4UVSMU7tBR88rRt4CZ-NaaQqUL27cDCs/edit?tab=t.0#heading=h.9zx3mu2vfvlb",
+      "module_title": "Useful Resources",
+      "manifest_title": "AnnieCannons AI Policy"
+    },
+    {
+      "identifier": "gcdbca2534e6654bd138943ff5439ebed",
+      "title": "How Focus Friday Works",
+      "url": "https://docs.google.com/document/d/1j12yIPxab6XMMnng2qYjbvMN-J9KiiQgXWpEFga6V60/edit?usp=sharing",
+      "module_title": "Useful Resources",
+      "manifest_title": "How Focus Friday Works"
+    },
+    {
+      "identifier": "ge16effde1974e81128e98623272521be",
+      "title": "AnnieCannons Copy and Collaborate Policy",
+      "url": "https://docs.google.com/document/d/128-dtOHKVmtIFefQ5C6nME7KvGSmHINZ6g-Gt8TdygI/edit?usp=sharing",
+      "module_title": "Useful Resources",
+      "manifest_title": "AnnieCannons Copy and Collaborate Policy"
+    },
+    {
+      "identifier": "ga9bedfe9cd8ca7da2de7c0fd49538155",
+      "title": "Student Support & Accountability Process",
+      "url": "https://docs.google.com/document/d/1SSOG4mhmj6qFPxTRRrM168dyK8ENsuu4gtLRJOg63y8/edit?tab=t.0#heading=h.5p1qgo94aqfg",
+      "module_title": "Useful Resources",
+      "manifest_title": "Student Support & Accountability Process"
+    },
+    {
+      "identifier": "g5b818a5aad26a959d1a4d5e5fdc9f5a6",
+      "title": "Student Attendance Portal Guide",
+      "url": "https://anniecannons.notion.site/Student-Attendance-Portal-Guide-29bbb7044bb180d58edae1fc8efbb97c",
+      "module_title": "Useful Resources",
+      "manifest_title": "Student Attendance Portal Guide"
+    },
+    {
+      "identifier": "g7e47bcff0a2fdca8faa5fef4f09fb658",
+      "title": "CSS Tricks: Guide to Flexbox",
+      "url": "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
+      "module_title": "Useful Resources",
+      "manifest_title": "CSS Tricks: Guide to Flexbox"
+    },
+    {
+      "identifier": "gb78b2debed7b3bb4d71b83cb13e4439d",
+      "title": "Flexbox Adventure game",
+      "url": "https://codingfantasy.com/games/flexboxadventure",
+      "module_title": "Useful Resources",
+      "manifest_title": "Flexbox Adventure game"
+    },
+    {
+      "identifier": "gee750cdc7dd53244679fd0ee1ac5c91c",
+      "title": "CSS Tricks: Guide to Grid",
+      "url": "https://css-tricks.com/snippets/css/complete-guide-grid/",
+      "module_title": "Useful Resources",
+      "manifest_title": "CSS Tricks: Guide to Grid"
+    },
+    {
+      "identifier": "gb6a002b0f3b43d45da3248110b82b903",
+      "title": "CSS Grid Attack game",
+      "url": "https://codingfantasy.com/games/css-grid-attack",
+      "module_title": "Useful Resources",
+      "manifest_title": "CSS Grid Attack game"
+    },
+    {
+      "identifier": "gda92966ec773e51188578c55831b763b",
+      "title": "Mimo - JavaScript tutorial",
+      "url": "https://mimo.org/",
+      "module_title": "Useful Resources",
+      "manifest_title": "Mimo - JavaScript tutorial"
+    },
+    {
+      "identifier": "g86647ff5fccc408c3bba81f5caaf5fdb",
+      "title": "SoloLearn - HTML, CSS, JS, web app development",
+      "url": "https://www.sololearn.com/en/",
+      "module_title": "Useful Resources",
+      "manifest_title": "SoloLearn - HTML, CSS, JS, web app development"
+    },
+    {
+      "identifier": "gb1f32f9a28a669e2a3bb25e1cf8e00de",
+      "title": "Learn JavaScript - Codecademy",
+      "url": "https://www.codecademy.com/learn/introduction-to-javascript",
+      "module_title": "Useful Resources",
+      "manifest_title": "Learn JavaScript - Codecademy"
+    },
+    {
+      "identifier": "gc77613bc3f3c81c8dbc0932ef38a074f",
+      "title": "Exercism JavaScript",
+      "url": "https://exercism.org/tracks/javascript/exercises",
+      "module_title": "Useful Resources",
+      "manifest_title": "Exercism JavaScript"
+    },
+    {
+      "identifier": "g2029811765fca74f973b7180fbc12fb5",
+      "title": "JavaScript CodeCademy",
+      "url": "https://www.codecademy.com/learn/introduction-to-javascript",
+      "module_title": "What to do if you finish assignments early",
+      "manifest_title": "JavaScript CodeCademy"
+    },
+    {
+      "identifier": "gf0ddac00910fcca7e152a84ca1886a8b",
+      "title": "React CodeCademy",
+      "url": "https://www.codecademy.com/learn/react-101",
+      "module_title": "What to do if you finish assignments early",
+      "manifest_title": "React CodeCademy"
+    },
+    {
+      "identifier": "g8598c5b4e789e941ef80339b0ed54590",
+      "title": "FEM Accessibility Course",
+      "url": "https://frontendmasters.com/courses/accessibility-v3/",
+      "module_title": "What to do if you finish assignments early",
+      "manifest_title": "FEM Accessibility Course"
+    },
+    {
+      "identifier": "g9466270f6cf1f2acc1eef516a3ddb698",
+      "title": "Advanced Module Onboarding Slides",
+      "url": "https://www.canva.com/design/DAGxYHzjsxY/klurav_4ZMtomlycmu8zWQ/edit",
+      "module_title": "Week 1: Onboarding + Review",
+      "manifest_title": "Advanced Module Onboarding Slides"
+    },
+    {
+      "identifier": "g02b74701828016e8c443b7154ec19ad9",
+      "title": "Onboarding - All Classes",
+      "url": "https://www.canva.com/design/DAGxYCOiXWw/XzLI7FwbivEYDVU-uJ8p8A/edit?utm_content=DAGxYCOiXWw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 1: Onboarding + Review",
+      "manifest_title": "Onboarding - All Classes"
+    },
+    {
+      "identifier": "gec14f714a2dac6bc6bd3c3fcb78ca12b",
+      "title": "ITP Review Slides",
+      "url": "https://www.canva.com/design/DAGmO05Nbt0/7u1PtEzUxoqBMJOXKAwlVA/edit?utm_content=DAGmO05Nbt0&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 1: Onboarding + Review",
+      "manifest_title": "ITP Review Slides"
+    },
+    {
+      "identifier": "gcf596101c57f2503accbc46358ab343c",
+      "title": "Functions Intro - First 10 Slides ONLY",
+      "url": "https://www.canva.com/design/DAGVvGUveAo/EQMRM27YX3j3GmX9hAC1dw/edit",
+      "module_title": "Week 1: Onboarding + Review",
+      "manifest_title": "Functions Intro - First 10 Slides ONLY"
+    },
+    {
+      "identifier": "g58ae14b6075fe52680950b41089b0e09",
+      "title": "Dot & Bracket Notation Slides",
+      "url": "https://www.canva.com/design/DAGbdK_89WE/OiCG1LTNgFX60t1-ZETdow/edit",
+      "module_title": "Week 2: Dot/Bracket + If/else",
+      "manifest_title": "Dot & Bracket Notation Slides"
+    },
+    {
+      "identifier": "g9b8c1e13b04bef5177fca6d1807b6ee7",
+      "title": "If/Else slides",
+      "url": "https://www.canva.com/design/DAGbdPL-xto/8vsRygPxpnMrH24N5JnTbQ/edit?utm_content=DAGbdPL-xto&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 2: Dot/Bracket + If/else",
+      "manifest_title": "If/Else slides"
+    },
+    {
+      "identifier": "gc2a81b56c440c559df7ed3d97797d398",
+      "title": "Loops Intro Slides",
+      "url": "https://www.canva.com/design/DAGbjsG80hc/E5_BhYVm78Zj1_1-4EG5iQ/edit?utm_content=DAGbjsG80hc&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 3: Loops Intro",
+      "manifest_title": "Loops Intro Slides"
+    },
+    {
+      "identifier": "g3d6b4410d7d83dae3705ac7b436b25d2",
+      "title": "Slides: Introduction to Scope",
+      "url": "https://www.canva.com/design/DAGz7f5USXs/j-zhhEBQQWDepKLI71eJHA/edit?utm_content=DAGz7f5USXs&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 5: More Loops + Functions + Scope",
+      "manifest_title": "Slides: Introduction to Scope"
+    },
+    {
+      "identifier": "g8b3ed178f7bce7fc5fb546b3852251ca",
+      "title": "Slides: Intro to Pseudocoding",
+      "url": "https://www.canva.com/design/DAGUgfSKY1I/Hq2COXhzVx9HGsplCyPP1Q/edit?utm_content=DAGUgfSKY1I&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 5: More Loops + Functions + Scope",
+      "manifest_title": "Slides: Intro to Pseudocoding"
+    },
+    {
+      "identifier": "g0ca27ad82e532c2ac583d6f8f65517e2",
+      "title": "Intro to Arrow Functions Slides",
+      "url": "https://www.canva.com/design/DAGOflbl2vg/I42xIIvgu1LBTjWsjdjAMA/edit?utm_content=DAGOflbl2vg&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 6: APIs",
+      "manifest_title": "Intro to Arrow Functions Slides"
+    },
+    {
+      "identifier": "g490358e60b5ffad1b5b4ae7fe1861f79",
+      "title": "Intro to APIs Slides",
+      "url": "https://www.canva.com/design/DAGOsLQXK9k/j-0mDiG_YGpDxu-p268AaQ/edit?utm_content=DAGOsLQXK9k&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 6: APIs",
+      "manifest_title": "Intro to APIs Slides"
+    },
+    {
+      "identifier": "g63ae0bff8c2302d3f2e8297b6b8fe050",
+      "title": "Dynamic API Links Slides",
+      "url": "https://www.canva.com/design/DAGe7CroXT0/qqYk5yahkyt4Y0Gv1Dbo1Q/edit?utm_content=DAGe7CroXT0&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 6: APIs",
+      "manifest_title": "Dynamic API Links Slides"
+    },
+    {
+      "identifier": "ga467e97117fec1c422e1cecdabe99f69",
+      "title": "Computational Thinking Slides",
+      "url": "https://www.canva.com/design/DAGP6GZxaKk/aRX_wT6Ljar2_QkPz8sAig/edit?utm_content=DAGP6GZxaKk&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+      "module_title": "Week 8: Logic Games",
+      "manifest_title": "Computational Thinking Slides"
+    }
+  ]
+}

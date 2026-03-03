@@ -1,0 +1,180 @@
+{
+    "course": {
+      "title": "TCF (Jan 2026)",
+      "source": "Canvas course export"
+    },
+    "assessments": [
+    {
+      "identifier": "g41b21c07af11b016ecdd9a3cfd8f2c62",
+      "type": "quiz",
+      "title": "Quiz: AnnieCannons New Student Information Quiz",
+      "due_at": "2026-01-16T04:59:00",
+      "quiz_type": "assignment",
+      "module_title": "Week 1: Intro to AnnieCannons",
+      "manifest_title": "AnnieCannons New Student Information Quiz",
+      "questions": [
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is the latest time you can log into Zoom before being marked tardy?</div>",
+          "choices": [
+            {
+              "ident": "5499",
+              "text": "At the scheduled start time: 8:45 PST/11:45 EST"
+            },
+            {
+              "ident": "3630",
+              "text": "Up to 10 minutes after start time"
+            },
+            {
+              "ident": "4001",
+              "text": "By the end of Block A"
+            },
+            {
+              "ident": "5250",
+              "text": "We don't track attendance"
+            }
+          ],
+          "correct_response_ident": "5499"
+        },
+        {
+          "ident": "g72e7bc1e43e98e4fc042b66a992fe57e",
+          "question_text": "<div>If you are going to be late or absent, what should you do?</div>",
+          "choices": [
+            {
+              "ident": "393",
+              "text": "Post in the class OOO channel"
+            },
+            {
+              "ident": "6008",
+              "text": "Message a classmate and ask them to tell the instructor"
+            },
+            {
+              "ident": "249",
+              "text": "Do nothing—life happens"
+            },
+            {
+              "ident": "4313",
+              "text": "Announce to the class when you arrive what happened"
+            }
+          ],
+          "correct_response_ident": "393"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What should you do if you're stuck on an assignment for more than 10 minutes?</div>",
+          "choices": [
+            {
+              "ident": "9869",
+              "text": "Post in the help channel or ask your instructor. It's totally ok to need a second pair of eyes, it happens to all developers!"
+            },
+            {
+              "ident": "457",
+              "text": "Keep trying silently until class ends"
+            },
+            {
+              "ident": "6712",
+              "text": "Ask Ai to do your work"
+            },
+            {
+              "ident": "1339",
+              "text": "Move on to a different assignment or take a social media break"
+            }
+          ],
+          "correct_response_ident": "9869"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>When is it <strong>required</strong> that you come to Focus Friday? <strong><br><br></strong></div>",
+          "choices": [
+            {
+              "ident": "6604",
+              "text": "When you have missing or incomplete assignments"
+            },
+            {
+              "ident": "5976",
+              "text": "When you want to ask how a piece of your code is working"
+            },
+            {
+              "ident": "8823",
+              "text": "When you want to watch other people debug together in the collab rooms (as long as you don't distract from the work)"
+            },
+            {
+              "ident": "7956",
+              "text": "When you want to come code in community with your peers."
+            }
+          ],
+          "correct_response_ident": "6604"
+        },
+        {
+          "ident": "g9c9d5e5c5b7d2337dce36d6c60738c32",
+          "question_text": "<div>In order to be considered <strong>present</strong> in class, you must</div>",
+          "choices": [
+            {
+              "ident": "8286",
+              "text": "Have your camera on, be at your laptop, and be in the upright position"
+            },
+            {
+              "ident": "6512",
+              "text": "It's ok to turn your camera off if you have a headache"
+            },
+            {
+              "ident": "3083",
+              "text": "It's ok to run a quick errand if you bring your laptop"
+            },
+            {
+              "ident": "3295",
+              "text": "Its ok to use your phone if you're on the train and there is no Wi-Fi"
+            }
+          ],
+          "correct_response_ident": "8286"
+        },
+        {
+          "ident": "g2f1517dbd5551a0e471cb8ef2112a198",
+          "question_text": "<div>What’s the best way to show professionalism in the ITP program?</div>",
+          "choices": [
+            {
+              "ident": "4529",
+              "text": "Always being on camera and actively participating, and working towards your goals during lab"
+            },
+            {
+              "ident": "2717",
+              "text": "Helping your peers before asking for help yourself"
+            },
+            {
+              "ident": "9345",
+              "text": "Starting personal small talk on a regular basis in breakouts during lab"
+            },
+            {
+              "ident": "8276",
+              "text": "Doing other work during lectures, and then wanting the instructor to re-teach the lesson to you"
+            }
+          ],
+          "correct_response_ident": "4529"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which of the following would be appropriate to post in the help channel?</div>",
+          "choices": [
+            {
+              "ident": "787",
+              "text": "“I’m struggling to figure out why my if/else isn’t running—here’s my code. I have tried changing the variable on line 9, but it didn't work”"
+            },
+            {
+              "ident": "4611",
+              "text": "“I have a bug in my assignment”"
+            },
+            {
+              "ident": "5565",
+              "text": "Just send a screenshot, no explanation needed"
+            },
+            {
+              "ident": "979",
+              "text": "“I can't do my homework”"
+            }
+          ],
+          "correct_response_ident": "787"
+        }
+      ]
+    }
+  ]
+}

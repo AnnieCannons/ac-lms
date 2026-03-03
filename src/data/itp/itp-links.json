@@ -1,0 +1,778 @@
+{
+    "course": {
+      "title": "Intro to Programming (Jan 2026)",
+      "source": "imsmanifest.xml"
+    },
+    "links": [
+      {
+        "identifier": "g9c74482c999413e5c7e888a58314f8dd",
+        "title": "Anki Flashcards",
+        "url": "https://apps.ankiweb.net/",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Anki Flashcards"
+      },
+      {
+        "identifier": "g12fd6ec40640a7b81e392404be3b3765",
+        "title": "Article - Learning Coding &  Practicing Kindness",
+        "url": "https://docs.google.com/document/d/1u0etSPI5CQGSQTcyk5Q3cUhs7adbX18wYp3dwSBS7JM/edit?tab=t.0",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Article - Learning Coding &  Practicing Kindness"
+      },
+      {
+        "identifier": "g260935a9ae3930ac917599bceddfc10c",
+        "title": "Bento Grid images (Zip file for download, includes design files, for working in VS Code)",
+        "url": "https://drive.google.com/file/d/1f349iqXeNRSnyWEuV6F33LZeMT8cdsZv/view?usp=sharing",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Bento Grid images (Zip file for download, includes design files, for working in VS Code)"
+      },
+      {
+        "identifier": "g22f2ccd53da3377b3bade4fbc88427e5",
+        "title": "CSS Tricks Flexbox Layout Guide",
+        "url": "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CSS Tricks Flexbox Layout Guide"
+      },
+      {
+        "identifier": "g6f43a332b49b52db6bbe3a188d44d437",
+        "title": "CSS Tricks Grid Layout Guide",
+        "url": "https://css-tricks.com/snippets/css/complete-guide-grid/",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CSS Tricks Grid Layout Guide"
+      },
+      {
+        "identifier": "ga4ddb47691e990c46823939e9b80b862",
+        "title": "CodeCademy (JS)",
+        "url": "https://www.codecademy.com/learn/introduction-to-javascript",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CodeCademy (JS)"
+      },
+      {
+        "identifier": "g86c5f4818bec5396190d54feeacb36a6",
+        "title": "CodeCademy: Learn CSS",
+        "url": "https://www.codecademy.com/learn/learn-css",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CodeCademy: Learn CSS"
+      },
+      {
+        "identifier": "gbb41f3382f5940302b1bdf00dfb832e8",
+        "title": "CodeCademy: Learn HTML",
+        "url": "https://www.codecademy.com/learn/learn-html",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CodeCademy: Learn HTML"
+      },
+      {
+        "identifier": "gbe8914a9e5429040d76b332e35f3a64e",
+        "title": "CodeCademy: Learn JavaScript",
+        "url": "https://www.codecademy.com/learn/introduction-to-javascript",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CodeCademy: Learn JavaScript"
+      },
+      {
+        "identifier": "g48ed280b7b0852c4132852d1f7010697",
+        "title": "CodePen: Starting pen with images, if you want to start here",
+        "url": "https://codepen.io/team/anniecannons/pen/bGXryog",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CodePen: Starting pen with images, if you want to start here"
+      },
+      {
+        "identifier": "gc19e0a9bb276bc9a36675785553222bb",
+        "title": "CodePen: Starting pen with images, if you want to start here",
+        "url": "https://codepen.io/team/anniecannons/pen/KKOZVOK",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "CodePen: Starting pen with images, if you want to start here"
+      },
+      {
+        "identifier": "gd196d7b65fa90b85ca45f77453d9caa4",
+        "title": "Codédex: Learn CSS",
+        "url": "https://www.codedex.io/css",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Codédex: Learn CSS"
+      },
+      {
+        "identifier": "ga528f0849d9aee0355588f4f29c4c596",
+        "title": "Codédex: Learn HTML",
+        "url": "https://www.codedex.io/html",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Codédex: Learn HTML"
+      },
+      {
+        "identifier": "g61bd7464e31c8e43d270578267b0a45e",
+        "title": "Codédex: Learn JavaScript",
+        "url": "https://www.codedex.io/javascript",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Codédex: Learn JavaScript"
+      },
+      {
+        "identifier": "gd06e259e5c495f74306b7d6951963028",
+        "title": "Doc: Blogging prompts",
+        "url": "https://docs.google.com/document/d/1DYrrDba9jHz-qMedezG6l43MFpjheooy5nD43H1f6f4/edit",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Doc: Blogging prompts"
+      },
+      {
+        "identifier": "g4cb51b6f1c594b8e0a89b4542ec70569",
+        "title": "Doc: Confidence Builder",
+        "url": "https://docs.google.com/document/d/18oct_K9_m8-5W-TqgoWL-nEWwB6GeIhsXDwnm9FzE24/edit?tab=t.gcaavz6nosj",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Doc: Confidence Builder"
+      },
+      {
+        "identifier": "ge653cd27a1c1313d9766ce4a09592811",
+        "title": "Doc: Daily structure for AC courses",
+        "url": "https://docs.google.com/document/d/1JCeX36ElBbhVQU8oidaw5wOEHNC6ZvBhZXbrw9dMtX8/edit#heading=h.1jzzwm7xwdfx",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Doc: Daily structure for AC courses"
+      },
+      {
+        "identifier": "ga4f57e16649862f374b089246208c819",
+        "title": "Doc: Programming documentation guides (Git, Github, React, etc)",
+        "url": "https://docs.google.com/document/d/18jxCUA0bebCyYaIHy8aaKMgOQH4w5-b-iCGDWpV4K4M/edit?usp=sharing",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Doc: Programming documentation guides (Git, Github, React, etc)"
+      },
+      {
+        "identifier": "g59e15ae4d6c64e8b2758646e4a62f69a",
+        "title": "How Focus Friday Works",
+        "url": "https://docs.google.com/document/d/1j12yIPxab6XMMnng2qYjbvMN-J9KiiQgXWpEFga6V60/edit?tab=t.0#heading=h.n3wppllh4075",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "How Focus Friday Works"
+      },
+      {
+        "identifier": "ga8999dfc581779417a621d8ddc1ac282",
+        "title": "ITP MASTER topic spreadsheet",
+        "url": "https://docs.google.com/spreadsheets/d/14RTKLnw4UK_rFB0Ep5zNC4VycAFhk2Md2XC3pCYJzEQ/edit?usp=sharing",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "ITP MASTER topic spreadsheet"
+      },
+      {
+        "identifier": "g95cf804288261d78bfc35dbfa5256720",
+        "title": "JS Variables",
+        "url": "https://javascript.info/variables",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "JS Variables"
+      },
+      {
+        "identifier": "g07bb9366e8dc58269bbf984ee410b508",
+        "title": "Keyboard Shortcuts",
+        "url": "https://support.apple.com/en-us/102650",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Keyboard Shortcuts"
+      },
+      {
+        "identifier": "g6275279c3be536b3ea5141493a6d93d2",
+        "title": "Notion Class Notes",
+        "url": "https://www.notion.so/anniecannons/TCF-ITP-Class-Notes-Jan-2026-2e8bb7044bb180e0b65ccefcedc829da",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Notion Class Notes"
+      },
+      {
+        "identifier": "g1935733e845f93a8aef19bae5700bd90",
+        "title": "Notion: Self-Directed Learning Tips & Resources",
+        "url": "https://www.notion.so/anniecannons/Self-Directed-Learning-Tips-Resources-b97c73b93d8c4ff5852a30916eb05cbf",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Notion: Self-Directed Learning Tips & Resources"
+      },
+      {
+        "identifier": "g51ead380336ab10510e9ef241dc6de62",
+        "title": "Typemaster images (Design images, images for VS Code, design system, Figma file)",
+        "url": "https://drive.google.com/drive/folders/1DhkGtNJYu11lkjxVts4PZNiILJVugttf?usp=sharing",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Typemaster images (Design images, images for VS Code, design system, Figma file)"
+      },
+      {
+        "identifier": "gfd55df413e6896827efef9bf9c9954b2",
+        "title": "Video: How to Study - Evidence Based Study Tips",
+        "url": "https://www.youtube.com/watch?v=ukLnPbIffxE",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Video: How to Study - Evidence Based Study Tips"
+      },
+      {
+        "identifier": "g5ab6e7bb148bc7c550209b262413d8e6",
+        "title": "Video: How to Study - Spaced Repetition",
+        "url": "https://www.youtube.com/watch?v=Z-zNHHpXoMM",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Video: How to Study - Spaced Repetition"
+      },
+      {
+        "identifier": "g23eeacfdd986f83f59baacd6316d5bfa",
+        "title": "Watch the Bookmarks and Tabs video",
+        "url": "https://drive.google.com/file/d/1MLwlqsQGKbH3ofUTkjfpBqP7rBV_TGL0/view?usp=sharing",
+        "module_title": "Instructor Resources - DO NOT PUBLISH",
+        "manifest_title": "Watch the Bookmarks and Tabs video"
+      },
+      {
+        "identifier": "gf45736f017cce31487fb6d49ce512152",
+        "title": "Form DUE AUG 15:  Bytes & Brilliance: AnnieCannons Student Showcase RSVP",
+        "url": "https://forms.gle/zfRz2Mxz7HmtUKBEA",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "Form DUE AUG 15:  Bytes & Brilliance: AnnieCannons Student Showcase RSVP"
+      },
+      {
+        "identifier": "g00288de24c1066ca52b5fd8fb995853e",
+        "title": "ITP Assessment Booking Link",
+        "url": "https://calendar.app.google/Lr7yDbmQeyaiwfcy6",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "ITP Assessment Booking Link"
+      },
+      {
+        "identifier": "g4633efad5ec1480134a7f4d021fdf85a",
+        "title": "Monday: Explore & Teach yourselves forms",
+        "url": "https://codepen.io/team/anniecannons/pen/azboXrZ",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "Monday: Explore & Teach yourselves forms"
+      },
+      {
+        "identifier": "g6132f01388eb45b6352b873060d3937e",
+        "title": "Monday: Forms code-along",
+        "url": "https://codepen.io/team/anniecannons/pen/KwKjoJJ",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "Monday: Forms code-along"
+      },
+      {
+        "identifier": "g0ae2ac6dccd950691f94e92d9a9c8a93",
+        "title": "Slides: Form Submission",
+        "url": "https://www.canva.com/design/DAGeXDHcomo/wC2IMId8T-va6aWuzsA6rw/edit?ui=eyJEIjp7IlQiOnsiQSI6IlBCZ3Z3YlRKNlBjZ2NTNDUifX19",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "Slides: Form Submission"
+      },
+      {
+        "identifier": "g9940483202293dcb267ff15032d2f67d",
+        "title": "Slides: Forms Intro",
+        "url": "https://www.canva.com/design/DAGeXDHcomo/wC2IMId8T-va6aWuzsA6rw/edit?utm_content=DAGeXDHcomo&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "Slides: Forms Intro"
+      },
+      {
+        "identifier": "g6dedc2e7427e90bb6f497dc6a2409c98",
+        "title": "Wednesday: Explore & Teach yourself dot notation",
+        "url": "https://codepen.io/team/anniecannons/pen/qEBGoPN?",
+        "module_title": "Week 10: Forms",
+        "manifest_title": "Wednesday: Explore & Teach yourself dot notation"
+      },
+      {
+        "identifier": "g0cbddad24fd56cd251d73601bfe5fbe9",
+        "title": "Bytes and Brilliance Presentation Checklist",
+        "url": "https://docs.google.com/document/d/1t9yRdxyXl2Q4vZcbqgCaNwJgKv820JeP01lRPbvRRgk/edit?usp=sharing",
+        "module_title": "Week 11: Projects and Wrap-Up",
+        "manifest_title": "Bytes and Brilliance Presentation Checklist"
+      },
+      {
+        "identifier": "g06a7b762e9cd64c02a4e24d38abd4305",
+        "title": "Post ITP Survey - Anonymous",
+        "url": "https://airtable.com/app4qZ9NIMIXXgX59/pagbcVSjVLnHamYa9/form",
+        "module_title": "Week 11: Projects and Wrap-Up",
+        "manifest_title": "Post ITP Survey - Anonymous"
+      },
+      {
+        "identifier": "g553d608081fde39aae9798770308d542",
+        "title": "Post ITP Survey - Growth Goals",
+        "url": "https://airtable.com/app4qZ9NIMIXXgX59/pagFq2bJXyOMW9zrh/form",
+        "module_title": "Week 11: Projects and Wrap-Up",
+        "manifest_title": "Post ITP Survey - Growth Goals"
+      },
+      {
+        "identifier": "g6daf5881b9ced93abd111df99bf9dee1",
+        "title": "Article: How to write good ALT text",
+        "url": "https://supercooldesign.co.uk/blog/how-to-write-good-alt-text",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Article: How to write good ALT text"
+      },
+      {
+        "identifier": "gd1981e261a621bf51145d0e5b1983bcc",
+        "title": "CodePen: Box model demo (with sliders)",
+        "url": "https://codepen.io/team/anniecannons/pen/ExBLvEw",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "CodePen: Box model demo (with sliders)"
+      },
+      {
+        "identifier": "g7c241d1c192cd06618926e28571d41c5",
+        "title": "Link: Google Fonts",
+        "url": "https://fonts.google.com",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Link: Google Fonts"
+      },
+      {
+        "identifier": "g2e0143a6d50e251381e77cf3635f061c",
+        "title": "Notion: CSS box model, divs, classes notes",
+        "url": "https://www.notion.so/anniecannons/CSS-Box-Model-divs-and-classes-304bb7044bb180508135dceab17e3617?source=copy_link",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Notion: CSS box model, divs, classes notes"
+      },
+      {
+        "identifier": "gbc299a2b784381b8fe42af97daace9ce",
+        "title": "Notion: Inline vs Block, width notes",
+        "url": "https://www.notion.so/anniecannons/Inline-vs-Block-Width-305bb7044bb180768ea3fcc06885046b?source=copy_link",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Notion: Inline vs Block, width notes"
+      },
+      {
+        "identifier": "g8ae05ec01a195b49adba40ce4a2e5a52",
+        "title": "Notion: Intro to CSS notes",
+        "url": "https://www.notion.so/anniecannons/Intro-to-CSS-303bb7044bb18011ba93c828ad039c4c?source=copy_link",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Notion: Intro to CSS notes"
+      },
+      {
+        "identifier": "ga91b490992482f9f86baf86b2a5fc011",
+        "title": "Notion: Intro to HTML notes",
+        "url": "https://www.notion.so/anniecannons/Intro-to-HTML-2e8bb7044bb1818d938ee9d19faa58dd?source=copy_link",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Notion: Intro to HTML notes"
+      },
+      {
+        "identifier": "g1e4c5a0e25b21c0e6d6ac5149c902528",
+        "title": "Slides: CSS Box Model",
+        "url": "https://www.canva.com/design/DAGO_J6AQjQ/TiMxpNnKg8sHdTrvFbT9CA/edit?utm_content=DAGO_J6AQjQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Slides: CSS Box Model"
+      },
+      {
+        "identifier": "ge2bb768e565a967262de7565e0e603d2",
+        "title": "Slides: Intro to CSS",
+        "url": "https://www.canva.com/design/DAGOhR-1K1E/Gwv6dgiZiKxfK-p-bkT7GQ/view",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Slides: Intro to CSS"
+      },
+      {
+        "identifier": "g81c36ede0bad66de93b678dd21d0f8ba",
+        "title": "Slides: Personal Branding Colors and Fonts (from TCF, for review)",
+        "url": "https://www.canva.com/design/DAGIszrDccI/Byol_tX8J-2mv7en2FarFQ/edit?utm_content=DAGIszrDccI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 1: HTML review, Intro to CSS",
+        "manifest_title": "Slides: Personal Branding Colors and Fonts (from TCF, for review)"
+      },
+      {
+        "identifier": "gf5dae19721d57ef8a27bb7c6a4ef1094",
+        "title": "BONUS: Farmer's Market Cards",
+        "url": "https://codepen.io/team/anniecannons/pen/LYKKzOJ",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "BONUS: Farmer's Market Cards"
+      },
+      {
+        "identifier": "gfd12fd02fd09852929543e6c20796d87",
+        "title": "CodePen Morning Warmup: Jupiter Moons Markup",
+        "url": "https://codepen.io/team/anniecannons/pen/abgPoNO",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "CodePen Morning Warmup: Jupiter Moons Markup"
+      },
+      {
+        "identifier": "g18bd5aa17159edafa4932aa451bf7e8f",
+        "title": "CodePen: Farmer's Market Vertical Nav Bar",
+        "url": "https://codepen.io/team/anniecannons/pen/ZEdVEpp?editors=1010",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "CodePen: Farmer's Market Vertical Nav Bar"
+      },
+      {
+        "identifier": "g430046b4909694b0773be852af008e0e",
+        "title": "Codepen Morning warmup: Vertical navbars",
+        "url": "https://codepen.io/team/anniecannons/pen/abgPoKm",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "Codepen Morning warmup: Vertical navbars"
+      },
+      {
+        "identifier": "gb372685faa134f62fcee845c0acec337",
+        "title": "Feedback Survey",
+        "url": "https://forms.gle/MbBSug7VQCjyRKeCA",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "Feedback Survey"
+      },
+      {
+        "identifier": "g1b4e1324f87079aebb298a5580b2e688",
+        "title": "Notion: Styling Buttons Notes",
+        "url": "https://www.notion.so/anniecannons/Styling-Buttons-30bbb7044bb1805e8c2fc707b7d5b32d?source=copy_link",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "Notion: Styling Buttons Notes"
+      },
+      {
+        "identifier": "gfac85b3790623307b879ef23981d109c",
+        "title": "Notion: Vertical Nav Bars Class Notes",
+        "url": "https://www.notion.so/anniecannons/Vertical-Nav-Bars-30abb7044bb18039ae68c7b26c056b90?source=copy_link",
+        "module_title": "Week 2: More HTML and CSS",
+        "manifest_title": "Notion: Vertical Nav Bars Class Notes"
+      },
+      {
+        "identifier": "g6c501179a3b8317e9cda00c3a8cd7378",
+        "title": "CSS Grid Garden Game",
+        "url": "https://cssgridgarden.com/",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "CSS Grid Garden Game"
+      },
+      {
+        "identifier": "g8092c12f1cc47c2011874d6197c62316",
+        "title": "CSS Tricks: Grid Layout Guide",
+        "url": "https://css-tricks.com/snippets/css/complete-guide-grid/",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "CSS Tricks: Grid Layout Guide"
+      },
+      {
+        "identifier": "ga26962a208f414cf3e51ff773810d4fb",
+        "title": "CodePen Morning Warmup: Demonstrating \"text\" properties",
+        "url": "https://codepen.io/team/anniecannons/pen/jOjXWGa",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "CodePen Morning Warmup: Demonstrating \"text\" properties"
+      },
+      {
+        "identifier": "g387a5372e640b3031e31379dcf18d1d3",
+        "title": "CodePen: Boxes and Grid Intro",
+        "url": "https://codepen.io/team/anniecannons/pen/MWMLyYq",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "CodePen: Boxes and Grid Intro"
+      },
+      {
+        "identifier": "g8a767162805df9f65ccc58276bd717e9",
+        "title": "CodePen: Responsive boxes and grid",
+        "url": "https://codepen.io/team/anniecannons/pen/MWMLyYq",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "CodePen: Responsive boxes and grid"
+      },
+      {
+        "identifier": "g45294d971be62dfba34bdd2c565641d4",
+        "title": "Doc: Annotating for Grid",
+        "url": "https://docs.google.com/document/d/1FJXCncOS5BPaILVoKQu48CvC-NbOp9Gj1p6N0SLTJ6k/edit",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "Doc: Annotating for Grid"
+      },
+      {
+        "identifier": "g95967c191f24677553a14c7edc60bbf2",
+        "title": "Feedback Survey",
+        "url": "https://docs.google.com/forms/d/e/1FAIpQLSdU8ua68QfDjhkieuegoOb31qurB57GfBB389GNwmPGsXa31g/viewform",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "Feedback Survey"
+      },
+      {
+        "identifier": "g3243bfb7f81c47e093c7a0ffa7d7f21b",
+        "title": "Grid Attack Game",
+        "url": "https://codingfantasy.com/games/css-grid-attack",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "Grid Attack Game"
+      },
+      {
+        "identifier": "g17ed27245eca51539bc0f504b2a5916b",
+        "title": "Notion: Annotation Notes",
+        "url": "https://www.notion.so/anniecannons/Grid-Annotation-Code-311bb7044bb180799312e769c878c894?source=copy_link",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "Notion: Annotation Notes"
+      },
+      {
+        "identifier": "g8b8b62aa28ea36e32d7b3215cf6fbd07",
+        "title": "Notion: CSS Grid Notes",
+        "url": "https://www.notion.so/anniecannons/CSS-Grid-310bb7044bb18070bb31d2f190d1e2a5?source=copy_link",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "Notion: CSS Grid Notes"
+      },
+      {
+        "identifier": "gaebb67bd0004919e33bdd62018099193",
+        "title": "Notion: Responsive Design Notes",
+        "url": "https://www.notion.so/anniecannons/Responsive-Design-312bb7044bb180b1bcb7ded208da903b?source=copy_link",
+        "module_title": "Week 3: Grid and responsive design",
+        "manifest_title": "Notion: Responsive Design Notes"
+      },
+      {
+        "identifier": "gb20e80ccbb52576d778ed8700a7b954d",
+        "title": "CodePen: Linking within a page, responsive navbars (Iceland)",
+        "url": "https://codepen.io/team/anniecannons/pen/zYVgOvZ",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "CodePen: Linking within a page, responsive navbars (Iceland)"
+      },
+      {
+        "identifier": "g070f2a9706f01375fde5cf1968ae42b9",
+        "title": "Demo CodePen: Space navbar",
+        "url": "https://codepen.io/team/anniecannons/pen/YzmKwor",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Demo CodePen: Space navbar"
+      },
+      {
+        "identifier": "g403527f65478ac9ed3fe6465533ae910",
+        "title": "Flexbox Adventure Game",
+        "url": "https://codingfantasy.com/games/flexboxadventure",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Flexbox Adventure Game"
+      },
+      {
+        "identifier": "g95732644399d498534d7e9182e1a6039",
+        "title": "Flexbox Froggy Game",
+        "url": "https://flexboxfroggy.com/",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Flexbox Froggy Game"
+      },
+      {
+        "identifier": "g63d80a4ab7d293c0d761a89b676cccf6",
+        "title": "Morning warmup: Boxes and Grid - Researching Grid properties",
+        "url": "https://codepen.io/team/anniecannons/pen/MWMLyYq",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Morning warmup: Boxes and Grid - Researching Grid properties"
+      },
+      {
+        "identifier": "ga0e90de67e59fb7fbed8632d7a7cacba",
+        "title": "Notion: CSS Flexbox Notes",
+        "url": "https://anniecannons.notion.site/CSS-Flexbox-25abb7044bb181deb655dc24eb0ab910",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Notion: CSS Flexbox Notes"
+      },
+      {
+        "identifier": "g30ef44f9224eb9258c3289ac322556b8",
+        "title": "Notion: CSS Variables",
+        "url": "https://anniecannons.notion.site/CSS-Variables-25abb7044bb1813a8205ea76d86f425f",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Notion: CSS Variables"
+      },
+      {
+        "identifier": "g2a70d5edb9ba426b603d2d5b2d39efd4",
+        "title": "Notion: Linking within a page Notes",
+        "url": "https://anniecannons.notion.site/Linking-within-webpage-Responsive-Horizontal-Nav-Bar-25abb7044bb181acb031fbf02eb4f696",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Notion: Linking within a page Notes"
+      },
+      {
+        "identifier": "gcb73c35fe03bc77fa554432a980070be",
+        "title": "Slides: Grid vs Flexbox",
+        "url": "https://www.canva.com/design/DAGQkYLlaWI/XEiUQw79Wz7U7KFMAMUbjg/edit?utm_content=DAGQkYLlaWI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 4: Flexbox and responsive design",
+        "manifest_title": "Slides: Grid vs Flexbox"
+      },
+      {
+        "identifier": "ga4c25362237684bf6281506d1b13da58",
+        "title": "CodePen: Move this pen from CodePen to VS Code with instructor",
+        "url": "https://codepen.io/team/anniecannons/pen/ExqPvXv",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "CodePen: Move this pen from CodePen to VS Code with instructor"
+      },
+      {
+        "identifier": "g9c70d4503dac37a214a63336d56c7016",
+        "title": "Connecting VS Code, Git, and Github",
+        "url": "https://docs.google.com/document/d/1QM-rb0crE94tfNo1kFqvPgtP8Eh7GtTJx4VsLdx6g9I/edit#heading=h.bg7jrcoa838f",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Connecting VS Code, Git, and Github"
+      },
+      {
+        "identifier": "g0bea58e6f517fa19b64df9049df8ba66",
+        "title": "Doc: Deploying your Github repo to Github Pages",
+        "url": "https://docs.google.com/document/d/13eyP13lvrz_rVQTy4SS-2GrsyWnNuJdGraOiVzc1xJs/edit#heading=h.bg7jrcoa838f",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Doc: Deploying your Github repo to Github Pages"
+      },
+      {
+        "identifier": "g8fcd3aef9f7cd9a0e52d7739672263ea",
+        "title": "Doc: Moving from CodePen to VS Code",
+        "url": "https://docs.google.com/document/d/1dt38XXyykZcKqfv1DDsuoKzRmzIp755uKXPxLN2H79M/edit?usp=sharing",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Doc: Moving from CodePen to VS Code"
+      },
+      {
+        "identifier": "g05c43c9d7c7abf6882d7ad9cb15cdab9",
+        "title": "Doc: Pushing code to Github",
+        "url": "https://docs.google.com/document/d/1DA1ema-s9oH27EsfFDmRKHc73Jc1UBI9eF4vxHqkbWU/edit#heading=h.ject85o7v6ak",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Doc: Pushing code to Github"
+      },
+      {
+        "identifier": "g776fe2bd4b686577c1423e5083880a2e",
+        "title": "Notion: VSCode Tips & Tricks",
+        "url": "https://anniecannons.notion.site/VS-Code-tips-tricks-25abb7044bb18192820de787e1721d34?pvs=74",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Notion: VSCode Tips & Tricks"
+      },
+      {
+        "identifier": "g28500cf379690863c3aaa064c4679daf",
+        "title": "Slides: Getting your websites online",
+        "url": "https://www.canva.com/design/DAGSQfUM-2U/SRslzigD1pgQuOAzFK_srQ/edit?utm_content=DAGSQfUM-2U&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Slides: Getting your websites online"
+      },
+      {
+        "identifier": "gd511723388ee72dfb318f5d08402e25b",
+        "title": "Slides: Intro to Visual Studio Code (VS Code)",
+        "url": "https://www.canva.com/design/DAGPufFdiqc/kB0Dhss0jt-GJEKT5RrDsg/edit?utm_content=DAGPufFdiqc&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 5: VS Code, Git, Github, Github Pages",
+        "manifest_title": "Slides: Intro to Visual Studio Code (VS Code)"
+      },
+      {
+        "identifier": "g23c8cba81626782c46563c2be10bfd6e",
+        "title": "Cannons Coffee Brand Guide",
+        "url": "https://docs.google.com/document/d/1iZB6VWhMMN_fQeEQVLEkibuU2mB35cyMa6ZI8zB8Y5c/edit?usp=sharing",
+        "module_title": "Week 6: Cannons Coffee",
+        "manifest_title": "Cannons Coffee Brand Guide"
+      },
+      {
+        "identifier": "gb43fe091d6883957441c28c34a8c2ea4",
+        "title": "Drive folder: All Cannons Coffee assets and instructions",
+        "url": "https://drive.google.com/drive/folders/1qPw4Y9eqHcMqYMaMSoy8fFyY4QARdMCC?usp=drive_link",
+        "module_title": "Week 6: Cannons Coffee",
+        "manifest_title": "Drive folder: All Cannons Coffee assets and instructions"
+      },
+      {
+        "identifier": "g9a46af58c401eabaec289c28c924d91b",
+        "title": "Circles CodePen for JS discussion",
+        "url": "https://codepen.io/team/anniecannons/pen/OJYoOxG",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Circles CodePen for JS discussion"
+      },
+      {
+        "identifier": "g585a83851ab3a8da433a486ef6525a0d",
+        "title": "CodeCademy: Intro to JavaScript",
+        "url": "https://www.codecademy.com/learn/introduction-to-javascript",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "CodeCademy: Intro to JavaScript"
+      },
+      {
+        "identifier": "g23d40589efede40a22271477860aae61",
+        "title": "DOM Manipulation CodePen for JS Discussion",
+        "url": "https://codepen.io/team/anniecannons/pen/ExqQYqE",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "DOM Manipulation CodePen for JS Discussion"
+      },
+      {
+        "identifier": "gfd291671362f7cd948e7d1b7057b32b4",
+        "title": "Feedback Form",
+        "url": "https://docs.google.com/forms/d/e/1FAIpQLSdU8ua68QfDjhkieuegoOb31qurB57GfBB389GNwmPGsXa31g/viewform",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Feedback Form"
+      },
+      {
+        "identifier": "g4c74de9088ae43a884a3231d003f9d0b",
+        "title": "JavaScript.info: Variables (resource and reference)",
+        "url": "https://javascript.info/variables",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "JavaScript.info: Variables (resource and reference)"
+      },
+      {
+        "identifier": "g5c193a0f595ca5787bf8c6e96853f332",
+        "title": "Notion: Intro to JavaScript Notes",
+        "url": "https://anniecannons.notion.site/Intro-to-JavaScript-25abb7044bb1819280eced20b34bbe81",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Notion: Intro to JavaScript Notes"
+      },
+      {
+        "identifier": "g24821d359f6019a3ffdf7550b0554fb2",
+        "title": "Notion: JS Variables & Data types Class Notes",
+        "url": "https://anniecannons.notion.site/JS-Variables-Data-types-25abb7044bb1811c9da1e81d9d77b172",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Notion: JS Variables & Data types Class Notes"
+      },
+      {
+        "identifier": "g21cb5dffe95845ecaa5859ccf4c7b16a",
+        "title": "Notion: Reassigning variables, template literals Class Notes",
+        "url": "https://anniecannons.notion.site/25abb7044bb1812cac61db956e5e34e9?v=25abb7044bb18197978e000c1a208f8d&p=25abb7044bb181329c22de4300f5ee0d&pm=c",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Notion: Reassigning variables, template literals Class Notes"
+      },
+      {
+        "identifier": "gbd24b5adbdf20f1c1a36e8a5d2df7dbd",
+        "title": "Slides: Console.log",
+        "url": "https://www.canva.com/design/DAGfwqB6xac/DNlnE2GziNhJOoZi9zxnaQ/edit",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Console.log"
+      },
+      {
+        "identifier": "g5bff127556a7d65f30bdfb849b6ea8f4",
+        "title": "Slides: Dynamic vs Static Content",
+        "url": "https://www.canva.com/design/DAGSoTYGHz4/bZKagsOvV3EA8OqJ7YBgSw/edit",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Dynamic vs Static Content"
+      },
+      {
+        "identifier": "g58619a31d22349be470833e19241d003",
+        "title": "Slides: Intro to Data Types",
+        "url": "https://www.canva.com/design/DAGSn0uU2pA/d6tvS0e3DgoReDUqiNAjtQ/edit?utm_content=DAGSn0uU2pA&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Intro to Data Types"
+      },
+      {
+        "identifier": "gfb14fd07bbee9a9e7f30a1d14a5d3a0b",
+        "title": "Slides: Intro to Variables",
+        "url": "https://www.canva.com/design/DAGSoWVjVQg/6MnYmqywc3DFDXq2vDngMg/edit?utm_content=DAGSoWVjVQg&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Intro to Variables"
+      },
+      {
+        "identifier": "gb6ae8626b72b19f1a758522ccd93af6d",
+        "title": "Slides: Introducing JavaScript",
+        "url": "https://www.canva.com/design/DAGSnx08f7E/X_fqs68rLmumzF1T9FY3QA/edit",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Introducing JavaScript"
+      },
+      {
+        "identifier": "gb80acb92b8f9334747219e008bac3e2f",
+        "title": "Slides: Review: Variables, Data Types,  Console.log, reassigning variables",
+        "url": "https://www.canva.com/design/DAGUgEqxyWo/i_JXxmjzHWjv4qiw9IpBCA/edit?utm_content=DAGUgEqxyWo&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Review: Variables, Data Types,  Console.log, reassigning variables"
+      },
+      {
+        "identifier": "gb70e3e6ebfdbde6dec6601317e8b34b9",
+        "title": "Slides: Template Literals",
+        "url": "https://www.canva.com/design/DAGgEfwfxb4/9xCYytKiXlYmOL6wLTmo0A/edit?utm_content=DAGgEfwfxb4&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 7: Intro to JavaScript",
+        "manifest_title": "Slides: Template Literals"
+      },
+      {
+        "identifier": "g106f010cfbfac07aba9807b1c4017637",
+        "title": "CodeAlong: Functions and Event Listeners",
+        "url": "https://codepen.io/team/anniecannons/pen/MYWdQbr",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "CodeAlong: Functions and Event Listeners"
+      },
+      {
+        "identifier": "g8e6b229fe5c0d861eff8e6c3d6bd2da7",
+        "title": "DOM Manipulation using DOM Methods and Properties",
+        "url": "https://codepen.io/team/anniecannons/pen/azbGGEY?editors=1010",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "DOM Manipulation using DOM Methods and Properties"
+      },
+      {
+        "identifier": "g77ed579711d1fa23afd252d3467a2871",
+        "title": "DOM methods and properties exploration exercise",
+        "url": "https://codepen.io/team/anniecannons/pen/OPJZZrV",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "DOM methods and properties exploration exercise"
+      },
+      {
+        "identifier": "ga2e6779dd18c7a64d6b70011e10f69e8",
+        "title": "I-9 form & eligible documents for the start of FE",
+        "url": "https://www.uscis.gov/sites/default/files/document/forms/i-9.pdf",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "I-9 form & eligible documents for the start of FE"
+      },
+      {
+        "identifier": "gfae17a38bab61635bbb76ffa17150b40",
+        "title": "Notion: Functions & Methods Notes",
+        "url": "https://anniecannons.notion.site/Functions-Methods-25abb7044bb181c4b732e4bf77404072",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "Notion: Functions & Methods Notes"
+      },
+      {
+        "identifier": "g16030920e411b222a23466883d34c8bf",
+        "title": "Notion: Intro to Dom Class Notes",
+        "url": "https://anniecannons.notion.site/Intro-to-DOM-25abb7044bb18184b129e95cc8a5cd45?pvs=74",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "Notion: Intro to Dom Class Notes"
+      },
+      {
+        "identifier": "g71f8275b3d269e9e6226d8d82491739d",
+        "title": "Slides: Functions and event listeners",
+        "url": "https://www.canva.com/design/DAGj_lNC1DI/m9cyyQXA2iknLikVfD5AIA/edit?utm_content=DAGj_lNC1DI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "Slides: Functions and event listeners"
+      },
+      {
+        "identifier": "g4b29052a1047e3170d1ed2e7f20b8bec",
+        "title": "Slides: Saving HTML elements into variables using selectors",
+        "url": "https://www.canva.com/design/DAGgPm-zojU/w-AycLb7A9u1-kyqL2DsHA/edit",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "Slides: Saving HTML elements into variables using selectors"
+      },
+      {
+        "identifier": "g54bec9683ef2fded0b715c8d88e81af7",
+        "title": "Slides: Understanding Selectors",
+        "url": "https://www.canva.com/design/DAGgPYF9QGI/V_D2iXuZxbs8YhE9-tvuhw/edit",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "Slides: Understanding Selectors"
+      },
+      {
+        "identifier": "g888c1f1237dd5911559d408e59830dae",
+        "title": "Student Assessments End of ITP",
+        "url": "https://docs.google.com/document/d/1NQczoEEbazDb6PK4p-hR0RatfFzZlE2yrTquvUR3zCw/edit?tab=t.0#heading=h.1bcxu87pwzto",
+        "module_title": "Week 9: DOM Manipulation",
+        "manifest_title": "Student Assessments End of ITP"
+      }
+    ]
+ }
