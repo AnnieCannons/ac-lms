@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import RichTextEditor from "@/components/ui/RichTextEditor";
+import FileUpload from "@/components/ui/FileUpload";
+import { RUBRIC_TEMPLATES, type RubricItem } from "@/data/rubric-templates";
 import {
   DndContext,
   closestCenter,
@@ -23,12 +26,104 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+
 type Assignment = {
   id: string;
   title: string;
   due_date: string | null;
   description?: string | null;
+  how_to_turn_in?: string | null;
   module_day_id: string;
+};
+
+const DEFAULT_HOW_TO_TURN_IN =
+  "<p>Turn in the link to your assignment here. Make sure you have saved your work and granted access to your instructor(s) if necessary.</p>";
+
+function getDefaultDueDate(): string {
+  // 11:59 PM PST = 07:59 UTC next day (PST = UTC-8)
+  const now = new Date();
+  const target = new Date();
+  target.setUTCHours(7, 59, 0, 0);
+  if (target <= now) target.setUTCDate(target.getUTCDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`;
+}
+
+function ChecklistLineEditor({
+  items,
+  onChange,
+}: {
+  items: RubricItem[];
+  onChange: (items: RubricItem[]) => void;
+}) {
+  const titleRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const setField = (i: number, field: keyof RubricItem, value: string) => {
+    const next = [...items];
+    next[i] = { ...next[i], [field]: value };
+    onChange(next);
+  };
+
+  const insertAfter = (i: number) => {
+    const next = [...items];
+    next.splice(i + 1, 0, { text: "", description: "" });
+    onChange(next);
+    setTimeout(() => titleRefs.current[i + 1]?.focus(), 0);
+  };
+
+  const remove = (i: number) => {
+    if (items.length === 1) {
+      onChange([{ text: "", description: "" }]);
+      setTimeout(() => titleRefs.current[0]?.focus(), 0);
+      return;
+    }
+    const next = items.filter((_, idx) => idx !== i);
+    onChange(next);
+    setTimeout(() => titleRefs.current[Math.max(0, i - 1)]?.focus(), 0);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((item, i) => (
+        <div key={i} className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-teal-400 text-xs shrink-0">☐</span>
+            <input
+              ref={(el) => { titleRefs.current[i] = el; }}
+              type="text"
+              value={item.text}
+              onChange={(e) => setField(i, "text", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); insertAfter(i); }
+                if (e.key === "Backspace" && item.text === "" && item.description === "") {
+                  e.preventDefault(); remove(i);
+                }
+              }}
+              placeholder={i === 0 ? "Item title — Enter to add more" : "Item title"}
+              className="flex-1 border-0 border-b border-teal-700 bg-transparent py-0.5 text-xs font-medium text-teal-100 focus:outline-none focus:border-teal-primary transition-colors"
+            />
+          </div>
+          <div className="pl-5">
+            <input
+              type="text"
+              value={item.description}
+              onChange={(e) => setField(i, "description", e.target.value)}
+              placeholder="Description (optional)"
+              className="w-full border-0 bg-transparent py-0.5 text-xs text-teal-400 placeholder:text-teal-700 focus:outline-none"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type ChecklistItem = {
+  id: string;
+  assignment_id: string;
+  text: string;
+  description?: string | null;
+  order: number;
 };
 
 type Resource = {
@@ -58,25 +153,531 @@ type Module = {
   module_days: Day[];
 };
 
-function AssignmentDropZone({ day, assignments }: { day: Day; assignments: Assignment[] }) {
+// ─── AssignmentCard ───────────────────────────────────────────────────────────
+
+function AssignmentCard({
+  assignment,
+  dayId,
+  onOpen,
+  onDelete,
+}: {
+  assignment: Assignment;
+  dayId: string;
+  onOpen: (assignment: Assignment, dayId: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `assignment-${assignment.id}`,
+    data: { type: "assignment", assignmentId: assignment.id, sourceDayId: dayId },
+  });
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-surface rounded-lg border border-border ${isDragging ? "opacity-50 z-50" : ""}`}
+    >
+      <div className="px-3 py-2 flex items-center gap-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-border hover:text-muted-text cursor-grab shrink-0"
+          type="button"
+          aria-label="Drag assignment"
+        >
+          ⠿
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpen(assignment, dayId)}
+          className="flex-1 min-w-0 text-left"
+        >
+          <p className="text-sm text-dark-text truncate">{assignment.title}</p>
+          <p className="text-xs text-muted-text">
+            Due:{" "}
+            {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
+          </p>
+        </button>
+        <button
+          onClick={() => onDelete(assignment.id)}
+          className="text-muted-text hover:text-red-400 text-xs shrink-0"
+          type="button"
+          aria-label="Delete assignment"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── AssignmentFullView ────────────────────────────────────────────────────────
+
+type ActiveView =
+  | { mode: "view"; assignment: Assignment; dayId: string }
+  | { mode: "add"; dayId: string };
+
+function AssignmentFullView({
+  view,
+  onClose,
+  onAdd,
+  onEdit,
+  onDelete,
+  defaultTemplateId,
+}: {
+  view: ActiveView;
+  onClose: () => void;
+  onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => void;
+  onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
+  onDelete: (id: string) => void;
+  defaultTemplateId?: string;
+}) {
+  const supabase = createClient();
+  const assignment = view.mode === "view" ? view.assignment : null;
+  const assignmentId = view.mode === "view" ? view.assignment.id : null;
+
+  // ── View/edit state ──
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(assignment?.title ?? "");
+  const [editDescription, setEditDescription] = useState(assignment?.description ?? "");
+  const [editHowToTurnIn, setEditHowToTurnIn] = useState(assignment?.how_to_turn_in ?? "");
+  const [editDueDate, setEditDueDate] = useState(
+    assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : ""
+  );
+
+  // ── Checklist state (view mode) ──
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const checklistRef = useRef(checklistItems);
+  useEffect(() => { checklistRef.current = checklistItems; }, [checklistItems]);
+  const checklistInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const focusPendingId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!assignmentId) return;
+    supabase
+      .from("checklist_items")
+      .select("*")
+      .eq("assignment_id", assignmentId)
+      .order("order")
+      .then(async ({ data, error: fetchError }) => {
+        if (fetchError) { console.error("Failed to fetch checklist:", fetchError.message); return; }
+        if (data && data.length > 0) {
+          setChecklistItems(data);
+        } else if (data && data.length === 0 && defaultTemplateId) {
+          const template = RUBRIC_TEMPLATES.find((t) => t.id === defaultTemplateId);
+          if (template) {
+            const { data: inserted, error } = await supabase
+              .from("checklist_items")
+              .insert(template.items.map((item, i) => ({
+                assignment_id: assignmentId,
+                text: item.text,
+                description: item.description || null,
+                order: i,
+              })))
+              .select();
+            if (error) console.error("Failed to auto-populate checklist:", error.message);
+            if (!error && inserted) setChecklistItems(inserted);
+          }
+        }
+      });
+  }, [assignmentId]);
+
+  // Focus newly added checklist item after render
+  useEffect(() => {
+    if (focusPendingId.current) {
+      const el = checklistInputRefs.current[focusPendingId.current];
+      if (el) { el.focus(); focusPendingId.current = null; }
+    }
+  });
+
+  const addChecklistItemAfter = async (afterIndex: number, text = "", description = "") => {
+    if (!assignmentId) return;
+    const { data, error } = await supabase
+      .from("checklist_items")
+      .insert({ assignment_id: assignmentId, text, description: description || null, order: checklistRef.current.length })
+      .select()
+      .single();
+    if (!error && data) {
+      focusPendingId.current = data.id;
+      setChecklistItems((prev) => { const next = [...prev]; next.splice(afterIndex + 1, 0, data); return next; });
+    }
+  };
+
+  const editChecklistItem = async (id: string, text: string, description?: string) => {
+    const updates: { text: string; description?: string | null } = { text };
+    if (description !== undefined) updates.description = description || null;
+    await supabase.from("checklist_items").update(updates).eq("id", id);
+    setChecklistItems((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+  };
+
+  const deleteChecklistItem = async (id: string, prevIndex: number) => {
+    await supabase.from("checklist_items").delete().eq("id", id);
+    setChecklistItems((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      const focusTarget = next[Math.max(0, prevIndex - 1)];
+      if (focusTarget) setTimeout(() => checklistInputRefs.current[focusTarget.id]?.focus(), 0);
+      return next;
+    });
+  };
+
+  const loadRubricTemplate = async (templateId: string) => {
+    if (!assignmentId) return;
+    const template = RUBRIC_TEMPLATES.find((t) => t.id === templateId);
+    if (!template) return;
+    if (checklistItems.length > 0) {
+      if (!window.confirm("Replace the current checklist with this template?")) return;
+      await supabase.from("checklist_items").delete().eq("assignment_id", assignmentId);
+    }
+    const { data, error } = await supabase
+      .from("checklist_items")
+      .insert(template.items.map((item, i) => ({
+        assignment_id: assignmentId, text: item.text, description: item.description || null, order: i,
+      })))
+      .select();
+    if (!error && data) setChecklistItems(data);
+  };
+
+  // ── Add mode state ──
+  const getDefaultChecklist = (): RubricItem[] => {
+    if (defaultTemplateId) {
+      const template = RUBRIC_TEMPLATES.find((t) => t.id === defaultTemplateId);
+      if (template) return template.items.map((item) => ({ text: item.text, description: item.description }));
+    }
+    return [{ text: "", description: "" }];
+  };
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newHowToTurnIn, setNewHowToTurnIn] = useState(DEFAULT_HOW_TO_TURN_IN);
+  const [newDueDate, setNewDueDate] = useState(getDefaultDueDate);
+  const [newChecklist, setNewChecklist] = useState<RubricItem[]>(getDefaultChecklist);
+  const [editorKey] = useState(0);
+
+  const handleSaveEdit = () => {
+    if (!editTitle.trim()) return;
+    onEdit(assignment!.id, {
+      title: editTitle.trim(),
+      description: editDescription.trim() || null,
+      how_to_turn_in: editHowToTurnIn.trim() || null,
+      due_date: editDueDate || null,
+    });
+    setEditing(false);
+  };
+
+  const handleAdd = () => {
+    if (!newTitle.trim() || view.mode !== "add") return;
+    onAdd(view.dayId, newTitle.trim(), newDescription, newHowToTurnIn, newDueDate || null, newChecklist.filter((item) => item.text.trim()));
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (!assignment || !window.confirm("Delete this assignment?")) return;
+    onDelete(assignment.id);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-teal-950 overflow-y-auto">
+      <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-6">
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 text-sm text-teal-300 hover:text-white transition-colors"
+            type="button"
+          >
+            ← Back to assignments
+          </button>
+          {view.mode === "view" && !editing && (
+            <button onClick={handleDelete} className="text-xs text-teal-700 hover:text-red-400 transition-colors" type="button">
+              Delete assignment
+            </button>
+          )}
+        </div>
+
+        {view.mode === "view" ? (
+          editing ? (
+            // ── Edit form ──
+            <div className="flex flex-col gap-4">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                autoFocus
+                className="text-2xl font-bold text-white bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
+              />
+              <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6 flex flex-col gap-4">
+                <div>
+                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">Instructions</p>
+                  <RichTextEditor content={editDescription} onChange={setEditDescription} placeholder="Instructions for the assignment" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">How to turn this in</p>
+                  <RichTextEditor content={editHowToTurnIn} onChange={setEditHowToTurnIn} placeholder="Submission instructions" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-teal-400 shrink-0">Due:</label>
+                  <input
+                    type="datetime-local"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="flex-1 bg-teal-950 border border-teal-700 text-teal-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setEditing(false);
+                    setEditTitle(assignment!.title);
+                    setEditDescription(assignment!.description ?? "");
+                    setEditHowToTurnIn(assignment!.how_to_turn_in ?? "");
+                  }}
+                  className="text-sm text-teal-400 hover:text-teal-200 px-4 py-2 transition-colors"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90"
+                  type="button"
+                >
+                  Save changes
+                </button>
+              </div>
+            </div>
+          ) : (
+            // ── View content ──
+            <>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">{assignment!.title}</h1>
+                  <p className="text-sm text-teal-300 mt-1">
+                    Due:{" "}
+                    {assignment!.due_date
+                      ? new Date(assignment!.due_date).toLocaleDateString("en-US", {
+                          weekday: "long", year: "numeric", month: "long", day: "numeric",
+                        })
+                      : "No due date"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-sm text-teal-500 hover:text-teal-200 shrink-0 mt-1 transition-colors"
+                  type="button"
+                >
+                  ✎ Edit
+                </button>
+              </div>
+
+              <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6">
+                <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-3">Instructions</p>
+                {assignment!.description ? (
+                  <div
+                    className="tiptap text-sm text-teal-100 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-bold [&_h2]:text-base [&_h2]:text-white [&_h3]:font-semibold [&_h3]:text-white [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
+                    dangerouslySetInnerHTML={{ __html: assignment!.description }}
+                  />
+                ) : (
+                  <p className="text-sm text-teal-600 italic">No instructions.</p>
+                )}
+              </div>
+
+              {assignment!.how_to_turn_in && (
+                <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6">
+                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-3">How to turn this in</p>
+                  <div
+                    className="tiptap text-sm text-teal-100 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
+                    dangerouslySetInnerHTML={{ __html: assignment!.how_to_turn_in }}
+                  />
+                </div>
+              )}
+
+              <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide">Checklist</p>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => { if (e.target.value) loadRubricTemplate(e.target.value); e.target.value = ""; }}
+                    className="text-xs bg-teal-950 border border-teal-700 rounded-lg px-2 py-1 text-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  >
+                    <option value="">Load template…</option>
+                    {RUBRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {checklistItems.map((item, i) => (
+                    <div key={item.id} className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-teal-primary text-sm shrink-0">☐</span>
+                        <input
+                          ref={(el) => { checklistInputRefs.current[item.id] = el; }}
+                          type="text"
+                          defaultValue={item.text}
+                          onBlur={(e) => { const val = e.target.value.trim(); if (val !== item.text) editChecklistItem(item.id, val); }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val !== item.text) editChecklistItem(item.id, val);
+                              addChecklistItemAfter(i);
+                            }
+                            if (e.key === "Backspace" && (e.target as HTMLInputElement).value === "") {
+                              e.preventDefault();
+                              deleteChecklistItem(item.id, i);
+                            }
+                          }}
+                          className="flex-1 border-0 border-b border-teal-700 bg-transparent py-0.5 text-sm font-medium text-teal-50 focus:outline-none focus:border-teal-primary transition-colors"
+                        />
+                        <button
+                          onClick={() => deleteChecklistItem(item.id, i)}
+                          className="text-teal-700 hover:text-red-400 text-xs shrink-0 transition-colors"
+                          type="button"
+                          aria-label="Delete item"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="pl-6">
+                        <input
+                          type="text"
+                          defaultValue={item.description ?? ""}
+                          onBlur={(e) => { const val = e.target.value.trim(); if (val !== (item.description ?? "")) editChecklistItem(item.id, item.text, val); }}
+                          placeholder="Description (optional)"
+                          className="w-full border-0 bg-transparent py-0.5 text-xs text-teal-500 placeholder:text-teal-700 focus:outline-none focus:text-teal-300 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {checklistItems.length === 0 && (
+                    <p className="text-sm text-teal-700 italic pb-1">No checklist items yet.</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1 border-t border-teal-800 pt-3">
+                    <span className="text-teal-700 text-sm shrink-0">☐</span>
+                    <input
+                      type="text"
+                      placeholder="Add item — Enter for more"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val) { (e.target as HTMLInputElement).value = ""; addChecklistItemAfter(checklistItems.length - 1, val); }
+                        }
+                      }}
+                      className="flex-1 bg-transparent py-0.5 text-sm text-teal-500 placeholder:text-teal-700 focus:outline-none focus:text-teal-300 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )
+        ) : (
+          // ── Add mode ──
+          <>
+            <h1 className="text-2xl font-bold text-white">New Assignment</h1>
+            <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6 flex flex-col gap-4">
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Assignment title *"
+                autoFocus
+                className="w-full bg-teal-950 border border-teal-700 text-white rounded-lg px-3 py-2 text-sm placeholder:text-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+              <div>
+                <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">Instructions</p>
+                <RichTextEditor key={`desc-${editorKey}`} content={newDescription} onChange={setNewDescription} placeholder="Instructions for the assignment" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">How to turn this in</p>
+                <RichTextEditor key={`htti-${editorKey}`} content={newHowToTurnIn} onChange={setNewHowToTurnIn} placeholder="Submission instructions" />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-teal-400 shrink-0">Due:</label>
+                <input
+                  type="datetime-local"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  className="flex-1 bg-teal-950 border border-teal-700 text-teal-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide">Checklist</p>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const template = RUBRIC_TEMPLATES.find((t) => t.id === e.target.value);
+                      if (template) setNewChecklist(template.items.map((item) => ({ text: item.text, description: item.description })));
+                      e.target.value = "";
+                    }}
+                    className="text-xs bg-teal-950 border border-teal-700 rounded-lg px-2 py-1 text-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  >
+                    <option value="">Load template…</option>
+                    {RUBRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <ChecklistLineEditor items={newChecklist} onChange={setNewChecklist} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={onClose} className="text-sm text-teal-400 hover:text-teal-200 px-4 py-2 transition-colors" type="button">
+                Cancel
+              </button>
+              <button
+                onClick={handleAdd}
+                className="bg-teal-primary text-white text-sm font-semibold px-6 py-2 rounded-full hover:opacity-90"
+                type="button"
+              >
+                Add Assignment
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── AssignmentDropZone ───────────────────────────────────────────────────────
+
+function AssignmentDropZone({
+  day,
+  assignments,
+  onOpenAssignment,
+  onOpenAdd,
+  onDeleteAssignment,
+}: {
+  day: Day;
+  assignments: Assignment[];
+  onOpenAssignment: (assignment: Assignment, dayId: string) => void;
+  onOpenAdd: (dayId: string) => void;
+  onDeleteAssignment: (assignmentId: string) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: `drop-${day.id}`,
     data: { type: "day-drop", dayId: day.id },
   });
 
   return (
-    <div className="bg-white/60 rounded-xl p-3">
-      <p className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
+    <div className="bg-surface/60 rounded-xl p-3">
+      <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
         Assignments
       </p>
       <div
         ref={setNodeRef}
         className={`flex flex-col gap-2 min-h-[48px] rounded-lg p-1 transition-colors ${
-          isOver ? "bg-teal-50 border border-dashed border-teal-300" : ""
+          isOver ? "bg-teal-light border border-dashed border-teal-primary/50" : ""
         }`}
       >
         {assignments.length === 0 ? (
-          <p className="text-xs text-gray-400 py-2 px-1">No assignments. Drag one here.</p>
+          <p className="text-xs text-muted-text py-2 px-1">
+            No assignments. Drag one here or add below.
+          </p>
         ) : (
           assignments
             .slice()
@@ -87,48 +688,28 @@ function AssignmentDropZone({ day, assignments }: { day: Day; assignments: Assig
               return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
             })
             .map((a) => (
-              <DraggableAssignment key={a.id} assignment={a} dayId={day.id} />
+              <AssignmentCard
+                key={a.id}
+                assignment={a}
+                dayId={day.id}
+                onOpen={onOpenAssignment}
+                onDelete={onDeleteAssignment}
+              />
             ))
         )}
       </div>
-    </div>
-  );
-}
-
-function DraggableAssignment({ assignment, dayId }: { assignment: Assignment; dayId: string }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `assignment-${assignment.id}`,
-    data: { type: "assignment", assignmentId: assignment.id, sourceDayId: dayId },
-  });
-
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-white rounded-lg border border-gray-100 px-3 py-2 flex items-center gap-2 ${isDragging ? "opacity-50 shadow-lg z-50" : ""}`}
-    >
       <button
-        {...attributes}
-        {...listeners}
-        className="text-gray-300 hover:text-gray-500 cursor-grab shrink-0"
+        onClick={() => onOpenAdd(day.id)}
+        className="mt-2 w-full text-xs text-teal-primary hover:underline text-left px-1"
         type="button"
-        aria-label="Drag assignment"
       >
-        ⠿
+        + Add assignment
       </button>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-dark-text truncate">{assignment.title}</p>
-        <p className="text-xs text-gray-400">
-          Due: {assignment.due_date ? new Date(assignment.due_date).toLocaleString() : "None"}
-        </p>
-      </div>
     </div>
   );
 }
+
+// ─── SortableResource ─────────────────────────────────────────────────────────
 
 const RESOURCE_TYPE_LABELS: Record<Resource["type"], string> = {
   video: "Video",
@@ -171,13 +752,13 @@ function SortableResource({
       <div
         ref={setNodeRef}
         style={style}
-        className="bg-white rounded-lg border border-teal-primary/30 p-3 flex flex-col gap-2"
+        className="bg-surface rounded-lg border border-teal-primary/30 p-3 flex flex-col gap-2"
       >
         <div className="flex gap-2">
           <select
             value={editType}
             onChange={(e) => setEditType(e.target.value as Resource["type"])}
-            className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            className="bg-background border border-border rounded px-2 py-1 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
           >
             <option value="link">Link</option>
             <option value="video">Video</option>
@@ -189,20 +770,31 @@ function SortableResource({
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             placeholder="Title"
-            className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
           />
         </div>
-        <input
-          type="text"
-          value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
-          placeholder="URL or content"
-          className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
-        />
+        {editType === "file" ? (
+          <FileUpload
+            bucket="lms-resources"
+            path={`module-day-${resource.module_day_id}/`}
+            onUpload={(url, fileName) => {
+              setEditContent(url);
+              if (!editTitle.trim()) setEditTitle(fileName);
+            }}
+          />
+        ) : (
+          <input
+            type="text"
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            placeholder="URL or content"
+            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          />
+        )}
         <div className="flex gap-2 justify-end">
           <button
             onClick={() => setEditing(false)}
-            className="text-xs text-gray-400 hover:text-gray-600"
+            className="text-xs text-muted-text hover:text-dark-text"
             type="button"
           >
             Cancel
@@ -223,12 +815,12 @@ function SortableResource({
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white rounded-lg border border-gray-100 px-3 py-2 flex items-center gap-2"
+      className="bg-surface rounded-lg border border-border px-3 py-2 flex items-center gap-2"
     >
       <button
         {...attributes}
         {...listeners}
-        className="text-gray-300 hover:text-gray-500 cursor-grab shrink-0"
+        className="text-border hover:text-muted-text cursor-grab shrink-0"
         type="button"
         aria-label="Drag resource"
       >
@@ -246,21 +838,29 @@ function SortableResource({
           {resource.title}
           <span className="opacity-0 group-hover:opacity-100 transition-opacity text-teal-primary shrink-0">✎</span>
         </button>
-        {resource.content && (
-          <a
-            href={resource.content.startsWith("http") ? resource.content : `https://${resource.content}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-teal-primary truncate hover:underline block"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {resource.content}
-          </a>
-        )}
+        {resource.content && (() => {
+          const href = resource.content.startsWith("http") ? resource.content : `https://${resource.content}`;
+          const isImg = resource.type === "file" && /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(resource.content);
+          return isImg ? (
+            <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+              <img src={href} alt={resource.title} className="mt-1 h-12 w-auto rounded border border-border object-contain" />
+            </a>
+          ) : (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-teal-primary truncate hover:underline block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {resource.content}
+            </a>
+          );
+        })()}
       </div>
       <button
         onClick={() => onDelete(resource.id)}
-        className="text-gray-300 hover:text-red-400 text-xs shrink-0"
+        className="text-muted-text hover:text-red-400 text-xs shrink-0"
         type="button"
         aria-label="Delete resource"
       >
@@ -270,12 +870,20 @@ function SortableResource({
   );
 }
 
+// ─── SortableDay ──────────────────────────────────────────────────────────────
+
 function SortableDay({
   day,
   onDelete,
+  onOpenAssignment,
+  onOpenAdd,
+  onDeleteAssignment,
 }: {
   day: Day;
   onDelete: (id: string) => void;
+  onOpenAssignment: (assignment: Assignment, dayId: string) => void;
+  onOpenAdd: (dayId: string) => void;
+  onDeleteAssignment: (assignmentId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -369,12 +977,14 @@ function SortableDay({
   const [newResType, setNewResType] = useState<Resource["type"]>("link");
   const [newResTitle, setNewResTitle] = useState("");
   const [newResContent, setNewResContent] = useState("");
+  const [fileUploadKey, setFileUploadKey] = useState(0);
 
   const submitNewResource = () => {
     if (!newResTitle.trim()) return;
     addResource(newResType, newResTitle.trim(), newResContent.trim());
     setNewResTitle("");
     setNewResContent("");
+    setFileUploadKey((k) => k + 1);
   };
 
   return (
@@ -383,7 +993,7 @@ function SortableDay({
         <button
           {...attributes}
           {...listeners}
-          className="text-gray-300 hover:text-gray-500 cursor-grab"
+          className="text-border hover:text-muted-text cursor-grab"
           aria-label={`Drag day ${day.day_name}`}
           type="button"
         >
@@ -398,14 +1008,14 @@ function SortableDay({
           aria-controls={`day-panel-${day.id}`}
         >
           <span>{day.day_name}</span>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted-text">
             ({assignments.length + resources.length})
           </span>
         </button>
 
         <button
           onClick={() => onDelete(day.id)}
-          className="text-gray-300 hover:text-red-400 text-xs"
+          className="text-muted-text hover:text-red-400 text-xs"
           aria-label={`Delete day ${day.day_name}`}
           type="button"
         >
@@ -416,11 +1026,11 @@ function SortableDay({
       {open && (
         <div
           id={`day-panel-${day.id}`}
-          className="px-10 pb-4 pt-2 border-t border-gray-100 flex flex-col gap-4"
+          className="px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
         >
           {/* Resources */}
           <div>
-            <p className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
+            <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
               Resources
             </p>
             <DndContext
@@ -449,8 +1059,8 @@ function SortableDay({
               <div className="flex gap-2">
                 <select
                   value={newResType}
-                  onChange={(e) => setNewResType(e.target.value as Resource["type"])}
-                  className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  onChange={(e) => { setNewResType(e.target.value as Resource["type"]); setNewResContent(""); }}
+                  className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
                   <option value="link">Link</option>
                   <option value="video">Video</option>
@@ -463,18 +1073,30 @@ function SortableDay({
                   value={newResTitle}
                   onChange={(e) => setNewResTitle(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 />
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="URL or content"
-                  value={newResContent}
-                  onChange={(e) => setNewResContent(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
+              <div className="flex gap-2 items-start">
+                {newResType === "file" ? (
+                  <FileUpload
+                    key={fileUploadKey}
+                    bucket="lms-resources"
+                    path={`module-day-${day.id}/`}
+                    onUpload={(url, fileName) => {
+                      setNewResContent(url);
+                      if (!newResTitle.trim()) setNewResTitle(fileName);
+                    }}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="URL or content"
+                    value={newResContent}
+                    onChange={(e) => setNewResContent(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
+                    className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  />
+                )}
                 <button
                   onClick={submitNewResource}
                   className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:text-white transition-colors"
@@ -487,23 +1109,37 @@ function SortableDay({
           </div>
 
           {/* Assignments */}
-          <AssignmentDropZone day={day} assignments={assignments} />
+          <AssignmentDropZone
+            day={day}
+            assignments={assignments}
+            onOpenAssignment={onOpenAssignment}
+            onOpenAdd={onOpenAdd}
+            onDeleteAssignment={onDeleteAssignment}
+          />
         </div>
       )}
     </div>
   );
 }
 
+// ─── SortableModule ───────────────────────────────────────────────────────────
+
 function SortableModule({
   module,
   onDelete,
   onAddDay,
   onDeleteDay,
+  onOpenAssignment,
+  onOpenAdd,
+  onDeleteAssignment,
 }: {
   module: Module;
   onDelete: (id: string) => void;
   onAddDay: (moduleId: string, dayName: string) => void;
   onDeleteDay: (dayId: string, moduleId: string) => void;
+  onOpenAssignment: (assignment: Assignment, dayId: string) => void;
+  onOpenAdd: (dayId: string) => void;
+  onDeleteAssignment: (assignmentId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -519,13 +1155,13 @@ function SortableModule({
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+      className="bg-surface rounded-2xl border border-border overflow-hidden"
     >
       <div className="flex items-center gap-3 px-6 py-4">
         <button
           {...attributes}
           {...listeners}
-          className="text-gray-300 hover:text-gray-500 cursor-grab text-lg"
+          className="text-border hover:text-muted-text cursor-grab text-lg"
           aria-label={`Drag module ${module.title}`}
           type="button"
         >
@@ -533,11 +1169,11 @@ function SortableModule({
         </button>
         <div className="flex-1">
           <h3 className="font-semibold text-dark-text">{module.title}</h3>
-          <p className="text-xs text-gray-400">Week {module.week_number}</p>
+          <p className="text-xs text-muted-text">Week {module.week_number}</p>
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-gray-400 hover:text-teal-primary text-sm px-3"
+          className="text-muted-text hover:text-teal-primary text-sm px-3"
           aria-label={expanded ? "Collapse module" : "Expand module"}
           type="button"
         >
@@ -545,7 +1181,7 @@ function SortableModule({
         </button>
         <button
           onClick={() => onDelete(module.id)}
-          className="text-gray-300 hover:text-red-400 text-sm"
+          className="text-muted-text hover:text-red-400 text-sm"
           aria-label={`Delete module ${module.title}`}
           type="button"
         >
@@ -554,7 +1190,7 @@ function SortableModule({
       </div>
 
       {expanded && (
-        <div className="px-6 pb-4 flex flex-col gap-2 border-t border-gray-50 pt-4">
+        <div className="px-6 pb-4 flex flex-col gap-2 border-t border-border pt-4">
           <SortableContext
             items={[...module.module_days]
               .sort((a, b) => a.order - b.order)
@@ -568,6 +1204,9 @@ function SortableModule({
                   key={day.id}
                   day={day}
                   onDelete={(id) => onDeleteDay(id, module.id)}
+                  onOpenAssignment={onOpenAssignment}
+                  onOpenAdd={onOpenAdd}
+                  onDeleteAssignment={onDeleteAssignment}
                 />
               ))}
           </SortableContext>
@@ -584,7 +1223,7 @@ function SortableModule({
                   setNewDayName("");
                 }
               }}
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
               aria-label="New day name"
             />
             <button
@@ -606,6 +1245,8 @@ function SortableModule({
   );
 }
 
+// ─── CourseEditor ─────────────────────────────────────────────────────────────
+
 export default function CourseEditor({
   course,
   initialModules,
@@ -618,6 +1259,14 @@ export default function CourseEditor({
   const [newModuleWeek, setNewModuleWeek] = useState("");
   const [isMounted, setIsMounted] = useState(false);
   const supabase = createClient();
+
+  const usesCodePenRubric = [course.name, course.code].some(
+    (s: string | null | undefined) =>
+      s?.toLowerCase().includes("front") || s?.toLowerCase().includes("itp")
+  );
+  const defaultTemplateId = usesCodePenRubric ? "frontend-codepen" : undefined;
+
+  const [activeView, setActiveView] = useState<ActiveView | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -671,7 +1320,10 @@ export default function CourseEditor({
       }
       if (!assignmentToMove) return;
 
-      const { error: assignmentMoveError } = await supabase.from("assignments").update({ module_day_id: targetDayId }).eq("id", assignmentId);
+      const { error: assignmentMoveError } = await supabase
+        .from("assignments")
+        .update({ module_day_id: targetDayId })
+        .eq("id", assignmentId);
       if (assignmentMoveError) console.error("Failed to move assignment:", assignmentMoveError);
 
       setModules((prev) =>
@@ -682,7 +1334,13 @@ export default function CourseEditor({
               return { ...d, assignments: (d.assignments ?? []).filter((a) => a.id !== assignmentId) };
             }
             if (d.id === targetDayId) {
-              return { ...d, assignments: [...(d.assignments ?? []), { ...assignmentToMove!, module_day_id: targetDayId }] };
+              return {
+                ...d,
+                assignments: [
+                  ...(d.assignments ?? []),
+                  { ...assignmentToMove!, module_day_id: targetDayId },
+                ],
+              };
             }
             return d;
           }),
@@ -812,8 +1470,107 @@ export default function CourseEditor({
     );
   };
 
+  const addAssignment = async (
+    dayId: string,
+    title: string,
+    description: string,
+    howToTurnIn: string,
+    dueDate: string | null,
+    checklistItems: RubricItem[]
+  ) => {
+    const { data, error } = await supabase
+      .from("assignments")
+      .insert({
+        module_day_id: dayId,
+        title,
+        description: description || null,
+        how_to_turn_in: howToTurnIn || null,
+        due_date: dueDate || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Failed to add assignment:", error.message, error);
+      return;
+    }
+
+    if (data) {
+      if (checklistItems.length > 0) {
+        const { error: clErr } = await supabase.from("checklist_items").insert(
+          checklistItems.map((item, i) => ({
+            assignment_id: data.id,
+            text: item.text,
+            description: item.description || null,
+            order: i,
+          }))
+        );
+        if (clErr) console.error("Failed to add checklist items:", clErr.message);
+      }
+      setModules((prev) =>
+        prev.map((m) => ({
+          ...m,
+          module_days: m.module_days.map((d) =>
+            d.id === dayId
+              ? { ...d, assignments: [...(d.assignments ?? []), data] }
+              : d
+          ),
+        }))
+      );
+    }
+  };
+
+  const deleteAssignment = async (assignmentId: string) => {
+    await supabase.from("assignments").delete().eq("id", assignmentId);
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => ({
+          ...d,
+          assignments: (d.assignments ?? []).filter((a) => a.id !== assignmentId),
+        })),
+      }))
+    );
+  };
+
+  const updateAssignment = async (
+    assignmentId: string,
+    updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>
+  ) => {
+    await supabase.from("assignments").update(updates).eq("id", assignmentId);
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => ({
+          ...d,
+          assignments: (d.assignments ?? []).map((a) =>
+            a.id === assignmentId ? { ...a, ...updates } : a
+          ),
+        })),
+      }))
+    );
+  };
+
+  const openAssignment = (assignment: Assignment, dayId: string) =>
+    setActiveView({ mode: "view", assignment, dayId });
+
+  const openAdd = (dayId: string) =>
+    setActiveView({ mode: "add", dayId });
+
+  const closeView = () => setActiveView(null);
+
   return (
     <>
+      {activeView && (
+        <AssignmentFullView
+          view={activeView}
+          onClose={closeView}
+          onAdd={addAssignment}
+          onEdit={updateAssignment}
+          onDelete={deleteAssignment}
+          defaultTemplateId={defaultTemplateId}
+        />
+      )}
       {isMounted && (
         <DndContext
           sensors={sensors}
@@ -832,11 +1589,14 @@ export default function CourseEditor({
                   onDelete={deleteModule}
                   onAddDay={addDay}
                   onDeleteDay={deleteDay}
+                  onOpenAssignment={openAssignment}
+                  onOpenAdd={openAdd}
+                  onDeleteAssignment={deleteAssignment}
                 />
               ))}
             </SortableContext>
 
-            <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-6">
+            <div className="bg-surface rounded-2xl border border-dashed border-border p-6">
               <h4 className="text-sm font-medium text-dark-text mb-3">
                 Add Module
               </h4>
@@ -849,7 +1609,7 @@ export default function CourseEditor({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") addModule();
                   }}
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   aria-label="Module title"
                 />
                 <input
@@ -857,7 +1617,7 @@ export default function CourseEditor({
                   placeholder="Week #"
                   value={newModuleWeek}
                   onChange={(e) => setNewModuleWeek(e.target.value)}
-                  className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  className="w-24 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   aria-label="Week number"
                 />
                 <button

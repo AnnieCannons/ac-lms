@@ -41,7 +41,7 @@ export default async function CoursePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link
           href="/instructor/courses"
           className="text-xl font-extrabold text-dark-text"
@@ -54,14 +54,14 @@ export default async function CoursePage({
         <div className="flex items-center gap-3 mb-2">
           <Link
             href="/instructor/courses"
-            className="text-gray-400 hover:text-teal-primary text-sm"
+            className="text-muted-text hover:text-teal-primary text-sm"
           >
             ← Courses
           </Link>
-          <span className="text-gray-300">/</span>
+          <span className="text-border">/</span>
           <h2 className="text-2xl font-bold text-dark-text">{course.name}</h2>
         </div>
-        <p className="text-gray-500 text-sm mb-8">{course.code}</p>
+        <p className="text-muted-text text-sm mb-8">{course.code}</p>
 
         <CourseEditor course={course} initialModules={modules || []} />
       </main>

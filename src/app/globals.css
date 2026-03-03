@@ -2,17 +2,38 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-teal-primary: #1a9e96;
-  --color-teal-light: #e6f7f6;
-  --color-purple-primary: #6b2d6e;
-  --color-purple-light: #f3e8f3;
-  --color-background: #f0f7f7;
-  --color-dark-text: #1a1a2e;
+  --color-teal-primary: #2dd4bf;
+  --color-teal-light: #0e2e2c;
+  --color-purple-primary: #c084fc;
+  --color-purple-light: #2a1f2d;
+  --color-background: #0a1a12;
+  --color-surface: #112418;
+  --color-border: #1e3d28;
+  --color-dark-text: #e2f0ea;
+  --color-muted-text: #6fa882;
   --font-sans: 'Inter', sans-serif;
 }
 
 body {
-  background-color: #f0f7f7;
-  color: #1a1a2e;
+  background-color: #0a1a12;
+  color: #e2f0ea;
   font-family: 'Inter', sans-serif;
+}
+
+/* Rich text editor output styles */
+.tiptap h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.tiptap h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.tiptap p { margin: 0.25rem 0; }
+.tiptap ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap li { margin: 0.125rem 0; }
+.tiptap strong { font-weight: 700; }
+.tiptap em { font-style: italic; }
+.tiptap blockquote { border-left: 3px solid #1a9e96; padding-left: 0.75rem; color: #6b7280; margin: 0.5rem 0; }
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
 }

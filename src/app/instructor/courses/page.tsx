@@ -24,11 +24,11 @@ export default async function CoursesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link href="/dashboard" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
-        <span className="text-sm text-gray-500 capitalize">{profile?.role}</span>
+        <span className="text-sm text-muted-text capitalize">{profile?.role}</span>
       </nav>
 
       <main className="max-w-4xl mx-auto px-8 py-12">
@@ -48,12 +48,12 @@ export default async function CoursesPage() {
               <Link
                 key={course.id}
                 href={`/instructor/courses/${course.id}`}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-teal-primary transition-colors"
+                className="bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-dark-text">{course.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{course.code}</p>
+                    <p className="text-sm text-muted-text mt-1">{course.code}</p>
                   </div>
                   <span className="text-teal-primary text-sm font-medium">Manage →</span>
                 </div>
@@ -61,8 +61,8 @@ export default async function CoursesPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-            <p className="text-gray-500 mb-4">No courses yet.</p>
+          <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+            <p className="text-muted-text mb-4">No courses yet.</p>
             <Link
               href="/instructor/courses/new"
               className="bg-teal-primary text-white px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90"
