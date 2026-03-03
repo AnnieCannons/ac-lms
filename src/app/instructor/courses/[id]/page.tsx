@@ -35,25 +35,9 @@ export default async function CoursePage({
 
   const { data: modules } = await supabase
     .from("modules")
-    .select("*, module_days(*, assignments(*), resources(*))")
+    .select("*, module_days(*, assignments(*))")
     .eq("course_id", id)
     .order("order", { ascending: true });
-
-  const { data: testAssignments, error: testErr } = await supabase
-    .from("assignments")
-    .select("id")
-    .limit(1);
-
-  console.log(
-    "assignments visible to this user:",
-    testAssignments?.length,
-    "error:",
-    testErr,
-  );
-  console.log(
-    "nested assignments on first module day:",
-    modules?.[0]?.module_days?.[0]?.assignments?.length,
-  );
 
   return (
     <div className="min-h-screen bg-background">

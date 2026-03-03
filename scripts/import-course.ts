@@ -52,7 +52,7 @@ async function importCourse(filePath: string) {
   // 2. Group assignments by module_title
   const moduleMap = new Map<string, AssignmentJSON[]>();
   for (const assignment of assignments) {
-    const key = assignment.module_title;
+    const key = assignment.module_title || "";
     if (!moduleMap.has(key)) moduleMap.set(key, []);
     moduleMap.get(key)!.push(assignment);
   }
@@ -60,7 +60,7 @@ async function importCourse(filePath: string) {
   let moduleOrder = 0;
   for (const [moduleTitle, moduleAssignments] of moduleMap) {
     // 3. Create the module
-    const weekMatch = moduleTitle.match(/week\s*(\d+)/i);
+    const weekMatch = moduleTitle?.match(/week\s*(\d+)/i);
     const weekNumber = weekMatch ? parseInt(weekMatch[1]) : moduleOrder + 1;
 
     const { data: module, error: moduleError } = await supabase

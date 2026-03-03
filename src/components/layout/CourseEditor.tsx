@@ -10,6 +10,8 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
+  useDraggable,
+  useDroppable,
   DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -55,6 +57,78 @@ type Module = {
   course_id: string;
   module_days: Day[];
 };
+
+function AssignmentDropZone({ day, assignments }: { day: Day; assignments: Assignment[] }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `drop-${day.id}`,
+    data: { type: "day-drop", dayId: day.id },
+  });
+
+  return (
+    <div className="bg-white/60 rounded-xl p-3">
+      <p className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
+        Assignments
+      </p>
+      <div
+        ref={setNodeRef}
+        className={`flex flex-col gap-2 min-h-[48px] rounded-lg p-1 transition-colors ${
+          isOver ? "bg-teal-50 border border-dashed border-teal-300" : ""
+        }`}
+      >
+        {assignments.length === 0 ? (
+          <p className="text-xs text-gray-400 py-2 px-1">No assignments. Drag one here.</p>
+        ) : (
+          assignments
+            .slice()
+            .sort((a, b) => {
+              if (!a.due_date && !b.due_date) return 0;
+              if (!a.due_date) return 1;
+              if (!b.due_date) return -1;
+              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            })
+            .map((a) => (
+              <DraggableAssignment key={a.id} assignment={a} dayId={day.id} />
+            ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DraggableAssignment({ assignment, dayId }: { assignment: Assignment; dayId: string }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `assignment-${assignment.id}`,
+    data: { type: "assignment", assignmentId: assignment.id, sourceDayId: dayId },
+  });
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white rounded-lg border border-gray-100 px-3 py-2 flex items-center gap-2 ${isDragging ? "opacity-50 shadow-lg z-50" : ""}`}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="text-gray-300 hover:text-gray-500 cursor-grab shrink-0"
+        type="button"
+        aria-label="Drag assignment"
+      >
+        ⠿
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-dark-text truncate">{assignment.title}</p>
+        <p className="text-xs text-gray-400">
+          Due: {assignment.due_date ? new Date(assignment.due_date).toLocaleString() : "None"}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const RESOURCE_TYPE_LABELS: Record<Resource["type"], string> = {
   video: "Video",
@@ -163,20 +237,27 @@ function SortableResource({
       <span className="text-xs bg-teal-light text-teal-primary rounded px-1.5 py-0.5 shrink-0">
         {RESOURCE_TYPE_LABELS[resource.type]}
       </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-dark-text truncate">{resource.title}</p>
+      <div className="flex-1 min-w-0 group">
+        <button
+          onClick={() => setEditing(true)}
+          className="text-xs font-medium text-dark-text truncate hover:text-teal-primary transition-colors w-full text-left flex items-center gap-1"
+          type="button"
+        >
+          {resource.title}
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-teal-primary shrink-0">✎</span>
+        </button>
         {resource.content && (
-          <p className="text-xs text-gray-400 truncate">{resource.content}</p>
+          <a
+            href={resource.content.startsWith("http") ? resource.content : `https://${resource.content}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-teal-primary truncate hover:underline block"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {resource.content}
+          </a>
         )}
       </div>
-      <button
-        onClick={() => setEditing(true)}
-        className="text-gray-300 hover:text-teal-primary text-xs shrink-0"
-        type="button"
-        aria-label="Edit resource"
-      >
-        ✎
-      </button>
       <button
         onClick={() => onDelete(resource.id)}
         className="text-gray-300 hover:text-red-400 text-xs shrink-0"
@@ -207,13 +288,22 @@ function SortableDay({
   const assignments = day.assignments ?? [];
   const supabase = createClient();
 
-  const [resources, setResources] = useState<Resource[]>(
-    () => [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
-  );
+  const [resources, setResources] = useState<Resource[]>([]);
   const resourcesRef = useRef(resources);
   useEffect(() => {
     resourcesRef.current = resources;
   }, [resources]);
+
+  useEffect(() => {
+    supabase
+      .from("resources")
+      .select("*")
+      .eq("module_day_id", day.id)
+      .order("order")
+      .then(({ data }) => {
+        if (data) setResources(data);
+      });
+  }, [day.id]);
 
   const resourceSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -252,7 +342,11 @@ function SortableDay({
       })
       .select()
       .single();
-    if (!error && data) {
+    if (error) {
+      console.error("Failed to add resource:", error);
+      return;
+    }
+    if (data) {
       setResources((prev) => [...prev, data]);
     }
   };
@@ -305,7 +399,7 @@ function SortableDay({
         >
           <span>{day.day_name}</span>
           <span className="text-xs text-gray-400">
-            ({assignments.length})
+            ({assignments.length + resources.length})
           </span>
         </button>
 
@@ -324,44 +418,9 @@ function SortableDay({
           id={`day-panel-${day.id}`}
           className="px-10 pb-4 pt-2 border-t border-gray-100 flex flex-col gap-4"
         >
-          {/* Assignments */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Assignments
-            </p>
-            {assignments.length === 0 ? (
-              <p className="text-xs text-gray-400">No assignments.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {assignments
-                  .slice()
-                  .sort((a, b) => {
-                    if (!a.due_date && !b.due_date) return 0;
-                    if (!a.due_date) return 1;
-                    if (!b.due_date) return -1;
-                    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-                  })
-                  .map((a) => (
-                    <li
-                      key={a.id}
-                      className="bg-white rounded-lg border border-gray-100 px-3 py-2"
-                    >
-                      <p className="text-sm text-dark-text truncate">{a.title}</p>
-                      <p className="text-xs text-gray-400">
-                        Due:{" "}
-                        {a.due_date
-                          ? new Date(a.due_date).toLocaleString()
-                          : "None"}
-                      </p>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-
           {/* Resources */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            <p className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
               Resources
             </p>
             <DndContext
@@ -426,6 +485,9 @@ function SortableDay({
               </div>
             </div>
           </div>
+
+          {/* Assignments */}
+          <AssignmentDropZone day={day} assignments={assignments} />
         </div>
       )}
     </div>
@@ -580,10 +642,56 @@ export default function CourseEditor({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
     const activeData = active.data.current;
     const overData = over.data.current;
+
+    // Handle cross-day assignment moves
+    if (activeData?.type === "assignment") {
+      let targetDayId: string | null = null;
+      if (overData?.type === "day-drop") {
+        targetDayId = overData.dayId;
+      } else if (overData?.type === "day") {
+        targetDayId = (over.id as string).replace("day-", "");
+      }
+      if (!targetDayId || targetDayId === activeData.sourceDayId) return;
+
+      const { assignmentId, sourceDayId } = activeData;
+
+      let assignmentToMove: Assignment | undefined;
+      for (const m of modulesRef.current) {
+        for (const d of m.module_days) {
+          if (d.id === sourceDayId) {
+            assignmentToMove = d.assignments?.find((a) => a.id === assignmentId);
+            break;
+          }
+        }
+        if (assignmentToMove) break;
+      }
+      if (!assignmentToMove) return;
+
+      const { error: assignmentMoveError } = await supabase.from("assignments").update({ module_day_id: targetDayId }).eq("id", assignmentId);
+      if (assignmentMoveError) console.error("Failed to move assignment:", assignmentMoveError);
+
+      setModules((prev) =>
+        prev.map((m) => ({
+          ...m,
+          module_days: m.module_days.map((d) => {
+            if (d.id === sourceDayId) {
+              return { ...d, assignments: (d.assignments ?? []).filter((a) => a.id !== assignmentId) };
+            }
+            if (d.id === targetDayId) {
+              return { ...d, assignments: [...(d.assignments ?? []), { ...assignmentToMove!, module_day_id: targetDayId }] };
+            }
+            return d;
+          }),
+        }))
+      );
+      return;
+    }
+
+    if (active.id === over.id) return;
     if (activeData?.type !== overData?.type) return;
 
     const currentModules = modulesRef.current;
