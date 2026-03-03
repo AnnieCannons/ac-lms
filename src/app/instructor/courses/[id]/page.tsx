@@ -35,7 +35,7 @@ export default async function CoursePage({
 
   const { data: modules } = await supabase
     .from("modules")
-    .select("*, module_days(*, assignments(*))")
+    .select("*, module_days(*, assignments(*), resources(*))")
     .eq("course_id", id)
     .order("order", { ascending: true });
 
