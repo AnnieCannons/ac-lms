@@ -18,7 +18,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const service = createServiceSupabaseClient()
+  let service: ReturnType<typeof createServiceSupabaseClient>
+  try { service = createServiceSupabaseClient() } catch {
+    return NextResponse.json({ error: 'Service role not configured' }, { status: 500 })
+  }
 
   // ── FETCH PHASE ──────────────────────────────────────────────────────────
 

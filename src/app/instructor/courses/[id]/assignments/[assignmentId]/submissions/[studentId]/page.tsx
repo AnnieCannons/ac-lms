@@ -41,7 +41,8 @@ export default async function GradingPage({
   if (profile?.role === 'student') redirect('/student/courses')
 
   // Use service role for cross-user queries (bypasses RLS)
-  const admin = createServiceSupabaseClient()
+  let admin: ReturnType<typeof createServiceSupabaseClient>
+  try { admin = createServiceSupabaseClient() } catch { redirect(`/instructor/courses/${id}`) }
 
   const { data: assignment } = await admin
     .from('assignments')

@@ -21,7 +21,8 @@ export default async function CourseSubmissionsPage({
 
   if (profile?.role === 'student') redirect('/student/courses')
 
-  const admin = createServiceSupabaseClient()
+  let admin: ReturnType<typeof createServiceSupabaseClient>
+  try { admin = createServiceSupabaseClient() } catch { redirect('/instructor/courses') }
 
   const { data: course } = await admin
     .from('courses')
