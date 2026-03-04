@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
@@ -22,7 +22,10 @@ export default async function InstructorSubmissionsPage({
 
   if (profile?.role === 'student') redirect('/student/courses')
 
-  const { data: assignment } = await supabase
+  // Use service role for cross-user queries (bypasses RLS)
+  const admin = createServiceSupabaseClient()
+
+  const { data: assignment } = await admin
     .from('assignments')
     .select('id, title, due_date')
     .eq('id', assignmentId)
@@ -30,24 +33,24 @@ export default async function InstructorSubmissionsPage({
 
   if (!assignment) redirect(`/instructor/courses/${id}`)
 
-  const { data: course } = await supabase
+  const { data: course } = await admin
     .from('courses')
     .select('id, name')
     .eq('id', id)
     .single()
 
-  const { data: enrollments } = await supabase
+  const { data: enrollments } = await admin
     .from('course_enrollments')
     .select('user_id, users(id, name)')
     .eq('course_id', id)
     .eq('role', 'student')
 
-  const { data: submissions } = await supabase
+  const { data: submissions } = await admin
     .from('submissions')
-    .select('id, student_id, submission_type, content, status, submitted_at')
+    .select('id, student_id, submission_type, content, status, grade, submitted_at')
     .eq('assignment_id', assignmentId)
 
-  const { data: history } = await supabase
+  const { data: history } = await admin
     .from('submission_history')
     .select('id, student_id, submitted_at')
     .eq('assignment_id', assignmentId)

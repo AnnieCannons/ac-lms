@@ -1,10 +1,11 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
 import SubmissionForm from '@/components/ui/SubmissionForm'
 import StudentChecklist from '@/components/ui/StudentChecklist'
+import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 
 export default async function StudentAssignmentPage({
   params,
@@ -66,7 +67,7 @@ export default async function StudentAssignmentPage({
 
   const { data: existingSubmission } = await supabase
     .from('submissions')
-    .select('id, submission_type, content, status, submitted_at')
+    .select('id, submission_type, content, status, grade, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .maybeSingle()
@@ -77,6 +78,27 @@ export default async function StudentAssignmentPage({
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false })
+
+  const admin = createServiceSupabaseClient()
+  const { data: rawComments } = existingSubmission
+    ? await admin
+        .from('submission_comments')
+        .select('id, content, created_at, author_id, users(name, role)')
+        .eq('submission_id', existingSubmission.id)
+        .order('created_at', { ascending: true })
+    : { data: [] }
+
+  const initialComments: CommentEntry[] = (rawComments ?? []).map(c => {
+    const u = Array.isArray(c.users) ? c.users[0] : c.users
+    return {
+      id: c.id,
+      content: c.content,
+      created_at: c.created_at,
+      author_id: c.author_id,
+      author_name: (u as { name: string; role: string } | null)?.name ?? 'Unknown',
+      author_role: (u as { name: string; role: string } | null)?.role ?? 'student',
+    }
+  })
 
   const module = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
 
@@ -112,7 +134,19 @@ export default async function StudentAssignmentPage({
           <span className="text-dark-text font-medium truncate max-w-[200px]">{assignment.title}</span>
         </div>
 
-        <h1 className="text-2xl font-bold text-dark-text mb-1">{assignment.title}</h1>
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          {existingSubmission?.grade === 'complete' && (
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-teal-light text-teal-primary">
+              Complete ✓
+            </span>
+          )}
+          {existingSubmission?.grade === 'incomplete' && (
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500">
+              Incomplete
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-4 mb-8">
           {module && (
             <p className="text-muted-text text-sm">{module.title}</p>
@@ -161,6 +195,17 @@ export default async function StudentAssignmentPage({
             existingSubmission={existingSubmission ?? null}
             initialHistory={submissionHistory ?? []}
           />
+
+          {/* Comments (only shown once there's a submission) */}
+          {existingSubmission && (
+            <SubmissionComments
+              submissionId={existingSubmission.id}
+              initialComments={initialComments}
+              currentUserId={user.id}
+              currentUserName={profile?.name ?? 'Student'}
+              currentUserRole={profile?.role ?? 'student'}
+            />
+          )}
         </div>
       </main>
     </div>

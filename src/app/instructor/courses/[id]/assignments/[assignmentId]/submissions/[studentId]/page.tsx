@@ -1,9 +1,11 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
-import MarkGradedButton from '@/components/ui/MarkGradedButton'
+import GradeButtons from '@/components/ui/GradeButtons'
+import InstructorChecklist from '@/components/ui/InstructorChecklist'
+import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -38,7 +40,10 @@ export default async function GradingPage({
 
   if (profile?.role === 'student') redirect('/student/courses')
 
-  const { data: assignment } = await supabase
+  // Use service role for cross-user queries (bypasses RLS)
+  const admin = createServiceSupabaseClient()
+
+  const { data: assignment } = await admin
     .from('assignments')
     .select('id, title, description, how_to_turn_in, due_date')
     .eq('id', assignmentId)
@@ -46,48 +51,78 @@ export default async function GradingPage({
 
   if (!assignment) redirect(`/instructor/courses/${id}`)
 
-  const { data: course } = await supabase
+  const { data: course } = await admin
     .from('courses')
     .select('id, name')
     .eq('id', id)
     .single()
 
-  const { data: student } = await supabase
+  const { data: student } = await admin
     .from('users')
     .select('id, name')
     .eq('id', studentId)
     .single()
 
-  const { data: submission } = await supabase
+  const { data: submission } = await admin
     .from('submissions')
-    .select('id, submission_type, content, status, submitted_at')
+    .select('id, submission_type, content, status, grade, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
 
-  const { data: submissionHistory } = await supabase
+  const { data: submissionHistory } = await admin
     .from('submission_history')
     .select('id, submission_type, content, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .order('submitted_at', { ascending: false })
 
-  const { data: checklistItems } = await supabase
+  const { data: checklistItems } = await admin
     .from('checklist_items')
     .select('id, text, description, order')
     .eq('assignment_id', assignmentId)
     .order('order', { ascending: true })
 
-  const { data: checklistProgress } = await supabase
+  // Instructor's grading responses
+  const { data: checklistResponses } = submission
+    ? await admin
+        .from('checklist_responses')
+        .select('checklist_item_id, checked')
+        .eq('submission_id', submission.id)
+    : { data: [] }
+
+  // Student's self-check progress
+  const { data: studentProgress } = await admin
     .from('student_checklist_progress')
     .select('checklist_item_id, checked')
     .eq('student_id', studentId)
     .in('checklist_item_id', checklistItems?.map(i => i.id) ?? [])
 
-  const checkedMap = new Map((checklistProgress ?? []).map(p => [p.checklist_item_id, p.checked]))
-  const checkedCount = checklistItems?.filter(i => checkedMap.get(i.id)).length ?? 0
+  const studentCheckedIds = new Set(
+    (studentProgress ?? []).filter(p => p.checked).map(p => p.checklist_item_id)
+  )
 
-  const isGraded = submission?.status === 'graded'
+  const { data: rawComments } = submission
+    ? await admin
+        .from('submission_comments')
+        .select('id, content, created_at, author_id, users(name, role)')
+        .eq('submission_id', submission.id)
+        .order('created_at', { ascending: true })
+    : { data: [] }
+
+  const initialComments: CommentEntry[] = (rawComments ?? []).map(c => {
+    const u = Array.isArray(c.users) ? c.users[0] : c.users
+    return {
+      id: c.id,
+      content: c.content,
+      created_at: c.created_at,
+      author_id: c.author_id,
+      author_name: (u as { name: string; role: string } | null)?.name ?? 'Unknown',
+      author_role: (u as { name: string; role: string } | null)?.role ?? 'instructor',
+    }
+  })
+
+  const currentGrade = (submission?.grade ?? null) as 'complete' | 'incomplete' | null
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,9 +158,9 @@ export default async function GradingPage({
             <p className="text-sm text-muted-text mt-1 truncate max-w-md">{assignment.title}</p>
           </div>
           {submission && (
-            <MarkGradedButton
+            <GradeButtons
               submissionId={submission.id}
-              isGraded={isGraded}
+              initialGrade={currentGrade}
             />
           )}
         </div>
@@ -137,11 +172,14 @@ export default async function GradingPage({
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
               {submission && (
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  isGraded ? 'bg-purple-100 text-purple-primary' :
+                  currentGrade === 'complete' ? 'bg-teal-light text-teal-primary' :
+                  currentGrade === 'incomplete' ? 'bg-red-50 text-red-500' :
                   submission.status === 'submitted' ? 'bg-teal-light text-teal-primary' :
                   'bg-yellow-50 text-yellow-600'
                 }`}>
-                  {isGraded ? 'Graded' : submission.status === 'submitted' ? 'Turned in' : 'Draft'}
+                  {currentGrade === 'complete' ? 'Complete' :
+                   currentGrade === 'incomplete' ? 'Incomplete' :
+                   submission.status === 'submitted' ? 'Turned in' : 'Draft'}
                 </span>
               )}
             </div>
@@ -193,39 +231,25 @@ export default async function GradingPage({
           </div>
 
           {/* Checklist */}
-          {checklistItems && checklistItems.length > 0 && (
-            <div className="bg-surface rounded-2xl border border-border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Student Checklist</p>
-                <span className="text-xs text-muted-text">{checkedCount}/{checklistItems.length} checked</span>
-              </div>
-              <ul className="flex flex-col gap-3">
-                {checklistItems.map(item => {
-                  const checked = checkedMap.get(item.id) ?? false
-                  return (
-                    <li key={item.id} className="flex items-start gap-3">
-                      <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center ${
-                        checked ? 'bg-teal-primary border-teal-primary' : 'border-border'
-                      }`}>
-                        {checked && (
-                          <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </span>
-                      <div>
-                        <p className={`text-sm ${checked ? 'text-muted-text line-through' : 'text-dark-text'}`}>
-                          {item.text}
-                        </p>
-                        {item.description && (
-                          <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
+          {checklistItems && checklistItems.length > 0 && submission && (
+            <InstructorChecklist
+              items={checklistItems.map(i => ({ id: i.id, text: i.text, description: i.description ?? null }))}
+              initialResponses={checklistResponses ?? []}
+              submissionId={submission.id}
+              gradedById={user.id}
+              studentCheckedIds={studentCheckedIds}
+            />
+          )}
+
+          {/* Comments */}
+          {submission && (
+            <SubmissionComments
+              submissionId={submission.id}
+              initialComments={initialComments}
+              currentUserId={user.id}
+              currentUserName={profile?.name ?? 'Instructor'}
+              currentUserRole={profile?.role ?? 'instructor'}
+            />
           )}
 
           {/* Assignment instructions (collapsed reference) */}

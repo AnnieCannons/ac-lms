@@ -52,12 +52,18 @@ export default async function CoursePage({
       </nav>
 
       <main className="max-w-4xl mx-auto px-8 py-12">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-6">
           <Link
             href="/instructor/courses"
             className="text-muted-text hover:text-teal-primary text-sm"
           >
             ← Courses
+          </Link>
+          <Link
+            href={`/instructor/courses/${id}/submissions`}
+            className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 transition-opacity"
+          >
+            All Submissions
           </Link>
         </div>
         <CourseNameEditor

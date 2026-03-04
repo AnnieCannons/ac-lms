@@ -12,6 +12,7 @@ export type StudentRow = {
   submission: {
     id: string;
     status: SubmissionStatus;
+    grade: "complete" | "incomplete" | null;
     submission_type: SubmissionType;
     content: string | null;
     submitted_at: string;
@@ -23,7 +24,13 @@ export type StudentRow = {
 type Filter = "all" | "needs-grading" | "graded" | "not-submitted";
 type Sort = "name-asc" | "name-desc" | "date-newest" | "date-oldest";
 
-function StatusBadge({ status }: { status: SubmissionStatus | null }) {
+function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade?: "complete" | "incomplete" | null }) {
+  if (grade === "complete") return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete</span>
+  );
+  if (grade === "incomplete") return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Incomplete</span>
+  );
   if (status === "submitted") return (
     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned in</span>
   );
@@ -151,7 +158,7 @@ export default function SubmissionsList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
                     <span className="text-sm font-semibold text-dark-text">{student.name}</span>
-                    <StatusBadge status={sub?.status ?? null} />
+                    <StatusBadge status={sub?.status ?? null} grade={sub?.grade} />
                     {student.historyCount > 1 && (
                       <span className="text-xs text-muted-text">{student.historyCount} submissions</span>
                     )}
