@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { QuizRow } from "@/data/quizzes";
-import { getQuizQuestionPreview } from "@/data/quizzes";
 import QuizFullView from "./QuizFullView";
 
 type QuizzesSectionProps = {
