@@ -10,7 +10,7 @@ This document describes the database schema for the AnnieCannons Learning Manage
 
 | Enum | Values |
 |------|--------|
-| `user_role` | `admin`, `instructor`, `learner` |
+| `user_role` | `admin`, `instructor`, `student` |
 | `resource_type` | `video`, `reading`, `link`, `file` |
 | `submission_type` | `text`, `file`, `link` |
 | `submission_status` | `draft`, `submitted`, `graded` |
@@ -111,6 +111,7 @@ An assignment attached to a module day with an optional due date.
 | `title` | text | Required |
 | `description` | text | |
 | `due_date` | timestamptz | |
+| `published` | boolean | Default: true |
 
 ---
 

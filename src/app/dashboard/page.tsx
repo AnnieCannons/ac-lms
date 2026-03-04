@@ -15,6 +15,9 @@ export default async function DashboardPage() {
 
   const isInstructor = profile?.role === 'instructor' || profile?.role === 'admin'
 
+  // Learners go straight to their course list
+  if (!isInstructor) redirect('/student/courses')
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}

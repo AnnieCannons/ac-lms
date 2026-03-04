@@ -34,6 +34,7 @@ type Assignment = {
   description?: string | null;
   how_to_turn_in?: string | null;
   module_day_id: string;
+  published: boolean;
 };
 
 const DEFAULT_HOW_TO_TURN_IN =
@@ -160,11 +161,13 @@ function AssignmentCard({
   dayId,
   onOpen,
   onDelete,
+  onTogglePublished,
 }: {
   assignment: Assignment;
   dayId: string;
   onOpen: (assignment: Assignment, dayId: string) => void;
   onDelete: (id: string) => void;
+  onTogglePublished: (id: string, current: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `assignment-${assignment.id}`,
@@ -195,11 +198,21 @@ function AssignmentCard({
           onClick={() => onOpen(assignment, dayId)}
           className="flex-1 min-w-0 text-left"
         >
-          <p className="text-sm text-dark-text truncate">{assignment.title}</p>
+          <p className="text-sm text-dark-text truncate">
+            {assignment.title}
+          </p>
           <p className="text-xs text-muted-text">
             Due:{" "}
             {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
           </p>
+        </button>
+        <button
+          onClick={() => onTogglePublished(assignment.id, assignment.published)}
+          className={`text-xs shrink-0 font-medium transition-colors ${assignment.published ? "text-teal-primary hover:text-muted-text" : "text-muted-text hover:text-teal-primary"}`}
+          type="button"
+          title={assignment.published ? "Published — click to unpublish" : "Unpublished — click to publish"}
+        >
+          {assignment.published ? "●" : "○"}
         </button>
         <button
           onClick={() => onDelete(assignment.id)}
@@ -226,6 +239,7 @@ function AssignmentFullView({
   onAdd,
   onEdit,
   onDelete,
+  onTogglePublished,
   defaultTemplateId,
 }: {
   view: ActiveView;
@@ -233,6 +247,7 @@ function AssignmentFullView({
   onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => void;
   onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
   onDelete: (id: string) => void;
+  onTogglePublished: (id: string, current: boolean) => void;
   defaultTemplateId?: string;
 }) {
   const supabase = createClient();
@@ -391,11 +406,26 @@ function AssignmentFullView({
           >
             ← Back to assignments
           </button>
-          {view.mode === "view" && !editing && (
-            <button onClick={handleDelete} className="text-xs text-teal-700 hover:text-red-400 transition-colors" type="button">
-              Delete assignment
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            {view.mode === "view" && !editing && assignment && (
+              <button
+                onClick={() => onTogglePublished(assignment.id, assignment.published)}
+                className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
+                  assignment.published
+                    ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                    : "border-teal-700 text-teal-600 hover:border-teal-400 hover:text-teal-300"
+                }`}
+                type="button"
+              >
+                {assignment.published ? "● Published" : "○ Unpublished"}
+              </button>
+            )}
+            {view.mode === "view" && !editing && (
+              <button onClick={handleDelete} className="text-xs text-teal-700 hover:text-red-400 transition-colors" type="button">
+                Delete assignment
+              </button>
+            )}
+          </div>
         </div>
 
         {view.mode === "view" ? (
@@ -651,12 +681,14 @@ function AssignmentDropZone({
   onOpenAssignment,
   onOpenAdd,
   onDeleteAssignment,
+  onTogglePublished,
 }: {
   day: Day;
   assignments: Assignment[];
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
+  onTogglePublished: (id: string, current: boolean) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `drop-${day.id}`,
@@ -694,6 +726,7 @@ function AssignmentDropZone({
                 dayId={day.id}
                 onOpen={onOpenAssignment}
                 onDelete={onDeleteAssignment}
+                onTogglePublished={onTogglePublished}
               />
             ))
         )}
@@ -878,12 +911,14 @@ function SortableDay({
   onOpenAssignment,
   onOpenAdd,
   onDeleteAssignment,
+  onTogglePublished,
 }: {
   day: Day;
   onDelete: (id: string) => void;
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
+  onTogglePublished: (id: string, current: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1115,6 +1150,7 @@ function SortableDay({
             onOpenAssignment={onOpenAssignment}
             onOpenAdd={onOpenAdd}
             onDeleteAssignment={onDeleteAssignment}
+            onTogglePublished={onTogglePublished}
           />
         </div>
       )}
@@ -1132,6 +1168,7 @@ function SortableModule({
   onOpenAssignment,
   onOpenAdd,
   onDeleteAssignment,
+  onTogglePublished,
 }: {
   module: Module;
   onDelete: (id: string) => void;
@@ -1140,6 +1177,7 @@ function SortableModule({
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
+  onTogglePublished: (id: string, current: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1207,6 +1245,7 @@ function SortableModule({
                   onOpenAssignment={onOpenAssignment}
                   onOpenAdd={onOpenAdd}
                   onDeleteAssignment={onDeleteAssignment}
+                  onTogglePublished={onTogglePublished}
                 />
               ))}
           </SortableContext>
@@ -1520,6 +1559,21 @@ export default function CourseEditor({
     }
   };
 
+  const togglePublished = async (assignmentId: string, current: boolean) => {
+    await supabase.from("assignments").update({ published: !current }).eq("id", assignmentId);
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => ({
+          ...d,
+          assignments: (d.assignments ?? []).map((a) =>
+            a.id === assignmentId ? { ...a, published: !current } : a
+          ),
+        })),
+      }))
+    );
+  };
+
   const deleteAssignment = async (assignmentId: string) => {
     await supabase.from("assignments").delete().eq("id", assignmentId);
     setModules((prev) =>
@@ -1568,6 +1622,7 @@ export default function CourseEditor({
           onAdd={addAssignment}
           onEdit={updateAssignment}
           onDelete={deleteAssignment}
+          onTogglePublished={togglePublished}
           defaultTemplateId={defaultTemplateId}
         />
       )}
@@ -1592,6 +1647,7 @@ export default function CourseEditor({
                   onOpenAssignment={openAssignment}
                   onOpenAdd={openAdd}
                   onDeleteAssignment={deleteAssignment}
+                  onTogglePublished={togglePublished}
                 />
               ))}
             </SortableContext>

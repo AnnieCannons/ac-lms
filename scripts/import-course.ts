@@ -113,6 +113,7 @@ async function importCourse(filePath: string) {
           title: a.title,
           description: a.description_html,
           due_date: a.due_at || null,
+          published: a.workflow_state === 'published',
         });
 
       if (assignmentError) {
