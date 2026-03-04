@@ -2,21 +2,21 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-teal-primary: #2dd4bf;
-  --color-teal-light: #0e2e2c;
-  --color-purple-primary: #c084fc;
-  --color-purple-light: #2a1f2d;
-  --color-background: #0a1a12;
-  --color-surface: #112418;
-  --color-border: #1e3d28;
-  --color-dark-text: #e2f0ea;
-  --color-muted-text: #6fa882;
+  --color-teal-primary: #6D2B5E;
+  --color-teal-light: #F5E6F3;
+  --color-purple-primary: #7B3FB0;
+  --color-purple-light: #F0E8FF;
+  --color-background: #F8F6FC;
+  --color-surface: #FFFFFF;
+  --color-border: #E2D9EF;
+  --color-dark-text: #1a1030;
+  --color-muted-text: #6B5D80;
   --font-sans: 'Inter', sans-serif;
 }
 
 body {
-  background-color: #0a1a12;
-  color: #e2f0ea;
+  background-color: #F8F6FC;
+  color: #1a1030;
   font-family: 'Inter', sans-serif;
 }
 
@@ -29,7 +29,7 @@ body {
 .tiptap li { margin: 0.125rem 0; }
 .tiptap strong { font-weight: 700; }
 .tiptap em { font-style: italic; }
-.tiptap blockquote { border-left: 3px solid #1a9e96; padding-left: 0.75rem; color: #6b7280; margin: 0.5rem 0; }
+.tiptap blockquote { border-left: 3px solid #6D2B5E; padding-left: 0.75rem; color: #6B5D80; margin: 0.5rem 0; }
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: #9ca3af;

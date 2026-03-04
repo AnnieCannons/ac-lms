@@ -26,7 +26,7 @@ export default function SignupPage() {
           <p className="text-gray-500 mt-2">Create your account</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <div className="bg-surface rounded-2xl border border-border p-8">
           {error && (
             <div className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">
               {error}
@@ -40,7 +40,7 @@ export default function SignupPage() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 required
               />
             </div>
@@ -51,13 +51,13 @@ export default function SignupPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 required
               />
             </div>
             <button
               type="submit"
-              className="bg-teal-primary hover:bg-teal-700 text-white font-semibold py-3 rounded-full transition-colors"
+              className="bg-teal-primary hover:opacity-90 text-white font-semibold py-3 rounded-full transition-opacity"
             >
               Create Account
             </button>

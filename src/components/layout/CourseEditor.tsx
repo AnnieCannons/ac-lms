@@ -88,7 +88,7 @@ function ChecklistLineEditor({
       {items.map((item, i) => (
         <div key={i} className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <span className="text-teal-400 text-xs shrink-0">☐</span>
+            <span className="text-[#a888c8] text-xs shrink-0">☐</span>
             <input
               ref={(el) => { titleRefs.current[i] = el; }}
               type="text"
@@ -101,7 +101,7 @@ function ChecklistLineEditor({
                 }
               }}
               placeholder={i === 0 ? "Item title — Enter to add more" : "Item title"}
-              className="flex-1 border-0 border-b border-teal-700 bg-transparent py-0.5 text-xs font-medium text-teal-100 focus:outline-none focus:border-teal-primary transition-colors"
+              className="flex-1 border-0 border-b border-[#3d2260] bg-transparent py-0.5 text-xs font-medium text-[#ede0f5] focus:outline-none focus:border-teal-primary transition-colors"
             />
           </div>
           <div className="pl-5">
@@ -110,7 +110,7 @@ function ChecklistLineEditor({
               value={item.description}
               onChange={(e) => setField(i, "description", e.target.value)}
               placeholder="Description (optional)"
-              className="w-full border-0 bg-transparent py-0.5 text-xs text-teal-400 placeholder:text-teal-700 focus:outline-none"
+              className="w-full border-0 bg-transparent py-0.5 text-xs text-[#a888c8] placeholder:text-[#3d2260] focus:outline-none"
             />
           </div>
         </div>
@@ -235,6 +235,7 @@ type ActiveView =
 
 function AssignmentFullView({
   view,
+  courseId,
   onClose,
   onAdd,
   onEdit,
@@ -243,6 +244,7 @@ function AssignmentFullView({
   defaultTemplateId,
 }: {
   view: ActiveView;
+  courseId: string;
   onClose: () => void;
   onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => void;
   onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
@@ -394,14 +396,14 @@ function AssignmentFullView({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-teal-950 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#12072a] overflow-y-auto">
       <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-6">
 
         {/* Top bar */}
         <div className="flex items-center justify-between">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 text-sm text-teal-300 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-sm text-[#c4a8df] hover:text-white transition-colors"
             type="button"
           >
             ← Back to assignments
@@ -413,7 +415,7 @@ function AssignmentFullView({
                 className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
                   assignment.published
                     ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
-                    : "border-teal-700 text-teal-600 hover:border-teal-400 hover:text-teal-300"
+                    : "border-[#3d2260] text-[#7a5299] hover:border-[#a888c8] hover:text-[#c4a8df]"
                 }`}
                 type="button"
               >
@@ -421,7 +423,7 @@ function AssignmentFullView({
               </button>
             )}
             {view.mode === "view" && !editing && (
-              <button onClick={handleDelete} className="text-xs text-teal-700 hover:text-red-400 transition-colors" type="button">
+              <button onClick={handleDelete} className="text-xs text-[#3d2260] hover:text-red-400 transition-colors" type="button">
                 Delete assignment
               </button>
             )}
@@ -439,22 +441,22 @@ function AssignmentFullView({
                 autoFocus
                 className="text-2xl font-bold text-white bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
               />
-              <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6 flex flex-col gap-4">
+              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6 flex flex-col gap-4">
                 <div>
-                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">Instructions</p>
+                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">Instructions</p>
                   <RichTextEditor content={editDescription} onChange={setEditDescription} placeholder="Instructions for the assignment" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">How to turn this in</p>
+                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">How to turn this in</p>
                   <RichTextEditor content={editHowToTurnIn} onChange={setEditHowToTurnIn} placeholder="Submission instructions" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-teal-400 shrink-0">Due:</label>
+                  <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
                   <input
                     type="datetime-local"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
-                    className="flex-1 bg-teal-950 border border-teal-700 text-teal-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    className="flex-1 bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   />
                 </div>
               </div>
@@ -466,7 +468,7 @@ function AssignmentFullView({
                     setEditDescription(assignment!.description ?? "");
                     setEditHowToTurnIn(assignment!.how_to_turn_in ?? "");
                   }}
-                  className="text-sm text-teal-400 hover:text-teal-200 px-4 py-2 transition-colors"
+                  className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2 transition-colors"
                   type="button"
                 >
                   Cancel
@@ -486,7 +488,7 @@ function AssignmentFullView({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-white">{assignment!.title}</h1>
-                  <p className="text-sm text-teal-300 mt-1">
+                  <p className="text-sm text-[#c4a8df] mt-1">
                     Due:{" "}
                     {assignment!.due_date
                       ? new Date(assignment!.due_date).toLocaleDateString("en-US", {
@@ -495,44 +497,54 @@ function AssignmentFullView({
                       : "No due date"}
                   </p>
                 </div>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="text-sm text-teal-500 hover:text-teal-200 shrink-0 mt-1 transition-colors"
-                  type="button"
-                >
-                  ✎ Edit
-                </button>
+                <div className="flex items-center gap-3 shrink-0 mt-1">
+                  <a
+                    href={`/instructor/courses/${courseId}/assignments/${assignment!.id}/submissions`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#a888c8] hover:text-[#dac8ee] transition-colors"
+                  >
+                    View Submissions →
+                  </a>
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="text-sm text-[#9080b0] hover:text-[#dac8ee] transition-colors"
+                    type="button"
+                  >
+                    ✎ Edit
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6">
-                <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-3">Instructions</p>
+              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
+                <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-3">Instructions</p>
                 {assignment!.description ? (
                   <div
-                    className="tiptap text-sm text-teal-100 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-bold [&_h2]:text-base [&_h2]:text-white [&_h3]:font-semibold [&_h3]:text-white [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
+                    className="tiptap text-sm text-[#ede0f5] leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-bold [&_h2]:text-base [&_h2]:text-white [&_h3]:font-semibold [&_h3]:text-white [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
                     dangerouslySetInnerHTML={{ __html: assignment!.description }}
                   />
                 ) : (
-                  <p className="text-sm text-teal-600 italic">No instructions.</p>
+                  <p className="text-sm text-[#7a5299] italic">No instructions.</p>
                 )}
               </div>
 
               {assignment!.how_to_turn_in && (
-                <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6">
-                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-3">How to turn this in</p>
+                <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
+                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-3">How to turn this in</p>
                   <div
-                    className="tiptap text-sm text-teal-100 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
+                    className="tiptap text-sm text-[#ede0f5] leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
                     dangerouslySetInnerHTML={{ __html: assignment!.how_to_turn_in }}
                   />
                 </div>
               )}
 
-              <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6">
+              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide">Checklist</p>
+                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
                   <select
                     defaultValue=""
                     onChange={(e) => { if (e.target.value) loadRubricTemplate(e.target.value); e.target.value = ""; }}
-                    className="text-xs bg-teal-950 border border-teal-700 rounded-lg px-2 py-1 text-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     <option value="">Load template…</option>
                     {RUBRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -560,11 +572,11 @@ function AssignmentFullView({
                               deleteChecklistItem(item.id, i);
                             }
                           }}
-                          className="flex-1 border-0 border-b border-teal-700 bg-transparent py-0.5 text-sm font-medium text-teal-50 focus:outline-none focus:border-teal-primary transition-colors"
+                          className="flex-1 border-0 border-b border-[#3d2260] bg-transparent py-0.5 text-sm font-medium text-[#f8f3fc] focus:outline-none focus:border-teal-primary transition-colors"
                         />
                         <button
                           onClick={() => deleteChecklistItem(item.id, i)}
-                          className="text-teal-700 hover:text-red-400 text-xs shrink-0 transition-colors"
+                          className="text-[#3d2260] hover:text-red-400 text-xs shrink-0 transition-colors"
                           type="button"
                           aria-label="Delete item"
                         >
@@ -577,16 +589,16 @@ function AssignmentFullView({
                           defaultValue={item.description ?? ""}
                           onBlur={(e) => { const val = e.target.value.trim(); if (val !== (item.description ?? "")) editChecklistItem(item.id, item.text, val); }}
                           placeholder="Description (optional)"
-                          className="w-full border-0 bg-transparent py-0.5 text-xs text-teal-500 placeholder:text-teal-700 focus:outline-none focus:text-teal-300 transition-colors"
+                          className="w-full border-0 bg-transparent py-0.5 text-xs text-[#9080b0] placeholder:text-[#3d2260] focus:outline-none focus:text-[#c4a8df] transition-colors"
                         />
                       </div>
                     </div>
                   ))}
                   {checklistItems.length === 0 && (
-                    <p className="text-sm text-teal-700 italic pb-1">No checklist items yet.</p>
+                    <p className="text-sm text-[#3d2260] italic pb-1">No checklist items yet.</p>
                   )}
-                  <div className="flex items-center gap-2 mt-1 border-t border-teal-800 pt-3">
-                    <span className="text-teal-700 text-sm shrink-0">☐</span>
+                  <div className="flex items-center gap-2 mt-1 border-t border-[#301850] pt-3">
+                    <span className="text-[#3d2260] text-sm shrink-0">☐</span>
                     <input
                       type="text"
                       placeholder="Add item — Enter for more"
@@ -597,7 +609,7 @@ function AssignmentFullView({
                           if (val) { (e.target as HTMLInputElement).value = ""; addChecklistItemAfter(checklistItems.length - 1, val); }
                         }
                       }}
-                      className="flex-1 bg-transparent py-0.5 text-sm text-teal-500 placeholder:text-teal-700 focus:outline-none focus:text-teal-300 transition-colors"
+                      className="flex-1 bg-transparent py-0.5 text-sm text-[#9080b0] placeholder:text-[#3d2260] focus:outline-none focus:text-[#c4a8df] transition-colors"
                     />
                   </div>
                 </div>
@@ -608,35 +620,35 @@ function AssignmentFullView({
           // ── Add mode ──
           <>
             <h1 className="text-2xl font-bold text-white">New Assignment</h1>
-            <div className="bg-teal-900 rounded-2xl border border-teal-800 p-6 flex flex-col gap-4">
+            <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6 flex flex-col gap-4">
               <input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Assignment title *"
                 autoFocus
-                className="w-full bg-teal-950 border border-teal-700 text-white rounded-lg px-3 py-2 text-sm placeholder:text-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="w-full bg-[#12072a] border border-[#3d2260] text-white rounded-lg px-3 py-2 text-sm placeholder:text-[#7a5299] focus:outline-none focus:ring-2 focus:ring-teal-primary"
               />
               <div>
-                <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">Instructions</p>
+                <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">Instructions</p>
                 <RichTextEditor key={`desc-${editorKey}`} content={newDescription} onChange={setNewDescription} placeholder="Instructions for the assignment" />
               </div>
               <div>
-                <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2">How to turn this in</p>
+                <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">How to turn this in</p>
                 <RichTextEditor key={`htti-${editorKey}`} content={newHowToTurnIn} onChange={setNewHowToTurnIn} placeholder="Submission instructions" />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-teal-400 shrink-0">Due:</label>
+                <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
                 <input
                   type="datetime-local"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="flex-1 bg-teal-950 border border-teal-700 text-teal-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  className="flex-1 bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold text-teal-400 uppercase tracking-wide">Checklist</p>
+                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
                   <select
                     defaultValue=""
                     onChange={(e) => {
@@ -645,7 +657,7 @@ function AssignmentFullView({
                       if (template) setNewChecklist(template.items.map((item) => ({ text: item.text, description: item.description })));
                       e.target.value = "";
                     }}
-                    className="text-xs bg-teal-950 border border-teal-700 rounded-lg px-2 py-1 text-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     <option value="">Load template…</option>
                     {RUBRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -655,7 +667,7 @@ function AssignmentFullView({
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={onClose} className="text-sm text-teal-400 hover:text-teal-200 px-4 py-2 transition-colors" type="button">
+              <button onClick={onClose} className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2 transition-colors" type="button">
                 Cancel
               </button>
               <button
@@ -1618,6 +1630,7 @@ export default function CourseEditor({
       {activeView && (
         <AssignmentFullView
           view={activeView}
+          courseId={course.id}
           onClose={closeView}
           onAdd={addAssignment}
           onEdit={updateAssignment}

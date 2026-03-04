@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
+import SubmissionForm from '@/components/ui/SubmissionForm'
+import StudentChecklist from '@/components/ui/StudentChecklist'
 
 export default async function StudentAssignmentPage({
   params,
@@ -61,6 +63,20 @@ export default async function StudentAssignmentPage({
     .select('id, name, code')
     .eq('id', id)
     .single()
+
+  const { data: existingSubmission } = await supabase
+    .from('submissions')
+    .select('id, submission_type, content, status, submitted_at')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', user.id)
+    .maybeSingle()
+
+  const { data: submissionHistory } = await supabase
+    .from('submission_history')
+    .select('id, submission_type, content, submitted_at')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', user.id)
+    .order('submitted_at', { ascending: false })
 
   const module = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
 
@@ -135,23 +151,16 @@ export default async function StudentAssignmentPage({
 
           {/* Checklist */}
           {checklistItems && checklistItems.length > 0 && (
-            <div className="bg-surface rounded-2xl border border-border p-6">
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-4">Checklist</p>
-              <ul className="flex flex-col gap-3">
-                {checklistItems.map(item => (
-                  <li key={item.id} className="flex items-start gap-3">
-                    <span className="w-4 h-4 mt-0.5 rounded border border-border shrink-0" />
-                    <div>
-                      <p className="text-sm text-dark-text">{item.text}</p>
-                      {item.description && (
-                        <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <StudentChecklist assignmentId={assignmentId} studentId={user.id} items={checklistItems} />
           )}
+
+          {/* Submission form */}
+          <SubmissionForm
+            assignmentId={assignmentId}
+            studentId={user.id}
+            existingSubmission={existingSubmission ?? null}
+            initialHistory={submissionHistory ?? []}
+          />
         </div>
       </main>
     </div>
