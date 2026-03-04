@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import DeleteCourseButton from '@/components/ui/DeleteCourseButton'
 
 export default async function CoursesPage() {
   const supabase = await createServerSupabaseClient()
@@ -45,19 +46,21 @@ export default async function CoursesPage() {
         {courses && courses.length > 0 ? (
           <div className="flex flex-col gap-4">
             {courses.map(course => (
-              <Link
+              <div
                 key={course.id}
-                href={`/instructor/courses/${course.id}`}
-                className="bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
+                className="bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors flex items-center justify-between gap-4"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-dark-text">{course.name}</h3>
-                    <p className="text-sm text-muted-text mt-1">{course.code}</p>
-                  </div>
-                  <span className="text-teal-primary text-sm font-medium">Manage →</span>
+                <Link href={`/instructor/courses/${course.id}`} className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-dark-text">{course.name}</h3>
+                  <p className="text-sm text-muted-text mt-1">{course.code}</p>
+                </Link>
+                <div className="flex items-center gap-4 shrink-0">
+                  <Link href={`/instructor/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
+                    Manage →
+                  </Link>
+                  <DeleteCourseButton courseId={course.id} courseName={course.name} />
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         ) : (
