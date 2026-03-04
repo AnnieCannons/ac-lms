@@ -115,6 +115,42 @@ An assignment attached to a module day with an optional due date.
 
 ---
 
+### quizzes
+Quizzes for a course (synced from data folder). Students see only published quizzes.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `course_id` | uuid | FK → courses |
+| `identifier` | text | Unique per course (from JSON) |
+| `title` | text | Required |
+| `due_at` | timestamptz | |
+| `module_title` | text | e.g. "Week 1: Intro" |
+| `published` | boolean | Default: false |
+| `questions` | jsonb | Array of question objects with choices and correct_response_ident |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Default: now() |
+
+Unique on `(course_id, identifier)`.
+
+---
+
+### quiz_submissions
+A student's submitted quiz attempt (one per student per quiz).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `quiz_id` | uuid | FK → quizzes |
+| `student_id` | uuid | FK → users |
+| `submitted_at` | timestamptz | Default: now() |
+| `answers` | jsonb | Array of `{ question_ident, choice_ident }` |
+| `score_percent` | numeric(5,2) | Optional 0–100 |
+
+Unique on `(quiz_id, student_id)`.
+
+---
+
 ### checklist_items
 Individual checklist criteria that make up an assignment's grading rubric.
 
@@ -169,6 +205,8 @@ courses
                     ├── checklist_items
                     └── submissions
                           └── checklist_responses (checklist_items ↔ submissions)
+  └── quizzes
+        └── quiz_submissions
 ```
 
 ---
@@ -185,3 +223,5 @@ courses
 | `checklist_items` | `assignment_id` | All checklist items for an assignment |
 | `submissions` | `assignment_id`, `student_id`, `submitted_at` | Query submissions by assignment, student, or date |
 | `checklist_responses` | `submission_id` | All responses for a submission |
+| `quizzes` | `course_id`, `(course_id, published)` | Quizzes per course; student list by published |
+| `quiz_submissions` | `quiz_id`, `student_id` | Lookup by quiz or by student |

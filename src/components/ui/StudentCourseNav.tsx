@@ -10,6 +10,7 @@ interface Props {
 const NAV_ITEMS = [
   { label: 'General Info', slug: 'info' },
   { label: 'Course Outline', slug: '' },
+  { label: 'Quizzes', slug: 'quizzes' },
   { label: 'My Work', slug: 'work' },
 ]
 
