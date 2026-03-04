@@ -15,6 +15,7 @@ const TOP_ITEMS = [
 const COURSE_ITEMS = [
   { label: 'Course Outline', slug: '' },
   { label: 'Assignments', slug: 'assignments' },
+  { label: 'Quizzes', slug: 'quizzes' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },
   { label: 'Level Up Your Skills', slug: 'level-up' },
