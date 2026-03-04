@@ -79,10 +79,11 @@ export default async function StudentAssignmentPage({
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false })
 
-  const admin = createServiceSupabaseClient()
+  let admin: ReturnType<typeof createServiceSupabaseClient> | null = null
+  try { admin = createServiceSupabaseClient() } catch { /* service role key not configured */ }
 
   // Instructor's checklist responses (read-only for student)
-  const { data: instructorResponses } = existingSubmission
+  const { data: instructorResponses } = (admin && existingSubmission)
     ? await admin
         .from('checklist_responses')
         .select('checklist_item_id, checked')
@@ -94,7 +95,7 @@ export default async function StudentAssignmentPage({
   )
   const hasInstructorReview = (instructorResponses ?? []).length > 0
 
-  const { data: rawComments } = existingSubmission
+  const { data: rawComments } = (admin && existingSubmission)
     ? await admin
         .from('submission_comments')
         .select('id, content, created_at, author_id, users(name, role)')
