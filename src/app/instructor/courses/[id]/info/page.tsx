@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
-import SyllabusEditor from '@/components/ui/SyllabusEditor'
+import GeneralInfoEditor from '@/components/ui/GeneralInfoEditor'
 
 export default async function InstructorGeneralInfoPage({
   params,
@@ -26,11 +26,17 @@ export default async function InstructorGeneralInfoPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, syllabus_content')
+    .select('id, name, code')
     .eq('id', id)
     .single()
 
   if (!course) redirect('/instructor/courses')
+
+  const { data: sections } = await supabase
+    .from('course_sections')
+    .select('id, title, content, order')
+    .eq('course_id', id)
+    .order('order', { ascending: true })
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,12 +47,10 @@ export default async function InstructorGeneralInfoPage({
       </nav>
 
       <div className="flex">
-        {/* Left sidebar */}
         <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
           <InstructorCourseNav courseId={id} courseName={course.name} />
         </aside>
 
-        {/* Main content */}
         <div className="flex-1 min-w-0">
           <main className="max-w-3xl mx-auto px-8 py-10">
             <div className="flex items-center justify-between gap-4 mb-8">
@@ -62,7 +66,7 @@ export default async function InstructorGeneralInfoPage({
               </Link>
             </div>
 
-            <SyllabusEditor courseId={id} initialContent={course.syllabus_content} />
+            <GeneralInfoEditor courseId={id} initialSections={sections ?? []} />
           </main>
         </div>
       </div>
