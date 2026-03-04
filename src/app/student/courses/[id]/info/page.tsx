@@ -5,17 +5,15 @@ import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import DailySchedule from '@/components/ui/DailySchedule'
+import { CourseOutlineView, YearlyScheduleView } from '@/components/ui/GeneralInfoEditor'
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3 [&_h1:first-child]:mt-0
   [&_h2]:text-base [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
   [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1
   [&_p]:mb-2 [&_p:last-child]:mb-0
-  [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2
-  [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2
-  [&_li]:mb-0.5
-  [&_a]:text-teal-primary [&_a]:underline
-  [&_strong]:font-semibold
+  [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-0.5
+  [&_a]:text-teal-primary [&_a]:underline [&_strong]:font-semibold
   [&_table]:w-full [&_table]:border-collapse [&_table]:mb-3
   [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-text [&_th]:uppercase [&_th]:tracking-wide [&_th]:py-2 [&_th]:px-3 [&_th]:border-b [&_th]:border-border
   [&_td]:py-2 [&_td]:px-3 [&_td]:border-b [&_td]:border-border [&_td]:align-top`
@@ -60,7 +58,7 @@ export default async function GeneralInfoPage({
 
   const { data: sections } = await supabase
     .from('course_sections')
-    .select('id, title, content, order')
+    .select('id, title, content, order, type')
     .eq('course_id', id)
     .order('order', { ascending: true })
 
@@ -90,19 +88,27 @@ export default async function GeneralInfoPage({
               <p className="text-sm text-muted-text mt-1">{course.name}</p>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <DailySchedule />
-              {(sections ?? []).map(section => (
-                <div key={section.id} className="bg-surface rounded-2xl border border-border p-6">
-                  <h2 className="font-semibold text-dark-text mb-3">{section.title}</h2>
-                  {section.content ? (
-                    <HtmlContent html={section.content} className={HTML_CLASSES} />
-                  ) : (
-                    <p className="text-sm text-muted-text italic">No content yet.</p>
-                  )}
-                </div>
-              ))}
-            </div>
+            {sections && sections.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {sections.map(section => (
+                  <div key={section.id} className="bg-surface rounded-2xl border border-border p-6">
+                    <h2 className="font-semibold text-dark-text mb-4">{section.title}</h2>
+                    {section.type === 'daily_schedule' && <DailySchedule />}
+                    {section.type === 'course_outline' && <CourseOutlineView content={section.content} />}
+                    {section.type === 'yearly_schedule' && <YearlyScheduleView content={section.content} />}
+                    {(section.type === 'text' || !section.type) && (
+                      section.content
+                        ? <HtmlContent html={section.content} className={HTML_CLASSES} />
+                        : <p className="text-sm text-muted-text italic">No content yet.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+                <p className="text-muted-text">No general information available yet.</p>
+              </div>
+            )}
           </main>
         </div>
       </div>
