@@ -274,12 +274,14 @@ function AssignmentFullView({
 
   useEffect(() => {
     if (!assignmentId) return;
+    let cancelled = false;
     supabase
       .from("checklist_items")
       .select("*")
       .eq("assignment_id", assignmentId)
       .order("order")
       .then(async ({ data, error: fetchError }) => {
+        if (cancelled) return;
         if (fetchError) { console.error("Failed to fetch checklist:", fetchError.message); return; }
         if (data && data.length > 0) {
           setChecklistItems(data);
@@ -295,11 +297,13 @@ function AssignmentFullView({
                 order: i,
               })))
               .select();
+            if (cancelled) return;
             if (error) console.error("Failed to auto-populate checklist:", error.message);
             if (!error && inserted) setChecklistItems(inserted);
           }
         }
       });
+    return () => { cancelled = true; };
   }, [assignmentId]);
 
   // Focus newly added checklist item after render

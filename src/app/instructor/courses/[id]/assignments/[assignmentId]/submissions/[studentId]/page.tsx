@@ -65,7 +65,7 @@ export default async function GradingPage({
 
   const { data: submission } = await admin
     .from('submissions')
-    .select('id, submission_type, content, status, grade, submitted_at')
+    .select('id, submission_type, content, status, grade, graded_at, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
@@ -155,12 +155,14 @@ export default async function GradingPage({
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-dark-text">{student?.name ?? 'Student'}</h1>
-            <p className="text-sm text-muted-text mt-1 truncate max-w-md">{assignment.title}</p>
+            <p className="text-base font-semibold text-dark-text mt-1 truncate max-w-md">{assignment.title}</p>
           </div>
           {submission && (
             <GradeButtons
               submissionId={submission.id}
               initialGrade={currentGrade}
+              initialGradedAt={submission.graded_at ?? null}
+              gradedById={user.id}
             />
           )}
         </div>

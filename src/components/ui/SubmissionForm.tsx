@@ -13,6 +13,7 @@ type Submission = {
   submission_type: SubmissionType;
   content: string | null;
   status: SubmissionStatus;
+  grade: 'complete' | 'incomplete' | null;
   submitted_at: string;
 };
 
@@ -75,11 +76,12 @@ export default function SubmissionForm({
     setError(null);
     setSubmitting(true);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       submission_type: type,
       content,
       status,
       submitted_at: new Date().toISOString(),
+      ...(status === "submitted" ? { grade: null, graded_at: null, graded_by: null } : {}),
     };
 
     let result;
@@ -161,6 +163,7 @@ export default function SubmissionForm({
   };
 
   const isGraded = saved?.status === "graded";
+  const canResubmit = !isGraded || saved?.grade === "incomplete";
 
   return (
     <div className="bg-surface rounded-2xl border border-border p-6 flex flex-col gap-5">
@@ -169,12 +172,16 @@ export default function SubmissionForm({
         <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Turn In</p>
         {saved && (
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+            saved.grade === "complete"   ? "bg-teal-light text-teal-primary" :
+            saved.grade === "incomplete" ? "bg-red-50 text-red-500" : // needs revision
             saved.status === "submitted" ? "bg-teal-light text-teal-primary" :
-            saved.status === "graded"   ? "bg-purple-100 text-purple-primary" :
-                                          "bg-yellow-50 text-yellow-600"
+            saved.status === "graded"    ? "bg-purple-100 text-purple-primary" :
+                                           "bg-yellow-50 text-yellow-600"
           }`}>
-            {saved.status === "submitted" ? "Turned in" :
-             saved.status === "graded"   ? "Graded" : "Draft saved"}
+            {saved.grade === "complete"   ? "Complete ✓" :
+             saved.grade === "incomplete" ? "Needs Revision" :
+             saved.status === "submitted" ? "Turned in" :
+             saved.status === "graded"    ? "Graded" : "Draft saved"}
           </span>
         )}
       </div>
@@ -205,7 +212,12 @@ export default function SubmissionForm({
             )}
           </div>
 
-          {!isGraded && (
+          {saved?.grade === "incomplete" && (
+            <p className="text-xs text-red-500 font-medium">
+              Your instructor has requested revisions. Review their feedback and resubmit when ready.
+            </p>
+          )}
+          {canResubmit && (
             <button
               type="button"
               onClick={() => setMode("confirm-resubmit")}
@@ -214,8 +226,8 @@ export default function SubmissionForm({
               Resubmit →
             </button>
           )}
-          {isGraded && (
-            <p className="text-xs text-muted-text">This submission has been graded.</p>
+          {isGraded && saved?.grade === "complete" && (
+            <p className="text-xs text-muted-text">This submission has been marked complete.</p>
           )}
 
           {/* Submission history */}

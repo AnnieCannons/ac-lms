@@ -80,6 +80,20 @@ export default async function StudentAssignmentPage({
     .order('submitted_at', { ascending: false })
 
   const admin = createServiceSupabaseClient()
+
+  // Instructor's checklist responses (read-only for student)
+  const { data: instructorResponses } = existingSubmission
+    ? await admin
+        .from('checklist_responses')
+        .select('checklist_item_id, checked')
+        .eq('submission_id', existingSubmission.id)
+    : { data: [] }
+
+  const instructorResponseMap = new Map(
+    (instructorResponses ?? []).map(r => [r.checklist_item_id, r.checked])
+  )
+  const hasInstructorReview = (instructorResponses ?? []).length > 0
+
   const { data: rawComments } = existingSubmission
     ? await admin
         .from('submission_comments')
@@ -143,7 +157,7 @@ export default async function StudentAssignmentPage({
           )}
           {existingSubmission?.grade === 'incomplete' && (
             <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500">
-              Incomplete
+              Needs Revision
             </span>
           )}
         </div>
@@ -183,7 +197,47 @@ export default async function StudentAssignmentPage({
             </div>
           )}
 
-          {/* Checklist */}
+          {/* Instructor Review (read-only) */}
+          {checklistItems && checklistItems.length > 0 && hasInstructorReview && (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Instructor Review</p>
+                  <p className="text-xs text-muted-text mt-0.5">This checklist determines your grade.</p>
+                </div>
+                {existingSubmission?.grade === 'complete' && (
+                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-teal-light text-teal-primary">Complete ✓</span>
+                )}
+                {existingSubmission?.grade === 'incomplete' && (
+                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500">Needs Revision</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                {checklistItems.map(item => {
+                  const checked = instructorResponseMap.get(item.id) === true
+                  return (
+                    <div key={item.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${checked ? 'border-teal-primary bg-teal-light/30' : 'border-border bg-background'}`}>
+                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-border'}`}>
+                        {checked && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${checked ? 'text-dark-text' : 'text-muted-text'}`}>{item.text}</p>
+                        {item.description && (
+                          <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Student Checklist */}
           {checklistItems && checklistItems.length > 0 && (
             <StudentChecklist assignmentId={assignmentId} studentId={user.id} items={checklistItems} />
           )}
