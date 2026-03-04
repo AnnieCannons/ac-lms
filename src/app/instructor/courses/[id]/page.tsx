@@ -5,6 +5,7 @@ import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import QuizzesSection from "@/components/instructor/QuizzesSection";
 import { getQuizzesForCourse, type QuizRow } from "@/data/quizzes";
+import InstructorCourseNav from "@/components/ui/InstructorCourseNav";
 
 export default async function CoursePage({
   params,
@@ -101,39 +102,35 @@ export default async function CoursePage({
         </Link>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <Link
-            href="/instructor/courses"
-            className="text-muted-text hover:text-teal-primary text-sm"
-          >
-            ← Courses
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/instructor/courses/${id}/quiz-submissions`}
-              className="text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:border-teal-primary hover:text-teal-primary transition-colors"
-            >
-              Quiz submissions
-            </Link>
-            <Link
-              href={`/instructor/courses/${id}/submissions`}
-              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 transition-opacity"
-            >
-              All Submissions
-            </Link>
-          </div>
+      <div className="flex">
+        {/* Left sidebar */}
+        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+          <InstructorCourseNav courseId={id} courseName={course.name} />
+        </aside>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <main className="max-w-4xl mx-auto px-8 py-10">
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <Link
+                href="/instructor/courses"
+                className="text-muted-text hover:text-teal-primary text-sm"
+              >
+                ← Courses
+              </Link>
+            </div>
+            <CourseNameEditor
+              courseId={course.id}
+              initialName={course.name}
+              initialCode={course.code}
+            />
+
+            <CourseEditor course={course} initialModules={modules || []} />
+
+            <QuizzesSection courseId={id} quizzes={quizzes} />
+          </main>
         </div>
-        <CourseNameEditor
-          courseId={course.id}
-          initialName={course.name}
-          initialCode={course.code}
-        />
-
-        <CourseEditor course={course} initialModules={modules || []} />
-
-        <QuizzesSection courseId={id} quizzes={quizzes} />
-      </main>
+      </div>
     </div>
   );
 }

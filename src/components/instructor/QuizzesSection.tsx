@@ -61,12 +61,6 @@ export default function QuizzesSection({ courseId, quizzes = [] }: QuizzesSectio
       )}
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-dark-text mb-3">Quizzes</h2>
-        {list.some((q) => q.id.startsWith("json-")) && (
-          <p className="text-xs text-muted-text mb-3">
-            Loaded from course data. To save edits and control visibility, run the{" "}
-            <code className="bg-background px-1 rounded">quizzes</code> table migration in Supabase.
-          </p>
-        )}
         <div className="flex flex-col gap-4">
           {moduleTitles.map((moduleTitle) => (
             <div
