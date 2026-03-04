@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
+import StudentCourseNav from '@/components/ui/StudentCourseNav'
 
 function getCurrentWeek(startDate: string | null): number | null {
   if (!startDate) return null
@@ -77,116 +78,121 @@ export default async function StudentCourseDetailPage({
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
-        <div className="flex items-center gap-3 mb-2">
-          <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm">
-            ← My Courses
-          </Link>
-          <span className="text-border">/</span>
-          <h2 className="text-2xl font-bold text-dark-text">{course.name}</h2>
-        </div>
+      <div className="flex">
+        {/* Left sidebar */}
+        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+          <StudentCourseNav courseId={id} courseName={course.name} />
+        </aside>
 
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4 flex-wrap">
-            <p className="text-muted-text text-sm">{course.code}</p>
-            {course.start_date && (
-              <p className="text-muted-text text-sm">
-                {new Date(course.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                {course.end_date && ` – ${new Date(course.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
-              </p>
-            )}
-            {currentWeek && (
-              <span className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full">
-                Week {currentWeek} this week
-              </span>
-            )}
-          </div>
-          <Link
-            href={`/student/courses/${id}/work`}
-            className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity shrink-0"
-          >
-            My Work →
-          </Link>
-        </div>
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <main className="max-w-3xl mx-auto px-8 py-10">
+            <div className="flex items-center gap-3 mb-2">
+              <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm">
+                ← My Courses
+              </Link>
+            </div>
 
-        {modules && modules.length > 0 ? (
-          <div className="flex flex-col gap-6">
-            {modules.map(module => {
-              const isCurrentWeek = currentWeek !== null && module.week_number === currentWeek
-              const sortedDays = [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)
-
-              return (
-                <div
-                  key={module.id}
-                  className={`bg-surface rounded-2xl border p-6 transition-colors ${
-                    isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <h3 className="font-semibold text-dark-text">{module.title}</h3>
-                    {module.week_number && (
-                      <span className="text-xs text-muted-text">Week {module.week_number}</span>
-                    )}
-                    {isCurrentWeek && (
-                      <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Current Week
-                      </span>
-                    )}
-                  </div>
-
-                  {sortedDays.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                      {sortedDays.map(day => {
-                        const isToday = isCurrentWeek && day.day_name === todayName
-                        const assignmentCount = day.assignments?.filter((a: { published: boolean }) => a.published).length ?? 0
-
-                        return (
-                          <div
-                            key={day.id}
-                            className={`flex items-center justify-between rounded-xl px-4 py-3 ${
-                              isToday
-                                ? 'bg-teal-light border border-teal-primary'
-                                : 'bg-background border border-border'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={`text-sm font-medium ${isToday ? 'text-teal-primary' : 'text-dark-text'}`}>
-                                {day.day_name}
-                              </span>
-                              {isToday && (
-                                <span className="text-xs text-teal-primary font-semibold">Today</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4">
-                              {assignmentCount > 0 && (
-                                <span className="text-xs text-muted-text">
-                                  {assignmentCount} assignment{assignmentCount !== 1 ? 's' : ''}
-                                </span>
-                              )}
-                              <Link
-                                href={`/student/courses/${id}/days/${day.id}`}
-                                className="text-xs text-teal-primary font-medium hover:underline"
-                              >
-                                View →
-                              </Link>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-muted-text text-sm">No days scheduled yet.</p>
+            <div className="flex items-center justify-between gap-4 mb-8">
+              <div>
+                <h1 className="text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <p className="text-muted-text text-sm">{course.code}</p>
+                  {course.start_date && (
+                    <p className="text-muted-text text-sm">
+                      {new Date(course.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {course.end_date && ` – ${new Date(course.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                    </p>
+                  )}
+                  {currentWeek && (
+                    <span className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full">
+                      Week {currentWeek} this week
+                    </span>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-            <p className="text-muted-text">No modules available yet.</p>
-          </div>
-        )}
-      </main>
+              </div>
+            </div>
+
+            {modules && modules.length > 0 ? (
+              <div className="flex flex-col gap-6">
+                {modules.map(module => {
+                  const isCurrentWeek = currentWeek !== null && module.week_number === currentWeek
+                  const sortedDays = [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)
+
+                  return (
+                    <div
+                      key={module.id}
+                      className={`bg-surface rounded-2xl border p-6 transition-colors ${
+                        isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <h3 className="font-semibold text-dark-text">{module.title}</h3>
+                        {module.week_number && (
+                          <span className="text-xs text-muted-text">Week {module.week_number}</span>
+                        )}
+                        {isCurrentWeek && (
+                          <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
+                            Current Week
+                          </span>
+                        )}
+                      </div>
+
+                      {sortedDays.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                          {sortedDays.map(day => {
+                            const isToday = isCurrentWeek && day.day_name === todayName
+                            const assignmentCount = day.assignments?.filter((a: { published: boolean }) => a.published).length ?? 0
+
+                            return (
+                              <div
+                                key={day.id}
+                                className={`flex items-center justify-between rounded-xl px-4 py-3 ${
+                                  isToday
+                                    ? 'bg-teal-light border border-teal-primary'
+                                    : 'bg-background border border-border'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-sm font-medium ${isToday ? 'text-teal-primary' : 'text-dark-text'}`}>
+                                    {day.day_name}
+                                  </span>
+                                  {isToday && (
+                                    <span className="text-xs text-teal-primary font-semibold">Today</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  {assignmentCount > 0 && (
+                                    <span className="text-xs text-muted-text">
+                                      {assignmentCount} assignment{assignmentCount !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                  <Link
+                                    href={`/student/courses/${id}/days/${day.id}`}
+                                    className="text-xs text-teal-primary font-medium hover:underline"
+                                  >
+                                    View →
+                                  </Link>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-muted-text text-sm">No days scheduled yet.</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+                <p className="text-muted-text">No modules available yet.</p>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
     </div>
   )
 }
