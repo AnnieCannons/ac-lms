@@ -1,0 +1,298 @@
+'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+
+const RESOURCE_ICONS: Record<string, string> = {
+  video: '▶',
+  reading: '📖',
+  link: '🔗',
+  file: '📄',
+}
+
+function ReadingResource({ resource }: { resource: { id: string; title: string; content: string | null; description: string | null } }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-border/10 transition-colors text-left"
+      >
+        <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
+        <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
+        <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      {open && resource.content && (
+        <div
+          className="px-5 py-4 border-t border-border text-sm text-dark-text wiki-content"
+          dangerouslySetInnerHTML={{ __html: resource.content }}
+        />
+      )}
+    </div>
+  )
+}
+
+interface Resource {
+  id: string
+  type: string
+  title: string
+  content: string | null
+  description: string | null
+  order: number
+}
+
+interface Assignment {
+  id: string
+  title: string
+  due_date: string | null
+  published: boolean
+}
+
+interface Day {
+  id: string
+  day_name: string
+  order: number
+  assignments: Assignment[]
+  resources: Resource[]
+}
+
+interface Module {
+  id: string
+  title: string
+  week_number: number | null
+  order: number
+  module_days: Day[]
+}
+
+interface Props {
+  modules: Module[]
+  courseId: string
+  currentWeek: number | null
+  todayName: string
+}
+
+function DayModal({
+  module,
+  day,
+  courseId,
+  isToday,
+  onClose,
+}: {
+  module: Module
+  day: Day
+  courseId: string
+  isToday: boolean
+  onClose: () => void
+}) {
+  const publishedAssignments = (day.assignments ?? []).filter(a => a.published)
+  const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
+  const hasContent = publishedAssignments.length > 0 || resources.length > 0
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 pt-12 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface w-full max-w-2xl rounded-2xl shadow-2xl mb-12"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={`flex items-start justify-between px-6 py-5 border-b border-border rounded-t-2xl ${isToday ? 'bg-teal-light' : ''}`}>
+          <div>
+            <p className="text-xs text-muted-text mb-0.5">{module.title}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-dark-text">{day.day_name}</h2>
+              {isToday && (
+                <span className="text-xs text-teal-primary font-semibold bg-white px-2 py-0.5 rounded-full">Today</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-text hover:text-dark-text text-xl leading-none mt-1 shrink-0"
+            aria-label="Close"
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-6 py-6 flex flex-col gap-8">
+          {/* Resources */}
+          {resources.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-3">Resources</p>
+              <div className="flex flex-col gap-2">
+                {resources.map(r =>
+                  r.type === 'reading' ? (
+                    <ReadingResource key={r.id} resource={r} />
+                  ) : (
+                    <a
+                      key={r.id}
+                      href={r.content ?? '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors group"
+                    >
+                      <span className="text-base shrink-0">{RESOURCE_ICONS[r.type] ?? '•'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">{r.title}</p>
+                        {r.description && <p className="text-xs text-muted-text mt-0.5">{r.description}</p>}
+                      </div>
+                      <span className="text-xs text-muted-text shrink-0 group-hover:text-teal-primary">↗</span>
+                    </a>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Assignments */}
+          {publishedAssignments.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-3">Assignments</p>
+              <div className="flex flex-col gap-2">
+                {publishedAssignments.map(a => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                      {a.due_date && (
+                        <p className="text-xs text-muted-text mt-0.5">
+                          Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                    <Link
+                      href={`/student/courses/${courseId}/assignments/${a.id}`}
+                      className="text-sm text-teal-primary font-semibold hover:underline shrink-0 ml-6"
+                      onClick={onClose}
+                    >
+                      View →
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!hasContent && (
+            <p className="text-sm text-muted-text text-center py-6">Nothing scheduled for this day yet.</p>
+          )}
+
+          {/* Level Up note */}
+          <div className="bg-purple-light rounded-xl px-4 py-4">
+            <p className="text-sm font-semibold text-purple-primary">Done with today's work?</p>
+            <p className="text-sm text-muted-text mt-1">
+              Head over to{' '}
+              <Link
+                href={`/student/courses/${courseId}/level-up`}
+                className="text-teal-primary font-medium hover:underline"
+                onClick={onClose}
+              >
+                Level Up Your Skills
+              </Link>
+              {' '}for extra challenges and bonus content.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function CourseOutlineAccordion({ modules, courseId, currentWeek, todayName }: Props) {
+  const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
+
+  return (
+    <>
+      <div className="flex flex-col gap-6">
+        {modules.map(module => {
+          const isCurrentWeek = currentWeek !== null && module.week_number === currentWeek
+          const sortedDays = [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)
+
+          return (
+            <div
+              key={module.id}
+              className={`bg-surface rounded-2xl border p-6 transition-colors ${
+                isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <h3 className="font-semibold text-dark-text">{module.title}</h3>
+                {module.week_number && (
+                  <span className="text-xs text-muted-text">Week {module.week_number}</span>
+                )}
+                {isCurrentWeek && (
+                  <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
+                    Current Week
+                  </span>
+                )}
+              </div>
+
+              {sortedDays.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {sortedDays.map(day => {
+                    const isToday = isCurrentWeek && day.day_name === todayName
+                    const publishedAssignments = day.assignments?.filter(a => a.published) ?? []
+                    const resources = day.resources ?? []
+                    const total = publishedAssignments.length + resources.length
+
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => setOpenDay({ day, module })}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-colors ${
+                          isToday
+                            ? 'border-teal-primary bg-teal-light hover:bg-teal-light/70'
+                            : 'border-border bg-background hover:bg-border/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-medium ${isToday ? 'text-teal-primary' : 'text-dark-text'}`}>
+                            {day.day_name}
+                          </span>
+                          {isToday && (
+                            <span className="text-xs text-teal-primary font-semibold">Today</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {total > 0 && (
+                            <span className="text-xs text-muted-text">
+                              {[
+                                publishedAssignments.length > 0 && `${publishedAssignments.length} assignment${publishedAssignments.length !== 1 ? 's' : ''}`,
+                                resources.length > 0 && `${resources.length} resource${resources.length !== 1 ? 's' : ''}`,
+                              ].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-text">›</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-muted-text text-sm">No days scheduled yet.</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {openDay && (
+        <DayModal
+          module={openDay.module}
+          day={openDay.day}
+          courseId={courseId}
+          isToday={currentWeek !== null && openDay.module.week_number === currentWeek && openDay.day.day_name === todayName}
+          onClose={() => setOpenDay(null)}
+        />
+      )}
+    </>
+  )
+}

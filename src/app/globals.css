@@ -21,15 +21,20 @@ body {
 }
 
 /* Rich text editor output styles */
-.tiptap h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
-.tiptap h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
-.tiptap p { margin: 0.25rem 0; }
-.tiptap ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
-.tiptap ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
-.tiptap li { margin: 0.125rem 0; }
-.tiptap strong { font-weight: 700; }
-.tiptap em { font-style: italic; }
-.tiptap blockquote { border-left: 3px solid #6D2B5E; padding-left: 0.75rem; color: #6B5D80; margin: 0.5rem 0; }
+.tiptap h2, .wiki-content h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.tiptap h3, .wiki-content h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.tiptap h1, .wiki-content h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.tiptap p, .wiki-content p { margin: 0.25rem 0; }
+.tiptap ul, .wiki-content ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap ol, .wiki-content ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap li, .wiki-content li { margin: 0.125rem 0; }
+.tiptap strong, .wiki-content strong { font-weight: 700; }
+.tiptap em, .wiki-content em { font-style: italic; }
+.tiptap blockquote, .wiki-content blockquote { border-left: 3px solid #6D2B5E; padding-left: 0.75rem; color: #6B5D80; margin: 0.5rem 0; }
+.wiki-content a { color: #6D2B5E; }
+.wiki-content a:hover { text-decoration: underline; }
+.wiki-content code { background: #F0E8FF; border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.85em; font-family: monospace; }
+.wiki-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.5rem 0; }
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: #9ca3af;
