@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
 import GeneralInfoEditor from '@/components/ui/GeneralInfoEditor'
+import DailySchedule from '@/components/ui/DailySchedule'
 
 export default async function InstructorGeneralInfoPage({
   params,
@@ -66,7 +67,10 @@ export default async function InstructorGeneralInfoPage({
               </Link>
             </div>
 
-            <GeneralInfoEditor courseId={id} initialSections={sections ?? []} />
+            <div className="flex flex-col gap-4">
+              <DailySchedule />
+              <GeneralInfoEditor courseId={id} initialSections={sections ?? []} />
+            </div>
           </main>
         </div>
       </div>

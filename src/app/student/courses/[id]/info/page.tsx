@@ -4,6 +4,7 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import DailySchedule from '@/components/ui/DailySchedule'
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3 [&_h1:first-child]:mt-0
@@ -89,24 +90,19 @@ export default async function GeneralInfoPage({
               <p className="text-sm text-muted-text mt-1">{course.name}</p>
             </div>
 
-            {sections && sections.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {sections.map(section => (
-                  <div key={section.id} className="bg-surface rounded-2xl border border-border p-6">
-                    <h2 className="font-semibold text-dark-text mb-3">{section.title}</h2>
-                    {section.content ? (
-                      <HtmlContent html={section.content} className={HTML_CLASSES} />
-                    ) : (
-                      <p className="text-sm text-muted-text italic">No content yet.</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-                <p className="text-muted-text">No general information available yet.</p>
-              </div>
-            )}
+            <div className="flex flex-col gap-4">
+              <DailySchedule />
+              {(sections ?? []).map(section => (
+                <div key={section.id} className="bg-surface rounded-2xl border border-border p-6">
+                  <h2 className="font-semibold text-dark-text mb-3">{section.title}</h2>
+                  {section.content ? (
+                    <HtmlContent html={section.content} className={HTML_CLASSES} />
+                  ) : (
+                    <p className="text-sm text-muted-text italic">No content yet.</p>
+                  )}
+                </div>
+              ))}
+            </div>
           </main>
         </div>
       </div>
