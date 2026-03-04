@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import DeleteCourseButton from '@/components/ui/DeleteCourseButton'
+import DuplicateCourseButton from '@/components/ui/DuplicateCourseButton'
 
 export default async function CoursesPage() {
   const supabase = await createServerSupabaseClient()
@@ -58,6 +59,12 @@ export default async function CoursesPage() {
                   <Link href={`/instructor/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
                     Manage →
                   </Link>
+                  <DuplicateCourseButton
+                    courseId={course.id}
+                    courseName={course.name}
+                    courseCode={course.code}
+                    courseStartDate={course.start_date ?? null}
+                  />
                   <DeleteCourseButton courseId={course.id} courseName={course.name} />
                 </div>
               </div>
