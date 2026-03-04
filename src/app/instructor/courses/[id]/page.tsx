@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CourseEditor from "@/components/layout/CourseEditor";
+import CourseNameEditor from "@/components/ui/CourseNameEditor";
 
 export default async function CoursePage({
   params,
@@ -51,17 +52,19 @@ export default async function CoursePage({
       </nav>
 
       <main className="max-w-4xl mx-auto px-8 py-12">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-6">
           <Link
             href="/instructor/courses"
             className="text-muted-text hover:text-teal-primary text-sm"
           >
             ← Courses
           </Link>
-          <span className="text-border">/</span>
-          <h2 className="text-2xl font-bold text-dark-text">{course.name}</h2>
         </div>
-        <p className="text-muted-text text-sm mb-8">{course.code}</p>
+        <CourseNameEditor
+          courseId={course.id}
+          initialName={course.name}
+          initialCode={course.code}
+        />
 
         <CourseEditor course={course} initialModules={modules || []} />
       </main>
