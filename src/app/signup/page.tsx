@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function SignupPage() {
+  const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -13,8 +14,15 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) { setError(error.message); return }
+    if (data.user) {
+      await supabase.from('users').upsert({
+        id: data.user.id,
+        name: firstName.trim(),
+        role: 'student',
+      }, { onConflict: 'id' })
+    }
     router.push('/dashboard')
   }
 
@@ -33,6 +41,17 @@ export default function SignupPage() {
             </div>
           )}
           <form onSubmit={handleSignup} className="flex flex-col gap-5">
+            <div>
+              <label className="block text-sm font-medium text-dark-text mb-1">First Name</label>
+              <input
+                type="text"
+                placeholder="Your first name"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                required
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-dark-text mb-1">Email</label>
               <input
