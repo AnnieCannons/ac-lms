@@ -31,7 +31,7 @@ export default function StudentCourseNav({ courseId, courseName }: Props) {
       <Link
         key={label}
         href={href}
-        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+        className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
           isActive
             ? 'bg-teal-light text-teal-primary'
             : 'text-muted-text hover:text-dark-text hover:bg-border/20'
@@ -44,12 +44,12 @@ export default function StudentCourseNav({ courseId, courseName }: Props) {
 
   return (
     <nav className="flex flex-col">
-      <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mb-4 px-3 truncate" title={courseName}>
+      <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-1 px-3 truncate" title={courseName}>
         {courseName}
       </p>
       <div className="flex flex-col gap-0.5">
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
+        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         {BOTTOM_ITEMS.map(({ label, slug }) => navLink(label, slug))}
       </div>

@@ -12,7 +12,7 @@ export default function InstructorGlobalNav() {
   const pathname = usePathname()
   return (
     <nav className="flex flex-col">
-      <p className="text-[10px] font-bold text-muted-text uppercase tracking-widest mb-4 px-3">
+      <p className="text-xs font-bold text-muted-text uppercase tracking-widest mb-4 px-3">
         Global Templates
       </p>
       <div className="flex flex-col gap-0.5">

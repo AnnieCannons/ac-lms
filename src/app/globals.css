@@ -14,6 +14,10 @@
   --font-sans: 'Inter', sans-serif;
 }
 
+html {
+  font-size: 22px;
+}
+
 body {
   background-color: #F8F6FC;
   color: #1a1030;

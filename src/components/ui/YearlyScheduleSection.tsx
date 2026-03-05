@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Cohort = { id: string; name: string; start_date: string; end_date: string; order: number }
-type Break  = { id: string; label: string; start_date: string; end_date: string }
+type Cohort   = { id: string; name: string; start_date: string; end_date: string; order: number }
+type Break    = { id: string; label: string; start_date: string; end_date: string }
+type Holiday  = { id: string; label: string; date_display: string; date: string; year: number }
 
 type TimelineItem =
   | { kind: 'cohort'; name: string; start: string; end: string; isCurrent: boolean }
@@ -55,15 +56,19 @@ function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
 
 export default function YearlyScheduleSection() {
   const [timeline, setTimeline] = useState<TimelineItem[]>([])
+  const [holidays, setHolidays] = useState<Holiday[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const supabase = createClient()
+    const currentYear = new Date().getFullYear()
     Promise.all([
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
       supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true }),
-    ]).then(([{ data: cohorts }, { data: breaks }]) => {
+      supabase.from('calendar_holidays').select('*').eq('year', currentYear).order('date', { ascending: true }),
+    ]).then(([{ data: cohorts }, { data: breaks }, { data: hols }]) => {
       setTimeline(buildTimeline(cohorts ?? [], breaks ?? []))
+      setHolidays(hols ?? [])
       setLoading(false)
     })
   }, [])
@@ -72,33 +77,51 @@ export default function YearlyScheduleSection() {
   if (timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="grid grid-cols-[1fr_1fr_1fr] bg-teal-light/60 border-b border-border">
-        <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
-        <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
-        <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">End</div>
-      </div>
-      {timeline.map((item, i) => (
-        <div
-          key={i}
-          className={`grid grid-cols-[1fr_1fr_1fr] border-b border-border last:border-b-0 ${
-            item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50'
-          }`}
-        >
-          <div className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 ${
-            item.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700'
-          }`}>
-            {item.kind === 'cohort' ? item.name : item.label}
-            {item.kind === 'cohort' && item.isCurrent && (
-              <span className="text-[10px] font-bold bg-teal-primary text-white px-1.5 py-0.5 rounded-full leading-none">
-                Current
-              </span>
-            )}
-          </div>
-          <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.start)}</div>
-          <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.end)}</div>
+    <div className="flex flex-col gap-8">
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="grid grid-cols-[1fr_1fr_1fr] bg-teal-light/60 border-b border-border">
+          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
+          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
+          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">End</div>
         </div>
-      ))}
+        {timeline.map((item, i) => (
+          <div
+            key={i}
+            className={`grid grid-cols-[1fr_1fr_1fr] border-b border-border last:border-b-0 ${
+              item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50'
+            }`}
+          >
+            <div className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 ${
+              item.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700'
+            }`}>
+              {item.kind === 'cohort' ? item.name : item.label}
+              {item.kind === 'cohort' && item.isCurrent && (
+                <span className="text-[10px] font-bold bg-teal-primary text-white px-1.5 py-0.5 rounded-full leading-none">
+                  Current
+                </span>
+              )}
+            </div>
+            <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.start)}</div>
+            <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.end)}</div>
+          </div>
+        ))}
+      </div>
+
+      {holidays.length > 0 && (
+        <div>
+          <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3">
+            {new Date().getFullYear()} Holidays
+          </h3>
+          <div className="rounded-xl border border-border overflow-hidden">
+            {holidays.map((h, i) => (
+              <div key={h.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
+                <span className="text-sm font-medium text-dark-text">{h.label}</span>
+                <span className="text-sm text-muted-text">{h.date_display}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
