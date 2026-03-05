@@ -324,10 +324,10 @@ function GlobalTextCard({
               <button
                 onClick={handleRemoveGlobal}
                 disabled={removing}
-                title="Remove from global templates and make course-specific"
+                title="Copy this global template into a course-specific version you can edit freely"
                 className="text-xs text-muted-text hover:text-amber-600 transition-colors disabled:opacity-50"
               >
-                {removing ? 'Removing…' : '⊖ Remove global'}
+                {removing ? 'Copying…' : '⎇ Customize for this course'}
               </button>
             )}
             {confirmDelete ? (
@@ -568,10 +568,10 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
 
   const removeGlobal = async (section: CourseSection) => {
     const slug = section.type.slice(7)
+    // Fetch the current global content to copy it locally — do NOT delete the global template
     const { data: globalRow } = await supabase.from('global_content').select('content').eq('slug', slug).single()
-    await supabase.from('global_content').delete().eq('slug', slug)
     await updateSection(section.id, { type: 'text', content: globalRow?.content ?? section.content })
-    window.dispatchEvent(new CustomEvent('global-content-changed'))
+    // No dispatchEvent — the global template still exists, nav stays the same
   }
 
   return (
