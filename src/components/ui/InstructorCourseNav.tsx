@@ -3,6 +3,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import AddAssignmentButton from './AddAssignmentButton'
 import AddResourceButton from './AddResourceButton'
+import InstructorGlobalNav from './InstructorGlobalNav'
 
 interface Props {
   courseId: string
@@ -70,6 +71,10 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
         {CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Grades</p>
         {navLink('Grades', 'submissions')}
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-border">
+        <InstructorGlobalNav />
       </div>
     </nav>
   )

@@ -413,8 +413,9 @@ function TextSectionCard({
 
 // ── Unified SectionCard (routes to correct sub-component) ─────────────────────
 
-function SectionCard({ section, onUpdate, onDelete, onTogglePublish }: {
+function SectionCard({ section, courseId, onUpdate, onDelete, onTogglePublish }: {
   section: CourseSection
+  courseId: string
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
   onTogglePublish: () => void
@@ -426,8 +427,8 @@ function SectionCard({ section, onUpdate, onDelete, onTogglePublish }: {
   if (section.type === 'daily_schedule') return <DailyScheduleCard section={section} {...shared} onDelete={onDelete} />
   if (section.type === 'course_outline') return <CourseOutlineCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
   if (section.type === 'yearly_schedule') return <YearlyScheduleGlobalCard section={section} {...shared} onDelete={onDelete} />
-  if (section.type === 'computer_wifi') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="computer-wifi" editHref="/instructor/globals/computer-wifi" />
-  if (section.type === 'policies_procedures') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="policies" editHref="/instructor/globals/policies" />
+  if (section.type === 'computer_wifi') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="computer-wifi" editHref={`/instructor/globals/computer-wifi?from=${courseId}`} />
+  if (section.type === 'policies_procedures') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="policies" editHref={`/instructor/globals/policies?from=${courseId}`} />
   return <TextSectionCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
 }
 
@@ -498,6 +499,7 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
             <SectionCard
               key={section.id}
               section={section}
+              courseId={courseId}
               onUpdate={updates => updateSection(section.id, updates)}
               onDelete={() => deleteSection(section.id)}
               onTogglePublish={() => togglePublish(section.id, section.published)}
