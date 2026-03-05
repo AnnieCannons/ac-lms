@@ -564,16 +564,16 @@ export default function ResourceOutline({
                         <button
                           type="button"
                           onClick={() => toggleDay(day.id)}
-                          className="w-full flex items-center justify-between mb-2 px-1 text-left"
+                          className="w-full flex items-center justify-between mb-2 pl-3 pr-1 text-left"
                         >
-                          <h3 className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                          <h3 className="text-xs font-semibold text-dark-text uppercase tracking-wide">
                             {day.day_name}
                           </h3>
                           <span className={`text-xs text-muted-text transition-transform duration-150 ${dayCollapsed ? '' : 'rotate-180'}`}>▾</span>
                         </button>
 
                         {!dayCollapsed && mode === 'resources' && (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-2 pl-3">
                             {[...(day.resources ?? [])]
                               .filter(r => !deletedIds.has(r.id))
                               .sort((a, b) => a.order - b.order)
@@ -609,7 +609,7 @@ export default function ResourceOutline({
                         )}
 
                         {!dayCollapsed && mode === 'assignments' && (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-2 pl-3">
                             {(day.assignments ?? []).filter(a =>
                               a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap))
                             ).map(a => (

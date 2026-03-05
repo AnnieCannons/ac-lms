@@ -294,6 +294,10 @@ export default function CourseOutlineAccordion({
   initialStarredIds, initialCompletedIds,
 }: Props) {
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
+  const toggleModule = (id: string) =>
+    setCollapsedModules(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+
   const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
 
@@ -316,27 +320,33 @@ export default function CourseOutlineAccordion({
           const isCurrentWeek = currentWeek !== null && module.week_number === currentWeek
           const sortedDays = [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)
 
+          const moduleCollapsed = collapsedModules.has(module.id)
+
           return (
             <div
               key={module.id}
-              className={`bg-surface rounded-2xl border p-6 transition-colors ${
+              className={`bg-surface rounded-2xl border transition-colors ${
                 isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
               }`}
             >
-              <div className="flex items-center gap-3 mb-4">
-                <h3 className="font-semibold text-dark-text">{module.title}</h3>
-                {module.week_number && (
-                  <span className="text-xs text-muted-text">Week {module.week_number}</span>
-                )}
-                {isCurrentWeek && (
-                  <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
-                    Current Week
-                  </span>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleModule(module.id)}
+                className="w-full flex items-center justify-between px-6 py-5 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-dark-text">{module.title}</h3>
+                  {isCurrentWeek && (
+                    <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
+                      Current Week
+                    </span>
+                  )}
+                </div>
+                <span className={`text-xs text-muted-text transition-transform duration-150 shrink-0 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
+              </button>
 
-              {sortedDays.length > 0 ? (
-                <div className="flex flex-col gap-2">
+              {!moduleCollapsed && sortedDays.length > 0 && (
+                <div className="flex flex-col gap-2 px-6 pb-6">
                   {sortedDays.map(day => {
                     const isToday = isCurrentWeek && day.day_name === todayName
                     const publishedAssignments = day.assignments?.filter(a => a.published) ?? []
@@ -377,8 +387,6 @@ export default function CourseOutlineAccordion({
                     )
                   })}
                 </div>
-              ) : (
-                <p className="text-muted-text text-sm">No days scheduled yet.</p>
               )}
             </div>
           )
