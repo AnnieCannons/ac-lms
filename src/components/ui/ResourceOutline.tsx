@@ -271,8 +271,14 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [editedResources, setEditedResources] = useState<Map<string, Resource>>(new Map())
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(
+    () => new Set(modules.map(m => m.id))
+  )
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
+
+  const allExpanded = collapsedModules.size === 0
+  const expandAll = () => setCollapsedModules(new Set())
+  const collapseAll = () => setCollapsedModules(new Set(modules.map(m => m.id)))
 
   const assignmentHref = (id: string) => instructorView
     ? `/instructor/courses/${courseId}/assignments/${id}/submissions`
@@ -320,6 +326,15 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={allExpanded ? collapseAll : expandAll}
+          className="text-xs font-medium text-muted-text hover:text-teal-primary transition-colors"
+        >
+          {allExpanded ? 'Collapse All ▴' : 'Expand All ▾'}
+        </button>
+      </div>
       <div className="flex flex-col gap-6">
         {modulesWithContent.map(module => {
           const moduleCollapsed = collapsedModules.has(module.id)
