@@ -2,8 +2,9 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import GlobalContentEditor from '@/components/ui/GlobalContentEditor'
-import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import InstructorGlobalNav from '@/components/ui/InstructorGlobalNav'
+import ResizableSidebar from '@/components/ui/ResizableSidebar'
 
 export default async function PoliciesPage({
   searchParams,
@@ -34,12 +35,10 @@ export default async function PoliciesPage({
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          {course
-            ? <InstructorCourseNav courseId={course.id} courseName={course.name} />
-            : <InstructorGlobalNav />
-          }
-        </aside>
+        {course
+          ? <InstructorSidebar courseId={course.id} courseName={course.name} />
+          : <ResizableSidebar><InstructorGlobalNav /></ResizableSidebar>
+        }
         <div className="flex-1 min-w-0">
           <main className="max-w-3xl mx-auto px-8 py-10">
             <div className="mb-8">
