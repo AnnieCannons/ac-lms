@@ -804,10 +804,10 @@ function AssignmentDropZone({
       })()}
       <button
         onClick={() => onOpenAdd(day.id)}
-        className="mt-2 w-full text-xs text-teal-primary hover:underline text-left px-1"
+        className="mt-3 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity"
         type="button"
       >
-        + Add assignment
+        + Add Assignment
       </button>
     </div>
   );

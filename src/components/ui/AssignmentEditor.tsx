@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from './RichTextEditor'
 import Link from 'next/link'
+import { RUBRIC_TEMPLATES } from '@/data/rubric-templates'
+import DatePicker from './DatePicker'
 
 interface ChecklistItem {
   id: string
@@ -33,9 +35,12 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [title, setTitle] = useState(assignment.title)
   const [description, setDescription] = useState(assignment.description ?? '')
   const [howToTurnIn, setHowToTurnIn] = useState(assignment.how_to_turn_in ?? '')
-  const [dueDate, setDueDate] = useState(
-    assignment.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : ''
-  )
+  const [dueDate, setDueDate] = useState(() => {
+    if (!assignment.due_date) return ''
+    // Convert stored UTC to PST (UTC-8) date string
+    const d = new Date(new Date(assignment.due_date).getTime() - 8 * 60 * 60 * 1000)
+    return d.toISOString().slice(0, 10)
+  })
   const [published, setPublished] = useState(assignment.published)
   const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
@@ -52,7 +57,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         title,
         description: description || null,
         how_to_turn_in: howToTurnIn || null,
-        due_date: dueDate ? new Date(dueDate).toISOString() : null,
+        due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null,
         published,
         answer_key_url: answerKeyUrl.trim() || null,
       })
@@ -94,6 +99,22 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setChecklist(prev => prev.map(i => i.id === item.id ? { ...i, text, description: desc || null } : i))
   }
 
+  const loadTemplate = async (templateId: string) => {
+    const template = RUBRIC_TEMPLATES.find(t => t.id === templateId)
+    if (!template) return
+    if (checklist.length > 0 && !window.confirm('Replace the current checklist with this template?')) return
+    if (checklist.length > 0) {
+      await supabase.from('checklist_items').delete().eq('assignment_id', assignment.id)
+    }
+    const { data, error } = await supabase
+      .from('checklist_items')
+      .insert(template.items.map((item, i) => ({
+        assignment_id: assignment.id, text: item.text, description: item.description || null, order: i,
+      })))
+      .select('id, text, description, order')
+    if (!error && data) setChecklist(data)
+  }
+
   return (
     <div className="flex flex-col gap-8 max-w-3xl">
       {/* Title + Published */}
@@ -124,13 +145,11 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
 
       {/* Due date */}
       <div>
-        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Due Date</label>
-        <input
-          type="datetime-local"
-          value={dueDate}
-          onChange={e => setDueDate(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
-        />
+        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Due Date</label>
+        <div className="flex items-center gap-3">
+          <DatePicker value={dueDate} onChange={setDueDate} />
+          <span className="text-sm text-muted-text">8:59 PM PST</span>
+        </div>
       </div>
 
       {/* Answer Key URL */}
@@ -159,7 +178,17 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
 
       {/* Checklist */}
       <div>
-        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-3">Grading Checklist</label>
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">Grading Checklist</label>
+          <select
+            defaultValue=""
+            onChange={e => { if (e.target.value) { loadTemplate(e.target.value); e.currentTarget.value = '' } }}
+            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
+          >
+            <option value="">Load template…</option>
+            {RUBRIC_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
         <div className="flex flex-col gap-2 mb-4">
           {checklist.sort((a, b) => a.order - b.order).map(item => (
             <ChecklistItemRow key={item.id} item={item} onDelete={deleteChecklistItem} onUpdate={updateChecklistItem} />

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorCourseNav from "@/components/ui/InstructorCourseNav";
 import ResourceOutline from "@/components/ui/ResourceOutline";
+import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
 
 export default async function InstructorAssignmentsPage({
   params,
@@ -58,7 +59,10 @@ export default async function InstructorAssignmentsPage({
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>
-            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Assignments</h2>
+            <div className="flex items-center justify-between mt-6 mb-6">
+              <h2 className="text-xl font-bold text-dark-text">Assignments</h2>
+              <AddAssignmentButton courseId={id} />
+            </div>
             <ResourceOutline
               modules={modules as Parameters<typeof ResourceOutline>[0]['modules']}
               courseId={id}

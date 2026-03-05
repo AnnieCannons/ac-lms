@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useLayoutEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
@@ -355,11 +356,13 @@ export default function ResourceOutline({
   initialStarredIds, initialCompletedIds,
 }: Props) {
   const supabase = createClient()
+  const router = useRouter()
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [editedResources, setEditedResources] = useState<Map<string, Resource>>(new Map())
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
+  const [addingDayId, setAddingDayId] = useState<string | null>(null)
   const moduleKey = `outline-modules-${courseId}-${mode}`
   const dayKey = `outline-days-${courseId}-${mode}`
 
@@ -439,7 +442,9 @@ export default function ResourceOutline({
 
   const modulesWithContent = sorted.filter(m =>
     m.module_days.some(d => {
+      if (SKIP_DAYS.has(d.day_name)) return false
       if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
+      if (instructorView) return true
       const pub = (d.assignments ?? []).filter(a => a.published)
       if (!submissionMap || filter === 'all') return pub.length > 0
       return pub.some(a => matchesFilter(a.id, filter, submissionMap))
@@ -458,6 +463,21 @@ export default function ResourceOutline({
 
   const handleSave = (updated: Resource) => {
     setEditedResources(prev => new Map(prev).set(updated.id, updated))
+  }
+
+  const handleAddAssignment = async (dayId: string) => {
+    setAddingDayId(dayId)
+    const existingCount = modules
+      .flatMap(m => m.module_days)
+      .find(d => d.id === dayId)?.assignments?.length ?? 0
+    const { data, error } = await supabase
+      .from('assignments')
+      .insert({ module_day_id: dayId, title: 'New Assignment', published: false, order: existingCount })
+      .select('id')
+      .single()
+    setAddingDayId(null)
+    if (error || !data) { alert(error?.message ?? 'Failed to create assignment'); return }
+    router.push(`/instructor/courses/${courseId}/assignments/${data.id}`)
   }
 
   const studentActions = !editable && !instructorView
@@ -535,6 +555,7 @@ export default function ResourceOutline({
             .filter(d => {
               if (SKIP_DAYS.has(d.day_name)) return false
               if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
+              if (instructorView) return true
               const pub = (d.assignments ?? []).filter(a => a.published)
               if (!submissionMap || filter === 'all') return pub.length > 0
               return pub.some(a => matchesFilter(a.id, filter, submissionMap))
@@ -611,14 +632,21 @@ export default function ResourceOutline({
                         {!dayCollapsed && mode === 'assignments' && (
                           <div className="flex flex-col gap-2 pl-3">
                             {(day.assignments ?? []).filter(a =>
-                              a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap))
+                              instructorView
+                                ? true
+                                : (a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap)))
                             ).map(a => (
                               <div
                                 key={a.id}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                                    {!a.published && instructorView && (
+                                      <span className="text-[10px] font-bold bg-muted-text/20 text-muted-text px-1.5 py-0.5 rounded-full leading-none shrink-0">Draft</span>
+                                    )}
+                                  </div>
                                   {a.due_date && (
                                     <p className="text-xs text-muted-text mt-0.5">
                                       Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -629,17 +657,17 @@ export default function ResourceOutline({
                                   <AssignmentStatusBadge info={submissionMap[a.id]} />
                                 )}
                                 {instructorView ? (
-                                  <div className="flex items-center gap-3 shrink-0">
+                                  <div className="flex items-center gap-2 shrink-0">
                                     <Link
                                       href={`/instructor/courses/${courseId}/assignments/${a.id}`}
-                                      className="text-sm text-muted-text hover:text-dark-text font-medium"
+                                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-dark-text hover:text-dark-text transition-colors"
                                       prefetch={true}
                                     >
                                       Edit
                                     </Link>
                                     <Link
                                       href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
-                                      className="text-sm text-teal-primary font-semibold hover:underline"
+                                      className="text-xs font-semibold px-3 py-1.5 rounded-full bg-teal-primary text-white hover:opacity-90 transition-opacity"
                                       prefetch={true}
                                     >
                                       Submissions →
@@ -656,6 +684,16 @@ export default function ResourceOutline({
                                 )}
                               </div>
                             ))}
+                            {instructorView && (
+                              <button
+                                type="button"
+                                onClick={() => handleAddAssignment(day.id)}
+                                disabled={addingDayId === day.id}
+                                className="mt-2 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50"
+                              >
+                                {addingDayId === day.id ? 'Creating…' : '+ Add Assignment'}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
