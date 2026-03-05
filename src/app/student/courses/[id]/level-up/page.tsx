@@ -92,6 +92,7 @@ export default async function StudentLevelUpPage({
                 courseId={id}
                 currentWeek={null}
                 todayName=""
+                hideLevelUpBanner
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">

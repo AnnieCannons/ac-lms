@@ -116,8 +116,11 @@ interface Module {
 
 type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
 
-function AssignmentStatusBadge({ info }: { info: SubmissionInfo | undefined }) {
-  if (!info) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
+function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
+  const isLate = !info && !!dueDate && new Date(dueDate) < new Date()
+  if (!info) return isLate
+    ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-500 shrink-0">Late</span>
+    : <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
   if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
   if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
   if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
@@ -132,6 +135,7 @@ interface Props {
   submissionMap?: Record<string, SubmissionInfo>
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
+  hideLevelUpBanner?: boolean
 }
 
 function DayModal({
@@ -145,6 +149,7 @@ function DayModal({
   completedIds,
   onToggleStar,
   onToggleComplete,
+  hideLevelUpBanner,
 }: {
   module: Module
   day: Day
@@ -156,6 +161,7 @@ function DayModal({
   completedIds: Set<string>
   onToggleStar: (id: string) => void
   onToggleComplete: (id: string) => void
+  hideLevelUpBanner?: boolean
 }) {
   const publishedAssignments = (day.assignments ?? []).filter(a => a.published)
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
@@ -249,7 +255,7 @@ function DayModal({
                         </p>
                       )}
                     </div>
-                    {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} />}
+                    {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} />}
                     <Link
                       href={`/student/courses/${courseId}/assignments/${a.id}`}
                       className="text-sm text-teal-primary font-semibold hover:underline shrink-0"
@@ -269,20 +275,22 @@ function DayModal({
           )}
 
           {/* Level Up note */}
-          <div className="bg-purple-light rounded-xl px-4 py-4">
-            <p className="text-sm font-semibold text-purple-primary">Done with today's work?</p>
-            <p className="text-sm text-muted-text mt-1">
-              Head over to{' '}
-              <Link
-                href={`/student/courses/${courseId}/level-up`}
-                className="text-teal-primary font-medium hover:underline"
-                onClick={onClose}
-              >
-                Level Up Your Skills
-              </Link>
-              {' '}for extra challenges and bonus content.
-            </p>
-          </div>
+          {!hideLevelUpBanner && (
+            <div className="bg-purple-light rounded-xl px-4 py-4">
+              <p className="text-sm font-semibold text-purple-primary">Done with today's work?</p>
+              <p className="text-sm text-muted-text mt-1">
+                Head over to{' '}
+                <Link
+                  href={`/student/courses/${courseId}/level-up`}
+                  className="text-teal-primary font-medium hover:underline"
+                  onClick={onClose}
+                >
+                  Level Up Your Skills
+                </Link>
+                {' '}for extra challenges and bonus content.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -291,7 +299,7 @@ function DayModal({
 
 export default function CourseOutlineAccordion({
   modules, courseId, currentWeek, todayName, submissionMap,
-  initialStarredIds, initialCompletedIds,
+  initialStarredIds, initialCompletedIds, hideLevelUpBanner,
 }: Props) {
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
@@ -422,6 +430,7 @@ export default function CourseOutlineAccordion({
           completedIds={completedIds}
           onToggleStar={toggleStar}
           onToggleComplete={toggleComplete}
+          hideLevelUpBanner={hideLevelUpBanner}
         />
       )}
     </>

@@ -174,6 +174,11 @@ export default async function StudentAssignmentPage({
               Needs Revision
             </span>
           )}
+          {!existingSubmission && assignment.due_date && new Date(assignment.due_date) < new Date() && (
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-500">
+              Late
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-4 mb-8">
           {module && (

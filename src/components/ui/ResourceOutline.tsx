@@ -67,8 +67,11 @@ interface Props {
 
 const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 
-function AssignmentStatusBadge({ info }: { info: SubmissionInfo | undefined }) {
-  if (!info) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
+function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
+  const isLate = !info && !!dueDate && new Date(dueDate) < new Date()
+  if (!info) return isLate
+    ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-500 shrink-0">Late</span>
+    : <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
   if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
   if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
   if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
@@ -325,11 +328,12 @@ function LinkResource({
   )
 }
 
-type AssignmentFilter = 'all' | 'not-started' | 'turned-in' | 'needs-revision' | 'complete'
+type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete'
 
 const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'not-started', label: 'Not Started' },
+  { key: 'late', label: 'Late' },
   { key: 'turned-in', label: 'Turned In' },
   { key: 'needs-revision', label: 'Needs Revision' },
   { key: 'complete', label: 'Complete ✓' },
@@ -338,17 +342,19 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
 const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string }> = {
   'all':            { inactive: 'bg-background border border-border text-dark-text hover:bg-border/20', active: 'bg-dark-text text-white border border-dark-text' },
   'not-started':    { inactive: 'bg-background border border-border text-muted-text hover:bg-border/30', active: 'bg-muted-text text-white border border-muted-text' },
+  'late':           { inactive: 'bg-amber-50 text-amber-700 border border-amber-500 hover:opacity-80', active: 'bg-amber-500 text-white border border-amber-500' },
   'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
   'needs-revision': { inactive: 'bg-red-50 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
   'complete':       { inactive: 'bg-green-50 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
 }
 
-function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>): boolean {
+function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null): boolean {
   const info = map[id]
   if (filter === 'all') return true
   if (filter === 'complete') return info?.grade === 'complete'
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
+  if (filter === 'late') return !info && !!dueDate && new Date(dueDate) < new Date()
   if (filter === 'not-started') return !info || (info.status === 'draft' && !info.grade)
   return true
 }
@@ -448,7 +454,7 @@ export default function ResourceOutline({
         f.key,
         f.key === 'all'
           ? allPublishedAssignments.length
-          : allPublishedAssignments.filter(a => matchesFilter(a.id, f.key, submissionMap)).length,
+          : allPublishedAssignments.filter(a => matchesFilter(a.id, f.key, submissionMap, a.due_date)).length,
       ])) as Record<AssignmentFilter, number>
     : null
 
@@ -459,7 +465,7 @@ export default function ResourceOutline({
       if (instructorView) return true
       const pub = (d.assignments ?? []).filter(a => a.published)
       if (!submissionMap || filter === 'all') return pub.length > 0
-      return pub.some(a => matchesFilter(a.id, filter, submissionMap))
+      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date))
     })
   )
 
@@ -556,7 +562,7 @@ export default function ResourceOutline({
               if (instructorView) return true
               const pub = (d.assignments ?? []).filter(a => a.published)
               if (!submissionMap || filter === 'all') return pub.length > 0
-              return pub.some(a => matchesFilter(a.id, filter, submissionMap))
+              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date))
             })
 
           if (days.length === 0) return null
@@ -640,7 +646,7 @@ export default function ResourceOutline({
                             {(day.assignments ?? []).filter(a =>
                               instructorView
                                 ? true
-                                : (a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap)))
+                                : (a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date)))
                             ).map(a => (
                               <div
                                 key={a.id}
@@ -660,7 +666,7 @@ export default function ResourceOutline({
                                   )}
                                 </div>
                                 {submissionMap && (
-                                  <AssignmentStatusBadge info={submissionMap[a.id]} />
+                                  <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} />
                                 )}
                                 {instructorView ? (
                                   <div className="flex items-center gap-2 shrink-0">
