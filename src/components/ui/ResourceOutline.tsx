@@ -355,7 +355,10 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
   if (filter === 'late') return !info && !!dueDate && new Date(dueDate) < new Date()
-  if (filter === 'not-started') return !info || (info.status === 'draft' && !info.grade)
+  if (filter === 'not-started') {
+    if (!info) return !(!!dueDate && new Date(dueDate) < new Date())
+    return info.status === 'draft' && !info.grade
+  }
   return true
 }
 
