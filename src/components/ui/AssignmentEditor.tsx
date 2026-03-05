@@ -12,6 +12,7 @@ interface ChecklistItem {
   text: string
   description: string | null
   order: number
+  required: boolean
 }
 
 interface Props {
@@ -74,8 +75,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const nextOrder = checklist.length > 0 ? Math.max(...checklist.map(i => i.order)) + 1 : 0
     const { data, error } = await supabase
       .from('checklist_items')
-      .insert({ assignment_id: assignment.id, text: newItemText.trim(), description: newItemDesc.trim() || null, order: nextOrder })
-      .select('id, text, description, order')
+      .insert({ assignment_id: assignment.id, text: newItemText.trim(), description: newItemDesc.trim() || null, order: nextOrder, required: true })
+      .select('id, text, description, order, required')
       .single()
     if (error) { alert(error.message); return }
     setChecklist(prev => [...prev, data])
@@ -92,9 +93,9 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const { data, error } = await supabase
       .from('checklist_items')
       .insert(lines.map((line, i) => ({
-        assignment_id: assignment.id, text: line, description: null, order: nextOrder + i,
+        assignment_id: assignment.id, text: line, description: null, order: nextOrder + i, required: true,
       })))
-      .select('id, text, description, order')
+      .select('id, text, description, order, required')
     if (error) { alert(error.message); return }
     if (data) setChecklist(prev => [...prev, ...data])
   }
@@ -104,6 +105,12 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const { error } = await supabase.from('assignments').delete().eq('id', assignment.id)
     if (error) { alert(error.message); return }
     router.push(`/instructor/courses/${courseId}/assignments`)
+  }
+
+  const toggleChecklistRequired = async (id: string, current: boolean) => {
+    const { error } = await supabase.from('checklist_items').update({ required: !current }).eq('id', id)
+    if (error) { alert(error.message); return }
+    setChecklist(prev => prev.map(i => i.id === id ? { ...i, required: !current } : i))
   }
 
   const deleteChecklistItem = async (id: string) => {
@@ -132,9 +139,9 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const { data, error } = await supabase
       .from('checklist_items')
       .insert(template.items.map((item, i) => ({
-        assignment_id: assignment.id, text: item.text, description: item.description || null, order: i,
+        assignment_id: assignment.id, text: item.text, description: item.description || null, order: i, required: true,
       })))
-      .select('id, text, description, order')
+      .select('id, text, description, order, required')
     if (!error && data) setChecklist(data)
   }
 
@@ -214,7 +221,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         </div>
         <div className="flex flex-col gap-2 mb-4">
           {checklist.sort((a, b) => a.order - b.order).map(item => (
-            <ChecklistItemRow key={item.id} item={item} onDelete={deleteChecklistItem} onUpdate={updateChecklistItem} />
+            <ChecklistItemRow key={item.id} item={item} onDelete={deleteChecklistItem} onUpdate={updateChecklistItem} onToggleRequired={toggleChecklistRequired} />
           ))}
         </div>
         {/* Add new item */}
@@ -277,10 +284,12 @@ function ChecklistItemRow({
   item,
   onDelete,
   onUpdate,
+  onToggleRequired,
 }: {
   item: ChecklistItem
   onDelete: (id: string) => void
   onUpdate: (item: ChecklistItem, text: string, desc: string) => void
+  onToggleRequired: (id: string, current: boolean) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(item.text)
@@ -321,10 +330,25 @@ function ChecklistItemRow({
     <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-border bg-background group">
       <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-border" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-dark-text">{item.text}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm text-dark-text">{item.text}</p>
+          {!item.required && (
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-300">
+              Bonus
+            </span>
+          )}
+        </div>
         {item.description && <p className="text-xs text-muted-text mt-0.5">{item.description}</p>}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          type="button"
+          onClick={() => onToggleRequired(item.id, item.required)}
+          className="text-xs px-2 py-0.5 rounded border border-border text-muted-text hover:text-amber-600 hover:border-amber-300 transition-colors"
+          title={item.required ? 'Mark as bonus (not required to submit)' : 'Make required'}
+        >
+          {item.required ? 'Bonus?' : 'Required?'}
+        </button>
         <button type="button" onClick={() => setEditing(true)} className="p-1 text-muted-text hover:text-teal-primary" title="Edit">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>

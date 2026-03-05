@@ -54,7 +54,7 @@ export default async function StudentAssignmentPage({
 
   const { data: checklistItems } = await supabase
     .from('checklist_items')
-    .select('id, text, description, order')
+    .select('id, text, description, order, required')
     .eq('assignment_id', assignmentId)
     .order('order', { ascending: true })
 

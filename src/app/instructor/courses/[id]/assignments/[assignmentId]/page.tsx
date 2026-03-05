@@ -43,7 +43,7 @@ export default async function InstructorAssignmentEditPage({
 
   const { data: checklist } = await supabase
     .from("checklist_items")
-    .select("id, text, description, order")
+    .select("id, text, description, order, required")
     .eq("assignment_id", assignmentId)
     .order("order", { ascending: true });
 
