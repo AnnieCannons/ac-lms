@@ -231,7 +231,7 @@ function YearlyScheduleGlobalCard({
             )}
           </div>
         </div>
-        <YearlyScheduleSection />
+        <YearlyScheduleSection instructorEditHref="/instructor/calendar" />
       </div>
     </div>
   )

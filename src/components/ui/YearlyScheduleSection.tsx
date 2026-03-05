@@ -54,7 +54,7 @@ function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
   return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 }
 
-export default function YearlyScheduleSection() {
+export default function YearlyScheduleSection({ instructorEditHref }: { instructorEditHref?: string } = {}) {
   const [timeline, setTimeline] = useState<TimelineItem[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [breaks, setBreaks] = useState<Break[]>([])
@@ -131,6 +131,7 @@ export default function YearlyScheduleSection() {
               label="All Holidays"
               initialDate={holidays[0].date}
               highlights={holidayHighlights}
+              editHref={instructorEditHref}
             />
           </div>
           <div className="rounded-xl border border-border overflow-hidden">

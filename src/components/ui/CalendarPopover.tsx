@@ -6,10 +6,16 @@ const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su']
 
 type Highlight = { start: string; end?: string; color: 'teal' | 'amber' | 'purple'; label?: string }
 
+function fmtDate(iso: string) {
+  try { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+  catch { return iso }
+}
+
 interface Props {
   highlights: Highlight[]
-  initialDate: string  // ISO date — month to open on
+  initialDate: string
   label: string
+  editHref?: string  // show an "Edit" link for instructors
 }
 
 function parseLocal(d: string) {
@@ -41,7 +47,7 @@ function CalendarIcon({ className = '' }: { className?: string }) {
   )
 }
 
-export default function CalendarPopover({ highlights, initialDate, label }: Props) {
+export default function CalendarPopover({ highlights, initialDate, label, editHref }: Props) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -139,13 +145,23 @@ export default function CalendarPopover({ highlights, initialDate, label }: Prop
             </div>
 
             {/* Legend */}
-            <div className="mt-3 pt-3 border-t border-border flex flex-col gap-1">
+            <div className="mt-3 pt-3 border-t border-border flex flex-col gap-1.5">
               {highlights.map((h, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-muted-text">
-                  <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${RANGE_BG[h.color].split(' ')[0]}`} />
-                  <span>{h.label ?? (h.end && h.end !== h.start ? `${h.start} – ${h.end}` : h.start)}</span>
+                <div key={i} className="flex items-start gap-2 text-xs text-muted-text">
+                  <span className={`w-2.5 h-2.5 rounded-sm shrink-0 mt-0.5 ${RANGE_BG[h.color].split(' ')[0]}`} />
+                  <span>
+                    <span className="text-dark-text font-medium">
+                      {fmtDate(h.start)}{h.end && h.end !== h.start ? ` – ${fmtDate(h.end)}` : ''}
+                    </span>
+                    {h.label && <span className="ml-1">· {h.label}</span>}
+                  </span>
                 </div>
               ))}
+              {editHref && (
+                <a href={editHref} className="mt-1 text-xs text-teal-primary hover:underline self-start">
+                  Edit holidays →
+                </a>
+              )}
             </div>
           </div>
         </>
