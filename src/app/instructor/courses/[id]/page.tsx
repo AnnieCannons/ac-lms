@@ -4,6 +4,7 @@ import Link from "next/link";
 import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
+import LaunchSetupButton from "@/components/ui/LaunchSetupButton";
 
 export default async function CoursePage({
   params,
@@ -65,6 +66,7 @@ export default async function CoursePage({
               >
                 ← Courses
               </Link>
+              <LaunchSetupButton courseId={id} />
             </div>
             <CourseNameEditor
               courseId={course.id}
