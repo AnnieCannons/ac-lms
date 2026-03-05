@@ -266,6 +266,26 @@ function LinkResource({
   )
 }
 
+type AssignmentFilter = 'all' | 'not-started' | 'turned-in' | 'needs-revision' | 'complete'
+
+const FILTERS: { key: AssignmentFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'not-started', label: 'Not Started' },
+  { key: 'turned-in', label: 'Turned In' },
+  { key: 'needs-revision', label: 'Needs Revision' },
+  { key: 'complete', label: 'Complete' },
+]
+
+function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>): boolean {
+  const info = map[id]
+  if (filter === 'all') return true
+  if (filter === 'complete') return info?.grade === 'complete'
+  if (filter === 'needs-revision') return info?.grade === 'incomplete'
+  if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
+  if (filter === 'not-started') return !info || (info.status === 'draft' && !info.grade)
+  return true
+}
+
 export default function ResourceOutline({ modules, courseId, mode, editable, instructorView, submissionMap }: Props) {
   const supabase = createClient()
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
@@ -275,10 +295,16 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
     () => new Set(modules.map(m => m.id))
   )
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<AssignmentFilter>('all')
 
   const allExpanded = collapsedModules.size === 0
   const expandAll = () => setCollapsedModules(new Set())
   const collapseAll = () => setCollapsedModules(new Set(modules.map(m => m.id)))
+
+  const changeFilter = (f: AssignmentFilter) => {
+    setFilter(f)
+    if (f !== 'all') expandAll()
+  }
 
   const assignmentHref = (id: string) => instructorView
     ? `/instructor/courses/${courseId}/assignments/${id}/submissions`
@@ -295,10 +321,25 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
     return a.order - b.order
   })
 
+  const allPublishedAssignments = sorted.flatMap(m =>
+    m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published))
+  )
+
+  const filterCounts = submissionMap
+    ? Object.fromEntries(FILTERS.map(f => [
+        f.key,
+        f.key === 'all'
+          ? allPublishedAssignments.length
+          : allPublishedAssignments.filter(a => matchesFilter(a.id, f.key, submissionMap)).length,
+      ])) as Record<AssignmentFilter, number>
+    : null
+
   const modulesWithContent = sorted.filter(m =>
     m.module_days.some(d => {
       if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
-      return (d.assignments ?? []).filter(a => a.published).length > 0
+      const pub = (d.assignments ?? []).filter(a => a.published)
+      if (!submissionMap || filter === 'all') return pub.length > 0
+      return pub.some(a => matchesFilter(a.id, filter, submissionMap))
     })
   )
 
@@ -318,14 +359,56 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
 
   if (modulesWithContent.length === 0) {
     return (
-      <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-        <p className="text-muted-text">No content available yet.</p>
-      </div>
+      <>
+        {filterCounts && (
+          <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-6 flex-wrap">
+            {FILTERS.map(f => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => changeFilter(f.key)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
+                  filter === f.key ? 'bg-teal-primary text-white' : 'text-muted-text hover:text-dark-text'
+                }`}
+              >
+                {f.label}
+                <span className={`ml-1.5 ${filter === f.key ? 'text-white/70' : 'text-muted-text'}`}>
+                  {filterCounts[f.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+          <p className="text-muted-text">
+            {filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
+          </p>
+        </div>
+      </>
     )
   }
 
   return (
     <>
+      {filterCounts && (
+        <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-6 flex-wrap">
+          {FILTERS.map(f => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => changeFilter(f.key)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
+                filter === f.key ? 'bg-teal-primary text-white' : 'text-muted-text hover:text-dark-text'
+              }`}
+            >
+              {f.label}
+              <span className={`ml-1.5 ${filter === f.key ? 'text-white/70' : 'text-muted-text'}`}>
+                {filterCounts[f.key]}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex justify-end mb-4">
         <button
           type="button"
@@ -343,7 +426,9 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
             .filter(d => {
               if (SKIP_DAYS.has(d.day_name)) return false
               if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
-              return (d.assignments ?? []).filter(a => a.published).length > 0
+              const pub = (d.assignments ?? []).filter(a => a.published)
+              if (!submissionMap || filter === 'all') return pub.length > 0
+              return pub.some(a => matchesFilter(a.id, filter, submissionMap))
             })
 
           if (days.length === 0) return null
@@ -411,7 +496,9 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
 
                         {!dayCollapsed && mode === 'assignments' && (
                           <div className="flex flex-col gap-2">
-                            {(day.assignments ?? []).filter(a => a.published).map(a => (
+                            {(day.assignments ?? []).filter(a =>
+                              a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap))
+                            ).map(a => (
                               <div
                                 key={a.id}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
