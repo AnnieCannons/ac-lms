@@ -8,6 +8,7 @@ import InstructorChecklist from '@/components/ui/InstructorChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
+import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -166,7 +167,12 @@ export default async function GradingPage({
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-8 py-12">
+      <div className="flex">
+        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+          <InstructorCourseNav courseId={id} courseName={course?.name ?? ''} />
+        </aside>
+
+        <main className="flex-1 min-w-0 max-w-3xl mx-auto px-8 py-12">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-4 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
@@ -348,7 +354,8 @@ export default async function GradingPage({
             ) : null}
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

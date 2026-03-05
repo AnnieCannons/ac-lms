@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 }
 
 const KeyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
   </svg>
 )
@@ -23,6 +24,7 @@ const ExternalIcon = () => (
 
 export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
   const supabase = createClient()
+  const router = useRouter()
   const [url, setUrl] = useState(initialUrl ?? '')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(initialUrl ?? '')
@@ -37,6 +39,7 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
     setSaving(false)
     setUrl(draft.trim())
     setEditing(false)
+    router.refresh()
   }
 
   if (editing) {
@@ -95,7 +98,7 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="mt-4 w-full flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-amber-200 text-amber-600 hover:border-amber-400 hover:bg-amber-50 transition-colors text-sm font-semibold"
+      className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-amber-300 text-amber-600 hover:border-amber-400 hover:bg-amber-50 transition-colors text-xs font-semibold"
     >
       <KeyIcon />
       Add answer key

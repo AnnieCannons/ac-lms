@@ -4,6 +4,7 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsList'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
+import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -102,7 +103,12 @@ export default async function InstructorSubmissionsPage({
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <div className="flex">
+        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+          <InstructorCourseNav courseId={id} courseName={course?.name ?? ''} />
+        </aside>
+
+        <main className="flex-1 min-w-0 max-w-4xl mx-auto px-8 py-12">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
@@ -155,7 +161,8 @@ export default async function InstructorSubmissionsPage({
             assignmentId={assignmentId}
           />
         )}
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
