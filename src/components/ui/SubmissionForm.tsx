@@ -4,10 +4,17 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
+import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
 
 type SubmissionType = "text" | "link" | "file";
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Mode = "view" | "confirm-resubmit" | "edit";
+
+type ChecklistItem = {
+  id: string;
+  text: string;
+  description: string | null;
+};
 
 type Submission = {
   id: string;
@@ -31,18 +38,35 @@ export default function SubmissionForm({
   courseId,
   existingSubmission,
   initialHistory,
+  checklistItems,
+  initialChecked,
 }: {
   assignmentId: string;
   studentId: string;
   courseId: string;
   existingSubmission: Submission | null;
   initialHistory: HistoryEntry[];
+  checklistItems?: ChecklistItem[];
+  initialChecked?: Record<string, boolean>;
 }) {
   const supabase = createClient();
 
   const [saved, setSaved] = useState<Submission | null>(existingSubmission);
   const [mode, setMode] = useState<Mode>(existingSubmission ? "view" : "edit");
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
+
+  const hasChecklist = !!checklistItems && checklistItems.length > 0;
+  const [checked, setChecked] = useState<Record<string, boolean>>(initialChecked ?? {});
+  const allChecked = !hasChecklist || checklistItems!.every(item => checked[item.id]);
+
+  const toggleCheck = async (id: string) => {
+    const next = !checked[id];
+    setChecked(prev => ({ ...prev, [id]: next }));
+    const result = await toggleStudentChecklistItem(id, studentId, next);
+    if (result?.error) {
+      setChecked(prev => ({ ...prev, [id]: !next }));
+    }
+  };
 
   // Form fields (only relevant in edit mode)
   const [tab, setTab] = useState<SubmissionType>(existingSubmission?.submission_type ?? "link");
@@ -171,6 +195,51 @@ export default function SubmissionForm({
   const canResubmit = !isGraded || saved?.grade === "incomplete";
 
   return (
+    <>
+    {hasChecklist && (
+      <div className="bg-surface rounded-2xl border border-border p-6">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Checklist</p>
+          <span className="text-xs text-muted-text">
+            {checklistItems!.filter(i => checked[i.id]).length}/{checklistItems!.length} checked
+          </span>
+        </div>
+        <ul className="flex flex-col gap-3">
+          {checklistItems!.map(item => (
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => toggleCheck(item.id)}
+                className="flex items-start gap-3 w-full text-left group"
+              >
+                <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                  checked[item.id]
+                    ? "bg-teal-primary border-teal-primary"
+                    : "border-border group-hover:border-teal-primary"
+                }`}>
+                  {checked[item.id] && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+                <div>
+                  <p className={`text-sm transition-colors ${checked[item.id] ? "text-muted-text line-through" : "text-dark-text"}`}>
+                    {item.text}
+                  </p>
+                  {item.description && (
+                    <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
+                  )}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs text-muted-text mt-4">
+          Check off items as you complete them — your instructor will confirm each when grading.
+        </p>
+      </div>
+    )}
     <div className="bg-surface rounded-2xl border border-border p-6 flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -358,15 +427,19 @@ export default function SubmissionForm({
 
           {error && <p className="text-xs text-red-400">{error}</p>}
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !allChecked}
+              title={!allChecked ? "Check off all checklist items before submitting" : undefined}
               className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {submitting ? "Submitting…" : "Submit"}
             </button>
+            {!allChecked && (
+              <p className="text-xs text-amber-700">Complete all checklist items to submit.</p>
+            )}
             <button
               type="button"
               onClick={handleDraft}
@@ -388,5 +461,6 @@ export default function SubmissionForm({
         </>
       )}
     </div>
+    </>
   );
 }

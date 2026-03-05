@@ -4,7 +4,6 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
 import SubmissionForm from '@/components/ui/SubmissionForm'
-import StudentChecklist from '@/components/ui/StudentChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 
 export default async function StudentAssignmentPage({
@@ -256,18 +255,15 @@ export default async function StudentAssignmentPage({
             </div>
           )}
 
-          {/* Student Checklist */}
-          {checklistItems && checklistItems.length > 0 && (
-            <StudentChecklist assignmentId={assignmentId} studentId={user.id} items={checklistItems} initialChecked={initialChecked} />
-          )}
-
-          {/* Submission form */}
+          {/* Submission form (includes student checklist when items exist) */}
           <SubmissionForm
             assignmentId={assignmentId}
             studentId={user.id}
             courseId={id}
             existingSubmission={existingSubmission ?? null}
             initialHistory={submissionHistory ?? []}
+            checklistItems={checklistItems ?? undefined}
+            initialChecked={initialChecked}
           />
 
           {/* Comments (only shown once there's a submission) */}
