@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su']
 
-type Highlight = { start: string; end?: string; color: 'teal' | 'amber' | 'purple' }
+type Highlight = { start: string; end?: string; color: 'teal' | 'amber' | 'purple'; label?: string }
 
 interface Props {
   highlights: Highlight[]
@@ -143,7 +143,7 @@ export default function CalendarPopover({ highlights, initialDate, label }: Prop
               {highlights.map((h, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs text-muted-text">
                   <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${RANGE_BG[h.color].split(' ')[0]}`} />
-                  <span>{h.start}{h.end && h.end !== h.start ? ` – ${h.end}` : ''}</span>
+                  <span>{h.label ?? (h.end && h.end !== h.start ? `${h.start} – ${h.end}` : h.start)}</span>
                 </div>
               ))}
             </div>

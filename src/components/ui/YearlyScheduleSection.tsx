@@ -78,7 +78,7 @@ export default function YearlyScheduleSection() {
   if (loading) return <p className="text-sm text-muted-text">Loading schedule…</p>
   if (timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
 
-  const holidayHighlights = holidays.map(h => ({ start: h.date, color: 'purple' as const }))
+  const holidayHighlights = holidays.map(h => ({ start: h.date, color: 'purple' as const, label: h.label }))
 
   return (
     <div className="flex flex-col gap-8">
@@ -113,7 +113,7 @@ export default function YearlyScheduleSection() {
               <CalendarPopover
                 label={item.kind === 'cohort' ? item.name : item.label}
                 initialDate={item.start}
-                highlights={[{ start: item.start, end: item.end, color: item.kind === 'cohort' ? 'teal' : 'amber' }]}
+                highlights={[{ start: item.start, end: item.end, color: item.kind === 'cohort' ? 'teal' : 'amber', label: item.kind === 'cohort' ? item.name : item.label }]}
               />
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function YearlyScheduleSection() {
                   <CalendarPopover
                     label={b.label}
                     initialDate={b.start_date}
-                    highlights={[{ start: b.start_date, end: b.end_date, color: 'amber' }]}
+                    highlights={[{ start: b.start_date, end: b.end_date, color: 'amber', label: b.label }]}
                   />
                 </div>
               </div>
