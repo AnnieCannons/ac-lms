@@ -301,16 +301,24 @@ export default function CourseOutlineAccordion({
   const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
 
-  const toggleStar = (id: string) => {
+  const toggleStar = async (id: string) => {
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
-    toggleResourceStar(id, courseId, isStarred)
+    const result = await toggleResourceStar(id, courseId, isStarred)
+    if (result?.error) {
+      setStarredIds(prev => { const next = new Set(prev); isStarred ? next.add(id) : next.delete(id); return next })
+      console.error('Failed to save star:', result.error)
+    }
   }
 
-  const toggleComplete = (id: string) => {
+  const toggleComplete = async (id: string) => {
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
-    toggleResourceComplete(id, courseId, isDone)
+    const result = await toggleResourceComplete(id, courseId, isDone)
+    if (result?.error) {
+      setCompletedIds(prev => { const next = new Set(prev); isDone ? next.add(id) : next.delete(id); return next })
+      console.error('Failed to save completion:', result.error)
+    }
   }
 
   return (

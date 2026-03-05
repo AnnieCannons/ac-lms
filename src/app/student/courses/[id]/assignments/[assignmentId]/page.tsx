@@ -90,6 +90,19 @@ export default async function StudentAssignmentPage({
         .eq('submission_id', existingSubmission.id)
     : { data: [] }
 
+  // Student's own checklist progress (use service role to bypass RLS)
+  const { data: studentProgress } = admin
+    ? await admin
+        .from('student_checklist_progress')
+        .select('checklist_item_id, checked')
+        .eq('student_id', user.id)
+        .in('checklist_item_id', (checklistItems ?? []).map(i => i.id))
+    : { data: [] }
+
+  const initialChecked: Record<string, boolean> = {}
+  ;(checklistItems ?? []).forEach(i => { initialChecked[i.id] = false })
+  ;(studentProgress ?? []).forEach(r => { initialChecked[r.checklist_item_id] = r.checked })
+
   const instructorResponseMap = new Map(
     (instructorResponses ?? []).map(r => [r.checklist_item_id, r.checked])
   )
@@ -240,7 +253,7 @@ export default async function StudentAssignmentPage({
 
           {/* Student Checklist */}
           {checklistItems && checklistItems.length > 0 && (
-            <StudentChecklist assignmentId={assignmentId} studentId={user.id} items={checklistItems} />
+            <StudentChecklist assignmentId={assignmentId} studentId={user.id} items={checklistItems} initialChecked={initialChecked} />
           )}
 
           {/* Submission form */}
