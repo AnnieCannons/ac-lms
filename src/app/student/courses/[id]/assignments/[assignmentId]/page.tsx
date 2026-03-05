@@ -247,6 +247,7 @@ export default async function StudentAssignmentPage({
           <SubmissionForm
             assignmentId={assignmentId}
             studentId={user.id}
+            courseId={id}
             existingSubmission={existingSubmission ?? null}
             initialHistory={submissionHistory ?? []}
           />

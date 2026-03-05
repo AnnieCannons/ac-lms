@@ -7,11 +7,12 @@ interface Props {
   courseName: string
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments']
 
 const CATEGORY_ITEMS = [
   { label: 'All Modules', slug: '' },
   { label: 'Syllabus', slug: 'syllabus' },
+  { label: 'Assignments', slug: 'assignments' },
   { label: 'Level Up Your Skills', slug: 'level-up' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },
@@ -24,8 +25,9 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
     const href = `/instructor/courses/${courseId}${slug ? `/${slug}` : ''}`
     let isActive: boolean
     if (slug === 'submissions') {
-      isActive = pathname.startsWith(`/instructor/courses/${courseId}/submissions`) ||
-        pathname.startsWith(`/instructor/courses/${courseId}/assignments`)
+      isActive = pathname.startsWith(`/instructor/courses/${courseId}/submissions`)
+    } else if (slug === 'assignments') {
+      isActive = pathname.startsWith(`/instructor/courses/${courseId}/assignments`)
     } else if (slug === '') {
       isActive = pathname === href && !COURSE_SLUGS.some(s => pathname.endsWith(`/${s}`))
     } else {

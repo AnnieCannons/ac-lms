@@ -4,6 +4,9 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
+import PageRefresher from '@/components/ui/PageRefresher'
+
+export const dynamic = 'force-dynamic'
 
 function getCurrentWeek(startDate: string | null): number | null {
   if (!startDate) return null
@@ -66,6 +69,15 @@ export default async function StudentCourseDetailPage({
     !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
   )
 
+  const { data: submissions } = await supabase
+    .from('submissions')
+    .select('assignment_id, status, grade')
+    .eq('student_id', user.id)
+
+  const submissionMap = Object.fromEntries(
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
+  )
+
   const currentWeek = getCurrentWeek(course.start_date)
   const todayName = DAY_NAMES[new Date().getDay()]
 
@@ -118,12 +130,14 @@ export default async function StudentCourseDetailPage({
               </div>
             </div>
 
+            <PageRefresher />
             {modules.length > 0 ? (
               <CourseOutlineAccordion
                 modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
                 courseId={id}
                 currentWeek={currentWeek}
                 todayName={todayName}
+                submissionMap={submissionMap}
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">

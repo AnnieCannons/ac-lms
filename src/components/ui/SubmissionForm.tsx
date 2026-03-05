@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
+import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 
 type SubmissionType = "text" | "link" | "file";
 type SubmissionStatus = "draft" | "submitted" | "graded";
@@ -27,11 +28,13 @@ type HistoryEntry = {
 export default function SubmissionForm({
   assignmentId,
   studentId,
+  courseId,
   existingSubmission,
   initialHistory,
 }: {
   assignmentId: string;
   studentId: string;
+  courseId: string;
   existingSubmission: Submission | null;
   initialHistory: HistoryEntry[];
 }) {
@@ -113,6 +116,8 @@ export default function SubmissionForm({
     setSaved(newSaved);
 
     if (status === "submitted") {
+      revalidateAssignmentsPage(courseId);
+
       const { data: histEntry } = await supabase
         .from("submission_history")
         .insert({

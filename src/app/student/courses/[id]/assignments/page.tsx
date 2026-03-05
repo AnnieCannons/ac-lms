@@ -4,8 +4,11 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResourceOutline from '@/components/ui/ResourceOutline'
+import PageRefresher from '@/components/ui/PageRefresher'
 
-export default async function StudentClassResourcesPage({
+export const dynamic = 'force-dynamic'
+
+export default async function StudentAssignmentsPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -45,12 +48,21 @@ export default async function StudentClassResourcesPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, resources(id, type, title, content, description, order))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments(id, title, due_date, published))')
     .eq('course_id', id)
     .eq('published', true)
     .order('order', { ascending: true })
 
   const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
+
+  const { data: submissions } = await supabase
+    .from('submissions')
+    .select('assignment_id, status, grade')
+    .eq('student_id', user.id)
+
+  const submissionMap = Object.fromEntries(
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
+  )
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,14 +92,16 @@ export default async function StudentClassResourcesPage({
             </div>
 
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-dark-text mb-1">Class Resources</h1>
+              <h1 className="text-2xl font-bold text-dark-text mb-1">Assignments</h1>
               <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 
+            <PageRefresher />
             <ResourceOutline
               modules={modules as Parameters<typeof ResourceOutline>[0]['modules']}
               courseId={id}
-              mode="resources"
+              mode="assignments"
+              submissionMap={submissionMap}
             />
           </main>
         </div>

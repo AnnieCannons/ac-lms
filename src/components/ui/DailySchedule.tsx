@@ -12,7 +12,7 @@ type ScheduleRow = {
 
 const SCHEDULE: ScheduleRow[] = [
   { startMin: 520, endMin: 525,  activity: 'Zoom room opens', type: 'class' },
-  { startMin: 525, endMin: 532,  activity: 'Attendance taken at 8:45 AM Pacific. Students prepare their work environment.', type: 'class' },
+  { startMin: 525, endMin: 532,  activity: 'Attendance taken at :45 on the dot. Students prepare their work environment.', type: 'class' },
   { startMin: 532, endMin: 540,  activity: 'Announcements', type: 'class' },
   { startMin: 540, endMin: 615,  activity: 'Block A', type: 'class' },
   { startMin: 615, endMin: 630,  activity: 'Break', type: 'break' },

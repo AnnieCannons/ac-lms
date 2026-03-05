@@ -64,11 +64,22 @@ interface Module {
   module_days: Day[]
 }
 
+type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
+
+function AssignmentStatusBadge({ info }: { info: SubmissionInfo | undefined }) {
+  if (!info) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
+  if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete ✓</span>
+  if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Needs Revision</span>
+  if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned In</span>
+  return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
+}
+
 interface Props {
   modules: Module[]
   courseId: string
   currentWeek: number | null
   todayName: string
+  submissionMap?: Record<string, SubmissionInfo>
 }
 
 function DayModal({
@@ -77,12 +88,14 @@ function DayModal({
   courseId,
   isToday,
   onClose,
+  submissionMap,
 }: {
   module: Module
   day: Day
   courseId: string
   isToday: boolean
   onClose: () => void
+  submissionMap?: Record<string, SubmissionInfo>
 }) {
   const publishedAssignments = (day.assignments ?? []).filter(a => a.published)
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
@@ -156,7 +169,7 @@ function DayModal({
                 {publishedAssignments.map(a => (
                   <div
                     key={a.id}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors"
+                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-dark-text">{a.title}</p>
@@ -166,10 +179,11 @@ function DayModal({
                         </p>
                       )}
                     </div>
+                    {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} />}
                     <Link
                       href={`/student/courses/${courseId}/assignments/${a.id}`}
-                      className="text-sm text-teal-primary font-semibold hover:underline shrink-0 ml-6"
-                      onClick={onClose}
+                      className="text-sm text-teal-primary font-semibold hover:underline shrink-0"
+                      prefetch={true}
                     >
                       View →
                     </Link>
@@ -205,7 +219,7 @@ function DayModal({
   )
 }
 
-export default function CourseOutlineAccordion({ modules, courseId, currentWeek, todayName }: Props) {
+export default function CourseOutlineAccordion({ modules, courseId, currentWeek, todayName, submissionMap }: Props) {
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
 
   return (
@@ -291,6 +305,7 @@ export default function CourseOutlineAccordion({ modules, courseId, currentWeek,
           courseId={courseId}
           isToday={currentWeek !== null && openDay.module.week_number === currentWeek && openDay.day.day_name === todayName}
           onClose={() => setOpenDay(null)}
+          submissionMap={submissionMap}
         />
       )}
     </>

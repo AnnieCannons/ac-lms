@@ -4,7 +4,7 @@ import Link from "next/link";
 import InstructorCourseNav from "@/components/ui/InstructorCourseNav";
 import ResourceOutline from "@/components/ui/ResourceOutline";
 
-export default async function InstructorClassResourcesPage({
+export default async function InstructorAssignmentsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -34,7 +34,7 @@ export default async function InstructorClassResourcesPage({
 
   const { data: rawModules } = await supabase
     .from("modules")
-    .select("id, title, week_number, order, module_days(id, day_name, order, resources(id, type, title, content, description, order))")
+    .select("id, title, week_number, order, module_days(id, day_name, order, assignments(id, title, due_date, published))")
     .eq("course_id", id)
     .order("order", { ascending: true });
 
@@ -54,16 +54,16 @@ export default async function InstructorClassResourcesPage({
         </aside>
 
         <div className="flex-1 min-w-0">
-          <main className="max-w-4xl mx-auto px-8 py-10">
+          <main className="max-w-3xl mx-auto px-8 py-10">
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>
-            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Class Resources</h2>
+            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Assignments</h2>
             <ResourceOutline
               modules={modules as Parameters<typeof ResourceOutline>[0]['modules']}
               courseId={id}
-              mode="resources"
-              editable
+              mode="assignments"
+              instructorView
             />
           </main>
         </div>

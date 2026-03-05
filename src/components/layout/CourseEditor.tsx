@@ -1310,6 +1310,7 @@ function SortableModule({
   onTogglePublished,
   onUpdateCategory,
   onToggleModulePublished,
+  onUpdateTitle,
   dayRefreshTriggers,
   isDraggingOverlay = false,
 }: {
@@ -1323,6 +1324,7 @@ function SortableModule({
   onTogglePublished: (id: string, current: boolean) => void;
   onUpdateCategory: (moduleId: string, category: string | null) => void;
   onToggleModulePublished: (id: string, current: boolean) => void;
+  onUpdateTitle: (moduleId: string, title: string) => void;
   dayRefreshTriggers: Record<string, number>;
   isDraggingOverlay?: boolean;
 }) {
@@ -1335,6 +1337,15 @@ function SortableModule({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const [expanded, setExpanded] = useState(true);
   const [newDayName, setNewDayName] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(module.title);
+
+  const saveTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== module.title) onUpdateTitle(module.id, trimmed);
+    else setTitleDraft(module.title);
+    setEditingTitle(false);
+  };
 
   return (
     <div
@@ -1353,7 +1364,24 @@ function SortableModule({
           ⠿
         </button>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-dark-text truncate">{module.title}</h3>
+          {editingTitle ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleDraft(module.title); setEditingTitle(false); } }}
+              className="font-semibold text-dark-text bg-background border border-teal-primary rounded px-2 py-0.5 w-full focus:outline-none"
+            />
+          ) : (
+            <h3
+              className="font-semibold text-dark-text truncate cursor-pointer hover:text-teal-primary transition-colors"
+              onClick={() => { setTitleDraft(module.title); setEditingTitle(true); }}
+              title="Click to edit title"
+            >
+              {module.title}
+            </h3>
+          )}
           <p className="text-xs text-muted-text">Week {module.week_number}</p>
         </div>
         <select
@@ -1711,6 +1739,12 @@ export default function CourseEditor({
     setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, published: !current } : m));
   };
 
+  const updateModuleTitle = async (moduleId: string, title: string) => {
+    const { error } = await supabase.from("modules").update({ title }).eq("id", moduleId);
+    if (error) { console.error("updateModuleTitle failed:", error.message); return; }
+    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, title } : m));
+  };
+
   const relocateAssignment = async (assignmentId: string, targetWeek: number, targetDayName: string) => {
     const currentMods = modulesRef.current;
     const targetModule = currentMods.find((m) => m.week_number === targetWeek);
@@ -1959,6 +1993,7 @@ export default function CourseEditor({
                   onTogglePublished={togglePublished}
                   onUpdateCategory={updateModuleCategory}
                   onToggleModulePublished={updateModulePublished}
+                  onUpdateTitle={updateModuleTitle}
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
                 />
