@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su']
@@ -43,6 +43,8 @@ function CalendarIcon({ className = '' }: { className?: string }) {
 
 export default function CalendarPopover({ highlights, initialDate, label }: Props) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
   const init = parseLocal(initialDate)
   const [viewYear, setViewYear] = useState(init.getFullYear())
   const [viewMonth, setViewMonth] = useState(init.getMonth())
@@ -75,10 +77,22 @@ export default function CalendarPopover({ highlights, initialDate, label }: Prop
     return null
   }
 
+  const handleOpen = () => {
+    if (open) { setOpen(false); return }
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const popW = 288 // w-72
+      const left = Math.min(r.right - popW, window.innerWidth - popW - 8)
+      setPos({ top: r.bottom + 6, left: Math.max(8, left) })
+    }
+    setOpen(true)
+  }
+
   return (
-    <div className="relative inline-block">
+    <div className="inline-block">
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onClick={handleOpen}
         title={`View ${label} on calendar`}
         className="p-1 text-muted-text hover:text-teal-primary transition-colors"
       >
@@ -88,7 +102,8 @@ export default function CalendarPopover({ highlights, initialDate, label }: Prop
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-1 bg-surface rounded-xl border border-border shadow-xl p-4 w-72">
+          <div className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72"
+            style={{ top: pos.top, left: pos.left }}>
             {/* Month nav */}
             <div className="flex items-center justify-between mb-3">
               <button onClick={prevMonth} className="p-1 text-muted-text hover:text-dark-text rounded-lg hover:bg-border/20">
