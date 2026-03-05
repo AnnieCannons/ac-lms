@@ -1,7 +1,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import GeneralInfoEditor from '@/components/ui/GeneralInfoEditor'
 
 const DEFAULT_SECTIONS = [
@@ -87,19 +87,17 @@ export default async function InstructorGeneralInfoPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
+      <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
-          <main className="max-w-3xl mx-auto px-8 py-10">
+          <main id="main-content" className="max-w-3xl mx-auto px-8 py-10">
             <div className="flex items-center justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-2xl font-bold text-dark-text">General Info</h1>

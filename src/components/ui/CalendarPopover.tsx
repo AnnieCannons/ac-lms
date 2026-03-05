@@ -99,16 +99,24 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
   const [viewYear, setViewYear] = useState(init.getFullYear())
   const [viewMonth, setViewMonth] = useState(init.getMonth())
 
-  // Detect if primary highlight spans two different months → show two grids
+  // Detect if primary highlight spans multiple months → show all month grids
   const primary = highlights[0]
   const primaryStart = primary ? parseLocal(primary.start) : null
   const primaryEnd = primary?.end ? parseLocal(primary.end) : primaryStart
-  const spansTwoMonths = primaryStart && primaryEnd &&
+  const spansMultipleMonths = primaryStart && primaryEnd &&
     (primaryStart.getFullYear() !== primaryEnd.getFullYear() ||
      primaryStart.getMonth() !== primaryEnd.getMonth())
 
-  const secondYear = primaryEnd ? primaryEnd.getFullYear() : viewYear
-  const secondMonth = primaryEnd ? primaryEnd.getMonth() : viewMonth
+  // Build list of every month from start to end
+  const allMonthsInRange: Array<{ year: number; month: number }> = []
+  if (spansMultipleMonths && primaryStart && primaryEnd) {
+    let y = primaryStart.getFullYear(), m = primaryStart.getMonth()
+    const endY = primaryEnd.getFullYear(), endM = primaryEnd.getMonth()
+    while (y < endY || (y === endY && m <= endM)) {
+      allMonthsInRange.push({ year: y, month: m })
+      m++; if (m > 11) { m = 0; y++ }
+    }
+  }
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
@@ -124,7 +132,7 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
       const popW = 288
-      const popH = spansTwoMonths ? 820 : 520
+      const popH = spansMultipleMonths ? Math.min(allMonthsInRange.length * 240 + 150, window.innerHeight * 0.85) : 520
       const left = Math.min(r.right - popW, window.innerWidth - popW - 8)
       const spaceBelow = window.innerHeight - r.bottom
       const top = spaceBelow < popH ? Math.max(8, r.top - popH - 6) : r.bottom + 6
@@ -148,12 +156,15 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
           <div className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72"
             style={{ top: pos.top, left: pos.left }}>
 
-            {spansTwoMonths ? (
-              /* Two-month view for ranges that cross months */
-              <div className="flex flex-col gap-4">
-                <MonthGrid year={primaryStart!.getFullYear()} month={primaryStart!.getMonth()} highlights={highlights} />
-                <div className="border-t border-border" />
-                <MonthGrid year={secondYear} month={secondMonth} highlights={highlights} />
+            {spansMultipleMonths ? (
+              /* All months in range, scrollable */
+              <div className="flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: Math.min(allMonthsInRange.length * 240 + 20, window.innerHeight * 0.6) }}>
+                {allMonthsInRange.map(({ year, month }, i) => (
+                  <div key={`${year}-${month}`}>
+                    {i > 0 && <div className="border-t border-border mb-4" />}
+                    <MonthGrid year={year} month={month} highlights={highlights} />
+                  </div>
+                ))}
               </div>
             ) : (
               /* Single month with nav for holidays / same-month ranges */

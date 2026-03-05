@@ -43,7 +43,7 @@ export default function StudentCourseNav({ courseId, courseName }: Props) {
   }
 
   return (
-    <nav className="flex flex-col">
+    <nav aria-label="Course navigation" className="flex flex-col">
       <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-1 px-3 truncate" title={courseName}>
         {courseName}
       </p>

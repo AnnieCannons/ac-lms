@@ -11,7 +11,7 @@ const ITEMS = [
 export default function InstructorGlobalNav() {
   const pathname = usePathname()
   return (
-    <nav className="flex flex-col">
+    <nav aria-label="Global navigation" className="flex flex-col">
       <p className="text-xs font-bold text-muted-text uppercase tracking-widest mb-4 px-3">
         Global Templates
       </p>

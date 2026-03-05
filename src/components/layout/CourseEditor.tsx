@@ -27,6 +27,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
+import AddResourceButton from "@/components/ui/AddResourceButton";
 
 
 type Assignment = {
@@ -1177,6 +1179,22 @@ function SortableDay({
         </button>
 
         <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenAdd(day.id); }}
+          className="text-xs font-semibold text-purple-primary hover:opacity-70 shrink-0 px-1"
+          title="Add assignment to this day"
+        >
+          +A
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          className="text-xs font-semibold text-teal-primary hover:opacity-70 shrink-0 px-1"
+          title="Add resource to this day"
+        >
+          +R
+        </button>
+        <button
           onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
           className="text-muted-text hover:text-red-400 text-xs"
           aria-label={`Delete day ${day.day_name}`}
@@ -1301,6 +1319,9 @@ const CATEGORY_OPTIONS = [
 
 function SortableModule({
   module,
+  courseId,
+  expanded,
+  onToggleExpand,
   onDelete,
   onAddDay,
   onDeleteDay,
@@ -1315,6 +1336,9 @@ function SortableModule({
   isDraggingOverlay = false,
 }: {
   module: Module;
+  courseId: string;
+  expanded: boolean;
+  onToggleExpand: () => void;
   onDelete: (id: string) => void;
   onAddDay: (moduleId: string, dayName: string) => void;
   onDeleteDay: (dayId: string, moduleId: string) => void;
@@ -1335,7 +1359,6 @@ function SortableModule({
     });
 
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const [expanded, setExpanded] = useState(true);
   const [newDayName, setNewDayName] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(module.title);
@@ -1403,7 +1426,7 @@ function SortableModule({
           {module.published ? "●" : "○"}
         </button>
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={onToggleExpand}
           className="text-muted-text hover:text-teal-primary text-sm px-3"
           aria-label={expanded ? "Collapse module" : "Expand module"}
           type="button"
@@ -1444,6 +1467,17 @@ function SortableModule({
                 />
               ))}
           </SortableContext>
+
+          <div className="flex gap-3 mt-1">
+            <AddAssignmentButton courseId={courseId} variant="link"
+              defaultModuleId={module.id}
+              defaultSection={module.category === 'career' ? 'career' : 'coding'}
+            />
+            <AddResourceButton courseId={courseId} variant="link"
+              defaultModuleId={module.id}
+              defaultSection={module.category === 'career' ? 'career' : 'coding'}
+            />
+          </div>
 
           <div className="flex gap-2 mt-2">
             <input
@@ -1494,6 +1528,18 @@ export default function CourseEditor({
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleWeek, setNewModuleWeek] = useState("");
   const [isMounted, setIsMounted] = useState(false);
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+
+  const isModuleExpanded = (id: string) => !collapsedModules.has(id);
+  const toggleModuleExpand = (id: string) => {
+    setCollapsedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const expandAllModules = () => setCollapsedModules(new Set());
+  const collapseAllModules = (ids: string[]) => setCollapsedModules(new Set(ids));
   const supabase = createClient();
 
   const usesCodePenRubric = [course.name, course.code].some(
@@ -1711,6 +1757,7 @@ export default function CourseEditor({
         title: newModuleTitle.trim(),
         week_number: parseInt(newModuleWeek) || modules.length + 1,
         order: modules.length,
+        category: filterCategory ?? null,
       })
       .select()
       .single();
@@ -1976,6 +2023,25 @@ export default function CourseEditor({
           onDragEnd={handleDragEnd}
         >
           <div className="flex flex-col gap-4">
+            {visibleModules.length > 0 && (
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={expandAllModules}
+                  className="text-xs text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Expand all
+                </button>
+                <span className="text-xs text-border">·</span>
+                <button
+                  type="button"
+                  onClick={() => collapseAllModules(visibleModules.map(m => m.id))}
+                  className="text-xs text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Collapse all
+                </button>
+              </div>
+            )}
             <SortableContext
               items={visibleModules.map((m) => `module-${m.id}`)}
               strategy={verticalListSortingStrategy}
@@ -1984,6 +2050,9 @@ export default function CourseEditor({
                 <SortableModule
                   key={module.id}
                   module={module}
+                  courseId={course.id}
+                  expanded={isModuleExpanded(module.id)}
+                  onToggleExpand={() => toggleModuleExpand(module.id)}
                   onDelete={deleteModule}
                   onAddDay={addDay}
                   onDeleteDay={deleteDay}

@@ -297,6 +297,8 @@ export default function CourseOutlineAccordion({
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
   const toggleModule = (id: string) =>
     setCollapsedModules(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  const expandAll = () => setCollapsedModules(new Set())
+  const collapseAll = () => setCollapsedModules(new Set(modules.map(m => m.id)))
 
   const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
@@ -323,6 +325,13 @@ export default function CourseOutlineAccordion({
 
   return (
     <>
+      {modules.length > 1 && (
+        <div className="flex justify-end gap-2 mb-2">
+          <button type="button" onClick={expandAll} className="text-xs text-muted-text hover:text-dark-text transition-colors">Expand all</button>
+          <span className="text-xs text-border">·</span>
+          <button type="button" onClick={collapseAll} className="text-xs text-muted-text hover:text-dark-text transition-colors">Collapse all</button>
+        </div>
+      )}
       <div className="flex flex-col gap-6">
         {modules.map(module => {
           const isCurrentWeek = currentWeek !== null && module.week_number === currentWeek

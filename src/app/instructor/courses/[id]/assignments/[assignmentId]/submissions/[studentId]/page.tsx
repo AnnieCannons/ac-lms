@@ -8,7 +8,7 @@ import InstructorChecklist from '@/components/ui/InstructorChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
-import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -152,7 +152,7 @@ export default async function GradingPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
+      <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
@@ -168,11 +168,9 @@ export default async function GradingPage({
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course?.name ?? ''} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
 
-        <main className="flex-1 min-w-0 px-10 py-12 max-w-4xl">
+        <main id="main-content" className="flex-1 min-w-0 px-10 py-12 max-w-4xl">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-4 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>

@@ -83,6 +83,29 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setNewItemDesc('')
   }
 
+  const handleItemTextPaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text')
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    if (lines.length <= 1) return // single line — let default paste handle it
+    e.preventDefault()
+    const nextOrder = checklist.length > 0 ? Math.max(...checklist.map(i => i.order)) + 1 : 0
+    const { data, error } = await supabase
+      .from('checklist_items')
+      .insert(lines.map((line, i) => ({
+        assignment_id: assignment.id, text: line, description: null, order: nextOrder + i,
+      })))
+      .select('id, text, description, order')
+    if (error) { alert(error.message); return }
+    if (data) setChecklist(prev => [...prev, ...data])
+  }
+
+  const deleteAssignment = async () => {
+    if (!window.confirm('Delete this assignment? This cannot be undone.')) return
+    const { error } = await supabase.from('assignments').delete().eq('id', assignment.id)
+    if (error) { alert(error.message); return }
+    router.push(`/instructor/courses/${courseId}/assignments`)
+  }
+
   const deleteChecklistItem = async (id: string) => {
     if (!window.confirm('Delete this checklist item?')) return
     const { error } = await supabase.from('checklist_items').delete().eq('id', id)
@@ -196,11 +219,15 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         </div>
         {/* Add new item */}
         <div className="bg-surface rounded-xl border border-dashed border-border p-4 flex flex-col gap-2">
-          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Add Item</p>
+          <div className="flex items-baseline justify-between">
+            <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Add Item</p>
+            <p className="text-xs text-muted-text">Tip: paste multiple lines to add items in bulk</p>
+          </div>
           <input
             value={newItemText}
             onChange={e => setNewItemText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addChecklistItem()}
+            onPaste={handleItemTextPaste}
             placeholder="Item text…"
             className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
           />
@@ -232,6 +259,9 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
         {saved && <span className="text-sm text-teal-primary font-medium">Saved ✓</span>}
+        <button type="button" onClick={deleteAssignment} className="ml-auto text-sm text-red-400 hover:text-red-600 transition-colors">
+          Delete assignment
+        </button>
         <Link
           href={`/instructor/courses/${courseId}/assignments/${assignment.id}/submissions`}
           className="text-sm text-muted-text hover:text-dark-text"

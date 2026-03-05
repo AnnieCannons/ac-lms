@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import InstructorCourseNav from "@/components/ui/InstructorCourseNav";
+import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import AssignmentEditor from "@/components/ui/AssignmentEditor";
 
 export default async function InstructorAssignmentEditPage({
@@ -48,19 +48,17 @@ export default async function InstructorAssignmentEditPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
+      <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
-          <main className="max-w-3xl mx-auto px-8 py-10">
+          <main id="main-content" className="max-w-3xl mx-auto px-8 py-10">
             <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
               <Link href={`/instructor/courses/${id}/assignments`} className="hover:text-teal-primary">
                 Assignments

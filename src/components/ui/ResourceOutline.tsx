@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
+import AddAssignmentButton from './AddAssignmentButton'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -41,6 +42,7 @@ interface Module {
   title: string
   week_number: number | null
   order: number
+  category?: string | null
   module_days: Day[]
 }
 
@@ -362,7 +364,6 @@ export default function ResourceOutline({
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
-  const [addingDayId, setAddingDayId] = useState<string | null>(null)
   const moduleKey = `outline-modules-${courseId}-${mode}`
   const dayKey = `outline-days-${courseId}-${mode}`
 
@@ -431,6 +432,9 @@ export default function ResourceOutline({
     setCollapsedDays(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
 
   const sorted = [...modules].sort((a, b) => {
+    const aCareer = a.category === 'career'
+    const bCareer = b.category === 'career'
+    if (aCareer !== bCareer) return aCareer ? 1 : -1
     if (a.week_number !== null && b.week_number !== null) return a.week_number - b.week_number
     return a.order - b.order
   })
@@ -473,20 +477,6 @@ export default function ResourceOutline({
     setEditedResources(prev => new Map(prev).set(updated.id, updated))
   }
 
-  const handleAddAssignment = async (dayId: string) => {
-    setAddingDayId(dayId)
-    const existingCount = modules
-      .flatMap(m => m.module_days)
-      .find(d => d.id === dayId)?.assignments?.length ?? 0
-    const { data, error } = await supabase
-      .from('assignments')
-      .insert({ module_day_id: dayId, title: 'New Assignment', published: false, order: existingCount })
-      .select('id')
-      .single()
-    setAddingDayId(null)
-    if (error || !data) { alert(error?.message ?? 'Failed to create assignment'); return }
-    router.push(`/instructor/courses/${courseId}/assignments/${data.id}`)
-  }
 
   const studentActions = !editable && !instructorView
 
@@ -573,16 +563,24 @@ export default function ResourceOutline({
 
           return (
             <div key={module.id}>
-              <button
-                type="button"
-                onClick={() => toggleModule(module.id)}
-                className="w-full flex items-center justify-between mb-3 pb-2 border-b border-border group text-left"
-              >
-                <h2 className="text-base font-bold text-dark-text">
-                  {module.title}
-                </h2>
-                <span className={`text-xs text-muted-text transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
-              </button>
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+                <button
+                  type="button"
+                  onClick={() => toggleModule(module.id)}
+                  className="flex items-center gap-2 text-left"
+                >
+                  <h2 className="text-base font-bold text-dark-text">{module.title}</h2>
+                  <span className={`text-xs text-muted-text transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
+                </button>
+                {instructorView && mode === 'assignments' && (
+                  <AddAssignmentButton
+                    courseId={courseId}
+                    variant="link"
+                    defaultModuleId={module.id}
+                    defaultSection={module.category === 'career' ? 'career' : 'coding'}
+                  />
+                )}
+              </div>
 
               {!moduleCollapsed && (
                 <div className="flex flex-col gap-4">
@@ -675,7 +673,7 @@ export default function ResourceOutline({
                                     </Link>
                                     <Link
                                       href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
-                                      className="text-xs font-semibold px-3 py-1.5 rounded-full bg-teal-primary text-white hover:opacity-90 transition-opacity"
+                                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-primary text-purple-primary hover:bg-purple-light transition-colors"
                                       prefetch={true}
                                     >
                                       Submissions →
@@ -692,16 +690,6 @@ export default function ResourceOutline({
                                 )}
                               </div>
                             ))}
-                            {instructorView && (
-                              <button
-                                type="button"
-                                onClick={() => handleAddAssignment(day.id)}
-                                disabled={addingDayId === day.id}
-                                className="mt-2 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50"
-                              >
-                                {addingDayId === day.id ? 'Creating…' : '+ Add Assignment'}
-                              </button>
-                            )}
                           </div>
                         )}
                       </div>

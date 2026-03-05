@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import InstructorCourseNav from "@/components/ui/InstructorCourseNav";
+import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import ResourceOutline from "@/components/ui/ResourceOutline";
 import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
 
@@ -35,27 +35,32 @@ export default async function InstructorAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from("modules")
-    .select("id, title, week_number, order, module_days(id, day_name, order, assignments(id, title, due_date, published))")
+    .select("id, title, week_number, order, category, module_days(id, day_name, order, assignments(id, title, due_date, published))")
     .eq("course_id", id)
     .order("order", { ascending: true });
 
-  const modules = (rawModules ?? []).filter((m: { title?: string | null }) => !m.title?.includes('DO NOT PUBLISH'));
+  const modules = (rawModules ?? [])
+    .filter((m: { title?: string | null }) => !m.title?.includes('DO NOT PUBLISH'))
+    .sort((a: { order: number; category?: string | null }, b: { order: number; category?: string | null }) => {
+      const aCareer = a.category === 'career'
+      const bCareer = b.category === 'career'
+      if (aCareer !== bCareer) return aCareer ? 1 : -1
+      return a.order - b.order
+    });
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
+      <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
-          <main className="max-w-3xl mx-auto px-8 py-10">
+          <main id="main-content" className="max-w-3xl mx-auto px-8 py-10">
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>

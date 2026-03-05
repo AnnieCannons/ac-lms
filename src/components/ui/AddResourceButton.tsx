@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Modal from './Modal'
 
-const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
-
+type ResourceType = 'video' | 'reading' | 'link' | 'file'
 type Day = { id: string; day_name: string; order: number }
 type Module = { id: string; title: string; order: number; week_number: number | null; category: string | null; module_days: Day[] }
 
@@ -17,7 +16,14 @@ interface Props {
   defaultSection?: 'coding' | 'career'
 }
 
-export default function AddAssignmentButton({ courseId, className, variant = 'default', defaultModuleId, defaultSection: defaultSectionProp }: Props) {
+const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
+  { value: 'link', label: 'Link' },
+  { value: 'video', label: 'Video' },
+  { value: 'reading', label: 'Reading' },
+  { value: 'file', label: 'File' },
+]
+
+export default function AddResourceButton({ courseId, className, variant = 'default', defaultModuleId, defaultSection: defaultSectionProp }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -25,7 +31,11 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
   const [section, setSection] = useState<'coding' | 'career'>('coding')
   const [moduleId, setModuleId] = useState('')
   const [dayId, setDayId] = useState('')
+  const [type, setType] = useState<ResourceType>('link')
+  const [title, setTitle] = useState('')
+  const [url, setUrl] = useState('')
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showNewModule, setShowNewModule] = useState(false)
   const [newModuleTitle, setNewModuleTitle] = useState('')
   const [moduleError, setModuleError] = useState<string | null>(null)
@@ -39,7 +49,7 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
     : modules.filter(m => m.category !== 'career')
 
   const days = sectionModules.find(m => m.id === moduleId)?.module_days
-    .filter(d => !SKIP_DAYS.has(d.day_name))
+    .slice()
     .sort((a, b) => a.order - b.order) ?? []
 
   const handleOpen = async () => {
@@ -55,6 +65,10 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
     setSection(resolvedSection)
     setModuleId(defaultModuleId && mods.some(m => m.id === defaultModuleId) ? defaultModuleId : (firstMods[0]?.id ?? ''))
     setDayId('')
+    setType('link')
+    setTitle('')
+    setUrl('')
+    setError(null)
     setShowNewModule(false)
     setNewModuleTitle('')
     setModuleError(null)
@@ -79,7 +93,8 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
   }
 
   const handleCreate = async () => {
-    if (!moduleId) return
+    if (!title.trim()) { setError('Please enter a title.'); return }
+    setError(null)
     setCreating(true)
 
     // Resolve day: use selected or auto-create a General day
@@ -91,19 +106,22 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
         .insert({ module_id: moduleId, day_name: 'General', order: allDays.length })
         .select('id')
         .single()
-      if (dayErr || !newDay) { alert(dayErr?.message ?? 'Failed to create day'); setCreating(false); return }
+      if (dayErr || !newDay) { setError(dayErr?.message ?? 'Failed to create day'); setCreating(false); return }
       targetDayId = newDay.id
     }
 
-    const { data, error } = await supabase
-      .from('assignments')
-      .insert({ module_day_id: targetDayId, title: 'New Assignment', published: false, order: 0 })
+    const { data: existing } = await supabase
+      .from('resources')
       .select('id')
-      .single()
+      .eq('module_day_id', targetDayId)
+    const order = (existing ?? []).length
+    const { error: err } = await supabase
+      .from('resources')
+      .insert({ module_day_id: targetDayId, type, title: title.trim(), content: url.trim() || null, order })
     setCreating(false)
-    if (error || !data) { alert(error?.message ?? 'Failed to create'); return }
+    if (err) { setError(err.message); return }
     setOpen(false)
-    router.push(`/instructor/courses/${courseId}/assignments/${data.id}`)
+    router.refresh()
   }
 
   return (
@@ -113,14 +131,14 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
         onClick={handleOpen}
         className={variant === 'link'
           ? `text-xs text-muted-text hover:text-teal-primary transition-colors text-left ${className ?? ''}`
-          : `text-xs font-semibold bg-purple-light text-purple-primary border border-purple-primary rounded-full px-3 py-1.5 hover:opacity-80 transition-opacity ${className ?? ''}`
+          : `text-xs font-semibold bg-teal-light text-teal-primary border border-teal-primary rounded-full px-3 py-1.5 hover:opacity-80 transition-opacity ${className ?? ''}`
         }
       >
-        + Add assignment
+        + Add resource
       </button>
 
       {open && (
-        <Modal title="New Assignment" onClose={() => setOpen(false)}>
+        <Modal title="New Resource" onClose={() => setOpen(false)}>
           <div className="flex flex-col gap-3">
             {showSectionFilter && (
               <div>
@@ -136,7 +154,7 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
                     setShowNewModule(false)
                     setNewModuleTitle('')
                   }}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
                   <option value="coding">Coding Class</option>
                   <option value="career">Career Development</option>
@@ -148,7 +166,7 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
               <select
                 value={moduleId}
                 onChange={e => { setModuleId(e.target.value); setDayId('') }}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
               >
                 {sectionModules.map(m => (
                   <option key={m.id} value={m.id}>{m.title}</option>
@@ -190,7 +208,7 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
                 <select
                   value={dayId}
                   onChange={e => setDayId(e.target.value)}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
                   <option value="">— Add to General —</option>
                   {days.map(d => (
@@ -199,16 +217,53 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
                 </select>
               </div>
             )}
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Type</label>
+              <select
+                value={type}
+                onChange={e => setType(e.target.value as ResourceType)}
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              >
+                {RESOURCE_TYPES.map(rt => (
+                  <option key={rt.value} value={rt.value}>{rt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Resource title"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">URL</label>
+              <input
+                type="url"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+            </div>
           </div>
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-1">
             <button onClick={() => setOpen(false)} className="text-sm text-muted-text hover:text-dark-text">Cancel</button>
             <button
               onClick={handleCreate}
-              disabled={!moduleId || creating}
-              className="text-sm font-semibold bg-purple-primary text-white px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
+              disabled={!moduleId || !title.trim() || creating}
+              className="text-sm font-semibold bg-teal-primary text-white px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {creating ? 'Creating…' : 'Create & Edit →'}
+              {creating ? 'Creating…' : 'Create →'}
             </button>
           </div>
         </Modal>
