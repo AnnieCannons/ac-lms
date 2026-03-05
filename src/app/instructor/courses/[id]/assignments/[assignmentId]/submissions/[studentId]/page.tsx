@@ -1,7 +1,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import HtmlContent from '@/components/ui/HtmlContent'
 import GradeButtons from '@/components/ui/GradeButtons'
 import InstructorChecklist from '@/components/ui/InstructorChecklist'
@@ -152,20 +152,7 @@ export default async function GradingPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/instructor/courses" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← All Courses
-          </Link>
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />

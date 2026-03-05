@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
@@ -56,17 +56,7 @@ export default async function StudentLevelUpPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <StudentTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
         <ResizableSidebar>

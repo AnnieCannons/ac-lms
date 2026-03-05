@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import ResourceOutline from "@/components/ui/ResourceOutline";
 import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
@@ -17,7 +18,7 @@ export default async function InstructorAssignmentsPage({
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role")
+    .select("name, role")
     .eq("id", user.id)
     .single();
 
@@ -50,11 +51,7 @@ export default async function InstructorAssignmentsPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />

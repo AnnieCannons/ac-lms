@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import GlobalContentEditor from '@/components/ui/GlobalContentEditor'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import InstructorGlobalNav from '@/components/ui/InstructorGlobalNav'
@@ -15,7 +15,7 @@ export default async function ComputerWifiPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
   if (profile?.role !== 'instructor' && profile?.role !== 'admin') redirect('/unauthorized')
 
   const { from } = await searchParams
@@ -25,14 +25,7 @@ export default async function ComputerWifiPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <Link href="/instructor/courses" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-          ← All Courses
-        </Link>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
         {course
