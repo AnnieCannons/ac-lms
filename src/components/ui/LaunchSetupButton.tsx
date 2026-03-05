@@ -56,13 +56,13 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [values, setValues] = useState<Values>({})
+  const [lastValues, setLastValues] = useState<Values>({})
   const [sectionId, setSectionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [addingTask, setAddingTask] = useState(false)
-  const [copying, setCopying] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -94,28 +94,21 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
         try { setValues(JSON.parse(section.content ?? '{}').values ?? {}) } catch { /* ignore */ }
       }
 
+      // Load previous course's values for per-field "Same as last time"
+      const { data: otherSections } = await supabase
+        .from('course_sections')
+        .select('content')
+        .eq('type', 'launch_setup')
+        .neq('course_id', courseId)
+      if (otherSections && otherSections.length > 0) {
+        const last = otherSections[otherSections.length - 1]
+        try { setLastValues(JSON.parse(last.content ?? '{}').values ?? {}) } catch { /* ignore */ }
+      }
+
       setLoading(false)
     }
     load()
   }, [courseId])
-
-  const copyFromLastTime = async () => {
-    setCopying(true)
-    const { data: sections } = await supabase
-      .from('course_sections')
-      .select('course_id, content')
-      .eq('type', 'launch_setup')
-      .neq('course_id', courseId)
-
-    if (sections && sections.length > 0) {
-      const last = sections[sections.length - 1]
-      try {
-        const parsed = JSON.parse(last.content ?? '{}')
-        setValues(parsed.values ?? {})
-      } catch { /* ignore */ }
-    }
-    setCopying(false)
-  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -204,16 +197,7 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
               <h2 className="text-base font-bold text-dark-text">Launch Setup</h2>
               <p className="text-xs text-muted-text mt-0.5">Fill in course-specific details for this cohort</p>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={copyFromLastTime}
-                disabled={copying || loading}
-                className="text-xs text-muted-text hover:text-teal-primary transition-colors disabled:opacity-50"
-              >
-                {copying ? 'Copying…' : '↩ Same as last time'}
-              </button>
-              <button onClick={onClose} aria-label="Close" className="text-muted-text hover:text-dark-text text-xl leading-none">✕</button>
-            </div>
+            <button onClick={onClose} aria-label="Close" className="text-muted-text hover:text-dark-text text-xl leading-none">✕</button>
           </div>
 
           {/* Body */}
@@ -228,13 +212,24 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
                       <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
                         {task.label}
                       </label>
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="text-border hover:text-red-400 transition-colors text-xs opacity-0 group-hover:opacity-100"
-                        title="Remove this item"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {lastValues[task.id] && (
+                          <button
+                            onClick={() => setValues(prev => ({ ...prev, [task.id]: lastValues[task.id] }))}
+                            className="text-xs text-muted-text hover:text-teal-primary transition-colors"
+                            title={`Fill with: ${lastValues[task.id]}`}
+                          >
+                            ↩ Same as last time
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteTask(task.id)}
+                          className="text-border hover:text-red-400 transition-colors text-xs"
+                          title="Remove this item"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                     <input
                       type="text"
