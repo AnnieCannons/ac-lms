@@ -7,6 +7,7 @@ import GradeButtons from '@/components/ui/GradeButtons'
 import InstructorChecklist from '@/components/ui/InstructorChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
+import AnswerKeyField from '@/components/ui/AnswerKeyField'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -50,7 +51,7 @@ export default async function GradingPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date')
+    .select('id, title, description, how_to_turn_in, due_date, answer_key_url')
     .eq('id', assignmentId)
     .single()
 
@@ -67,6 +68,25 @@ export default async function GradingPage({
     .select('id, name')
     .eq('id', studentId)
     .single()
+
+  // Fetch all enrolled students to build prev/next navigation
+  const { data: enrollments } = await admin
+    .from('course_enrollments')
+    .select('user_id, users(id, name)')
+    .eq('course_id', id)
+    .eq('role', 'student')
+
+  const allStudents = (enrollments ?? [])
+    .map(e => { const u = Array.isArray(e.users) ? e.users[0] : e.users; return { id: e.user_id, name: (u as { name: string } | null)?.name ?? 'Unknown' } })
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const currentIndex = allStudents.findIndex(s => s.id === studentId)
+  const prevStudent = currentIndex > 0 ? allStudents[currentIndex - 1] : null
+  const nextStudent = currentIndex < allStudents.length - 1 ? allStudents[currentIndex + 1] : null
+  const studentPosition = currentIndex + 1
+  const studentTotal = allStudents.length
+
+  const subBase = `/instructor/courses/${id}/assignments/${assignmentId}/submissions`
 
   const { data: submission } = await admin
     .from('submissions')
@@ -148,22 +168,49 @@ export default async function GradingPage({
 
       <main className="max-w-3xl mx-auto px-8 py-12">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-muted-text mb-4 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
           <span className="text-border">/</span>
           <Link href={`/instructor/courses/${id}`} className="hover:text-teal-primary">{course?.name}</Link>
           <span className="text-border">/</span>
-          <Link href={`/instructor/courses/${id}/assignments/${assignmentId}/submissions`} className="hover:text-teal-primary truncate max-w-[200px]">
-            {assignment.title}
-          </Link>
+          <Link href={subBase} className="hover:text-teal-primary truncate max-w-[200px]">{assignment.title}</Link>
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium">{student?.name ?? 'Student'}</span>
+        </div>
+
+        {/* Grader nav strip */}
+        <div className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-3 mb-6 gap-4">
+          <div className="w-1/3">
+            {prevStudent ? (
+              <Link href={`${subBase}/${prevStudent.id}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate">
+                <span className="shrink-0">←</span>
+                <span className="truncate">{prevStudent.name}</span>
+              </Link>
+            ) : (
+              <span className="text-sm text-border">← First</span>
+            )}
+          </div>
+          <div className="text-center shrink-0">
+            <p className="text-xs font-semibold text-dark-text">{studentPosition} / {studentTotal}</p>
+            <Link href={subBase} className="text-xs text-teal-primary hover:underline">Back to list</Link>
+          </div>
+          <div className="w-1/3 text-right">
+            {nextStudent ? (
+              <Link href={`${subBase}/${nextStudent.id}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate">
+                <span className="truncate">{nextStudent.name}</span>
+                <span className="shrink-0">→</span>
+              </Link>
+            ) : (
+              <span className="text-sm text-border">Last →</span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-dark-text">{student?.name ?? 'Student'}</h1>
             <p className="text-base font-semibold text-dark-text mt-1 truncate max-w-md">{assignment.title}</p>
+            <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
           </div>
           {submission && (
             <GradeButtons
@@ -277,6 +324,29 @@ export default async function GradingPage({
               </div>
             </details>
           )}
+        </div>
+
+        {/* Bottom nav */}
+        <div className="flex items-center justify-between mt-10 pt-6 border-t border-border gap-4">
+          <div className="w-1/3">
+            {prevStudent ? (
+              <Link href={`${subBase}/${prevStudent.id}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
+                <span className="shrink-0">←</span>
+                <span className="truncate">{prevStudent.name}</span>
+              </Link>
+            ) : null}
+          </div>
+          <Link href={subBase} className="text-sm text-muted-text hover:text-teal-primary transition-colors shrink-0">
+            All submissions
+          </Link>
+          <div className="w-1/3 flex justify-end">
+            {nextStudent ? (
+              <Link href={`${subBase}/${nextStudent.id}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
+                <span className="truncate">{nextStudent.name}</span>
+                <span className="shrink-0">→</span>
+              </Link>
+            ) : null}
+          </div>
         </div>
       </main>
     </div>

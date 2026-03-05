@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsList'
+import AnswerKeyField from '@/components/ui/AnswerKeyField'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -28,7 +29,7 @@ export default async function InstructorSubmissionsPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, due_date')
+    .select('id, title, due_date, answer_key_url')
     .eq('id', assignmentId)
     .single()
 
@@ -115,12 +116,13 @@ export default async function InstructorSubmissionsPage({
 
         <h1 className="text-2xl font-bold text-dark-text mb-1">{assignment.title}</h1>
         {assignment.due_date && (
-          <p className="text-xs text-muted-text mb-4">
+          <p className="text-xs text-muted-text mt-1">
             Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
             })}
           </p>
         )}
+        <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
 
         {/* Stats */}
         <div className="flex items-center gap-6 mb-8 flex-wrap">

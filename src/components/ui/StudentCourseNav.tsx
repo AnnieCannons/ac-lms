@@ -19,9 +19,7 @@ const COURSE_ITEMS = [
   { label: 'Career Development', slug: 'career' },
 ]
 
-const BOTTOM_ITEMS = [
-  { label: 'My Work', slug: 'work' },
-]
+const BOTTOM_ITEMS: { label: string; slug: string }[] = []
 
 export default function StudentCourseNav({ courseId, courseName }: Props) {
   const pathname = usePathname()
@@ -53,7 +51,6 @@ export default function StudentCourseNav({ courseId, courseName }: Props) {
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">My Work</p>
         {BOTTOM_ITEMS.map(({ label, slug }) => navLink(label, slug))}
       </div>
     </nav>

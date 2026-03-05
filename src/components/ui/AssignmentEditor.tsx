@@ -21,6 +21,7 @@ interface Props {
     how_to_turn_in: string | null
     due_date: string | null
     published: boolean
+    answer_key_url: string | null
   }
   initialChecklist: ChecklistItem[]
 }
@@ -36,6 +37,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     assignment.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : ''
   )
   const [published, setPublished] = useState(assignment.published)
+  const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
   const [newItemText, setNewItemText] = useState('')
   const [newItemDesc, setNewItemDesc] = useState('')
@@ -52,6 +54,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         how_to_turn_in: howToTurnIn || null,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         published,
+        answer_key_url: answerKeyUrl.trim() || null,
       })
       .eq('id', assignment.id)
     setSaving(false)
@@ -127,6 +130,18 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           value={dueDate}
           onChange={e => setDueDate(e.target.value)}
           className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
+        />
+      </div>
+
+      {/* Answer Key URL */}
+      <div>
+        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Answer Key URL</label>
+        <input
+          type="url"
+          value={answerKeyUrl}
+          onChange={e => setAnswerKeyUrl(e.target.value)}
+          placeholder="https://…"
+          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
         />
       </div>
 
