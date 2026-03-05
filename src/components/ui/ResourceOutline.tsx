@@ -67,9 +67,9 @@ const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 
 function AssignmentStatusBadge({ info }: { info: SubmissionInfo | undefined }) {
   if (!info) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
-  if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete ✓</span>
-  if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Needs Revision</span>
-  if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned In</span>
+  if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
+  if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
+  if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
 }
 
@@ -336,9 +336,9 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
 const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string }> = {
   'all':            { inactive: 'bg-background border border-border text-dark-text hover:bg-border/20', active: 'bg-dark-text text-white border border-dark-text' },
   'not-started':    { inactive: 'bg-background border border-border text-muted-text hover:bg-border/30', active: 'bg-muted-text text-white border border-muted-text' },
-  'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary/20 hover:border-teal-primary/40', active: 'bg-teal-primary text-white border border-teal-primary' },
-  'needs-revision': { inactive: 'bg-red-50 text-red-500 border border-red-200 hover:border-red-300', active: 'bg-red-500 text-white border border-red-500' },
-  'complete':       { inactive: 'bg-teal-light text-teal-primary border border-teal-primary/20 hover:border-teal-primary/40', active: 'bg-teal-primary text-white border border-teal-primary' },
+  'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
+  'needs-revision': { inactive: 'bg-red-50 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
+  'complete':       { inactive: 'bg-green-50 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
 }
 
 function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>): boolean {

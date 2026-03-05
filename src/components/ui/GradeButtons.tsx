@@ -46,8 +46,8 @@ export default function GradeButtons({
           disabled={saving}
           className={`text-sm font-semibold px-4 py-2 rounded-full transition-all disabled:opacity-50 ${
             grade === "complete"
-              ? "bg-teal-primary text-white"
-              : "bg-surface border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+              ? "bg-green-600 text-white"
+              : "bg-surface border border-border text-muted-text hover:border-green-600 hover:text-green-700"
           }`}
         >
           Complete

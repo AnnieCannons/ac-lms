@@ -235,9 +235,9 @@ export default async function GradingPage({
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
               {submission && (
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  currentGrade === 'complete' ? 'bg-teal-light text-teal-primary' :
-                  currentGrade === 'incomplete' ? 'bg-red-50 text-red-500' :
-                  submission.status === 'submitted' ? 'bg-teal-light text-teal-primary' :
+                  currentGrade === 'complete' ? 'bg-green-50 text-green-700 border border-green-600' :
+                  currentGrade === 'incomplete' ? 'bg-red-50 text-red-500 border border-red-500' :
+                  submission.status === 'submitted' ? 'bg-teal-light text-teal-primary border border-teal-primary' :
                   'bg-yellow-50 text-yellow-600'
                 }`}>
                   {currentGrade === 'complete' ? 'Complete' :

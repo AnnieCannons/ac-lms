@@ -26,13 +26,13 @@ type Sort = "name-asc" | "name-desc" | "date-newest" | "date-oldest";
 
 function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade?: "complete" | "incomplete" | null }) {
   if (grade === "complete") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete</span>
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete</span>
   );
   if (grade === "incomplete") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Incomplete</span>
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Incomplete</span>
   );
   if (status === "submitted") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned in</span>
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned in</span>
   );
   if (status === "graded") return (
     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-primary shrink-0">Graded</span>

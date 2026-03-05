@@ -230,7 +230,7 @@ function AssignmentsTab({
                         {stats ? (
                           <>
                             <span>{stats.turnedIn}/{totalStudents} turned in</span>
-                            {stats.complete > 0 && <span className="text-teal-primary">{stats.complete} complete</span>}
+                            {stats.complete > 0 && <span className="text-green-700">{stats.complete} complete</span>}
                             {stats.incomplete > 0 && <span className="text-red-500">{stats.incomplete} incomplete</span>}
                           </>
                         ) : (
@@ -325,7 +325,7 @@ function StudentsTab({
                 {complete.length > 0 && (
                   <button
                     onClick={() => toggle(student.id, 'complete')}
-                    className={`font-medium transition-colors ${isExpanded('complete') ? 'text-teal-700 underline' : 'text-teal-primary hover:underline'}`}
+                    className={`font-medium transition-colors ${isExpanded('complete') ? 'text-green-700 underline' : 'text-green-600 hover:underline'}`}
                   >
                     {complete.length} complete
                   </button>

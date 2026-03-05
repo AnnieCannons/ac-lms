@@ -118,9 +118,9 @@ type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'comple
 
 function AssignmentStatusBadge({ info }: { info: SubmissionInfo | undefined }) {
   if (!info) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
-  if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete ✓</span>
-  if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Needs Revision</span>
-  if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned In</span>
+  if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
+  if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
+  if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
 }
 

@@ -177,9 +177,9 @@ export default function SubmissionForm({
         <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Turn In</p>
         {saved && (
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-            saved.grade === "complete"   ? "bg-teal-light text-teal-primary" :
-            saved.grade === "incomplete" ? "bg-red-50 text-red-500" : // needs revision
-            saved.status === "submitted" ? "bg-teal-light text-teal-primary" :
+            saved.grade === "complete"   ? "bg-green-50 text-green-700 border border-green-600" :
+            saved.grade === "incomplete" ? "bg-red-50 text-red-500 border border-red-500" :
+            saved.status === "submitted" ? "bg-teal-light text-teal-primary border border-teal-primary" :
             saved.status === "graded"    ? "bg-purple-100 text-purple-primary" :
                                            "bg-yellow-50 text-yellow-600"
           }`}>

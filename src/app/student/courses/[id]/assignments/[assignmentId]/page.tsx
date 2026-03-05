@@ -165,12 +165,12 @@ export default async function StudentAssignmentPage({
         <div className="flex items-start justify-between gap-4 mb-1">
           <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
           {existingSubmission?.grade === 'complete' && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-teal-light text-teal-primary">
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-600">
               Complete ✓
             </span>
           )}
           {existingSubmission?.grade === 'incomplete' && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500">
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500 border border-red-500">
               Needs Revision
             </span>
           )}
@@ -220,10 +220,10 @@ export default async function StudentAssignmentPage({
                   <p className="text-xs text-muted-text mt-0.5">This checklist determines your grade.</p>
                 </div>
                 {existingSubmission?.grade === 'complete' && (
-                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-teal-light text-teal-primary">Complete ✓</span>
+                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600">Complete ✓</span>
                 )}
                 {existingSubmission?.grade === 'incomplete' && (
-                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500">Needs Revision</span>
+                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500 border border-red-500">Needs Revision</span>
                 )}
               </div>
               <div className="flex flex-col gap-2">
