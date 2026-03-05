@@ -1405,7 +1405,7 @@ function SortableModule({
               {module.title}
             </h3>
           )}
-          <p className="text-xs text-muted-text">Week {module.week_number}</p>
+          {module.week_number != null && <p className="text-xs text-muted-text">Week {module.week_number}</p>}
         </div>
         <select
           value={module.category ?? ''}
@@ -1755,7 +1755,7 @@ export default function CourseEditor({
       .insert({
         course_id: course.id,
         title: newModuleTitle.trim(),
-        week_number: parseInt(newModuleWeek) || modules.length + 1,
+        week_number: parseInt(newModuleWeek) || null,
         order: modules.length,
         category: filterCategory ?? null,
       })
