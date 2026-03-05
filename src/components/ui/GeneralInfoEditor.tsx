@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type SectionType = 'text' | 'daily_schedule' | 'course_outline' | 'yearly_schedule' | 'computer_wifi' | 'policies_procedures'
+export type SectionType = string
 
 export type CourseSection = {
   id: string
@@ -56,6 +56,12 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_table]:w-full [&_table]:border-collapse [&_table]:mb-3
   [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-text [&_th]:uppercase [&_th]:tracking-wide [&_th]:py-2 [&_th]:px-3 [&_th]:border-b [&_th]:border-border
   [&_td]:py-2 [&_td]:px-3 [&_td]:border-b [&_td]:border-border [&_td]:align-top`
+
+function toSlug(title: string): string {
+  const slug = title.toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  return slug || `section-${Date.now()}`
+}
 
 function parseOutline(content: string | null): OutlineRow[] {
   try { return (JSON.parse(content ?? '').rows as OutlineRow[]) } catch {}
@@ -280,17 +286,27 @@ function DailyScheduleCard({
 
 function GlobalTextCard({
   section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onDelete, onTogglePublish, slug, editHref,
+  onDelete, onTogglePublish, onRemoveGlobal, slug, editHref,
 }: {
   section: CourseSection
   dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
   onDelete: () => Promise<void>
   onTogglePublish: () => void
+  onRemoveGlobal?: () => Promise<void>
   slug: string
   editHref: string
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [removing, setRemoving] = useState(false)
+
+  const handleRemoveGlobal = async () => {
+    if (!onRemoveGlobal) return
+    setRemoving(true)
+    await onRemoveGlobal()
+    // card re-renders as TextSectionCard after type change
+  }
+
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
       <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
@@ -304,6 +320,16 @@ function GlobalTextCard({
             <a href={editHref} className="text-xs text-muted-text hover:text-teal-primary transition-colors">
               ✎ Edit globally
             </a>
+            {onRemoveGlobal && (
+              <button
+                onClick={handleRemoveGlobal}
+                disabled={removing}
+                title="Remove from global templates and make course-specific"
+                className="text-xs text-muted-text hover:text-amber-600 transition-colors disabled:opacity-50"
+              >
+                {removing ? 'Removing…' : '⊖ Remove global'}
+              </button>
+            )}
             {confirmDelete ? (
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-text">Delete?</span>
@@ -340,6 +366,16 @@ function TextSectionCard({
   const [content, setContent] = useState(section.content ?? '')
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [making, setMaking] = useState(false)
+
+  const handleMakeGlobal = async () => {
+    setMaking(true)
+    const slug = toSlug(section.title)
+    await createClient().from('global_content').upsert({ slug, title: section.title, content: section.content ?? '' })
+    await onUpdate({ type: `global:${slug}` })
+    window.dispatchEvent(new CustomEvent('global-content-changed'))
+    // card re-renders as GlobalTextCard after type change
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -392,6 +428,14 @@ function TextSectionCard({
           <PublishToggle published={section.published} onToggle={onTogglePublish} />
           <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
+            <button
+              onClick={handleMakeGlobal}
+              disabled={making}
+              title="Share this section across all courses as a global template"
+              className="text-xs text-muted-text hover:text-teal-primary transition-colors disabled:opacity-50"
+            >
+              {making ? 'Saving…' : '⊕ Make global'}
+            </button>
             {confirmDelete ? (
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-text">Delete?</span>
@@ -414,7 +458,7 @@ function TextSectionCard({
 
 // ── Unified SectionCard (routes to correct sub-component) ─────────────────────
 
-function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate, onDelete, onTogglePublish }: {
+function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate, onDelete, onTogglePublish, onRemoveGlobal }: {
   section: CourseSection
   courseId: string
   collapsed: boolean
@@ -422,6 +466,7 @@ function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate,
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
   onTogglePublish: () => void
+  onRemoveGlobal?: () => Promise<void>
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -448,6 +493,10 @@ function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate,
   if (section.type === 'yearly_schedule') return <YearlyScheduleGlobalCard section={section} {...shared} onDelete={onDelete} />
   if (section.type === 'computer_wifi') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="computer-wifi" editHref={`/instructor/globals/computer-wifi?from=${courseId}`} />
   if (section.type === 'policies_procedures') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="policies" editHref={`/instructor/globals/policies?from=${courseId}`} />
+  if (section.type?.startsWith('global:')) {
+    const slug = section.type.slice(7)
+    return <GlobalTextCard section={section} {...shared} onDelete={onDelete} onRemoveGlobal={onRemoveGlobal} slug={slug} editHref={`/instructor/globals/${slug}?from=${courseId}`} />
+  }
   return <TextSectionCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
 }
 
@@ -517,6 +566,14 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
     setSections(prev => prev.map(s => s.id === id ? { ...s, published: !current } : s))
   }
 
+  const removeGlobal = async (section: CourseSection) => {
+    const slug = section.type.slice(7)
+    const { data: globalRow } = await supabase.from('global_content').select('content').eq('slug', slug).single()
+    await supabase.from('global_content').delete().eq('slug', slug)
+    await updateSection(section.id, { type: 'text', content: globalRow?.content ?? section.content })
+    window.dispatchEvent(new CustomEvent('global-content-changed'))
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {sections.length > 1 && (
@@ -538,6 +595,7 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
               onUpdate={updates => updateSection(section.id, updates)}
               onDelete={() => deleteSection(section.id)}
               onTogglePublish={() => togglePublish(section.id, section.published)}
+              onRemoveGlobal={section.type?.startsWith('global:') ? () => removeGlobal(section) : undefined}
             />
           ))}
         </SortableContext>

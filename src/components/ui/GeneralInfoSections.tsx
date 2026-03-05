@@ -58,6 +58,7 @@ export default function GeneralInfoSections({ sections }: { sections: Section[] 
               {section.type === 'yearly_schedule' && <YearlyScheduleSection />}
               {section.type === 'computer_wifi' && <GlobalContentSection slug="computer-wifi" />}
               {section.type === 'policies_procedures' && <GlobalContentSection slug="policies" />}
+              {section.type?.startsWith('global:') && <GlobalContentSection slug={section.type.slice(7)} />}
               {(section.type === 'text' || !section.type) && (
                 section.content
                   ? <HtmlContent html={section.content} className={HTML_CLASSES} />

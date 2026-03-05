@@ -176,6 +176,8 @@ export async function POST(req: NextRequest) {
     title: s.title,
     content: s.content,
     order: s.order,
+    type: s.type,
+    published: s.published,
   }))
   const { data: newSections, error: sectionsError } = sectionInserts.length
     ? await service.from('course_sections').insert(sectionInserts).select()
