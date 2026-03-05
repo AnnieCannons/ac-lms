@@ -6,13 +6,7 @@ type Task = {
   id: string
   label: string
   order: number
-  global?: boolean   // value is the same for all courses (stored in template)
   linkText?: string  // text of <a> in Everyday Resources to sync on save
-}
-
-type TemplateContent = {
-  tasks: Task[]
-  globalValues: Record<string, string>
 }
 
 type Values = Record<string, string>
@@ -22,10 +16,10 @@ function generateId() {
 }
 
 const DEFAULT_TASKS: Task[] = [
-  { id: 'zoom-link',       label: 'Zoom Link',            order: 0, global: false, linkText: 'Zoom Link' },
-  { id: 'slack-link',      label: 'Slack Link',           order: 1, global: false, linkText: 'Slack Link' },
-  { id: 'zoom-recordings', label: 'Zoom Recordings Link', order: 2, global: false, linkText: 'Zoom Recordings' },
-  { id: 'office-hours',    label: 'Office Hours Link',    order: 3, global: false, linkText: 'Book an Office Hours appointment' },
+  { id: 'zoom-link',       label: 'Zoom Link',            order: 0, linkText: 'Zoom Link' },
+  { id: 'slack-link',      label: 'Slack Link',           order: 1, linkText: 'Slack Link' },
+  { id: 'zoom-recordings', label: 'Zoom Recordings Link', order: 2, linkText: 'Zoom Recordings' },
+  { id: 'office-hours',    label: 'Office Hours Link',    order: 3, linkText: 'Book an Office Hours appointment' },
 ]
 
 /** Update the href of <a> tags whose text content matches linkText */
@@ -61,8 +55,7 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
   const supabase = createClient()
 
   const [tasks, setTasks] = useState<Task[]>([])
-  const [globalValues, setGlobalValues] = useState<Values>({})  // shared across all courses
-  const [values, setValues] = useState<Values>({})               // per-course
+  const [values, setValues] = useState<Values>({})
   const [sectionId, setSectionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -80,25 +73,15 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
         .single()
 
       let loadedTasks: Task[] = DEFAULT_TASKS
-      let loadedGlobalValues: Values = {}
-
       if (templateRow?.content) {
         try {
           const parsed = JSON.parse(templateRow.content)
-          if (Array.isArray(parsed)) {
-            // Legacy format (just array of tasks, no global values)
-            loadedTasks = parsed
-          } else {
-            loadedTasks = parsed.tasks ?? DEFAULT_TASKS
-            loadedGlobalValues = parsed.globalValues ?? {}
-          }
-        } catch { /* ignore parse errors */ }
+          // Handle both legacy array format and newer { tasks } format
+          loadedTasks = Array.isArray(parsed) ? parsed : (parsed.tasks ?? DEFAULT_TASKS)
+        } catch { /* ignore */ }
       }
-
       setTasks(loadedTasks)
-      setGlobalValues(loadedGlobalValues)
 
-      // Load this course's saved per-course values
       const { data: section } = await supabase
         .from('course_sections')
         .select('id, content')
@@ -116,7 +99,6 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
     load()
   }, [courseId])
 
-  // Copy only per-course values from the last saved course (global values stay as-is)
   const copyFromLastTime = async () => {
     setCopying(true)
     const { data: sections } = await supabase
@@ -138,15 +120,14 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
   const handleSave = async () => {
     setSaving(true)
 
-    // Save tasks + global values to global_content (template)
-    const templateContent: TemplateContent = { tasks, globalValues }
+    // Save task list to global_content (template — shared across all courses)
     await supabase.from('global_content').upsert({
       slug: 'launch-tasks',
       title: 'Launch Tasks',
-      content: JSON.stringify(templateContent),
+      content: JSON.stringify({ tasks }),
     })
 
-    // Upsert per-course values into course_sections
+    // Upsert per-course values
     const content = JSON.stringify({ values })
     if (sectionId) {
       await supabase.from('course_sections').update({ content }).eq('id', sectionId)
@@ -158,7 +139,6 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
       if (data) setSectionId(data.id)
     }
 
-    // Sync URLs to Everyday Resources in General Info for this course
     await syncToEverydayResources()
 
     setSaving(false)
@@ -177,26 +157,18 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
     if (!section) return
 
     let html = section.content ?? ''
-
-    // If section is still linked to global template, read content from global_content
     if (!html && section.type?.startsWith('global:')) {
       const slug = (section.type as string).slice(7)
       const { data: global } = await supabase
-        .from('global_content')
-        .select('content')
-        .eq('slug', slug)
-        .single()
+        .from('global_content').select('content').eq('slug', slug).single()
       html = global?.content ?? ''
     }
-
     if (!html) return
 
-    const allValues = { ...globalValues, ...values }
     let changed = false
-
     for (const task of tasks) {
       if (!task.linkText) continue
-      const url = allValues[task.id]
+      const url = values[task.id]
       if (!url) continue
       const updated = updateLinkInHtml(html, task.linkText, url)
       if (updated !== html) { html = updated; changed = true }
@@ -204,43 +176,14 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
 
     if (changed) {
       const updates: Record<string, string> = { content: html }
-      // Fork from global if needed
       if (section.type?.startsWith('global:')) updates.type = 'text'
       await supabase.from('course_sections').update(updates).eq('id', section.id)
     }
   }
 
-  const setValueForTask = (taskId: string, value: string, isGlobal: boolean) => {
-    if (isGlobal) {
-      setGlobalValues(prev => ({ ...prev, [taskId]: value }))
-    } else {
-      setValues(prev => ({ ...prev, [taskId]: value }))
-    }
-  }
-
-  const toggleGlobal = (taskId: string) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id !== taskId) return t
-      const newGlobal = !(t.global ?? false)
-      if (newGlobal) {
-        // Promote to global: move value from per-course to globalValues
-        const val = values[taskId] ?? ''
-        setGlobalValues(g => ({ ...g, [taskId]: val }))
-        setValues(v => { const next = { ...v }; delete next[taskId]; return next })
-      } else {
-        // Demote to per-course: move value from globalValues to per-course
-        const val = globalValues[taskId] ?? ''
-        setValues(v => ({ ...v, [taskId]: val }))
-        setGlobalValues(g => { const next = { ...g }; delete next[taskId]; return next })
-      }
-      return { ...t, global: newGlobal }
-    }))
-  }
-
   const addTask = () => {
     if (!newLabel.trim()) return
-    const task: Task = { id: generateId(), label: newLabel.trim(), order: tasks.length, global: false }
-    setTasks(prev => [...prev, task])
+    setTasks(prev => [...prev, { id: generateId(), label: newLabel.trim(), order: prev.length }])
     setNewLabel('')
     setAddingTask(false)
   }
@@ -248,7 +191,6 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
   const deleteTask = (id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id))
     setValues(prev => { const next = { ...prev }; delete next[id]; return next })
-    setGlobalValues(prev => { const next = { ...prev }; delete next[id]; return next })
   }
 
   return (
@@ -280,54 +222,30 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
               <p className="text-sm text-muted-text">Loading…</p>
             ) : (
               <div className="flex flex-col gap-5">
-                {tasks.map(task => {
-                  const isGlobal = task.global ?? false
-                  const currentValue = isGlobal ? (globalValues[task.id] ?? '') : (values[task.id] ?? '')
-                  return (
-                    <div key={task.id} className="group">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                            {task.label}
-                          </label>
-                          {isGlobal && (
-                            <span className="text-xs text-teal-primary bg-teal-light px-1.5 py-0.5 rounded font-medium">
-                              Same for all classes
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => toggleGlobal(task.id)}
-                            className="text-xs text-muted-text hover:text-teal-primary transition-colors"
-                            title={isGlobal ? 'Make per-class instead' : 'Use the same value for all classes'}
-                          >
-                            {isGlobal ? '⊖ Make per-class' : '🌐 Same for all'}
-                          </button>
-                          <button
-                            onClick={() => deleteTask(task.id)}
-                            className="text-border hover:text-red-400 transition-colors text-xs"
-                            title="Remove this item"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                      <input
-                        type="text"
-                        value={currentValue}
-                        onChange={e => setValueForTask(task.id, e.target.value, isGlobal)}
-                        placeholder={`Enter ${task.label}…`}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                      />
-                      {isGlobal && (
-                        <p className="text-xs text-muted-text mt-1">Changing this updates all classes</p>
-                      )}
+                {tasks.map(task => (
+                  <div key={task.id} className="group">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                        {task.label}
+                      </label>
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="text-border hover:text-red-400 transition-colors text-xs opacity-0 group-hover:opacity-100"
+                        title="Remove this item"
+                      >
+                        ✕
+                      </button>
                     </div>
-                  )
-                })}
+                    <input
+                      type="text"
+                      value={values[task.id] ?? ''}
+                      onChange={e => setValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                      placeholder={`Enter ${task.label}…`}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    />
+                  </div>
+                ))}
 
-                {/* Add new task */}
                 {addingTask ? (
                   <div className="flex items-center gap-2">
                     <input
