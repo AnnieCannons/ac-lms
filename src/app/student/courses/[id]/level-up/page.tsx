@@ -5,19 +5,7 @@ import LogoutButton from '@/components/ui/LogoutButton'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
 
-function getCurrentWeek(startDate: string | null): number | null {
-  if (!startDate) return null
-  const start = new Date(startDate)
-  const today = new Date()
-  const diffMs = today.getTime() - start.getTime()
-  if (diffMs < 0) return null // course hasn't started yet
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  return Math.floor(diffDays / 7) + 1
-}
-
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
-export default async function StudentCourseDetailPage({
+export default async function StudentLevelUpPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -37,7 +25,6 @@ export default async function StudentCourseDetailPage({
     redirect(`/instructor/courses/${id}`)
   }
 
-  // Verify learner is enrolled in this course
   const { data: enrollment } = await supabase
     .from('course_enrollments')
     .select('id')
@@ -60,14 +47,11 @@ export default async function StudentCourseDetailPage({
     .from('modules')
     .select('*, module_days(id, day_name, order, assignments(id, title, due_date, published), resources(id, type, title, content, description, order))')
     .eq('course_id', id)
+    .eq('category', 'level_up')
+    .eq('published', true)
     .order('order', { ascending: true })
 
-  const modules = (rawModules ?? []).filter(m =>
-    !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
-  )
-
-  const currentWeek = getCurrentWeek(course.start_date)
-  const todayName = DAY_NAMES[new Date().getDay()]
+  const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
 
   return (
     <div className="min-h-screen bg-background">
@@ -84,12 +68,10 @@ export default async function StudentCourseDetailPage({
       </nav>
 
       <div className="flex">
-        {/* Left sidebar */}
         <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
           <StudentCourseNav courseId={id} courseName={course.name} />
         </aside>
 
-        {/* Main content */}
         <div className="flex-1 min-w-0">
           <main className="max-w-3xl mx-auto px-8 py-10">
             <div className="flex items-center gap-3 mb-2">
@@ -98,36 +80,21 @@ export default async function StudentCourseDetailPage({
               </Link>
             </div>
 
-            <div className="flex items-center justify-between gap-4 mb-8">
-              <div>
-                <h1 className="text-2xl font-bold text-dark-text mb-1">Syllabus</h1>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <p className="text-muted-text text-sm">{course.code}</p>
-                  {course.start_date && (
-                    <p className="text-muted-text text-sm">
-                      {new Date(course.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {course.end_date && ` – ${new Date(course.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
-                    </p>
-                  )}
-                  {currentWeek && (
-                    <span className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full">
-                      Week {currentWeek} this week
-                    </span>
-                  )}
-                </div>
-              </div>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-dark-text mb-1">Level Up Your Skills</h1>
+              <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 
             {modules.length > 0 ? (
               <CourseOutlineAccordion
                 modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
                 courseId={id}
-                currentWeek={currentWeek}
-                todayName={todayName}
+                currentWeek={null}
+                todayName=""
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-                <p className="text-muted-text">No modules available yet.</p>
+                <p className="text-muted-text">No content available yet.</p>
               </div>
             )}
           </main>

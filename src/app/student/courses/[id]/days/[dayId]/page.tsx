@@ -126,7 +126,11 @@ export default async function StudentDayDetailPage({
                     <span className="text-base">{RESOURCE_ICONS[resource.type] ?? '•'}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-dark-text truncate">{resource.title}</p>
-                      <p className="text-xs text-muted-text capitalize">{resource.type}</p>
+                      {resource.description ? (
+                        <p className="text-xs text-muted-text truncate">{resource.description}</p>
+                      ) : (
+                        <p className="text-xs text-muted-text capitalize">{resource.type}</p>
+                      )}
                     </div>
                     <span className="text-xs text-teal-primary shrink-0">Open →</span>
                   </a>

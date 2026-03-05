@@ -6,12 +6,16 @@ import HtmlContent from '@/components/ui/HtmlContent'
 import GradeButtons from '@/components/ui/GradeButtons'
 import InstructorChecklist from '@/components/ui/InstructorChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
+import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
 function SubmissionContent({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <p className="text-muted-text italic text-sm">No content</p>
-  if (type === 'link' || type === 'file') {
+  if (type === 'file') {
+    return <SubmissionFilePreview content={content} />
+  }
+  if (type === 'link') {
     return (
       <a href={content} target="_blank" rel="noopener noreferrer"
         className="text-teal-primary underline break-all text-sm">
@@ -132,6 +136,9 @@ export default async function GradingPage({
           AC<span className="text-teal-primary">*</span>
         </Link>
         <div className="flex items-center gap-4">
+          <Link href="/instructor/courses" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
+            ← All Courses
+          </Link>
           <span className="text-sm text-gray-500">
             {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
           </span>

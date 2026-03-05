@@ -75,11 +75,9 @@ export default function DailySchedule() {
   const offset = TIMEZONES.find(t => t.abbr === selectedTz)?.offset ?? 0
 
   return (
-    <div className="bg-surface rounded-2xl border border-border p-6">
-      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
-        <h2 className="font-semibold text-dark-text">Daily Class Schedule</h2>
-
-        {/* Timezone selector */}
+    <div>
+      {/* Timezone selector */}
+      <div className="flex justify-end mb-4">
         <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-1">
           {TIMEZONES.map(tz => (
             <button

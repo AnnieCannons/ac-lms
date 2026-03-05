@@ -9,9 +9,9 @@ const DEFAULT_SECTIONS = [
   { title: 'Goals and Outcomes',    type: 'text',             content: null,                                                         order: 1 },
   { title: 'Daily Class Schedule',  type: 'daily_schedule',   content: null,                                                         order: 2 },
   { title: 'Instructor Contact Info', type: 'text',           content: null,                                                         order: 3 },
-  { title: 'Policies and Procedures', type: 'text',           content: null,                                                         order: 4 },
+  { title: 'Policies and Procedures', type: 'policies_procedures', content: null,                                                      order: 4 },
   { title: 'Everyday Resources',    type: 'text',             content: null,                                                         order: 5 },
-  { title: 'Computer and Wifi',     type: 'text',             content: null,                                                         order: 6 },
+  { title: 'Computer and Wifi',     type: 'computer_wifi',    content: null,                                                         order: 6 },
   {
     title: 'Course Outline',
     type: 'course_outline',
@@ -67,7 +67,7 @@ export default async function InstructorGeneralInfoPage({
 
   let { data: sections } = await supabase
     .from('course_sections')
-    .select('id, title, content, order, type')
+    .select('id, title, content, order, type, published')
     .eq('course_id', id)
     .order('order', { ascending: true })
 
@@ -81,7 +81,7 @@ export default async function InstructorGeneralInfoPage({
     const { data: created } = await client
       .from('course_sections')
       .insert(inserts)
-      .select('id, title, content, order, type')
+      .select('id, title, content, order, type, published')
     sections = created
   }
 

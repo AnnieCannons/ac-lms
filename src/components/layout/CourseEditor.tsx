@@ -224,31 +224,37 @@ function AssignmentCard({
             {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
           </p>
         </button>
-        {ctx && (
-          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-            <select
-              value={weekNumber ?? ""}
-              onChange={e => ctx.relocateAssignment(assignment.id, Number(e.target.value), dayName)}
-              className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-14"
-              title="Week"
-            >
-              <option value="">W?</option>
-              {ctx.weekOptions.map(w => (
-                <option key={w} value={w}>W{w}</option>
-              ))}
-            </select>
-            <select
-              value={dayName}
-              onChange={e => ctx.relocateAssignment(assignment.id, weekNumber ?? 1, e.target.value)}
-              className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-16"
-              title="Day"
-            >
-              {DAY_OPTIONS.map(d => (
-                <option key={d} value={d}>{d.slice(0, 3)}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        {ctx && (() => {
+          const isRealDay = DAY_OPTIONS.includes(dayName);
+          return (
+            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+              <select
+                value={weekNumber ?? ""}
+                onChange={e => {
+                  if (isRealDay) ctx.relocateAssignment(assignment.id, Number(e.target.value), dayName);
+                }}
+                className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-14"
+                title="Week"
+              >
+                <option value="">W?</option>
+                {ctx.weekOptions.map(w => (
+                  <option key={w} value={w}>W{w}</option>
+                ))}
+              </select>
+              <select
+                value={isRealDay ? dayName : ""}
+                onChange={e => ctx.relocateAssignment(assignment.id, weekNumber ?? 1, e.target.value)}
+                className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-16"
+                title="Day"
+              >
+                {!isRealDay && <option value="">Day?</option>}
+                {DAY_OPTIONS.map(d => (
+                  <option key={d} value={d}>{d.slice(0, 3)}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })()}
         <button
           onClick={() => onTogglePublished(assignment.id, assignment.published)}
           className={`text-xs shrink-0 font-medium transition-colors ${assignment.published ? "text-teal-primary hover:text-muted-text" : "text-muted-text hover:text-teal-primary"}`}
@@ -818,11 +824,13 @@ const RESOURCE_TYPE_LABELS: Record<Resource["type"], string> = {
 
 function SortableResource({
   resource,
+  weekNumber,
   onEdit,
   onDelete,
   onRelocated,
 }: {
   resource: Resource;
+  weekNumber: number | null;
   onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>) => void;
   onDelete: (id: string) => void;
   onRelocated: () => void;
@@ -833,7 +841,7 @@ function SortableResource({
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const ctx = useContext(RelocateContext);
-  const [relocWeek, setRelocWeek] = useState<string>("");
+  const [relocWeek, setRelocWeek] = useState<string>(weekNumber ? String(weekNumber) : "");
   const [relocDay, setRelocDay] = useState<string>("");
   const [editing, setEditing] = useState(false);
   const [editType, setEditType] = useState<Resource["type"]>(resource.type);
@@ -1169,7 +1177,7 @@ function SortableDay({
         </button>
 
         <button
-          onClick={() => onDelete(day.id)}
+          onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
           className="text-muted-text hover:text-red-400 text-xs"
           aria-label={`Delete day ${day.day_name}`}
           type="button"
@@ -1202,6 +1210,7 @@ function SortableDay({
                     <SortableResource
                       key={r.id}
                       resource={r}
+                      weekNumber={weekNumber}
                       onEdit={editResource}
                       onDelete={deleteResource}
                       onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
@@ -1374,7 +1383,7 @@ function SortableModule({
           {expanded ? "▲" : "▼"}
         </button>
         <button
-          onClick={() => onDelete(module.id)}
+          onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
           className="text-muted-text hover:text-red-400 text-sm"
           aria-label={`Delete module ${module.title}`}
           type="button"

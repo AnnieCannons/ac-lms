@@ -5,7 +5,9 @@ import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import DailySchedule from '@/components/ui/DailySchedule'
-import { CourseOutlineView, YearlyScheduleView } from '@/components/ui/GeneralInfoEditor'
+import { CourseOutlineView } from '@/components/ui/GeneralInfoEditor'
+import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
+import GlobalContentSection from '@/components/ui/GlobalContentSection'
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3 [&_h1:first-child]:mt-0
@@ -60,6 +62,7 @@ export default async function GeneralInfoPage({
     .from('course_sections')
     .select('id, title, content, order, type')
     .eq('course_id', id)
+    .eq('published', true)
     .order('order', { ascending: true })
 
   return (
@@ -95,7 +98,9 @@ export default async function GeneralInfoPage({
                     <h2 className="font-semibold text-dark-text mb-4">{section.title}</h2>
                     {section.type === 'daily_schedule' && <DailySchedule />}
                     {section.type === 'course_outline' && <CourseOutlineView content={section.content} />}
-                    {section.type === 'yearly_schedule' && <YearlyScheduleView content={section.content} />}
+                    {section.type === 'yearly_schedule' && <YearlyScheduleSection />}
+                    {section.type === 'computer_wifi' && <GlobalContentSection slug="computer-wifi" />}
+                    {section.type === 'policies_procedures' && <GlobalContentSection slug="policies" />}
                     {(section.type === 'text' || !section.type) && (
                       section.content
                         ? <HtmlContent html={section.content} className={HTML_CLASSES} />

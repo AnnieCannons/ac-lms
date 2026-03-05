@@ -91,6 +91,9 @@ export default async function InstructorSubmissionsPage({
           AC<span className="text-teal-primary">*</span>
         </Link>
         <div className="flex items-center gap-4">
+          <Link href="/instructor/courses" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
+            ← All Courses
+          </Link>
           <span className="text-sm text-gray-500">
             {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
           </span>

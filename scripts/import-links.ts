@@ -2,29 +2,27 @@ import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as path from "path";
 
-type WikiPage = {
+type LinkJSON = {
   identifier: string;
   title: string;
-  content_html?: string;
-  body_html?: string;
-  module_title: string | null;
+  url: string;
+  module_title: string;
+  manifest_title: string;
 };
 
-async function importWikis(filePath: string, courseNameOverride?: string, dayNameOverride?: string) {
+async function importLinks(filePath: string, courseNameOverride?: string, dayNameOverride?: string) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-
   const raw = fs.readFileSync(path.resolve(filePath), "utf-8");
   const parsed = JSON.parse(raw);
 
-  // Handle both "wiki_pages" and "wiki" as the array key
-  const pages: WikiPage[] = parsed.wiki_pages ?? parsed.wiki ?? [];
+  const links: LinkJSON[] = parsed.links;
   const courseName: string = courseNameOverride ?? parsed.course?.title;
 
-  if (!pages.length) {
-    console.log("No wiki pages found in file.");
+  if (!links?.length) {
+    console.log("No links found in file.");
     return;
   }
 
@@ -33,9 +31,9 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
     return;
   }
 
-  console.log(`\nImporting wiki pages for: ${courseName}`);
+  console.log(`\nImporting links for: ${courseName}`);
 
-  // 1. Find the course
+  // 1. Find the course (try exact match first, then case-insensitive contains)
   let { data: course } = await supabase
     .from("courses")
     .select("id, name")
@@ -43,56 +41,45 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
     .maybeSingle();
 
   if (!course) {
-    const keyword = courseName.split(" ")[0];
+    // Try a loose match on the first word(s)
+    const keyword = courseName.split(" ").slice(0, 2).join(" ");
     const { data: fuzzy } = await supabase
       .from("courses")
       .select("id, name")
       .ilike("name", `%${keyword}%`);
 
-    if (fuzzy && fuzzy.length >= 1) {
-      // Prefer exact case-insensitive match, otherwise take only result
-      const lower = courseName.toLowerCase();
-      const exact = fuzzy.find((c) => c.name.toLowerCase() === lower);
-      course = exact ?? (fuzzy.length === 1 ? fuzzy[0] : null);
-      if (course) {
-        console.log(`  (matched "${courseName}" → "${course.name}")`);
-      }
-    }
-
-    if (!course) {
+    if (fuzzy && fuzzy.length === 1) {
+      course = fuzzy[0];
+      console.log(`  (matched "${courseName}" → "${course.name}")`);
+    } else {
+      // Show available courses to help the user
       const { data: all } = await supabase.from("courses").select("name").order("name");
       console.error(`\nCourse not found: "${courseName}"`);
       console.error("Courses in the database:");
-      (all ?? []).forEach((c) => console.error(`  - ${c.name}`));
+      (all ?? []).forEach(c => console.error(`  - ${c.name}`));
       return;
     }
   }
 
   console.log(`✓ Found course: ${course.id}`);
 
-  // 2. Skip pages with no module_title
-  const assignedPages = pages.filter((p) => p.module_title?.trim());
-  const skippedNoModule = pages.length - assignedPages.length;
-  if (skippedNoModule > 0) {
-    console.log(`  Skipping ${skippedNoModule} page(s) with no module_title`);
+  // 2. Group links by module_title
+  const linksByModule = new Map<string, LinkJSON[]>();
+  for (const link of links) {
+    const key = link.module_title || "";
+    if (!linksByModule.has(key)) linksByModule.set(key, []);
+    linksByModule.get(key)!.push(link);
   }
 
-  // 3. Group by module_title
-  const pagesByModule = new Map<string, WikiPage[]>();
-  for (const page of assignedPages) {
-    const key = page.module_title!.trim();
-    if (!pagesByModule.has(key)) pagesByModule.set(key, []);
-    pagesByModule.get(key)!.push(page);
-  }
-
-  // 4. Load all existing modules for this course
+  // 3. Load all modules for this course
   const { data: modules } = await supabase
     .from("modules")
     .select("id, title")
     .eq("course_id", course.id);
 
-  const moduleByTitle = new Map((modules ?? []).map((m) => [m.title, m]));
+  const moduleByTitle = new Map((modules ?? []).map(m => [m.title, m]));
 
+  // Load current max module order
   const { data: allModules } = await supabase
     .from("modules")
     .select("order")
@@ -105,7 +92,7 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
   let totalImported = 0;
   let totalSkipped = 0;
 
-  for (const [moduleTitle, wikiPages] of pagesByModule) {
+  for (const [moduleTitle, moduleLinks] of linksByModule) {
     let module = moduleByTitle.get(moduleTitle);
 
     if (!module) {
@@ -123,7 +110,7 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
 
       if (modError || !newModule) {
         console.error(`  ✗ Failed to create module "${moduleTitle}":`, modError?.message);
-        totalSkipped += wikiPages.length;
+        totalSkipped += moduleLinks.length;
         continue;
       }
 
@@ -131,10 +118,10 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
       module = newModule;
     }
 
-    console.log(`  Module: ${moduleTitle} (${wikiPages.length} wiki page(s))`);
+    console.log(`  Module: ${moduleTitle} (${moduleLinks.length} links)`);
 
-    // 5. Find or create day for this module
-    const targetDayName = dayNameOverride ?? "Wiki";
+    // 4. Find or create day for this module
+    const targetDayName = dayNameOverride ?? "Resources";
     const { data: existingDay } = await supabase
       .from("module_days")
       .select("id")
@@ -165,7 +152,6 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
 
       if (dayError || !newDay) {
         console.error(`    ✗ Failed to create "${targetDayName}" day:`, dayError?.message);
-        totalSkipped += wikiPages.length;
         continue;
       }
 
@@ -173,19 +159,21 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
       console.log(`    ↳ Created "${targetDayName}" day`);
     }
 
-    // 6. Check existing resources to avoid duplicates (by title)
+    // 5. Check existing resources in this day to avoid duplicates
     const { data: existing } = await supabase
       .from("resources")
-      .select("title")
+      .select("content")
       .eq("module_day_id", dayId);
 
-    const existingTitles = new Set((existing ?? []).map((r) => r.title));
+    const existingUrls = new Set((existing ?? []).map(r => r.content));
 
-    const toInsert = wikiPages.filter((p) => !existingTitles.has(p.title));
-    const skipped = wikiPages.length - toInsert.length;
-    if (skipped > 0) console.log(`    ↳ Skipping ${skipped} already-imported page(s)`);
+    // 6. Insert links as resources
+    const toInsert = moduleLinks.filter(l => !existingUrls.has(l.url));
+    const skipped = moduleLinks.length - toInsert.length;
+    if (skipped > 0) console.log(`    ↳ Skipping ${skipped} already-imported link(s)`);
 
     if (toInsert.length > 0) {
+      // Get starting order
       const { data: lastResource } = await supabase
         .from("resources")
         .select("order")
@@ -195,12 +183,11 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
 
       const startOrder = (lastResource?.[0]?.order ?? -1) + 1;
 
-      const rows = toInsert.map((page, i) => ({
+      const rows = toInsert.map((link, i) => ({
         module_day_id: dayId,
-        type: "reading" as const,
-        title: page.title,
-        // Handle both content_html and body_html field names
-        content: page.content_html ?? page.body_html ?? "",
+        type: "link" as const,
+        title: link.title,
+        content: link.url,
         order: startOrder + i,
       }));
 
@@ -208,9 +195,8 @@ async function importWikis(filePath: string, courseNameOverride?: string, dayNam
 
       if (insertError) {
         console.error(`    ✗ Insert failed:`, insertError.message);
-        totalSkipped += toInsert.length;
       } else {
-        console.log(`    ✓ Inserted ${rows.length} wiki page(s)`);
+        console.log(`    ✓ Inserted ${rows.length} link(s)`);
         totalImported += rows.length;
       }
     }
@@ -225,8 +211,8 @@ const filePath = process.argv[2];
 const courseNameOverride = process.argv[3];
 const dayNameOverride = process.argv[4];
 if (!filePath) {
-  console.error('Usage: npx ts-node --esm scripts/import-wikis.ts <path-to-wiki-json> ["Course Name Override"] ["Day Name Override"]');
+  console.error('Usage: npx ts-node --esm scripts/import-links.ts <path-to-links-json> ["Course Name Override"] ["Day Name Override"]');
   process.exit(1);
 }
 
-importWikis(filePath, courseNameOverride, dayNameOverride);
+importLinks(filePath, courseNameOverride, dayNameOverride);

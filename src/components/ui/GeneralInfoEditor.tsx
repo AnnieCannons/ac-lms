@@ -4,9 +4,11 @@ import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import HtmlContent from '@/components/ui/HtmlContent'
 import DailySchedule from '@/components/ui/DailySchedule'
+import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
+import GlobalContentSection from '@/components/ui/GlobalContentSection'
 import {
   DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor,
-  useSensor, useSensors, type DragEndEvent,
+  useSensor, useSensors, type DragEndEvent, type DraggableAttributes,
 } from '@dnd-kit/core'
 import {
   arrayMove, SortableContext, sortableKeyboardCoordinates,
@@ -16,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type SectionType = 'text' | 'daily_schedule' | 'course_outline' | 'yearly_schedule'
+export type SectionType = 'text' | 'daily_schedule' | 'course_outline' | 'yearly_schedule' | 'computer_wifi' | 'policies_procedures'
 
 export type CourseSection = {
   id: string
@@ -24,12 +26,23 @@ export type CourseSection = {
   content: string | null
   order: number
   type: SectionType
+  published: boolean
+}
+
+function PublishToggle({ published, onToggle }: { published: boolean; onToggle: () => void }) {
+  return published ? (
+    <span className="flex items-center gap-2 shrink-0">
+      <span className="text-xs font-medium text-teal-primary">✓ Published</span>
+      <button onClick={onToggle} className="text-xs text-muted-text hover:text-dark-text transition-colors">Unpublish</button>
+    </span>
+  ) : (
+    <button onClick={onToggle} className="shrink-0 text-xs font-semibold text-teal-primary border border-teal-primary/40 px-2.5 py-0.5 rounded-full hover:bg-teal-primary/10 transition-colors">
+      Publish
+    </button>
+  )
 }
 
 type OutlineRow = { week: number; topics: string; description: string }
-type Cohort = { name: string; start: string; end: string }
-type BreakPeriod = { label: string; start: string; end: string }
-type YearlyData = { cohorts: Cohort[]; breaks: BreakPeriod[] }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,28 +62,6 @@ function parseOutline(content: string | null): OutlineRow[] {
   return Array.from({ length: 15 }, (_, i) => ({ week: i + 1, topics: '', description: '' }))
 }
 
-function parseYearly(content: string | null): YearlyData {
-  try { return JSON.parse(content ?? '') as YearlyData } catch {}
-  return {
-    cohorts: [
-      { name: 'Winter/Spring', start: '', end: '' },
-      { name: 'Summer', start: '', end: '' },
-      { name: 'Fall', start: '', end: '' },
-    ],
-    breaks: [
-      { label: 'Spring Break', start: '', end: '' },
-      { label: 'Summer Break', start: '', end: '' },
-      { label: 'Winter Break', start: '', end: '' },
-    ],
-  }
-}
-
-function formatDate(d: string): string {
-  if (!d) return '—'
-  try {
-    return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch { return d }
-}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -106,52 +97,19 @@ export function CourseOutlineView({ content }: { content: string | null }) {
   )
 }
 
-export function YearlyScheduleView({ content }: { content: string | null }) {
-  const { cohorts, breaks } = parseYearly(content)
-  // Interleave: C1, Break1, C2, Break2, C3, Break3
-  const rows: { label: string; start: string; end: string; kind: 'cohort' | 'break' }[] = []
-  const maxLen = Math.max(cohorts.length, breaks.length)
-  for (let i = 0; i < maxLen; i++) {
-    if (cohorts[i]) rows.push({ label: cohorts[i].name, start: cohorts[i].start, end: cohorts[i].end, kind: 'cohort' })
-    if (breaks[i]) rows.push({ label: breaks[i].label, start: breaks[i].start, end: breaks[i].end, kind: 'break' })
-  }
-
-  return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="grid grid-cols-[1fr_1fr_1fr] bg-teal-light/60 border-b border-border">
-        <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
-        <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
-        <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">End</div>
-      </div>
-      {rows.map((row, i) => (
-        <div
-          key={i}
-          className={`grid grid-cols-[1fr_1fr_1fr] border-b border-border last:border-b-0 ${
-            row.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50'
-          }`}
-        >
-          <div className={`px-4 py-2.5 text-sm font-medium ${row.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700'}`}>
-            {row.label || '—'}
-          </div>
-          <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(row.start)}</div>
-          <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(row.end)}</div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ── Course Outline editable card ──────────────────────────────────────────────
 
 function CourseOutlineCard({
   section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onUpdate, onDelete,
+  onUpdate, onDelete, onTogglePublish,
 }: {
   section: CourseSection
-  dragListeners: object; dragAttributes: object; dragRef: (el: HTMLElement | null) => void
+  dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
+  onTogglePublish: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [rows, setRows] = useState<OutlineRow[]>(() => parseOutline(section.content))
@@ -171,8 +129,9 @@ function CourseOutlineCard({
         <GripIcon />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-4 mb-3">
-          <h3 className="font-semibold text-dark-text">{section.title}</h3>
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <PublishToggle published={section.published} onToggle={onTogglePublish} />
           <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {!editing && (
               <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
@@ -236,50 +195,31 @@ function CourseOutlineCard({
   )
 }
 
-// ── Yearly Schedule editable card ─────────────────────────────────────────────
+// ── Yearly Schedule card (reads from global calendar tables) ──────────────────
 
-function YearlyScheduleCard({
-  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onUpdate, onDelete,
+function YearlyScheduleGlobalCard({
+  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish,
 }: {
   section: CourseSection
-  dragListeners: object; dragAttributes: object; dragRef: (el: HTMLElement | null) => void
+  dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
-  onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
+  onTogglePublish: () => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [data, setData] = useState<YearlyData>(() => parseYearly(section.content))
-  const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-
-  const setCohort = (i: number, field: keyof Cohort, val: string) =>
-    setData(prev => ({ ...prev, cohorts: prev.cohorts.map((c, j) => j === i ? { ...c, [field]: val } : c) }))
-
-  const setBreak = (i: number, field: keyof BreakPeriod, val: string) =>
-    setData(prev => ({ ...prev, breaks: prev.breaks.map((b, j) => j === i ? { ...b, [field]: val } : b) }))
-
-  const handleSave = async () => {
-    setSaving(true)
-    await onUpdate({ content: JSON.stringify(data) })
-    setSaving(false)
-    setEditing(false)
-  }
-
-  const inputCls = "w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
       <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
         <GripIcon />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-4 mb-3">
-          <h3 className="font-semibold text-dark-text">{section.title}</h3>
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <PublishToggle published={section.published} onToggle={onTogglePublish} />
           <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            {!editing && (
-              <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
-            )}
+            <a href="/instructor/calendar" className="text-xs text-muted-text hover:text-teal-primary transition-colors">
+              ✎ Manage calendar
+            </a>
             {confirmDelete ? (
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-text">Delete?</span>
@@ -291,45 +231,7 @@ function YearlyScheduleCard({
             )}
           </div>
         </div>
-
-        {editing ? (
-          <div className="flex flex-col gap-5">
-            <div>
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Cohorts</p>
-              <div className="flex flex-col gap-2">
-                {data.cohorts.map((c, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr] gap-2">
-                    <input value={c.name} onChange={e => setCohort(i, 'name', e.target.value)} placeholder="Name" className={inputCls} />
-                    <input type="date" value={c.start} onChange={e => setCohort(i, 'start', e.target.value)} className={inputCls} />
-                    <input type="date" value={c.end} onChange={e => setCohort(i, 'end', e.target.value)} className={inputCls} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Breaks</p>
-              <div className="flex flex-col gap-2">
-                {data.breaks.map((b, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr] gap-2">
-                    <input value={b.label} onChange={e => setBreak(i, 'label', e.target.value)} placeholder="Label (e.g. Spring Break)" className={inputCls} />
-                    <input type="date" value={b.start} onChange={e => setBreak(i, 'start', e.target.value)} className={inputCls} />
-                    <input type="date" value={b.end} onChange={e => setBreak(i, 'end', e.target.value)} className={inputCls} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button onClick={handleSave} disabled={saving} className="bg-teal-primary text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity">
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button onClick={() => { setData(parseYearly(section.content)); setEditing(false) }} className="text-sm text-muted-text hover:text-dark-text transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <YearlyScheduleView content={section.content} />
-        )}
+        <YearlyScheduleSection />
       </div>
     </div>
   )
@@ -338,12 +240,13 @@ function YearlyScheduleCard({
 // ── Daily Schedule card (drag-only, no content editing) ───────────────────────
 
 function DailyScheduleCard({
-  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete,
+  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish,
 }: {
   section: CourseSection
-  dragListeners: object; dragAttributes: object; dragRef: (el: HTMLElement | null) => void
+  dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
   onDelete: () => Promise<void>
+  onTogglePublish: () => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   return (
@@ -352,8 +255,9 @@ function DailyScheduleCard({
         <GripIcon />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <h3 className="font-semibold text-dark-text">{section.title}</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <PublishToggle published={section.published} onToggle={onTogglePublish} />
           <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {confirmDelete ? (
               <span className="flex items-center gap-1.5 text-xs">
@@ -372,17 +276,63 @@ function DailyScheduleCard({
   )
 }
 
+// ── Global content card (Computer & Wifi, Policies) ───────────────────────────
+
+function GlobalTextCard({
+  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
+  onDelete, onTogglePublish, slug, editHref,
+}: {
+  section: CourseSection
+  dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
+  dragStyle: React.CSSProperties; dragIsDragging: boolean
+  onDelete: () => Promise<void>
+  onTogglePublish: () => void
+  slug: string
+  editHref: string
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  return (
+    <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+        <GripIcon />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <PublishToggle published={section.published} onToggle={onTogglePublish} />
+          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <a href={editHref} className="text-xs text-muted-text hover:text-teal-primary transition-colors">
+              ✎ Edit globally
+            </a>
+            {confirmDelete ? (
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-text">Delete?</span>
+                <button onClick={() => onDelete()} className="text-red-500 font-medium hover:underline">Yes</button>
+                <button onClick={() => setConfirmDelete(false)} className="text-muted-text hover:text-dark-text">No</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
+            )}
+          </div>
+        </div>
+        <GlobalContentSection slug={slug} />
+      </div>
+    </div>
+  )
+}
+
 // ── Text section card ─────────────────────────────────────────────────────────
 
 function TextSectionCard({
   section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onUpdate, onDelete,
+  onUpdate, onDelete, onTogglePublish,
 }: {
   section: CourseSection
-  dragListeners: object; dragAttributes: object; dragRef: (el: HTMLElement | null) => void
+  dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
+  onTogglePublish: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(section.title)
@@ -436,8 +386,9 @@ function TextSectionCard({
         <GripIcon />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <h3 className="font-semibold text-dark-text">{section.title}</h3>
+        <div className="flex items-start gap-3 mb-3">
+          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <PublishToggle published={section.published} onToggle={onTogglePublish} />
           <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
             {confirmDelete ? (
@@ -462,18 +413,21 @@ function TextSectionCard({
 
 // ── Unified SectionCard (routes to correct sub-component) ─────────────────────
 
-function SectionCard({ section, onUpdate, onDelete }: {
+function SectionCard({ section, onUpdate, onDelete, onTogglePublish }: {
   section: CourseSection
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
+  onTogglePublish: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
-  const shared = { dragListeners: listeners, dragAttributes: attributes, dragRef: setNodeRef, dragStyle: style, dragIsDragging: isDragging }
+  const shared = { dragListeners: listeners, dragAttributes: attributes, dragRef: setNodeRef, dragStyle: style, dragIsDragging: isDragging, onTogglePublish }
 
   if (section.type === 'daily_schedule') return <DailyScheduleCard section={section} {...shared} onDelete={onDelete} />
   if (section.type === 'course_outline') return <CourseOutlineCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
-  if (section.type === 'yearly_schedule') return <YearlyScheduleCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
+  if (section.type === 'yearly_schedule') return <YearlyScheduleGlobalCard section={section} {...shared} onDelete={onDelete} />
+  if (section.type === 'computer_wifi') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="computer-wifi" editHref="/instructor/globals/computer-wifi" />
+  if (section.type === 'policies_procedures') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="policies" editHref="/instructor/globals/policies" />
   return <TextSectionCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
 }
 
@@ -531,6 +485,11 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
     setSections(prev => prev.filter(s => s.id !== id))
   }
 
+  const togglePublish = async (id: string, current: boolean) => {
+    await supabase.from('course_sections').update({ published: !current }).eq('id', id)
+    setSections(prev => prev.map(s => s.id === id ? { ...s, published: !current } : s))
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <DndContext id="general-info-sections" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -541,6 +500,7 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
               section={section}
               onUpdate={updates => updateSection(section.id, updates)}
               onDelete={() => deleteSection(section.id)}
+              onTogglePublish={() => togglePublish(section.id, section.published)}
             />
           ))}
         </SortableContext>
