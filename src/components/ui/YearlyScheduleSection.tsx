@@ -57,6 +57,7 @@ function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
 export default function YearlyScheduleSection() {
   const [timeline, setTimeline] = useState<TimelineItem[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [breaks, setBreaks] = useState<Break[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -66,8 +67,9 @@ export default function YearlyScheduleSection() {
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
       supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true }),
       supabase.from('calendar_holidays').select('*').eq('year', currentYear).order('date', { ascending: true }),
-    ]).then(([{ data: cohorts }, { data: breaks }, { data: hols }]) => {
-      setTimeline(buildTimeline(cohorts ?? [], breaks ?? []))
+    ]).then(([{ data: cohorts }, { data: rawBreaks }, { data: hols }]) => {
+      setTimeline(buildTimeline(cohorts ?? [], rawBreaks ?? []))
+      setBreaks(rawBreaks ?? [])
       setHolidays(hols ?? [])
       setLoading(false)
     })
@@ -117,6 +119,22 @@ export default function YearlyScheduleSection() {
               <div key={h.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
                 <span className="text-sm font-medium text-dark-text">{h.label}</span>
                 <span className="text-sm text-muted-text">{h.date_display}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {breaks.length > 0 && (
+        <div>
+          <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3">
+            School Breaks
+          </h3>
+          <div className="rounded-xl border border-border overflow-hidden">
+            {breaks.map((b, i) => (
+              <div key={b.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
+                <span className="text-sm font-medium text-dark-text">{b.label}</span>
+                <span className="text-sm text-muted-text">{formatDate(b.start_date)} – {formatDate(b.end_date)}</span>
               </div>
             ))}
           </div>
