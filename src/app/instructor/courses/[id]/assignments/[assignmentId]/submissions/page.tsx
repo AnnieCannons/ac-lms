@@ -1,10 +1,10 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsList'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
-import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -88,25 +88,10 @@ export default async function InstructorSubmissionsPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/instructor/courses" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← All Courses
-          </Link>
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course?.name ?? ''} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
 
         <main className="flex-1 min-w-0 px-10 py-12 max-w-5xl">
         {/* Breadcrumb */}

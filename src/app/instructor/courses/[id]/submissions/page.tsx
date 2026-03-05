@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import CourseGradesView from '@/components/ui/CourseGradesView'
-import InstructorCourseNav from '@/components/ui/InstructorCourseNav'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 export default async function CourseSubmissionsPage({
   params,
@@ -131,9 +131,7 @@ export default async function CourseSubmissionsPage({
       <InstructorTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
           <main className="max-w-4xl mx-auto px-8 py-10">

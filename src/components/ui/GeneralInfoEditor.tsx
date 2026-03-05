@@ -87,16 +87,16 @@ export function CourseOutlineView({ content }: { content: string | null }) {
   const rows = parseOutline(content)
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="grid grid-cols-[56px_1fr_1.5fr] bg-teal-light/60 border-b border-border">
+      <div className="grid grid-cols-[88px_1fr_1.5fr] bg-teal-light/60 border-b border-border">
         <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Week</div>
         <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Topics Covered</div>
         <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Description</div>
       </div>
       {rows.map(row => (
-        <div key={row.week} className="grid grid-cols-[56px_1fr_1.5fr] border-b border-border last:border-b-0">
-          <div className="px-3 py-2 text-sm text-muted-text font-medium">{row.week}</div>
-          <div className="px-3 py-2 text-sm text-dark-text">{row.topics || <span className="text-muted-text/40">—</span>}</div>
-          <div className="px-3 py-2 text-sm text-dark-text">{row.description || <span className="text-muted-text/40">—</span>}</div>
+        <div key={row.week} className="grid grid-cols-[88px_1fr_1.5fr] border-b border-border last:border-b-0">
+          <div className="px-3 py-2 text-sm text-muted-text font-medium">Week {row.week}</div>
+          <div className="px-3 py-2 text-sm text-dark-text min-w-0 break-words">{row.topics || <span className="text-muted-text/40">—</span>}</div>
+          <div className="px-3 py-2 text-sm text-dark-text min-w-0 break-words">{row.description || <span className="text-muted-text/40">—</span>}</div>
         </div>
       ))}
     </div>
@@ -157,33 +157,51 @@ function CourseOutlineCard({
         {editing ? (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl border border-border overflow-hidden">
-              <div className="grid grid-cols-[48px_1fr_1.5fr] bg-teal-light/60 border-b border-border">
+              <div className="grid grid-cols-[88px_1fr_1.5fr_28px] bg-teal-light/60 border-b border-border">
                 <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Week</div>
                 <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Topics Covered</div>
                 <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Description</div>
+                <div />
               </div>
               {rows.map((row, i) => (
-                <div key={row.week} className="grid grid-cols-[48px_1fr_1.5fr] border-b border-border last:border-b-0">
-                  <div className="px-3 py-2 text-sm text-muted-text font-medium flex items-center">{row.week}</div>
+                <div key={i} className="grid grid-cols-[88px_1fr_1.5fr_28px] border-b border-border last:border-b-0">
+                  <div className="px-3 py-2 text-sm text-muted-text font-medium flex items-start pt-3">Week {row.week}</div>
                   <div className="px-1 py-1 border-r border-border">
-                    <input
+                    <textarea
                       value={row.topics}
                       onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, topics: e.target.value } : r))}
-                      className="w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none focus:bg-background rounded"
+                      rows={2}
+                      className="w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none focus:bg-background rounded resize-y"
                       placeholder="Topics…"
                     />
                   </div>
                   <div className="px-1 py-1">
-                    <input
+                    <textarea
                       value={row.description}
                       onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, description: e.target.value } : r))}
-                      className="w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none focus:bg-background rounded"
+                      rows={2}
+                      className="w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none focus:bg-background rounded resize-y"
                       placeholder="Description…"
                     />
+                  </div>
+                  <div className="flex items-start pt-2.5 pr-1">
+                    <button
+                      type="button"
+                      onClick={() => setRows(prev => prev.filter((_, j) => j !== i).map((r, j) => ({ ...r, week: j + 1 })))}
+                      className="text-border hover:text-red-400 transition-colors p-0.5 text-xs"
+                      title="Remove row"
+                    >✕</button>
                   </div>
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setRows(prev => [...prev, { week: prev.length + 1, topics: '', description: '' }])}
+              className="text-sm text-teal-primary font-medium hover:underline self-start"
+            >
+              + Add row
+            </button>
             <div className="flex items-center gap-3">
               <button onClick={handleSave} disabled={saving} className="bg-teal-primary text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity">
                 {saving ? 'Saving…' : 'Save'}

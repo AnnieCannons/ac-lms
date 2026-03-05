@@ -10,7 +10,7 @@ const BASE_ITEMS = [
   { label: 'Policies and Procedures', base: '/instructor/globals/policies' },
 ]
 
-const STATIC_SLUGS = ['computer-wifi', 'policies']
+const STATIC_SLUGS = ['computer-wifi', 'policies', 'launch-tasks']
 
 export default function InstructorGlobalNav({ courseId }: { courseId?: string } = {}) {
   const pathname = usePathname()
