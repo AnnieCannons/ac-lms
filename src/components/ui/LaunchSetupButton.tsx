@@ -22,6 +22,21 @@ const DEFAULT_TASKS: Task[] = [
   { id: 'office-hours',    label: 'Office Hours Link',    order: 3, linkText: 'Book an Office Hours appointment' },
 ]
 
+/** Extract the href from the first <a> tag whose text content matches linkText */
+function extractLinkFromHtml(html: string, linkText: string): string {
+  let found = ''
+  html.replace(
+    /<a\b([^>]*?)href="([^"]*)"([^>]*?)>([\s\S]*?)<\/a>/g,
+    (match, _before, href, _after, content) => {
+      if (!found && content.replace(/<[^>]+>/g, '').trim().toLowerCase() === linkText.toLowerCase()) {
+        found = href
+      }
+      return match
+    },
+  )
+  return found
+}
+
 /** Update the href of <a> tags whose text content matches linkText */
 function updateLinkInHtml(html: string, linkText: string, newUrl: string): string {
   return html.replace(
@@ -89,10 +104,38 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
         .eq('type', 'launch_setup')
         .maybeSingle()
 
+      let savedValues: Values = {}
       if (section) {
         setSectionId(section.id)
-        try { setValues(JSON.parse(section.content ?? '{}').values ?? {}) } catch { /* ignore */ }
+        try { savedValues = JSON.parse(section.content ?? '{}').values ?? {} } catch { /* ignore */ }
       }
+
+      // If any tasks have a linkText but no saved value, read from this course's Everyday Resources
+      const tasksNeedingHtml = loadedTasks.filter(t => t.linkText && !savedValues[t.id])
+      if (tasksNeedingHtml.length > 0) {
+        const { data: erSection } = await supabase
+          .from('course_sections')
+          .select('content, type')
+          .eq('course_id', courseId)
+          .ilike('title', 'everyday resources')
+          .maybeSingle()
+
+        let erHtml = erSection?.content ?? ''
+        if (!erHtml && erSection?.type?.startsWith('global:')) {
+          const slug = (erSection.type as string).slice(7)
+          const { data: g } = await supabase.from('global_content').select('content').eq('slug', slug).single()
+          erHtml = g?.content ?? ''
+        }
+
+        if (erHtml) {
+          for (const task of tasksNeedingHtml) {
+            const href = extractLinkFromHtml(erHtml, task.linkText!)
+            if (href) savedValues = { ...savedValues, [task.id]: href }
+          }
+        }
+      }
+
+      setValues(savedValues)
 
       // Load previous course's values for per-field "Same as last time"
       const { data: otherSections } = await supabase
