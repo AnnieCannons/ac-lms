@@ -46,14 +46,14 @@ export default function StudentCourseNav({ courseId, courseName }: Props) {
 
   return (
     <nav className="flex flex-col">
-      <p className="text-[10px] font-bold text-muted-text uppercase tracking-widest mb-4 px-3 truncate" title={courseName}>
+      <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mb-4 px-3 truncate" title={courseName}>
         {courseName}
       </p>
       <div className="flex flex-col gap-0.5">
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        <p className="text-[10px] font-bold text-muted-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
+        <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        <p className="text-[10px] font-bold text-muted-text uppercase tracking-widest mt-4 mb-1 px-3">My Work</p>
+        <p className="text-[10px] font-bold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">My Work</p>
         {BOTTOM_ITEMS.map(({ label, slug }) => navLink(label, slug))}
       </div>
     </nav>

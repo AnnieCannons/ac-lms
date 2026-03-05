@@ -4,6 +4,7 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import HtmlContent from '@/components/ui/HtmlContent'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import DailySchedule from '@/components/ui/DailySchedule'
 import { CourseOutlineView } from '@/components/ui/GeneralInfoEditor'
 import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
@@ -80,9 +81,9 @@ export default async function GeneralInfoPage({
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+        <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        </ResizableSidebar>
 
         <div className="flex-1 min-w-0">
           <main className="max-w-3xl mx-auto px-8 py-10">

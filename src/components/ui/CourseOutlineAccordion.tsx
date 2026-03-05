@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -9,19 +10,68 @@ const RESOURCE_ICONS: Record<string, string> = {
   file: '📄',
 }
 
-function ReadingResource({ resource }: { resource: { id: string; title: string; content: string | null; description: string | null } }) {
+function StarButton({ starred, onToggle }: { starred: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); onToggle() }}
+      className={`p-1.5 shrink-0 transition-colors ${starred ? 'text-amber-400' : 'text-border hover:text-amber-400'}`}
+      aria-label={starred ? 'Remove star' : 'Star this resource'}
+      title={starred ? 'Remove star' : 'Star this resource'}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill={starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    </button>
+  )
+}
+
+function CheckButton({ completed, onToggle }: { completed: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); onToggle() }}
+      className={`p-1.5 shrink-0 transition-colors ${completed ? 'text-teal-primary' : 'text-border hover:text-teal-primary'}`}
+      aria-label={completed ? 'Mark as unread' : 'Mark as read'}
+      title={completed ? 'Mark as unread' : 'Mark as read'}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill={completed ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75"/>
+        {completed && <path d="M8 12l3 3 5-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
+      </svg>
+    </button>
+  )
+}
+
+function ReadingResource({
+  resource,
+  starred,
+  completed,
+  onToggleStar,
+  onToggleComplete,
+}: {
+  resource: { id: string; title: string; content: string | null; description: string | null }
+  starred: boolean
+  completed: boolean
+  onToggleStar: () => void
+  onToggleComplete: () => void
+}) {
   const [open, setOpen] = useState(false)
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-border/10 transition-colors text-left"
-      >
-        <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
-        <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
-        <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
-      </button>
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-border/10 transition-colors text-left min-w-0"
+        >
+          <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
+          <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
+          <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        <CheckButton completed={completed} onToggle={onToggleComplete} />
+        <StarButton starred={starred} onToggle={onToggleStar} />
+      </div>
       {open && resource.content && (
         <div
           className="px-5 py-4 border-t border-border text-sm text-dark-text wiki-content"
@@ -80,6 +130,8 @@ interface Props {
   currentWeek: number | null
   todayName: string
   submissionMap?: Record<string, SubmissionInfo>
+  initialStarredIds?: string[]
+  initialCompletedIds?: string[]
 }
 
 function DayModal({
@@ -89,6 +141,10 @@ function DayModal({
   isToday,
   onClose,
   submissionMap,
+  starredIds,
+  completedIds,
+  onToggleStar,
+  onToggleComplete,
 }: {
   module: Module
   day: Day
@@ -96,6 +152,10 @@ function DayModal({
   isToday: boolean
   onClose: () => void
   submissionMap?: Record<string, SubmissionInfo>
+  starredIds: Set<string>
+  completedIds: Set<string>
+  onToggleStar: (id: string) => void
+  onToggleComplete: (id: string) => void
 }) {
   const publishedAssignments = (day.assignments ?? []).filter(a => a.published)
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
@@ -139,22 +199,32 @@ function DayModal({
               <div className="flex flex-col gap-2">
                 {resources.map(r =>
                   r.type === 'reading' ? (
-                    <ReadingResource key={r.id} resource={r} />
-                  ) : (
-                    <a
+                    <ReadingResource
                       key={r.id}
-                      href={r.content ?? '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors group"
-                    >
-                      <span className="text-base shrink-0">{RESOURCE_ICONS[r.type] ?? '•'}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">{r.title}</p>
-                        {r.description && <p className="text-xs text-muted-text mt-0.5">{r.description}</p>}
-                      </div>
-                      <span className="text-xs text-muted-text shrink-0 group-hover:text-teal-primary">↗</span>
-                    </a>
+                      resource={r}
+                      starred={starredIds.has(r.id)}
+                      completed={completedIds.has(r.id)}
+                      onToggleStar={() => onToggleStar(r.id)}
+                      onToggleComplete={() => onToggleComplete(r.id)}
+                    />
+                  ) : (
+                    <div key={r.id} className="flex items-center rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors group">
+                      <a
+                        href={r.content ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center gap-3 px-4 py-3 min-w-0"
+                      >
+                        <span className="text-base shrink-0">{RESOURCE_ICONS[r.type] ?? '•'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">{r.title}</p>
+                          {r.description && <p className="text-xs text-muted-text mt-0.5">{r.description}</p>}
+                        </div>
+                        <span className="text-xs text-muted-text shrink-0 group-hover:text-teal-primary">↗</span>
+                      </a>
+                      <CheckButton completed={completedIds.has(r.id)} onToggle={() => onToggleComplete(r.id)} />
+                      <StarButton starred={starredIds.has(r.id)} onToggle={() => onToggleStar(r.id)} />
+                    </div>
                   )
                 )}
               </div>
@@ -219,8 +289,25 @@ function DayModal({
   )
 }
 
-export default function CourseOutlineAccordion({ modules, courseId, currentWeek, todayName, submissionMap }: Props) {
+export default function CourseOutlineAccordion({
+  modules, courseId, currentWeek, todayName, submissionMap,
+  initialStarredIds, initialCompletedIds,
+}: Props) {
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
+  const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
+
+  const toggleStar = (id: string) => {
+    const isStarred = starredIds.has(id)
+    setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
+    toggleResourceStar(id, courseId, isStarred)
+  }
+
+  const toggleComplete = (id: string) => {
+    const isDone = completedIds.has(id)
+    setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
+    toggleResourceComplete(id, courseId, isDone)
+  }
 
   return (
     <>
@@ -306,6 +393,10 @@ export default function CourseOutlineAccordion({ modules, courseId, currentWeek,
           isToday={currentWeek !== null && openDay.module.week_number === currentWeek && openDay.day.day_name === todayName}
           onClose={() => setOpenDay(null)}
           submissionMap={submissionMap}
+          starredIds={starredIds}
+          completedIds={completedIds}
+          onToggleStar={toggleStar}
+          onToggleComplete={toggleComplete}
         />
       )}
     </>

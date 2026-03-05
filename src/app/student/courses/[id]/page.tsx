@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
 import PageRefresher from '@/components/ui/PageRefresher'
 
@@ -69,14 +70,17 @@ export default async function StudentCourseDetailPage({
     !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
   )
 
-  const { data: submissions } = await supabase
-    .from('submissions')
-    .select('assignment_id, status, grade')
-    .eq('student_id', user.id)
+  const [{ data: submissions }, { data: stars }, { data: completions }] = await Promise.all([
+    supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
+    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
+    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+  ])
 
   const submissionMap = Object.fromEntries(
     (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
   )
+  const starredIds = (stars ?? []).map(s => s.resource_id)
+  const completedIds = (completions ?? []).map(c => c.resource_id)
 
   const currentWeek = getCurrentWeek(course.start_date)
   const todayName = DAY_NAMES[new Date().getDay()]
@@ -97,9 +101,9 @@ export default async function StudentCourseDetailPage({
 
       <div className="flex">
         {/* Left sidebar */}
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+        <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        </ResizableSidebar>
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
@@ -138,6 +142,8 @@ export default async function StudentCourseDetailPage({
                 currentWeek={currentWeek}
                 todayName={todayName}
                 submissionMap={submissionMap}
+                initialStarredIds={starredIds}
+                initialCompletedIds={completedIds}
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">

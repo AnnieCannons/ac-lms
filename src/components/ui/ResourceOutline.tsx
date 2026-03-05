@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -57,6 +58,8 @@ interface Props {
   editable?: boolean
   instructorView?: boolean
   submissionMap?: Record<string, SubmissionInfo>
+  initialStarredIds?: string[]
+  initialCompletedIds?: string[]
 }
 
 const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
@@ -67,6 +70,39 @@ function AssignmentStatusBadge({ info }: { info: SubmissionInfo | undefined }) {
   if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Needs Revision</span>
   if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned In</span>
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
+}
+
+function StarButton({ starred, onToggle }: { starred: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); onToggle() }}
+      className={`p-1.5 shrink-0 transition-colors ${starred ? 'text-amber-400' : 'text-border hover:text-amber-400'}`}
+      aria-label={starred ? 'Remove star' : 'Star this resource'}
+      title={starred ? 'Remove star' : 'Star this resource'}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill={starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    </button>
+  )
+}
+
+function CheckButton({ completed, onToggle }: { completed: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); onToggle() }}
+      className={`p-1.5 shrink-0 transition-colors ${completed ? 'text-teal-primary' : 'text-border hover:text-teal-primary'}`}
+      aria-label={completed ? 'Mark as unread' : 'Mark as read'}
+      title={completed ? 'Mark as unread' : 'Mark as read'}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill={completed ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75"/>
+        {completed && <path d="M8 12l3 3 5-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
+      </svg>
+    </button>
+  )
 }
 
 function EditResourceModal({
@@ -172,13 +208,21 @@ function EditResourceModal({
 function ReadingResource({
   resource,
   editable,
+  starred,
+  completed,
   onEdit,
   onDelete,
+  onToggleStar,
+  onToggleComplete,
 }: {
   resource: Resource
   editable?: boolean
+  starred?: boolean
+  completed?: boolean
   onEdit?: () => void
   onDelete?: () => void
+  onToggleStar?: () => void
+  onToggleComplete?: () => void
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -193,6 +237,8 @@ function ReadingResource({
           <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
           <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
         </button>
+        {onToggleComplete && <CheckButton completed={!!completed} onToggle={onToggleComplete} />}
+        {onToggleStar && <StarButton starred={!!starred} onToggle={onToggleStar} />}
         {editable && (
           <div className="flex items-center gap-1 px-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button type="button" onClick={onEdit} className="p-1.5 text-muted-text hover:text-teal-primary transition-colors" title="Edit">
@@ -223,13 +269,21 @@ function ReadingResource({
 function LinkResource({
   resource,
   editable,
+  starred,
+  completed,
   onEdit,
   onDelete,
+  onToggleStar,
+  onToggleComplete,
 }: {
   resource: Resource
   editable?: boolean
+  starred?: boolean
+  completed?: boolean
   onEdit?: () => void
   onDelete?: () => void
+  onToggleStar?: () => void
+  onToggleComplete?: () => void
 }) {
   return (
     <div className="flex items-center rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors group">
@@ -246,6 +300,8 @@ function LinkResource({
         </div>
         <span className="text-xs text-muted-text shrink-0 group-hover:text-teal-primary">↗</span>
       </a>
+      {onToggleComplete && <CheckButton completed={!!completed} onToggle={onToggleComplete} />}
+      {onToggleStar && <StarButton starred={!!starred} onToggle={onToggleStar} />}
       {editable && (
         <div className="flex items-center gap-1 px-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button type="button" onClick={onEdit} className="p-1.5 text-muted-text hover:text-teal-primary transition-colors" title="Edit">
@@ -273,8 +329,16 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'not-started', label: 'Not Started' },
   { key: 'turned-in', label: 'Turned In' },
   { key: 'needs-revision', label: 'Needs Revision' },
-  { key: 'complete', label: 'Complete' },
+  { key: 'complete', label: 'Complete ✓' },
 ]
+
+const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string }> = {
+  'all':            { inactive: 'bg-background border border-border text-dark-text hover:bg-border/20', active: 'bg-dark-text text-white border border-dark-text' },
+  'not-started':    { inactive: 'bg-background border border-border text-muted-text hover:bg-border/30', active: 'bg-muted-text text-white border border-muted-text' },
+  'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary/20 hover:border-teal-primary/40', active: 'bg-teal-primary text-white border border-teal-primary' },
+  'needs-revision': { inactive: 'bg-red-50 text-red-500 border border-red-200 hover:border-red-300', active: 'bg-red-500 text-white border border-red-500' },
+  'complete':       { inactive: 'bg-teal-light text-teal-primary border border-teal-primary/20 hover:border-teal-primary/40', active: 'bg-teal-primary text-white border border-teal-primary' },
+}
 
 function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>): boolean {
   const info = map[id]
@@ -286,11 +350,16 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   return true
 }
 
-export default function ResourceOutline({ modules, courseId, mode, editable, instructorView, submissionMap }: Props) {
+export default function ResourceOutline({
+  modules, courseId, mode, editable, instructorView, submissionMap,
+  initialStarredIds, initialCompletedIds,
+}: Props) {
   const supabase = createClient()
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [editedResources, setEditedResources] = useState<Map<string, Resource>>(new Map())
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
+  const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(
     () => new Set(modules.map(m => m.id))
   )
@@ -304,6 +373,18 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
   const changeFilter = (f: AssignmentFilter) => {
     setFilter(f)
     if (f !== 'all') expandAll()
+  }
+
+  const toggleStar = (id: string) => {
+    const isStarred = starredIds.has(id)
+    setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
+    toggleResourceStar(id, courseId, isStarred)
+  }
+
+  const toggleComplete = (id: string) => {
+    const isDone = completedIds.has(id)
+    setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
+    toggleResourceComplete(id, courseId, isDone)
   }
 
   const assignmentHref = (id: string) => instructorView
@@ -357,26 +438,30 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
     setEditedResources(prev => new Map(prev).set(updated.id, updated))
   }
 
+  const studentActions = !editable && !instructorView
+
   if (modulesWithContent.length === 0) {
     return (
       <>
         {filterCounts && (
-          <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-6 flex-wrap">
-            {FILTERS.map(f => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => changeFilter(f.key)}
-                className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
-                  filter === f.key ? 'bg-teal-primary text-white' : 'text-muted-text hover:text-dark-text'
-                }`}
-              >
-                {f.label}
-                <span className={`ml-1.5 ${filter === f.key ? 'text-white/70' : 'text-muted-text'}`}>
-                  {filterCounts[f.key]}
-                </span>
-              </button>
-            ))}
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {FILTERS.map(f => {
+              const active = filter === f.key
+              const styles = FILTER_STYLES[f.key]
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => changeFilter(f.key)}
+                  className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
+                >
+                  {f.label}
+                  <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>
+                    {filterCounts[f.key]}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         )}
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">
@@ -391,22 +476,24 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
   return (
     <>
       {filterCounts && (
-        <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-6 flex-wrap">
-          {FILTERS.map(f => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => changeFilter(f.key)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
-                filter === f.key ? 'bg-teal-primary text-white' : 'text-muted-text hover:text-dark-text'
-              }`}
-            >
-              {f.label}
-              <span className={`ml-1.5 ${filter === f.key ? 'text-white/70' : 'text-muted-text'}`}>
-                {filterCounts[f.key]}
-              </span>
-            </button>
-          ))}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {FILTERS.map(f => {
+            const active = filter === f.key
+            const styles = FILTER_STYLES[f.key]
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => changeFilter(f.key)}
+                className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
+              >
+                {f.label}
+                <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>
+                  {filterCounts[f.key]}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
       <div className="flex justify-end mb-4">
@@ -478,6 +565,10 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
                                     key={r.id}
                                     resource={resolved}
                                     editable={editable}
+                                    starred={starredIds.has(r.id)}
+                                    completed={completedIds.has(r.id)}
+                                    onToggleStar={studentActions ? () => toggleStar(r.id) : undefined}
+                                    onToggleComplete={studentActions ? () => toggleComplete(r.id) : undefined}
                                     onEdit={() => setEditingResource(resolved)}
                                     onDelete={() => handleDelete(resolved)}
                                   />
@@ -486,6 +577,10 @@ export default function ResourceOutline({ modules, courseId, mode, editable, ins
                                     key={r.id}
                                     resource={resolved}
                                     editable={editable}
+                                    starred={starredIds.has(r.id)}
+                                    completed={completedIds.has(r.id)}
+                                    onToggleStar={studentActions ? () => toggleStar(r.id) : undefined}
+                                    onToggleComplete={studentActions ? () => toggleComplete(r.id) : undefined}
                                     onEdit={() => setEditingResource(resolved)}
                                     onDelete={() => handleDelete(resolved)}
                                   />

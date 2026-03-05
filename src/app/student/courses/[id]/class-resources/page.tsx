@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import ResourceOutline from '@/components/ui/ResourceOutline'
 
 export default async function StudentClassResourcesPage({
@@ -43,14 +44,20 @@ export default async function StudentClassResourcesPage({
 
   if (!course) redirect('/student/courses')
 
-  const { data: rawModules } = await supabase
-    .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, resources(id, type, title, content, description, order))')
-    .eq('course_id', id)
-    .eq('published', true)
-    .order('order', { ascending: true })
+  const [{ data: rawModules }, { data: stars }, { data: completions }] = await Promise.all([
+    supabase
+      .from('modules')
+      .select('id, title, week_number, order, module_days(id, day_name, order, resources(id, type, title, content, description, order))')
+      .eq('course_id', id)
+      .eq('published', true)
+      .order('order', { ascending: true }),
+    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
+    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+  ])
 
   const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
+  const starredIds = (stars ?? []).map(s => s.resource_id)
+  const completedIds = (completions ?? []).map(c => c.resource_id)
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,9 +74,9 @@ export default async function StudentClassResourcesPage({
       </nav>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
+        <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        </ResizableSidebar>
 
         <div className="flex-1 min-w-0">
           <main className="max-w-3xl mx-auto px-8 py-10">
@@ -88,6 +95,8 @@ export default async function StudentClassResourcesPage({
               modules={modules as Parameters<typeof ResourceOutline>[0]['modules']}
               courseId={id}
               mode="resources"
+              initialStarredIds={starredIds}
+              initialCompletedIds={completedIds}
             />
           </main>
         </div>
