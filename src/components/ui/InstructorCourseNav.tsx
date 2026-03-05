@@ -74,7 +74,7 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
       </div>
 
       <div className="mt-6 pt-4 border-t border-border">
-        <InstructorGlobalNav />
+        <InstructorGlobalNav courseId={courseId} />
       </div>
     </nav>
   )
