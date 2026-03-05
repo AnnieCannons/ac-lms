@@ -5,7 +5,6 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
-import LaunchSetupButton from "@/components/ui/LaunchSetupButton";
 
 export default async function CoursePage({
   params,
@@ -53,14 +52,13 @@ export default async function CoursePage({
         {/* Main content */}
         <div className="flex-1 min-w-0">
           <main id="main-content" className="max-w-4xl mx-auto px-8 py-10">
-            <div className="flex items-center justify-between gap-3 mb-6">
+            <div className="mb-6">
               <Link
                 href="/instructor/courses"
                 className="text-muted-text hover:text-teal-primary text-sm"
               >
                 ← Courses
               </Link>
-              <LaunchSetupButton courseId={id} />
             </div>
             <CourseNameEditor
               courseId={course.id}

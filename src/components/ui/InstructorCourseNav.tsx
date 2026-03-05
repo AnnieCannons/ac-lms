@@ -4,6 +4,7 @@ import Link from 'next/link'
 import AddAssignmentButton from './AddAssignmentButton'
 import AddResourceButton from './AddResourceButton'
 import InstructorGlobalNav from './InstructorGlobalNav'
+import LaunchSetupButton from './LaunchSetupButton'
 
 interface Props {
   courseId: string
@@ -75,6 +76,10 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
 
       <div className="mt-6 pt-4 border-t border-border">
         <InstructorGlobalNav courseId={courseId} />
+      </div>
+
+      <div className="mt-auto pt-6 px-3">
+        <LaunchSetupButton courseId={courseId} />
       </div>
     </nav>
   )
