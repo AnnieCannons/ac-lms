@@ -325,7 +325,7 @@ function GlobalTextCard({
 
 function TextSectionCard({
   section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onUpdate, onDelete, onTogglePublish,
+  onUpdate, onDelete, onTogglePublish, onToggleCollapse,
 }: {
   section: CourseSection
   dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
@@ -333,6 +333,7 @@ function TextSectionCard({
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
   onTogglePublish: () => void
+  onToggleCollapse?: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(section.title)
@@ -413,16 +414,34 @@ function TextSectionCard({
 
 // ── Unified SectionCard (routes to correct sub-component) ─────────────────────
 
-function SectionCard({ section, courseId, onUpdate, onDelete, onTogglePublish }: {
+function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate, onDelete, onTogglePublish }: {
   section: CourseSection
   courseId: string
+  collapsed: boolean
+  onToggleCollapse: () => void
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
   onTogglePublish: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
-  const shared = { dragListeners: listeners, dragAttributes: attributes, dragRef: setNodeRef, dragStyle: style, dragIsDragging: isDragging, onTogglePublish }
+
+  if (collapsed) {
+    return (
+      <div ref={setNodeRef} style={style} className={`bg-surface rounded-2xl border border-border px-5 py-3.5 flex items-center gap-3 ${isDragging ? 'opacity-50' : ''}`}>
+        <button {...attributes} {...listeners} className="shrink-0 text-border hover:text-muted-text cursor-grab active:cursor-grabbing touch-none" tabIndex={-1} aria-label="Drag to reorder">
+          <GripIcon />
+        </button>
+        <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center justify-between text-left gap-2">
+          <h3 className="font-semibold text-dark-text">{section.title}</h3>
+          <span className="text-xs text-muted-text">▾</span>
+        </button>
+        <PublishToggle published={section.published} onToggle={onTogglePublish} />
+      </div>
+    )
+  }
+
+  const shared = { dragListeners: listeners, dragAttributes: attributes, dragRef: setNodeRef, dragStyle: style, dragIsDragging: isDragging, onTogglePublish, onToggleCollapse }
 
   if (section.type === 'daily_schedule') return <DailyScheduleCard section={section} {...shared} onDelete={onDelete} />
   if (section.type === 'course_outline') return <CourseOutlineCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
@@ -446,6 +465,13 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
   const [newTitle, setNewTitle] = useState('')
   const [addSaving, setAddSaving] = useState(false)
   const [addError, setAddError] = useState('')
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+
+  const toggleCollapse = (id: string) => setCollapsedSections(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
+  })
+  const expandAll = () => setCollapsedSections(new Set())
+  const collapseAll = () => setCollapsedSections(new Set(sections.map(s => s.id)))
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -493,6 +519,13 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
 
   return (
     <div className="flex flex-col gap-3">
+      {sections.length > 1 && (
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={expandAll} className="text-xs text-muted-text hover:text-dark-text transition-colors">Expand all</button>
+          <span className="text-xs text-border">·</span>
+          <button type="button" onClick={collapseAll} className="text-xs text-muted-text hover:text-dark-text transition-colors">Collapse all</button>
+        </div>
+      )}
       <DndContext id="general-info-sections" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
           {sections.map(section => (
@@ -500,6 +533,8 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
               key={section.id}
               section={section}
               courseId={courseId}
+              collapsed={collapsedSections.has(section.id)}
+              onToggleCollapse={() => toggleCollapse(section.id)}
               onUpdate={updates => updateSection(section.id, updates)}
               onDelete={() => deleteSection(section.id)}
               onTogglePublish={() => togglePublish(section.id, section.published)}
