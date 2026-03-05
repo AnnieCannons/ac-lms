@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import CalendarPopover from './CalendarPopover'
 
 type Cohort   = { id: string; name: string; start_date: string; end_date: string; order: number }
 type Break    = { id: string; label: string; start_date: string; end_date: string }
@@ -20,7 +21,6 @@ function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
   const today = new Date()
   const sorted = [...cohorts].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
 
-  // Find starting index: current cohort, then next upcoming, then last 3
   let startIdx = sorted.findIndex(c => new Date(c.start_date) <= today && today <= new Date(c.end_date))
   if (startIdx === -1) startIdx = sorted.findIndex(c => new Date(c.start_date) > today)
   if (startIdx === -1) startIdx = Math.max(0, sorted.length - 3)
@@ -78,18 +78,22 @@ export default function YearlyScheduleSection() {
   if (loading) return <p className="text-sm text-muted-text">Loading schedule…</p>
   if (timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
 
+  const holidayHighlights = holidays.map(h => ({ start: h.date, color: 'purple' as const }))
+
   return (
     <div className="flex flex-col gap-8">
+      {/* Cohort / break timeline */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_1fr] bg-teal-light/60 border-b border-border">
+        <div className="grid grid-cols-[1fr_1fr_1fr_32px] bg-teal-light/60 border-b border-border">
           <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
           <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
           <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">End</div>
+          <div />
         </div>
         {timeline.map((item, i) => (
           <div
             key={i}
-            className={`grid grid-cols-[1fr_1fr_1fr] border-b border-border last:border-b-0 ${
+            className={`grid grid-cols-[1fr_1fr_1fr_32px] items-center border-b border-border last:border-b-0 ${
               item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50'
             }`}
           >
@@ -105,15 +109,30 @@ export default function YearlyScheduleSection() {
             </div>
             <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.start)}</div>
             <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.end)}</div>
+            <div className="flex items-center justify-center pr-1">
+              <CalendarPopover
+                label={item.kind === 'cohort' ? item.name : item.label}
+                initialDate={item.start}
+                highlights={[{ start: item.start, end: item.end, color: item.kind === 'cohort' ? 'teal' : 'amber' }]}
+              />
+            </div>
           </div>
         ))}
       </div>
 
+      {/* Holidays */}
       {holidays.length > 0 && (
         <div>
-          <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3">
-            {new Date().getFullYear()} Holidays
-          </h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest">
+              {new Date().getFullYear()} Holidays
+            </h3>
+            <CalendarPopover
+              label="All Holidays"
+              initialDate={holidays[0].date}
+              highlights={holidayHighlights}
+            />
+          </div>
           <div className="rounded-xl border border-border overflow-hidden">
             {holidays.map((h, i) => (
               <div key={h.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
@@ -125,6 +144,7 @@ export default function YearlyScheduleSection() {
         </div>
       )}
 
+      {/* School Breaks */}
       {breaks.length > 0 && (
         <div>
           <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3">
@@ -134,7 +154,14 @@ export default function YearlyScheduleSection() {
             {breaks.map((b, i) => (
               <div key={b.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
                 <span className="text-sm font-medium text-dark-text">{b.label}</span>
-                <span className="text-sm text-muted-text">{formatDate(b.start_date)} – {formatDate(b.end_date)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-text">{formatDate(b.start_date)} – {formatDate(b.end_date)}</span>
+                  <CalendarPopover
+                    label={b.label}
+                    initialDate={b.start_date}
+                    highlights={[{ start: b.start_date, end: b.end_date, color: 'amber' }]}
+                  />
+                </div>
               </div>
             ))}
           </div>
