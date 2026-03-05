@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
@@ -360,11 +360,33 @@ export default function ResourceOutline({
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [starredIds, setStarredIds] = useState<Set<string>>(() => new Set(initialStarredIds ?? []))
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
+  const moduleKey = `outline-modules-${courseId}-${mode}`
+  const dayKey = `outline-days-${courseId}-${mode}`
+
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(
     () => new Set(modules.map(m => m.id))
   )
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<AssignmentFilter>('all')
+
+  // Load persisted collapse state before first paint
+  useLayoutEffect(() => {
+    try {
+      const m = localStorage.getItem(moduleKey)
+      if (m !== null) setCollapsedModules(new Set(JSON.parse(m)))
+      const d = localStorage.getItem(dayKey)
+      if (d !== null) setCollapsedDays(new Set(JSON.parse(d)))
+    } catch {}
+  }, [])
+
+  // Save whenever collapse state changes
+  useEffect(() => {
+    try { localStorage.setItem(moduleKey, JSON.stringify([...collapsedModules])) } catch {}
+  }, [collapsedModules])
+
+  useEffect(() => {
+    try { localStorage.setItem(dayKey, JSON.stringify([...collapsedDays])) } catch {}
+  }, [collapsedDays])
 
   const allExpanded = collapsedModules.size === 0
   const expandAll = () => setCollapsedModules(new Set())
@@ -528,10 +550,7 @@ export default function ResourceOutline({
                 className="w-full flex items-center justify-between mb-3 pb-2 border-b border-border group text-left"
               >
                 <h2 className="text-base font-bold text-dark-text">
-                  {module.week_number ? `Week ${module.week_number}` : module.title}
-                  {module.week_number && (
-                    <span className="font-normal text-muted-text ml-2">{module.title}</span>
-                  )}
+                  {module.title}
                 </h2>
                 <span className={`text-xs text-muted-text transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
               </button>
