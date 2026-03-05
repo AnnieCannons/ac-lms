@@ -47,6 +47,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
   const [newItemText, setNewItemText] = useState('')
   const [newItemDesc, setNewItemDesc] = useState('')
+  const [newItemBonus, setNewItemBonus] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -75,13 +76,14 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const nextOrder = checklist.length > 0 ? Math.max(...checklist.map(i => i.order)) + 1 : 0
     const { data, error } = await supabase
       .from('checklist_items')
-      .insert({ assignment_id: assignment.id, text: newItemText.trim(), description: newItemDesc.trim() || null, order: nextOrder, required: true })
+      .insert({ assignment_id: assignment.id, text: newItemText.trim(), description: newItemDesc.trim() || null, order: nextOrder, required: !newItemBonus })
       .select('id, text, description, order, required')
       .single()
     if (error) { alert(error.message); return }
     setChecklist(prev => [...prev, data])
     setNewItemText('')
     setNewItemDesc('')
+    setNewItemBonus(false)
   }
 
   const handleItemTextPaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
@@ -244,14 +246,27 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             placeholder="Description (optional)…"
             className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
           />
-          <button
-            type="button"
-            onClick={addChecklistItem}
-            disabled={!newItemText.trim()}
-            className="self-start px-4 py-1.5 text-sm bg-teal-primary text-white rounded-lg hover:bg-teal-600 disabled:opacity-40"
-          >
-            + Add
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={addChecklistItem}
+              disabled={!newItemText.trim()}
+              className="px-4 py-1.5 text-sm bg-teal-primary text-white rounded-lg hover:bg-teal-600 disabled:opacity-40"
+            >
+              + Add
+            </button>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div
+                onClick={() => setNewItemBonus(b => !b)}
+                className={`w-8 h-4 rounded-full transition-colors flex items-center px-0.5 ${newItemBonus ? 'bg-amber-400' : 'bg-border'}`}
+              >
+                <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform ${newItemBonus ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+              <span className={`text-xs font-medium ${newItemBonus ? 'text-amber-600' : 'text-muted-text'}`}>
+                {newItemBonus ? 'Bonus (not required)' : 'Required'}
+              </span>
+            </label>
+          </div>
         </div>
       </div>
 
