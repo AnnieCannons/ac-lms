@@ -52,7 +52,7 @@ export default async function GradingPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, answer_key_url')
+    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required')
     .eq('id', assignmentId)
     .single()
 
@@ -89,12 +89,22 @@ export default async function GradingPage({
 
   const subBase = `/instructor/courses/${id}/assignments/${assignmentId}/submissions`
 
-  const { data: submission } = await admin
+  let { data: submission } = await admin
     .from('submissions')
     .select('id, submission_type, content, status, grade, graded_at, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
+
+  // For no-submission assignments, auto-create a placeholder so grading works normally
+  if (!submission && assignment?.submission_required === false) {
+    const { data: created } = await admin
+      .from('submissions')
+      .insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })
+      .select('id, submission_type, content, status, grade, graded_at, submitted_at')
+      .single()
+    submission = created ?? null
+  }
 
   const { data: submissionHistory } = await admin
     .from('submission_history')
@@ -215,7 +225,13 @@ export default async function GradingPage({
 
         <div className="flex flex-col gap-6">
           {/* Submission */}
-          <div className="bg-surface rounded-2xl border border-border p-6">
+          {assignment.submission_required === false ? (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
+              <p className="text-sm text-muted-text mt-2 italic">No submission — instructor check-off only.</p>
+            </div>
+          ) : null}
+          {assignment.submission_required !== false && <div className="bg-surface rounded-2xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
               {submission && (
@@ -276,7 +292,7 @@ export default async function GradingPage({
             ) : (
               <p className="text-sm text-muted-text italic">No submission yet.</p>
             )}
-          </div>
+          </div>}
 
           {/* Checklist */}
           {checklistItems && checklistItems.length > 0 && submission && (

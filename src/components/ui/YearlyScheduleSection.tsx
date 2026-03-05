@@ -54,7 +54,7 @@ function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
   return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 }
 
-export default function YearlyScheduleSection({ instructorEditHref }: { instructorEditHref?: string } = {}) {
+export default function YearlyScheduleSection({ instructorEditHref, hideCohorts }: { instructorEditHref?: string; hideCohorts?: boolean } = {}) {
   const [timeline, setTimeline] = useState<TimelineItem[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [breaks, setBreaks] = useState<Break[]>([])
@@ -76,14 +76,15 @@ export default function YearlyScheduleSection({ instructorEditHref }: { instruct
   }, [])
 
   if (loading) return <p className="text-sm text-muted-text">Loading schedule…</p>
-  if (timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
+  if (!hideCohorts && timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
+  if (hideCohorts && holidays.length === 0 && breaks.length === 0) return <p className="text-sm text-muted-text italic">No holidays or breaks added yet.</p>
 
   const holidayHighlights = holidays.map(h => ({ start: h.date, color: 'purple' as const, label: h.label }))
 
   return (
     <div className="flex flex-col gap-8">
       {/* Cohort / break timeline */}
-      <div className="rounded-xl border border-border overflow-hidden">
+      {!hideCohorts && <div className="rounded-xl border border-border overflow-hidden">
         <div className="grid grid-cols-[1fr_1fr_1fr_32px] bg-teal-light/60 border-b border-border">
           <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
           <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
@@ -118,7 +119,7 @@ export default function YearlyScheduleSection({ instructorEditHref }: { instruct
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Holidays */}
       {holidays.length > 0 && (

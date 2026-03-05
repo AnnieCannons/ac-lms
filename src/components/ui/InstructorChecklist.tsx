@@ -78,7 +78,7 @@ export default function InstructorChecklist({
                   className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
                     checked
                       ? "bg-teal-primary border-teal-primary"
-                      : "border-border group-hover:border-teal-primary"
+                      : "border-gray-400 group-hover:border-teal-primary"
                   }`}
                 >
                   {checked && (

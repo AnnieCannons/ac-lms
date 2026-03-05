@@ -6,6 +6,8 @@ import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
 import PageRefresher from '@/components/ui/PageRefresher'
+import { isStudentPreview } from '@/lib/student-preview'
+import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +39,9 @@ export default async function StudentCourseDetailPage({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  const preview = await isStudentPreview(id)
+
+  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
     redirect(`/instructor/courses/${id}`)
   }
 
@@ -50,7 +54,7 @@ export default async function StudentCourseDetailPage({
     .eq('role', 'student')
     .maybeSingle()
 
-  if (!enrollment) redirect('/student/courses')
+  if (!preview && !enrollment) redirect('/student/courses')
 
   const { data: course } = await supabase
     .from('courses')
@@ -88,11 +92,12 @@ export default async function StudentCourseDetailPage({
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
+      {preview && <StudentViewBanner courseId={id} />}
 
       <div className="flex">
         {/* Left sidebar */}
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
         </ResizableSidebar>
 
         {/* Main content */}

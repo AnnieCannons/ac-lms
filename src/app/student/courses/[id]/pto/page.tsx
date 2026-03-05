@@ -1,14 +1,13 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
-import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
+import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
-export default async function StudentCareerPage({
+export default async function StudentPTOPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -42,21 +41,12 @@ export default async function StudentCareerPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('*')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 
   if (!course) redirect('/student/courses')
-
-  const { data: rawModules } = await supabase
-    .from('modules')
-    .select('*, module_days(id, day_name, order, assignments(id, title, due_date, published), resources(id, type, title, content, description, order))')
-    .eq('course_id', id)
-    .eq('category', 'career')
-    .eq('published', true)
-    .order('order', { ascending: true })
-
-  const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
+  if (!course.paid_learners) redirect(`/student/courses/${id}`)
 
   return (
     <div className="min-h-screen bg-background">
@@ -65,34 +55,16 @@ export default async function StudentCareerPage({
 
       <div className="flex">
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={true} />
         </ResizableSidebar>
 
         <div className="flex-1 min-w-0">
           <main className="max-w-3xl mx-auto px-8 py-10">
-            <div className="flex items-center gap-3 mb-2">
-              <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm">
-                ← My Courses
-              </Link>
-            </div>
-
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-dark-text mb-1">Career Development</h1>
-              <p className="text-muted-text text-sm">{course.code}</p>
+              <h1 className="text-2xl font-bold text-dark-text">Paid Time Off</h1>
+              <p className="text-sm text-muted-text mt-1">{course.name}</p>
             </div>
-
-            {modules.length > 0 ? (
-              <CourseOutlineAccordion
-                modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
-                courseId={id}
-                currentWeek={null}
-                todayName=""
-              />
-            ) : (
-              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-                <p className="text-muted-text">No content available yet.</p>
-              </div>
-            )}
+            <YearlyScheduleSection hideCohorts />
           </main>
         </div>
       </div>

@@ -8,9 +8,11 @@ const BASE_ITEMS = [
   { label: 'Calendar', base: '/instructor/calendar' },
   { label: 'Computer and Wifi', base: '/instructor/globals/computer-wifi' },
   { label: 'Policies and Procedures', base: '/instructor/globals/policies' },
+  { label: 'Benefits', base: '/instructor/globals/benefits' },
+  { label: 'Paid Time Off', base: '/instructor/globals/pto' },
 ]
 
-const STATIC_SLUGS = ['computer-wifi', 'policies', 'launch-tasks']
+const STATIC_SLUGS = ['computer-wifi', 'policies', 'launch-tasks', 'benefits-healthcare', 'benefits-vision', 'benefits-dental']
 
 export default function InstructorGlobalNav({ courseId }: { courseId?: string } = {}) {
   const pathname = usePathname()

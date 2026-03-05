@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
+import { isStudentPreview } from '@/lib/student-preview'
+import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -30,7 +32,9 @@ export default async function StudentDayDetailPage({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  const preview = await isStudentPreview(id)
+
+  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
     redirect(`/instructor/courses/${id}`)
   }
 
@@ -43,7 +47,7 @@ export default async function StudentDayDetailPage({
     .eq('role', 'student')
     .maybeSingle()
 
-  if (!enrollment) redirect('/student/courses')
+  if (!preview && !enrollment) redirect('/student/courses')
 
   const { data: course } = await supabase
     .from('courses')
@@ -79,6 +83,7 @@ export default async function StudentDayDetailPage({
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
+      {preview && <StudentViewBanner courseId={id} />}
 
       <main className="max-w-4xl mx-auto px-8 py-12">
         {/* Breadcrumb */}

@@ -5,6 +5,8 @@ import StudentTopNav from '@/components/ui/StudentTopNav'
 import HtmlContent from '@/components/ui/HtmlContent'
 import SubmissionForm from '@/components/ui/SubmissionForm'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
+import { isStudentPreview } from '@/lib/student-preview'
+import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
 export default async function StudentAssignmentPage({
   params,
@@ -22,7 +24,9 @@ export default async function StudentAssignmentPage({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  const preview = await isStudentPreview(id)
+
+  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
     redirect(`/instructor/courses/${id}`)
   }
 
@@ -35,11 +39,11 @@ export default async function StudentAssignmentPage({
     .eq('role', 'student')
     .maybeSingle()
 
-  if (!enrollment) redirect('/student/courses')
+  if (!preview && !enrollment) redirect('/student/courses')
 
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published')
+    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required')
     .eq('id', assignmentId)
     .eq('published', true)
     .single()
@@ -132,6 +136,7 @@ export default async function StudentAssignmentPage({
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
+      {preview && <StudentViewBanner courseId={id} />}
 
       <main className="max-w-3xl mx-auto px-8 py-12">
         {/* Breadcrumb */}
@@ -225,7 +230,7 @@ export default async function StudentAssignmentPage({
                   const checked = instructorResponseMap.get(item.id) === true
                   return (
                     <div key={item.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${checked ? 'border-teal-primary bg-teal-light/30' : 'border-border bg-background'}`}>
-                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-border'}`}>
+                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-gray-400'}`}>
                         {checked && (
                           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
@@ -246,15 +251,22 @@ export default async function StudentAssignmentPage({
           )}
 
           {/* Submission form (includes student checklist when items exist) */}
-          <SubmissionForm
-            assignmentId={assignmentId}
-            studentId={user.id}
-            courseId={id}
-            existingSubmission={existingSubmission ?? null}
-            initialHistory={submissionHistory ?? []}
-            checklistItems={checklistItems ?? undefined}
-            initialChecked={initialChecked}
-          />
+          {assignment.submission_required !== false ? (
+            <SubmissionForm
+              assignmentId={assignmentId}
+              studentId={user.id}
+              courseId={id}
+              existingSubmission={existingSubmission ?? null}
+              initialHistory={submissionHistory ?? []}
+              checklistItems={checklistItems ?? undefined}
+              initialChecked={initialChecked}
+            />
+          ) : (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
+              <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
+            </div>
+          )}
 
           {/* Comments (only shown once there's a submission) */}
           {existingSubmission && (

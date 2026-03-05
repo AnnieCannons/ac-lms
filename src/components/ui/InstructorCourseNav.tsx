@@ -5,6 +5,7 @@ import AddAssignmentButton from './AddAssignmentButton'
 import AddResourceButton from './AddResourceButton'
 import InstructorGlobalNav from './InstructorGlobalNav'
 import LaunchSetupButton from './LaunchSetupButton'
+import StudentViewButton from './StudentViewButton'
 
 interface Props {
   courseId: string
@@ -17,9 +18,9 @@ const CATEGORY_ITEMS = [
   { label: 'All Modules', slug: '' },
   { label: 'Syllabus', slug: 'syllabus' },
   { label: 'Assignments', slug: 'assignments' },
-  { label: 'Level Up Your Skills', slug: 'level-up' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },
+  { label: 'Level Up Your Skills', slug: 'level-up' },
 ]
 
 export default function InstructorCourseNav({ courseId, courseName }: Props) {
@@ -78,7 +79,8 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
         <InstructorGlobalNav courseId={courseId} />
       </div>
 
-      <div className="mt-auto pt-6 px-3">
+      <div className="mt-auto pt-6 px-3 flex flex-col gap-2">
+        <StudentViewButton courseId={courseId} />
         <LaunchSetupButton courseId={courseId} />
       </div>
     </nav>

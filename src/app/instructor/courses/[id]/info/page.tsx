@@ -4,6 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import GeneralInfoEditor from '@/components/ui/GeneralInfoEditor'
+import PaidLearnersToggle from '@/components/ui/PaidLearnersToggle'
 
 const DEFAULT_SECTIONS = [
   { title: 'General Class Info',    type: 'text',             content: null,                                                         order: 0 },
@@ -60,7 +61,7 @@ export default async function InstructorGeneralInfoPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 
@@ -105,7 +106,10 @@ export default async function InstructorGeneralInfoPage({
               </Link>
             </div>
 
-            <GeneralInfoEditor courseId={id} initialSections={sections ?? []} />
+            <PaidLearnersToggle courseId={id} initialValue={course.paid_learners ?? false} />
+            <div className="mt-6">
+              <GeneralInfoEditor courseId={id} initialSections={sections ?? []} />
+            </div>
           </main>
         </div>
       </div>

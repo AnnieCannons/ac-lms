@@ -6,6 +6,7 @@ import RichTextEditor from './RichTextEditor'
 import Link from 'next/link'
 import { RUBRIC_TEMPLATES } from '@/data/rubric-templates'
 import DatePicker from './DatePicker'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 interface ChecklistItem {
   id: string
@@ -25,6 +26,7 @@ interface Props {
     due_date: string | null
     published: boolean
     answer_key_url: string | null
+    submission_required: boolean
   }
   initialChecklist: ChecklistItem[]
 }
@@ -43,6 +45,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     return d.toISOString().slice(0, 10)
   })
   const [published, setPublished] = useState(assignment.published)
+  const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
   const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
   const [newItemText, setNewItemText] = useState('')
@@ -50,6 +53,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [newItemBonus, setNewItemBonus] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  useUnsavedChanges(isDirty)
 
   const save = async () => {
     setSaving(true)
@@ -61,11 +66,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         how_to_turn_in: howToTurnIn || null,
         due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null,
         published,
+        submission_required: submissionRequired,
         answer_key_url: answerKeyUrl.trim() || null,
       })
       .eq('id', assignment.id)
     setSaving(false)
     if (error) { alert(error.message); return }
+    setIsDirty(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     router.refresh()
@@ -155,14 +162,14 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Title</label>
           <input
             value={title}
-            onChange={e => setTitle(e.target.value)}
+            onChange={e => { setTitle(e.target.value); setIsDirty(true) }}
             className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
           />
         </div>
-        <div className="pt-6">
+        <div className="pt-6 flex flex-col gap-2 items-end">
           <button
             type="button"
-            onClick={() => setPublished(p => !p)}
+            onClick={() => { setPublished(p => !p); setIsDirty(true) }}
             className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
               published
                 ? 'bg-teal-light text-teal-primary border-teal-primary/30'
@@ -172,6 +179,17 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             <span className={`w-2 h-2 rounded-full ${published ? 'bg-teal-primary' : 'bg-muted-text'}`} />
             {published ? 'Published' : 'Draft'}
           </button>
+          <button
+            type="button"
+            onClick={() => { setSubmissionRequired(r => !r); setIsDirty(true) }}
+            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+              submissionRequired
+                ? 'bg-background text-muted-text border-border'
+                : 'bg-amber-50 text-amber-700 border-amber-300'
+            }`}
+          >
+            {submissionRequired ? 'Submission required' : 'No submission'}
+          </button>
         </div>
       </div>
 
@@ -179,7 +197,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       <div>
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Due Date</label>
         <div className="flex items-center gap-3">
-          <DatePicker value={dueDate} onChange={setDueDate} />
+          <DatePicker value={dueDate} onChange={v => { setDueDate(v); setIsDirty(true) }} />
           <span className="text-sm text-muted-text">8:59 PM PST</span>
         </div>
       </div>
@@ -190,7 +208,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         <input
           type="url"
           value={answerKeyUrl}
-          onChange={e => setAnswerKeyUrl(e.target.value)}
+          onChange={e => { setAnswerKeyUrl(e.target.value); setIsDirty(true) }}
           placeholder="https://…"
           className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
         />
@@ -199,13 +217,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       {/* Description */}
       <div>
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Instructions</label>
-        <RichTextEditor content={description} onChange={setDescription} placeholder="Assignment instructions…" />
+        <RichTextEditor content={description} onChange={v => { setDescription(v); setIsDirty(true) }} placeholder="Assignment instructions…" />
       </div>
 
       {/* How to turn in */}
       <div>
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">How to Turn In</label>
-        <RichTextEditor content={howToTurnIn} onChange={setHowToTurnIn} placeholder="How students should submit this assignment…" />
+        <RichTextEditor content={howToTurnIn} onChange={v => { setHowToTurnIn(v); setIsDirty(true) }} placeholder="How students should submit this assignment…" />
       </div>
 
       {/* Checklist */}
@@ -255,17 +273,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             >
               + Add
             </button>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <div
-                onClick={() => setNewItemBonus(b => !b)}
-                className={`w-8 h-4 rounded-full transition-colors flex items-center px-0.5 ${newItemBonus ? 'bg-amber-400' : 'bg-border'}`}
-              >
-                <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform ${newItemBonus ? 'translate-x-4' : 'translate-x-0'}`} />
-              </div>
-              <span className={`text-xs font-medium ${newItemBonus ? 'text-amber-600' : 'text-muted-text'}`}>
-                {newItemBonus ? 'Bonus (not required)' : 'Required'}
-              </span>
-            </label>
+            <button
+              type="button"
+              onClick={() => setNewItemBonus(b => !b)}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${newItemBonus ? 'text-amber-600 border-amber-300 bg-amber-50' : 'border-border text-muted-text hover:text-amber-600 hover:border-amber-300'}`}
+            >
+              {newItemBonus ? 'Bonus (not required)' : 'Bonus?'}
+            </button>
           </div>
         </div>
       </div>
@@ -343,7 +357,7 @@ function ChecklistItemRow({
 
   return (
     <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-border bg-background group">
-      <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-border" />
+      <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-400" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm text-dark-text">{item.text}</p>

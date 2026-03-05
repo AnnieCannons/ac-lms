@@ -30,7 +30,7 @@ export default async function InstructorSubmissionsPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, due_date, answer_key_url')
+    .select('id, title, due_date, answer_key_url, submission_required')
     .eq('id', assignmentId)
     .single()
 
@@ -105,7 +105,14 @@ export default async function InstructorSubmissionsPage({
           <span className="text-dark-text font-medium">Submissions</span>
         </div>
 
-        <h1 className="text-2xl font-bold text-dark-text mb-1">{assignment.title}</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          {!assignment.submission_required && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 shrink-0">
+              No submission
+            </span>
+          )}
+        </div>
         {assignment.due_date && (
           <p className="text-xs text-muted-text mt-1">
             Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
@@ -144,6 +151,8 @@ export default async function InstructorSubmissionsPage({
             students={students}
             courseId={id}
             assignmentId={assignmentId}
+            submissionRequired={assignment.submission_required}
+            currentUserId={user.id}
           />
         )}
         </main>

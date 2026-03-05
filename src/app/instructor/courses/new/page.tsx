@@ -10,6 +10,7 @@ export default function NewCoursePage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [syllabus, setSyllabus] = useState('')
+  const [paidLearners, setPaidLearners] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const supabase = createClient()
@@ -24,6 +25,7 @@ export default function NewCoursePage() {
         start_date: startDate || null,
         end_date: endDate || null,
         syllabus_content: syllabus || null,
+        paid_learners: paidLearners,
       })
       .select()
       .single()
@@ -105,6 +107,29 @@ export default function NewCoursePage() {
                 rows={5}
                 className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
               />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-dark-text mb-2">Course Type</p>
+              <button
+                type="button"
+                onClick={() => setPaidLearners(v => !v)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors w-full ${
+                  paidLearners
+                    ? 'border-teal-primary bg-teal-light text-teal-primary'
+                    : 'border-gray-200 text-muted-text hover:border-gray-300'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
+                  paidLearners ? 'bg-teal-primary border-teal-primary' : 'border-gray-400'
+                }`}>
+                  {paidLearners && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+                Paid learners (enables Benefits &amp; PTO in student sidebar)
+              </button>
             </div>
             <button
               type="submit"

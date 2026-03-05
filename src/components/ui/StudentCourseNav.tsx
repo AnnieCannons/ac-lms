@@ -5,6 +5,7 @@ import Link from 'next/link'
 interface Props {
   courseId: string
   courseName: string
+  paidLearners?: boolean
 }
 
 const TOP_ITEMS = [
@@ -14,14 +15,17 @@ const TOP_ITEMS = [
 const COURSE_ITEMS = [
   { label: 'Syllabus', slug: '' },
   { label: 'Assignments', slug: 'assignments' },
-  { label: 'Level Up Your Skills', slug: 'level-up' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },
+  { label: 'Level Up Your Skills', slug: 'level-up' },
 ]
 
-const BOTTOM_ITEMS: { label: string; slug: string }[] = []
+const PAID_ITEMS = [
+  { label: 'Benefits', slug: 'benefits' },
+  { label: 'Paid Time Off', slug: 'pto' },
+]
 
-export default function StudentCourseNav({ courseId, courseName }: Props) {
+export default function StudentCourseNav({ courseId, courseName, paidLearners }: Props) {
   const pathname = usePathname()
 
   const navLink = (label: string, slug: string) => {
@@ -51,7 +55,12 @@ export default function StudentCourseNav({ courseId, courseName }: Props) {
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        {BOTTOM_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+        {paidLearners && (
+          <>
+            <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Employment</p>
+            {PAID_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+          </>
+        )}
       </div>
     </nav>
   )

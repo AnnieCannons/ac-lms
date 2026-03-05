@@ -52,7 +52,7 @@ export default function StudentChecklist({
               <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
                 checked[item.id]
                   ? "bg-teal-primary border-teal-primary"
-                  : "border-border group-hover:border-teal-primary"
+                  : "border-gray-400 group-hover:border-teal-primary"
               }`}>
                 {checked[item.id] && (
                   <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
