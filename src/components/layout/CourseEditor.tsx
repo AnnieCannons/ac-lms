@@ -259,11 +259,15 @@ function AssignmentCard({
         })()}
         <button
           onClick={() => onTogglePublished(assignment.id, assignment.published)}
-          className={`text-xs shrink-0 font-medium transition-colors ${assignment.published ? "text-teal-primary hover:text-muted-text" : "text-muted-text hover:text-teal-primary"}`}
+          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            assignment.published
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+          }`}
           type="button"
-          title={assignment.published ? "Published — click to unpublish" : "Unpublished — click to publish"}
+          aria-label={assignment.published ? "Published — click to unpublish" : "Draft — click to publish"}
         >
-          {assignment.published ? "●" : "○"}
+          {assignment.published ? "Published" : "Draft"}
         </button>
         <button
           onClick={() => onDelete(assignment.id)}
@@ -1430,11 +1434,15 @@ function SortableModule({
         </select>
         <button
           onClick={(e) => { e.stopPropagation(); onToggleModulePublished(module.id, module.published); }}
-          className={`text-sm shrink-0 font-medium transition-colors ${module.published ? "text-teal-primary hover:text-muted-text" : "text-muted-text hover:text-teal-primary"}`}
+          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            module.published
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+          }`}
           type="button"
-          title={module.published ? "Published — click to unpublish" : "Unpublished — click to publish"}
+          aria-label={module.published ? "Published — click to unpublish" : "Draft — click to publish"}
         >
-          {module.published ? "●" : "○"}
+          {module.published ? "Published" : "Draft"}
         </button>
         <button
           onClick={onToggleExpand}
