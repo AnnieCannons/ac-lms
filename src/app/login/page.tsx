@@ -29,34 +29,38 @@ export default function LoginPage() {
 
         <div className="bg-surface rounded-2xl border border-border p-8">
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">
+            <div role="alert" className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">
               {error}
             </div>
           )}
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             <div>
-              <label className="block text-sm font-medium text-dark-text mb-1">Email</label>
+              <label htmlFor="login-email" className="block text-sm font-medium text-dark-text mb-1">Email</label>
               <input
+                id="login-email"
                 type="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 required
+                autoComplete="email"
               />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-dark-text">Password</label>
+                <label htmlFor="login-password" className="block text-sm font-medium text-dark-text">Password</label>
                 <Link href="/forgot-password" className="text-xs text-teal-primary hover:underline">Forgot password?</Link>
               </div>
               <input
+                id="login-password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 required
+                autoComplete="current-password"
               />
             </div>
             <button

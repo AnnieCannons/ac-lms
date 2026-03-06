@@ -150,7 +150,10 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
 
   return (
     <div className="inline-block">
-      <button ref={btnRef} onClick={handleOpen} title={`View ${label} on calendar`}
+      <button ref={btnRef} onClick={handleOpen}
+        aria-label={`View ${label} on calendar`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         className="p-1 text-muted-text hover:text-teal-primary transition-colors">
         <CalendarIcon />
       </button>
@@ -158,7 +161,12 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72 overflow-y-auto"
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${label} calendar`}
+            onKeyDown={e => e.key === 'Escape' && setOpen(false)}
+            className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72 overflow-y-auto"
             style={{ top: pos.top, left: pos.left, maxHeight: pos.maxH }}>
 
             {spansMultipleMonths ? (

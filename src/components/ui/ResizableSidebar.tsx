@@ -85,10 +85,11 @@ export default function ResizableSidebar({ children }: { children: React.ReactNo
       <button
         type="button"
         onClick={toggleCollapsed}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!collapsed}
         className="absolute top-6 right-0 translate-x-1/2 z-20 w-6 h-6 rounded-full bg-surface border border-border flex items-center justify-center text-muted-text hover:text-dark-text hover:border-dark-text transition-colors shadow-sm text-xs leading-none"
       >
-        {collapsed ? '›' : '‹'}
+        <span aria-hidden="true">{collapsed ? '›' : '‹'}</span>
       </button>
     </div>
   )

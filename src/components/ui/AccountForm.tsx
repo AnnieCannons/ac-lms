@@ -16,10 +16,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function StatusMsg({ msg }: { msg: { text: string; ok: boolean } | null }) {
-  if (!msg) return null
   return (
-    <p className={`text-sm mt-3 font-medium ${msg.ok ? 'text-teal-primary' : 'text-red-500'}`}>
-      {msg.ok ? '✓ ' : ''}{msg.text}
+    <p
+      role="status"
+      aria-live="polite"
+      className={`text-sm mt-3 font-medium min-h-[1.25rem] ${msg?.ok ? 'text-teal-primary' : 'text-red-500'}`}
+    >
+      {msg ? (msg.ok ? '✓ ' : '') + msg.text : ''}
     </p>
   )
 }

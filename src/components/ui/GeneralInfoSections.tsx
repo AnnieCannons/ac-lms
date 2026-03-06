@@ -46,13 +46,15 @@ export default function GeneralInfoSections({ sections }: { sections: Section[] 
           <button
             type="button"
             onClick={() => toggle(section.id)}
+            aria-expanded={!collapsed.has(section.id)}
+            aria-controls={`section-body-${section.id}`}
             className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-border/10 transition-colors"
           >
             <h2 className="font-semibold text-dark-text">{section.title}</h2>
-            <span className={`text-xs text-muted-text transition-transform duration-150 ${collapsed.has(section.id) ? '' : 'rotate-180'}`}>▾</span>
+            <span aria-hidden="true" className={`text-xs text-muted-text transition-transform duration-150 ${collapsed.has(section.id) ? '' : 'rotate-180'}`}>▾</span>
           </button>
           {!collapsed.has(section.id) && (
-            <div className="px-6 pb-6">
+            <div id={`section-body-${section.id}`} className="px-6 pb-6">
               {section.type === 'daily_schedule' && <DailySchedule />}
               {section.type === 'course_outline' && <CourseOutlineView content={section.content} />}
               {section.type === 'yearly_schedule' && <YearlyScheduleSection />}
