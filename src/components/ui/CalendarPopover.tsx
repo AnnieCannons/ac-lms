@@ -93,7 +93,7 @@ function MonthGrid({ year, month, highlights, showTitle = true }: { year: number
 
 export default function CalendarPopover({ highlights, initialDate, label, editHref }: Props) {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 0, maxH: 600 })
   const btnRef = useRef<HTMLButtonElement>(null)
   const init = parseLocal(initialDate)
   const [viewYear, setViewYear] = useState(init.getFullYear())
@@ -135,8 +135,13 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
       const popH = spansMultipleMonths ? Math.min(allMonthsInRange.length * 240 + 150, window.innerHeight * 0.85) : 520
       const left = Math.min(r.right - popW, window.innerWidth - popW - 8)
       const spaceBelow = window.innerHeight - r.bottom
-      const top = spaceBelow < popH ? Math.max(8, r.top - popH - 6) : r.bottom + 6
-      setPos({ top, left: Math.max(8, left) })
+      const spaceAbove = r.top
+      const openBelow = spaceBelow >= popH || spaceBelow >= spaceAbove
+      const top = openBelow ? r.bottom + 6 : Math.max(8, r.top - popH - 6)
+      const maxH = openBelow
+        ? window.innerHeight - (r.bottom + 6) - 8
+        : r.top - 6 - 8
+      setPos({ top, left: Math.max(8, left), maxH: Math.max(200, maxH) })
     }
     // Reset to start month when opening
     if (primaryStart) { setViewYear(primaryStart.getFullYear()); setViewMonth(primaryStart.getMonth()) }
@@ -153,8 +158,8 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72"
-            style={{ top: pos.top, left: pos.left }}>
+          <div className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72 overflow-y-auto"
+            style={{ top: pos.top, left: pos.left, maxHeight: pos.maxH }}>
 
             {spansMultipleMonths ? (
               /* All months in range, scrollable */
