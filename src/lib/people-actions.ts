@@ -233,12 +233,19 @@ export async function acceptInvite(
   const role: Role = (user.user_metadata?.role as Role) ?? 'student'
   const courseId: string = user.user_metadata?.course_id
 
-  // Upsert user profile
-  const { error: upsertError } = await admin
+  // Only write profile if user doesn't already have one
+  const { data: existingProfile } = await admin
     .from('users')
-    .upsert({ id: user.id, email: user.email!, name, role }, { onConflict: 'id' })
+    .select('id, role')
+    .eq('id', user.id)
+    .maybeSingle()
 
-  if (upsertError) return { error: upsertError.message }
+  if (!existingProfile) {
+    const { error: upsertError } = await admin
+      .from('users')
+      .insert({ id: user.id, email: user.email!, name, role })
+    if (upsertError) return { error: upsertError.message }
+  }
 
   // Enroll in course
   if (courseId) {
