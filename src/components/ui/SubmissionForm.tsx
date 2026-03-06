@@ -85,6 +85,12 @@ export default function SubmissionForm({
     return fileUrl;
   };
 
+  const hasContent = tab === "link"
+    ? linkContent.trim().length > 0
+    : tab === "text"
+      ? textContent.trim().length > 0
+      : fileUrl.length > 0;
+
   const clearForm = () => {
     setLinkContent("");
     setTextContent("");
@@ -443,14 +449,19 @@ export default function SubmissionForm({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting || !allChecked}
-              title={!allChecked ? "Check off all required checklist items before submitting" : undefined}
+              disabled={submitting || !allChecked || !hasContent}
               className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {submitting ? "Submitting…" : "Submit"}
             </button>
-            {!allChecked && (
-              <p className="text-xs text-amber-700">Complete all checklist items to submit.</p>
+            {(!allChecked || !hasContent) && (
+              <p className="text-xs text-amber-700">
+                {!hasContent && !allChecked
+                  ? "Add your submission and complete all checklist items to submit."
+                  : !hasContent
+                    ? "Add your submission to submit."
+                    : "Complete all checklist items to submit."}
+              </p>
             )}
             <button
               type="button"
