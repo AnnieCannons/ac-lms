@@ -61,7 +61,7 @@ export default function LaunchSetupButton({ courseId }: { courseId: string }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-sm font-semibold text-teal-primary border border-teal-primary px-4 py-1.5 rounded-full hover:bg-teal-light transition-colors"
+        className="w-full text-sm font-semibold text-teal-primary border border-teal-primary px-4 py-1.5 rounded-full hover:bg-teal-light transition-colors truncate"
       >
         🚀 Launch setup
       </button>
@@ -265,7 +265,7 @@ function LaunchSetupModal({ courseId, onClose }: { courseId: string; onClose: ()
               ↩ Same as last time
             </button>
           )}
-          <button onClick={() => deleteTask(task.id, isExtra)} className="text-border hover:text-red-400 transition-colors text-xs">✕</button>
+          <button onClick={() => deleteTask(task.id, isExtra)} className="text-border hover:text-red-400 transition-colors" aria-label="Delete task"><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
         </div>
       </div>
       <input

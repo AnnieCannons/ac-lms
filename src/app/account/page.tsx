@@ -1,9 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import AccountForm from '@/components/ui/AccountForm'
+import AccessibilitySettings from '@/components/ui/AccessibilitySettings'
+import BackButton from '@/components/ui/BackButton'
 
 export default async function AccountPage() {
   const supabase = await createServerSupabaseClient()
@@ -27,12 +28,7 @@ export default async function AccountPage() {
 
       <main id="main-content" tabIndex={-1} className="max-w-xl mx-auto px-8 py-12 focus:outline-none">
         <div className="flex items-center gap-3 mb-8">
-          <Link
-            href={isInstructor ? '/instructor/courses' : '/student/courses'}
-            className="text-sm text-muted-text hover:text-teal-primary transition-colors"
-          >
-            ← Back
-          </Link>
+          <BackButton />
           <span className="text-border">/</span>
           <h1 className="text-2xl font-bold text-dark-text">My Account</h1>
         </div>
@@ -41,6 +37,9 @@ export default async function AccountPage() {
           initialName={profile?.name ?? ''}
           initialEmail={user.email ?? ''}
         />
+        <div className="mt-6">
+          <AccessibilitySettings />
+        </div>
       </main>
     </div>
   )

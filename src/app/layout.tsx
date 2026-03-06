@@ -24,10 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <script dangerouslySetInnerHTML={{ __html: `try{var r=document.documentElement,b=document.body;if(localStorage.getItem('dyslexic-font')==='true')r.classList.add('dyslexic');if(localStorage.getItem('high-contrast')==='true')r.classList.add('high-contrast');if(localStorage.getItem('dark-mode')==='true'){r.classList.add('theme-dark');var dv={'--color-background':'#120d1e','--color-surface':'#1e1530','--color-dark-text':'#f0eaf8','--color-muted-text':'#a898c0','--color-border':'#2e2245','--color-teal-primary':'#c870b0','--color-teal-light':'#2a1530','--color-purple-primary':'#b080e0','--color-purple-light':'#251540'};Object.keys(dv).forEach(function(k){r.style.setProperty(k,dv[k])});b.style.setProperty('background-color','#120d1e','important');b.style.setProperty('color','#f0eaf8','important');}}catch(e){}` }} />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-surface focus:border focus:border-teal-primary focus:text-teal-primary focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-medium"

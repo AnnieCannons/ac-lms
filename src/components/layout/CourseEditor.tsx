@@ -267,11 +267,11 @@ function AssignmentCard({
         </button>
         <button
           onClick={() => onDelete(assignment.id)}
-          className="text-muted-text hover:text-red-400 text-xs shrink-0"
+          className="text-muted-text hover:text-red-400 shrink-0"
           type="button"
           aria-label="Delete assignment"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
         </button>
       </div>
     </div>
@@ -631,11 +631,11 @@ function AssignmentFullView({
                         />
                         <button
                           onClick={() => deleteChecklistItem(item.id, i)}
-                          className="text-[#3d2260] hover:text-red-400 text-xs shrink-0 transition-colors"
+                          className="text-[#3d2260] hover:text-red-400 shrink-0 transition-colors"
                           type="button"
                           aria-label="Delete item"
                         >
-                          ✕
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
                         </button>
                       </div>
                       <div className="pl-6">
@@ -1019,11 +1019,11 @@ function SortableResource({
       )}
       <button
         onClick={() => onDelete(resource.id)}
-        className="text-muted-text hover:text-red-400 text-xs shrink-0"
+        className="text-muted-text hover:text-red-400 shrink-0"
         type="button"
         aria-label="Delete resource"
       >
-        ✕
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
       </button>
     </div>
   );
@@ -1196,11 +1196,11 @@ function SortableDay({
         </button>
         <button
           onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
-          className="text-muted-text hover:text-red-400 text-xs"
+          className="text-muted-text hover:text-red-400"
           aria-label={`Delete day ${day.day_name}`}
           type="button"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
         </button>
       </div>
 
@@ -1446,11 +1446,11 @@ function SortableModule({
         </button>
         <button
           onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
-          className="text-muted-text hover:text-red-400 text-sm"
+          className="text-muted-text hover:text-red-400"
           aria-label={`Delete module ${module.title}`}
           type="button"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
         </button>
       </div>
 

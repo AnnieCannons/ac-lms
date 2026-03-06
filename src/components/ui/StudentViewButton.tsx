@@ -27,7 +27,7 @@ export default function StudentViewButton({ courseId }: { courseId: string }) {
   return (
     <button
       onClick={handleClick}
-      className={`text-sm font-semibold px-4 py-1.5 rounded-full transition-colors ${
+      className={`w-full text-sm font-semibold px-4 py-1.5 rounded-full transition-colors truncate ${
         active
           ? 'bg-amber-100 text-amber-800 border border-amber-400 hover:bg-amber-200'
           : 'text-teal-primary border border-teal-primary hover:bg-teal-light'

@@ -1,7 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-@theme inline {
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
   --color-teal-primary: #6D2B5E;
   --color-teal-light: #F5E6F3;
   --color-purple-primary: #7B3FB0;
@@ -15,13 +23,14 @@
 }
 
 html {
-  font-size: 22px;
+  font-size: 22px !important;
 }
 
 body {
   background-color: #F8F6FC;
   color: #1a1030;
   font-family: 'Inter', sans-serif;
+  font-size: 22px !important;
 }
 
 /* Rich text editor output styles */
@@ -39,6 +48,55 @@ body {
 .wiki-content a:hover { text-decoration: underline; }
 .wiki-content code { background: #F0E8FF; border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.85em; font-family: monospace; }
 .wiki-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.5rem 0; }
+/* Dyslexia-friendly font */
+html.dyslexic,
+html.dyslexic body,
+html.dyslexic * {
+  font-family: 'OpenDyslexic', sans-serif !important;
+}
+
+/* Dark mode */
+html.theme-dark {
+  --color-background: #120d1e;
+  --color-surface: #1e1530;
+  --color-dark-text: #f0eaf8;
+  --color-muted-text: #a898c0;
+  --color-border: #2e2245;
+  --color-teal-primary: #c870b0;
+  --color-teal-light: #2a1530;
+  --color-purple-primary: #b080e0;
+  --color-purple-light: #251540;
+}
+html.theme-dark body {
+  background-color: #120d1e !important;
+  color: #f0eaf8 !important;
+}
+html.theme-dark button {
+  color: #f0eaf8 !important;
+}
+html.theme-dark button:disabled {
+  opacity: 1 !important;
+  background-color: rgba(200, 112, 176, 0.35) !important;
+  color: rgba(240, 234, 248, 0.5) !important;
+}
+
+/* High contrast mode */
+html.high-contrast {
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-dark-text: #000000;
+  --color-muted-text: #111111;
+  --color-border: #000000;
+  --color-teal-primary: #4a0040;
+  --color-teal-light: #edd5e8;
+  --color-purple-primary: #3a0080;
+  --color-purple-light: #e0d5ff;
+}
+html.high-contrast body {
+  background-color: #ffffff;
+  color: #000000;
+}
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

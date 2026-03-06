@@ -42,7 +42,7 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
       <Link
         key={label}
         href={href}
-        className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+        className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors truncate ${
           isActive
             ? 'bg-teal-light text-teal-primary'
             : 'text-muted-text hover:text-dark-text hover:bg-border/20'

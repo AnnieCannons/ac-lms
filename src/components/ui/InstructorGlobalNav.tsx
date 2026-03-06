@@ -49,7 +49,7 @@ export default function InstructorGlobalNav({ courseId }: { courseId?: string } 
           <Link
             key={label}
             href={href}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors truncate ${
               pathname === base || pathname.startsWith(base)
                 ? 'bg-teal-light text-teal-primary'
                 : 'text-muted-text hover:text-dark-text hover:bg-border/20'
@@ -65,7 +65,7 @@ export default function InstructorGlobalNav({ courseId }: { courseId?: string } 
             <Link
               key={slug}
               href={href}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors truncate ${
                 pathname === base || pathname.startsWith(`${base}?`)
                   ? 'bg-teal-light text-teal-primary'
                   : 'text-muted-text hover:text-dark-text hover:bg-border/20'

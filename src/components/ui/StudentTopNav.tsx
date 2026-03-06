@@ -6,9 +6,16 @@ const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
 export default function StudentTopNav({ name, role }: { name?: string | null; role?: string | null }) {
   return (
     <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-      <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
-        AC<span className="text-teal-primary">*</span>
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
+          AC<span className="text-teal-primary">*</span>
+        </Link>
+        {role && (
+          <span className="text-xs font-semibold text-teal-primary bg-teal-light px-2 py-0.5 rounded-full capitalize">
+            {role}
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-5">
         <a
           href={ATTENDANCE_URL}
@@ -19,7 +26,7 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
           Attendance Portal
         </a>
         <Link href="/account" className="text-sm text-gray-500 hover:text-dark-text transition-colors">
-          {name} · <span className="text-teal-primary font-medium capitalize">{role}</span>
+          {name}
         </Link>
         <LogoutButton />
       </div>
