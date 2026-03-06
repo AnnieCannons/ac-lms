@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { updateUserName } from '@/lib/account-actions'
 
 const inputCls = 'w-full border border-border rounded-xl px-4 py-2.5 text-sm text-dark-text bg-background focus:outline-none focus:ring-2 focus:ring-teal-primary placeholder:text-muted-text'
 const labelCls = 'block text-sm font-medium text-dark-text mb-1.5'
@@ -47,11 +48,9 @@ export default function AccountForm({
     if (!name.trim()) return
     setNameSaving(true)
     setNameMsg(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setNameMsg({ text: 'Not authenticated.', ok: false }); setNameSaving(false); return }
-    const { error } = await supabase.from('users').update({ name: name.trim() }).eq('id', user.id)
+    const { error } = await updateUserName(name.trim())
     if (error) {
-      setNameMsg({ text: error.message, ok: false })
+      setNameMsg({ text: error, ok: false })
     } else {
       setNameMsg({ text: 'Name updated.', ok: true })
       router.refresh()
