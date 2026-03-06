@@ -179,6 +179,27 @@ export async function revokeInvite(
   return {}
 }
 
+export async function updateUserRole(
+  targetUserId: string,
+  role: Role
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = createServiceSupabaseClient()
+
+  // Only admins can assign the admin role
+  if (role === 'admin') {
+    const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+    if (profile?.role !== 'admin') return { error: 'Only admins can assign the admin role.' }
+  }
+
+  const { error } = await admin.from('users').update({ role }).eq('id', targetUserId)
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function updateEnrollmentRole(
   courseId: string,
   userId: string,

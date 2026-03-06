@@ -33,6 +33,8 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/submissions`)
     } else if (slug === 'assignments') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/assignments`)
+    } else if (slug === 'people') {
+      isActive = pathname.includes(`/instructor/courses/${courseId}/people`)
     } else if (slug === '') {
       isActive = pathname === href && !COURSE_SLUGS.some(s => pathname.endsWith(`/${s}`))
     } else {
@@ -69,7 +71,7 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
 
       <div className="flex flex-col gap-0.5">
         {navLink('General Info', 'info')}
-        {navLink('People', 'people')}
+        {navLink('Users', 'people')}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Grades</p>

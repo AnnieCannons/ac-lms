@@ -31,6 +31,7 @@ interface Props {
   courseId: string
   members: Member[]
   invitations: Invitation[]
+  currentUserRole: 'instructor' | 'admin'
 }
 
 function RolePill({ role }: { role: string }) {
@@ -69,7 +70,7 @@ function parseEmails(raw: string): string[] {
     .filter(e => e.includes('@'))
 }
 
-export default function PeopleManager({ courseId, members, invitations }: Props) {
+export default function PeopleManager({ courseId, members, invitations, currentUserRole }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -243,7 +244,7 @@ export default function PeopleManager({ courseId, members, invitations }: Props)
                           >
                             <option value="student">Student</option>
                             <option value="instructor">Instructor</option>
-                            <option value="admin">Admin</option>
+                            {currentUserRole === 'admin' && <option value="admin">Admin</option>}
                           </select>
                         </div>
                       ) : (
