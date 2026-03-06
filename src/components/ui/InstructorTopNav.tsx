@@ -18,9 +18,9 @@ export default function InstructorTopNav({ name, role }: { name?: string | null;
         >
           Attendance Portal
         </a>
-        <span className="text-sm text-gray-500">
+        <Link href="/account" className="text-sm text-gray-500 hover:text-dark-text transition-colors">
           {name} · <span className="text-teal-primary font-medium capitalize">{role}</span>
-        </span>
+        </Link>
         <LogoutButton />
       </div>
     </nav>
