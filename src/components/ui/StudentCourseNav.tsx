@@ -48,12 +48,12 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
 
   return (
     <nav aria-label="Course navigation" className="flex flex-col">
-      <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-1 px-3 truncate" title={courseName}>
+      <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-3 px-3 truncate" title={courseName}>
         {courseName}
       </p>
       <div className="flex flex-col gap-0.5">
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
+        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         {paidLearners && (
           <>
@@ -61,6 +61,19 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
             {PAID_ITEMS.map(({ label, slug }) => navLink(label, slug))}
           </>
         )}
+      </div>
+
+      <div className="mt-auto pt-6 px-3 border-t border-border">
+        <Link
+          href="/account"
+          className={`block pl-2 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            pathname === '/account'
+              ? 'bg-teal-light text-teal-primary'
+              : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+          }`}
+        >
+          Account
+        </Link>
       </div>
     </nav>
   )
