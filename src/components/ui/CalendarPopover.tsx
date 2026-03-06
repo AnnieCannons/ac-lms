@@ -35,6 +35,8 @@ const MID_BG: Record<string, string> = {
   purple: 'bg-purple-light text-purple-primary',
 }
 
+
+
 function CalendarIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -163,7 +165,10 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
       const r = btnRef.current.getBoundingClientRect()
       const popW = 288
       const popH = spansMultipleMonths ? Math.min(allMonthsInRange.length * 240 + 150, window.innerHeight * 0.85) : 520
-      const left = Math.min(r.right - popW, window.innerWidth - popW - 8)
+      const viewW = window.innerWidth
+      const left = r.right > viewW / 2
+        ? Math.max(8, r.left - popW - 4)
+        : Math.max(8, Math.min(r.left, viewW - popW - 16))
       const spaceBelow = window.innerHeight - r.bottom
       const spaceAbove = r.top
       const openBelow = spaceBelow >= popH || spaceBelow >= spaceAbove
@@ -171,7 +176,7 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
       const maxH = openBelow
         ? window.innerHeight - (r.bottom + 6) - 8
         : r.top - 6 - 8
-      setPos({ top, left: Math.max(8, left), maxH: Math.max(200, maxH) })
+      setPos({ top, left, maxH: Math.max(200, maxH) })
     }
     // Reset to start month when opening
     if (primaryStart) { setViewYear(primaryStart.getFullYear()); setViewMonth(primaryStart.getMonth()) }
@@ -247,6 +252,7 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
                   )
                 })}
               </div>
+
               {editHref && (
                 <a href={editHref} className="mt-2 text-xs text-teal-primary hover:underline self-start">
                   Edit holidays →

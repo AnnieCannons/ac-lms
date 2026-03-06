@@ -5,7 +5,7 @@ import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
 
 type CohortRow   = { id?: string; name: string; start_date: string; end_date: string; order: number }
 type BreakRow    = { id?: string; label: string; start_date: string; end_date: string }
-type HolidayRow  = { id?: string; label: string; date_display: string; date: string; year: number }
+type HolidayRow  = { id?: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
 
 const inputCls = 'bg-background border border-border rounded-lg px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary w-full'
 
@@ -52,7 +52,7 @@ export default function CalendarEditor() {
   }, [holidayYear])
 
   const addHoliday = () =>
-    setHolidays(prev => [...prev, { label: '', date_display: '', date: '', year: holidayYear }])
+    setHolidays(prev => [...prev, { label: '', date_display: '', date: '', end_date: null, year: holidayYear }])
 
   const removeHoliday = (i: number) => {
     const row = holidays[i]
@@ -66,7 +66,7 @@ export default function CalendarEditor() {
     const supabase = createClient()
     if (deletedHolidayIds.length) await supabase.from('calendar_holidays').delete().in('id', deletedHolidayIds)
     const existing = holidays.filter(h => h.id)
-    const created  = holidays.filter(h => !h.id).map(h => ({ label: h.label, date_display: h.date_display, date: h.date, year: holidayYear }))
+    const created  = holidays.filter(h => !h.id).map(h => ({ label: h.label, date_display: h.date_display, date: h.date, end_date: h.end_date || null, year: holidayYear }))
     const ops = []
     if (existing.length) ops.push(supabase.from('calendar_holidays').upsert(existing))
     if (created.length)  ops.push(supabase.from('calendar_holidays').insert(created))
@@ -85,7 +85,7 @@ export default function CalendarEditor() {
     setCopying(true)
     const supabase = createClient()
     const nextYear = holidayYear + 1
-    const rows = holidays.map(h => ({ label: h.label, date_display: h.date_display, date: h.date, year: nextYear }))
+    const rows = holidays.map(h => ({ label: h.label, date_display: h.date_display, date: h.date, end_date: h.end_date || null, year: nextYear }))
     await supabase.from('calendar_holidays').insert(rows)
     setHolidayYear(nextYear)
     setCopying(false)
@@ -281,17 +281,18 @@ export default function CalendarEditor() {
           </div>
         </div>
         <div className="flex flex-col gap-2 mb-4">
-          <div className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2">
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_32px] gap-2">
             <span className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1">Holiday Name</span>
             <span className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1">Display Date (e.g. Mon, Jan 19)</span>
-            <span className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1">Date</span>
+            <span className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1">Start Date</span>
+            <span className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1">End Date (optional)</span>
             <span />
           </div>
           {holidays.length === 0 && (
             <p className="text-sm text-muted-text italic py-2">No holidays for {holidayYear} yet.</p>
           )}
           {holidays.map((h, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 items-center">
+            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1fr_32px] gap-2 items-center">
               <input
                 value={h.label}
                 onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
@@ -308,6 +309,12 @@ export default function CalendarEditor() {
                 type="date"
                 value={h.date}
                 onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: e.target.value } : r))}
+                className={inputCls}
+              />
+              <input
+                type="date"
+                value={h.end_date ?? ''}
+                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: e.target.value || null } : r))}
                 className={inputCls}
               />
               <button onClick={() => removeHoliday(i)} className="text-muted-text hover:text-red-500 transition-colors text-lg font-bold leading-none" aria-label="Remove">×</button>

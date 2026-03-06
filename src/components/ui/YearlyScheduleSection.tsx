@@ -5,7 +5,7 @@ import CalendarPopover from './CalendarPopover'
 
 type Cohort   = { id: string; name: string; start_date: string; end_date: string; order: number }
 type Break    = { id: string; label: string; start_date: string; end_date: string }
-type Holiday  = { id: string; label: string; date_display: string; date: string; year: number }
+type Holiday  = { id: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
 
 type TimelineItem =
   | { kind: 'cohort'; name: string; start: string; end: string; isCurrent: boolean }
@@ -79,7 +79,7 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts 
   if (!hideCohorts && timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
   if (hideCohorts && holidays.length === 0 && breaks.length === 0) return <p className="text-sm text-muted-text italic">No holidays or breaks added yet.</p>
 
-  const holidayHighlights = holidays.map(h => ({ start: h.date, color: 'purple' as const, label: h.label }))
+  const holidayHighlights = holidays.map(h => ({ start: h.date, end: h.end_date ?? undefined, color: 'purple' as const, label: h.label }))
 
   return (
     <div className="flex flex-col gap-8">

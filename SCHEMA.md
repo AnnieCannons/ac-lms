@@ -285,14 +285,15 @@ Multi-day school breaks (Thanksgiving week, Winter break, etc.).
 ---
 
 ### calendar_holidays
-Single-day holidays per year.
+Holidays per year. Single-day or multi-day (e.g. Thanksgiving Week).
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `label` | text | e.g. `Labor Day` |
 | `date_display` | text | Human-friendly string e.g. `Mon, Sep 7` |
-| `date` | date | Actual date for sorting |
+| `date` | date | Start date (used for sorting and calendar highlight) |
+| `end_date` | date | Optional end date — enables range highlight on calendar |
 | `year` | int | Scoped per year — supports copy-to-next-year |
 
 ---
