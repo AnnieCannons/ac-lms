@@ -74,13 +74,16 @@ html.theme-dark body {
 html.theme-dark button {
   color: #f0eaf8 !important;
 }
+html.theme-dark .status-badge {
+  color: #f0eaf8 !important;
+}
 html.theme-dark button:disabled {
   opacity: 1 !important;
   background-color: rgba(200, 112, 176, 0.35) !important;
   color: rgba(240, 234, 248, 0.5) !important;
 }
 
-/* High contrast mode */
+/* High contrast mode (light) */
 html.high-contrast {
   --color-background: #ffffff;
   --color-surface: #ffffff;
@@ -95,6 +98,29 @@ html.high-contrast {
 html.high-contrast body {
   background-color: #ffffff;
   color: #000000;
+}
+
+/* High contrast mode (dark) — inline styles from JS override these at runtime */
+html.theme-dark.high-contrast {
+  --color-background: #050308;
+  --color-surface:    #0f0820;
+  --color-dark-text:  #ffffff;
+  --color-muted-text: #e8deff;
+  --color-border:     #887098;
+  --color-teal-primary:   #ff90f0;
+  --color-teal-light:     #1c0a34;
+  --color-purple-primary: #d0aaff;
+  --color-purple-light:   #1a0840;
+}
+html.theme-dark.high-contrast body {
+  background-color: #050308 !important;
+  color: #ffffff !important;
+}
+html.theme-dark.high-contrast button {
+  color: #ffffff !important;
+}
+html.theme-dark.high-contrast .status-badge {
+  color: #ffffff !important;
 }
 
 /* Respect user's motion preferences */

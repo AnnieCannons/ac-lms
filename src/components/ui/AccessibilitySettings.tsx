@@ -13,13 +13,26 @@ const DARK_VARS: Record<string, string> = {
   '--color-purple-light':   '#251540',
 }
 
-function applyDark(on: boolean) {
+const DARK_HC_VARS: Record<string, string> = {
+  '--color-background': '#050308',
+  '--color-surface':    '#0f0820',
+  '--color-dark-text':  '#ffffff',
+  '--color-muted-text': '#e8deff',
+  '--color-border':     '#887098',
+  '--color-teal-primary':   '#ff90f0',
+  '--color-teal-light':     '#1c0a34',
+  '--color-purple-primary': '#d0aaff',
+  '--color-purple-light':   '#1a0840',
+}
+
+function applyDark(on: boolean, highContrast = false) {
   const root = document.documentElement
   if (on) {
+    const vars = highContrast ? DARK_HC_VARS : DARK_VARS
     root.classList.add('theme-dark')
-    Object.entries(DARK_VARS).forEach(([k, v]) => root.style.setProperty(k, v))
-    document.body.style.setProperty('background-color', '#120d1e', 'important')
-    document.body.style.setProperty('color', '#f0eaf8', 'important')
+    Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v))
+    document.body.style.setProperty('background-color', highContrast ? '#050308' : '#120d1e', 'important')
+    document.body.style.setProperty('color', highContrast ? '#ffffff' : '#f0eaf8', 'important')
   } else {
     root.classList.remove('theme-dark')
     Object.keys(DARK_VARS).forEach(k => root.style.removeProperty(k))
@@ -94,7 +107,7 @@ export default function AccessibilitySettings() {
   const toggleDarkMode = () => {
     const next = !darkMode
     setDarkMode(next)
-    applyDark(next)
+    applyDark(next, highContrast)
     try { localStorage.setItem('dark-mode', String(next)) } catch {}
   }
 
@@ -102,6 +115,7 @@ export default function AccessibilitySettings() {
     const next = !highContrast
     setHighContrast(next)
     document.documentElement.classList.toggle('high-contrast', next)
+    if (darkMode) applyDark(true, next)
     try { localStorage.setItem('high-contrast', String(next)) } catch {}
   }
 
@@ -128,10 +142,9 @@ export default function AccessibilitySettings() {
         <Toggle
           id="high-contrast-toggle"
           label="High contrast"
-          description={darkMode ? "Not available in dark mode." : "Maximizes contrast throughout the site for easier reading."}
+          description="Maximizes contrast throughout the site for easier reading."
           checked={highContrast}
           onChange={toggleHighContrast}
-          disabled={darkMode}
         />
       </div>
     </div>

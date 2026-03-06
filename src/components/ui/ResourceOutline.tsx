@@ -70,12 +70,12 @@ const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
   const isLate = !info && !!dueDate && new Date(dueDate) < new Date()
   if (!info) return isLate
-    ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-500 shrink-0">Late</span>
-    : <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
-  if (info.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
-  if (info.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
-  if (info.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
-  return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
+    ? <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>
+    : <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
+  if (info.grade === 'complete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-green-600/20 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
+  if (info.grade === 'incomplete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
+  if (info.status === 'submitted') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
+  return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
 }
 
 function StarButton({ starred, onToggle }: { starred: boolean; onToggle: () => void }) {
@@ -340,12 +340,12 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
 ]
 
 const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string }> = {
-  'all':            { inactive: 'bg-background border border-border text-dark-text hover:bg-border/20', active: 'bg-dark-text text-white border border-dark-text' },
-  'not-started':    { inactive: 'bg-background border border-border text-muted-text hover:bg-border/30', active: 'bg-muted-text text-white border border-muted-text' },
-  'late':           { inactive: 'bg-amber-50 text-amber-700 border border-amber-500 hover:opacity-80', active: 'bg-amber-500 text-white border border-amber-500' },
+  'all':            { inactive: 'bg-surface border border-muted-text text-dark-text hover:opacity-80', active: 'bg-teal-primary text-white border-2 border-white/40' },
+  'not-started':    { inactive: 'bg-surface border border-muted-text text-dark-text hover:opacity-80', active: 'bg-teal-primary text-white border-2 border-white/40' },
+  'late':           { inactive: 'bg-amber-500/20 text-amber-700 border border-amber-500 hover:opacity-80', active: 'bg-amber-500 text-white border border-amber-500' },
   'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
-  'needs-revision': { inactive: 'bg-red-50 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
-  'complete':       { inactive: 'bg-green-50 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
+  'needs-revision': { inactive: 'bg-red-500/20 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
+  'complete':       { inactive: 'bg-green-600/20 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
 }
 
 function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null): boolean {
@@ -502,7 +502,7 @@ export default function ResourceOutline({
                   key={f.key}
                   type="button"
                   onClick={() => changeFilter(f.key)}
-                  className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
                 >
                   {f.label}
                   <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>
@@ -534,7 +534,7 @@ export default function ResourceOutline({
                 key={f.key}
                 type="button"
                 onClick={() => changeFilter(f.key)}
-                className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
               >
                 {f.label}
                 <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>
@@ -564,7 +564,8 @@ export default function ResourceOutline({
               if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
               if (instructorView) return true
               const pub = (d.assignments ?? []).filter(a => a.published)
-              if (!submissionMap || filter === 'all') return pub.length > 0
+              if (!submissionMap) return pub.length > 0
+              if (filter === 'all') return true // show all days in student view, even empty ones
               return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date))
             })
 
@@ -595,6 +596,11 @@ export default function ResourceOutline({
                 <div className="flex flex-col gap-4">
                   {days.map(day => {
                     const dayCollapsed = collapsedDays.has(day.id)
+                    const visibleAssignments = (day.assignments ?? []).filter(a =>
+                      instructorView
+                        ? true
+                        : (a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date)))
+                    )
                     return (
                       <div key={day.id}>
                         <button
@@ -646,11 +652,9 @@ export default function ResourceOutline({
 
                         {!dayCollapsed && mode === 'assignments' && (
                           <div className="flex flex-col gap-2 pl-3">
-                            {(day.assignments ?? []).filter(a =>
-                              instructorView
-                                ? true
-                                : (a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date)))
-                            ).map(a => (
+                            {!instructorView && visibleAssignments.length === 0 ? (
+                              <p className="text-xs text-muted-text py-2 pl-1">No assignments on {day.day_name.toLowerCase()}.</p>
+                            ) : visibleAssignments.map(a => (
                               <div
                                 key={a.id}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"

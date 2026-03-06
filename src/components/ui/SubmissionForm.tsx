@@ -98,6 +98,17 @@ export default function SubmissionForm({
     setError(null);
   };
 
+  const editDraft = () => {
+    if (saved) {
+      setTab(saved.submission_type)
+      if (saved.submission_type === "link") setLinkContent(saved.content ?? "")
+      else if (saved.submission_type === "text") setTextContent(saved.content ?? "")
+      else setFileUrl(saved.content ?? "")
+    }
+    setError(null)
+    setMode("edit")
+  };
+
   const doSave = async (status: "draft" | "submitted", content: string, type: SubmissionType) => {
     if (!content) {
       setError("Please enter your submission before saving.");
@@ -312,10 +323,10 @@ export default function SubmissionForm({
           {canResubmit && (
             <button
               type="button"
-              onClick={() => setMode("confirm-resubmit")}
+              onClick={() => saved?.status === 'draft' ? editDraft() : setMode("confirm-resubmit")}
               className="text-sm text-muted-text hover:text-dark-text transition-colors w-fit"
             >
-              Resubmit →
+              {saved?.status === 'draft' ? 'Edit' : 'Resubmit →'}
             </button>
           )}
           {isGraded && saved?.grade === "complete" && (
