@@ -46,16 +46,22 @@ function AcceptInviteForm() {
         return
       }
 
-      // Try hash fragment flow (#access_token=...)
-      const hash = window.location.hash
+      // Try hash fragment flow (#access_token=...&refresh_token=...)
+      const hash = window.location.hash.substring(1)
       if (hash.includes('access_token')) {
-        // Supabase SSR auto-processes this on getSession
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (error || !session) {
-          setSessionError(error?.message ?? 'Could not establish session from invite link.')
+        const params = new URLSearchParams(hash)
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          if (error) {
+            setSessionError(error.message)
+            return
+          }
+          setSessionReady(true)
           return
         }
-        setSessionReady(true)
+        setSessionError('Could not establish session from invite link.')
         return
       }
 
