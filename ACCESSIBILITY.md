@@ -23,6 +23,7 @@ This document covers every accessibility feature implemented in AC-LMS, why it e
 15. [Reduced Motion](#15-reduced-motion)
 16. [Unsaved Changes Warning](#16-unsaved-changes-warning)
 17. [Focus Ring Styles](#17-focus-ring-styles)
+18. [User Accessibility Settings](#18-user-accessibility-settings)
 
 ---
 
@@ -298,12 +299,18 @@ Icon-only buttons and buttons with ambiguous visual labels all have `aria-label`
 | Button | aria-label |
 |--------|-----------|
 | Modal close (×) | `"Close"` |
-| Calendar remove (×) | `"Remove"` |
-| PTO remove | `"Remove break"` |
+| Delete assignment | `"Delete assignment"` |
+| Delete checklist item | `"Delete item"` |
+| Delete resource | `"Delete resource"` |
+| Delete day / module | `"Delete day [name]"` / `"Delete module [title]"` |
+| Remove cohort / break / holiday | `"Remove cohort"`, `"Remove break"`, `"Remove holiday"` |
+| Delete task | `"Delete task"` |
 | Resource star | `"Star this resource"` / `"Remove star"` |
 | Resource read toggle | `"Mark as read"` / `"Mark as unread"` |
 | Sidebar toggle | `"Collapse sidebar"` / `"Expand sidebar"` |
 | Drag handles | `"Drag module [title]"`, `"Drag day [name]"`, etc. |
+
+Delete and remove actions use a trash can SVG icon rather than ×. Close and dismiss actions (modals, popovers) keep the × character. This visual distinction reduces the risk of accidentally deleting instead of closing.
 
 The sidebar toggle also uses `aria-expanded` to communicate its state:
 ```tsx
@@ -393,6 +400,76 @@ className="focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:ro
 
 ---
 
+## 18. User Accessibility Settings
+
+**Files:** `src/components/ui/AccessibilitySettings.tsx`, `src/app/account/page.tsx`, `src/app/globals.css`, `src/app/layout.tsx`
+
+Users can customize three display settings from the **My Account** page, under the Accessibility panel. All settings persist across sessions via `localStorage` and are restored instantly on every page load with no flash of unstyled content.
+
+### Dyslexia-Friendly Font
+
+Switches the entire site to [OpenDyslexic](https://opendyslexic.org/), a typeface designed to improve readability for people with dyslexia. The font is loaded via CDN `@font-face` and applied with `!important` to override all other font rules.
+
+Toggling adds/removes the `dyslexic` class on `<html>`:
+
+```css
+html.dyslexic,
+html.dyslexic body,
+html.dyslexic * {
+  font-family: 'OpenDyslexic', sans-serif !important;
+}
+```
+
+### Dark Mode
+
+Switches to a dark color scheme to reduce eye strain in low-light environments. Implemented by directly setting CSS custom properties on `document.documentElement` via JavaScript, which guarantees overrides work regardless of stylesheet specificity:
+
+```ts
+root.style.setProperty('--color-background', '#120d1e')
+root.style.setProperty('--color-surface', '#1e1530')
+// ... all theme variables
+document.body.style.setProperty('background-color', '#120d1e', 'important')
+document.body.style.setProperty('color', '#f0eaf8', 'important')
+```
+
+The `theme-dark` class is also added to `<html>` for CSS rules that need to target it (button text colors, component-specific overrides). Dark mode and high contrast are mutually exclusive — the high contrast toggle is disabled when dark mode is active.
+
+### High Contrast
+
+Maximizes contrast throughout the site by overriding CSS custom properties to use near-black text on white backgrounds and deeper accent colors:
+
+```css
+html.high-contrast {
+  --color-dark-text: #000000;
+  --color-muted-text: #111111;
+  --color-background: #ffffff;
+  --color-teal-primary: #4a0040;
+  /* ... */
+}
+```
+
+### Flash-Free Restore
+
+An inline `<script>` in `src/app/layout.tsx` runs synchronously before React hydration, restoring all three settings on every page load before the browser paints:
+
+```html
+<script>
+  try {
+    var r = document.documentElement, b = document.body;
+    if (localStorage.getItem('dyslexic-font') === 'true') r.classList.add('dyslexic');
+    if (localStorage.getItem('high-contrast') === 'true') r.classList.add('high-contrast');
+    if (localStorage.getItem('dark-mode') === 'true') {
+      r.classList.add('theme-dark');
+      // apply all CSS variable overrides...
+    }
+  } catch(e) {}
+</script>
+```
+
+`suppressHydrationWarning` on `<html>` prevents React from stripping the classes added by this script during hydration.
+
+---
+
 ## Relevant WCAG Success Criteria Covered
 
 | Criterion | Level | Feature |
@@ -410,3 +487,6 @@ className="focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:ro
 | 3.3.2 Labels or Instructions | A | All form fields labeled |
 | 4.1.2 Name, Role, Value | A | `aria-label`, `aria-pressed`, `aria-expanded`, `aria-live` |
 | 4.1.3 Status Messages | AA | `aria-live` regions for dynamic status |
+| 1.4.4 Resize Text | AA | User-selectable dyslexia-friendly font, 22px base font size |
+| 1.4.6 Contrast (Enhanced) | AAA | High contrast mode for near-black on white |
+| 1.4.12 Text Spacing | AA | OpenDyslexic improves letter/word spacing for affected users |
