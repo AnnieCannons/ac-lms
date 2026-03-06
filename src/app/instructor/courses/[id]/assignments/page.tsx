@@ -57,7 +57,7 @@ export default async function InstructorAssignmentsPage({
         <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
-          <main id="main-content" className="max-w-3xl mx-auto px-8 py-10">
+          <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>

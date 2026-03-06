@@ -207,7 +207,7 @@ function AssignmentCard({
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab shrink-0"
+          className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           type="button"
           aria-label="Drag assignment"
         >
@@ -942,7 +942,7 @@ function SortableResource({
       <button
         {...attributes}
         {...listeners}
-        className="text-border hover:text-muted-text cursor-grab shrink-0"
+        className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
         type="button"
         aria-label="Drag resource"
       >
@@ -1158,7 +1158,7 @@ function SortableDay({
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab"
+          className="text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           aria-label={`Drag day ${day.day_name}`}
           type="button"
         >
@@ -1218,6 +1218,17 @@ function SortableDay({
               sensors={resourceSensors}
               collisionDetection={closestCenter}
               onDragEnd={handleResourceDragEnd}
+              accessibility={{
+                screenReaderInstructions: {
+                  draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
+                },
+                announcements: {
+                  onDragStart: ({ active }) => `Picked up: ${active.id}.`,
+                  onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
+                  onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
+                  onDragCancel: () => 'Drag cancelled.',
+                },
+              }}
             >
               <SortableContext
                 items={resources.map((r) => `resource-${r.id}`)}
@@ -1380,7 +1391,7 @@ function SortableModule({
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab text-lg"
+          className="text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           aria-label={`Drag module ${module.title}`}
           type="button"
         >
@@ -2021,6 +2032,17 @@ export default function CourseEditor({
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
+            },
+            announcements: {
+              onDragStart: ({ active }) => `Picked up: ${active.id}.`,
+              onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
+              onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
+              onDragCancel: () => 'Drag cancelled.',
+            },
+          }}
         >
           <div className="flex flex-col gap-4">
             {visibleModules.length > 0 && (

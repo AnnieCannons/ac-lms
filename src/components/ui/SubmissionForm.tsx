@@ -257,7 +257,7 @@ export default function SubmissionForm({
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Turn In</p>
         {saved && (
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+          <span aria-live="polite" className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
             saved.grade === "complete"   ? "bg-green-50 text-green-700 border border-green-600" :
             saved.grade === "incomplete" ? "bg-red-50 text-red-500 border border-red-500" :
             saved.status === "submitted" ? "bg-teal-light text-teal-primary border border-teal-primary" :
@@ -383,7 +383,7 @@ export default function SubmissionForm({
               Cancel
             </button>
           </div>
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
         </div>
       )}
 
@@ -437,7 +437,7 @@ export default function SubmissionForm({
             />
           )}
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 
           <div className="flex items-center gap-3 flex-wrap">
             <button

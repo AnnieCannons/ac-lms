@@ -95,7 +95,7 @@ export default async function InstructorGeneralInfoPage({
         <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
-          <main id="main-content" className="max-w-3xl mx-auto px-8 py-10">
+          <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
             <div className="flex items-center justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-2xl font-bold text-dark-text">General Info</h1>

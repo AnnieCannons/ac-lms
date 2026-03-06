@@ -167,7 +167,7 @@ export default async function GradingPage({
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
 
-        <main id="main-content" className="flex-1 min-w-0 px-10 py-12 max-w-4xl">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 px-10 py-12 max-w-4xl focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-4 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>

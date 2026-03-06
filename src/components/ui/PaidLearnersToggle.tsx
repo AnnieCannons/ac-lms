@@ -35,7 +35,7 @@ export default function PaidLearnersToggle({
             Enables Benefits &amp; PTO pages in the student sidebar.
           </p>
         </div>
-        {saved && <span className="text-xs text-teal-primary font-medium">✓ Saved</span>}
+        <span aria-live="polite" className="text-xs text-teal-primary font-medium">{saved ? '✓ Saved' : ''}</span>
       </div>
       <button
         type="button"

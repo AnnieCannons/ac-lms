@@ -39,7 +39,7 @@ export default async function StudentCoursesPage() {
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         <h2 className="text-2xl font-bold text-dark-text mb-2">My Courses</h2>
         <p className="text-muted-text text-sm mb-8">
           {courses?.length ?? 0} course{(courses?.length ?? 0) !== 1 ? 's' : ''} enrolled

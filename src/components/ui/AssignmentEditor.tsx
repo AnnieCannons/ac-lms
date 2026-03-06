@@ -294,7 +294,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         >
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
-        {saved && <span className="text-sm text-teal-primary font-medium">Saved ✓</span>}
+        <span aria-live="polite" className="text-sm text-teal-primary font-medium">{saved ? 'Saved ✓' : ''}</span>
         <button type="button" onClick={deleteAssignment} className="ml-auto text-sm text-red-400 hover:text-red-600 transition-colors">
           Delete assignment
         </button>

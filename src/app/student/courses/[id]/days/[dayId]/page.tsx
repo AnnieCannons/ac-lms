@@ -85,7 +85,7 @@ export default async function StudentDayDetailPage({
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/student/courses" className="hover:text-teal-primary">My Courses</Link>

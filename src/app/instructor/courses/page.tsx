@@ -29,7 +29,7 @@ export default async function CoursesPage() {
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} />
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-dark-text">Courses</h2>
           <Link

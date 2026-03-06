@@ -25,7 +25,7 @@ export default async function AccountPage() {
         : <StudentTopNav name={profile?.name} role={profile?.role} />
       }
 
-      <main className="max-w-xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-xl mx-auto px-8 py-12 focus:outline-none">
         <div className="flex items-center gap-3 mb-8">
           <Link
             href={isInstructor ? '/instructor/courses' : '/student/courses'}

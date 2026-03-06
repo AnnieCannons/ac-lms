@@ -100,7 +100,7 @@ export default async function MyWorkPage({
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="flex items-center gap-3 flex-wrap">
             <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm">← My Courses</Link>

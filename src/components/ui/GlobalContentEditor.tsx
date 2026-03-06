@@ -55,7 +55,7 @@ export default function GlobalContentEditor({ slug, title }: { slug: string; tit
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-dark-text">{title}</h2>
         <div className="flex items-center gap-3">
-          {saved && <span className="text-sm text-teal-primary font-medium">✓ Saved</span>}
+          <span aria-live="polite" className="text-sm text-teal-primary font-medium min-w-0">{saved ? '✓ Saved' : ''}</span>
           {!editing && (
             <button
               onClick={() => setEditing(true)}
@@ -87,7 +87,7 @@ export default function GlobalContentEditor({ slug, title }: { slug: string; tit
               Cancel
             </button>
           </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          <p role="alert" aria-live="assertive" className="text-xs text-red-500 min-h-[1rem]">{error}</p>
         </div>
       ) : content ? (
         <HtmlContent html={content} className={HTML_CLASSES} />

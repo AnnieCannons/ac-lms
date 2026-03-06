@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa']
@@ -95,6 +95,36 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0, maxH: 600 })
   const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const wasOpenRef = useRef(false)
+
+  useEffect(() => {
+    if (open) {
+      wasOpenRef.current = true
+      const focusable = panelRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      focusable?.[0]?.focus()
+    } else if (wasOpenRef.current) {
+      btnRef.current?.focus()
+    }
+  }, [open])
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { setOpen(false); return }
+    if (e.key !== 'Tab' || !panelRef.current) return
+    const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    ))
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus() }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+  }
   const init = parseLocal(initialDate)
   const [viewYear, setViewYear] = useState(init.getFullYear())
   const [viewMonth, setViewMonth] = useState(init.getMonth())
@@ -162,10 +192,11 @@ export default function CalendarPopover({ highlights, initialDate, label, editHr
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={`${label} calendar`}
-            onKeyDown={e => e.key === 'Escape' && setOpen(false)}
+            onKeyDown={handleKeyDown}
             className="fixed z-50 bg-surface rounded-xl border border-border shadow-xl p-4 w-72 overflow-y-auto"
             style={{ top: pos.top, left: pos.left, maxHeight: pos.maxH }}>
 
