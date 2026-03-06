@@ -62,14 +62,15 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
         {courseName}
       </p>
 
-      <div className="flex flex-col gap-2 mb-3 px-3">
+      <div className="flex flex-col gap-2 mb-5 px-3">
         <AddAssignmentButton courseId={courseId} />
         <AddResourceButton courseId={courseId} />
       </div>
 
       <div className="flex flex-col gap-0.5">
         {navLink('General Info', 'info')}
-        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Course</p>
+        {navLink('People', 'people')}
+        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Grades</p>
         {navLink('Grades', 'submissions')}

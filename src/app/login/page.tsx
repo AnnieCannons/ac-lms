@@ -71,10 +71,7 @@ export default function LoginPage() {
             </button>
           </form>
           <p className="text-center text-sm text-muted-text mt-6">
-            Don't have an account?{' '}
-            <Link href="/signup" className="text-teal-primary font-medium hover:underline">
-              Sign up
-            </Link>
+            Access is by invitation only.
           </p>
         </div>
       </div>

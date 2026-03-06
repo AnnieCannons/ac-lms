@@ -350,3 +350,19 @@ calendar_cohorts
 calendar_breaks
 calendar_holidays
 ```
+
+### invitations
+Pending email invitations to join a course.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `course_id` | uuid | FK → courses(id), CASCADE DELETE |
+| `email` | text | Invitee email |
+| `role` | user_role | `student` or `instructor` |
+| `invited_by` | uuid | FK → users(id) |
+| `invited_at` | timestamptz | Default: now() |
+| `resent_at` | timestamptz | Nullable, set on resend |
+| `status` | text | `pending` or `accepted` |
+
+RLS: Instructors/admins can manage invitations for their own courses.
