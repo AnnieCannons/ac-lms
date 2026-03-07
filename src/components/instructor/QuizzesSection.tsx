@@ -28,6 +28,15 @@ type QuizzesSectionProps = {
   initialOpenQuizId?: string;
 };
 
+function sortByWeekNumber(a: string, b: string): number {
+  const weekA = a.match(/^Week\s+(\d+)/i)?.[1];
+  const weekB = b.match(/^Week\s+(\d+)/i)?.[1];
+  if (weekA && weekB) return parseInt(weekA, 10) - parseInt(weekB, 10);
+  if (weekA) return -1;
+  if (weekB) return 1;
+  return a.localeCompare(b);
+}
+
 function formatDueDate(dueAt: string | null): string {
   if (!dueAt || !dueAt.trim()) return "No due date";
   try {
@@ -122,7 +131,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
   const [moduleOrder, setModuleOrder] = useState<string[]>(() => {
     const modules = new Set<string>();
     (quizzes || []).forEach((q) => modules.add(q.module_title || "Other"));
-    return Array.from(modules).sort();
+    return Array.from(modules).sort(sortByWeekNumber);
   });
 
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
@@ -147,12 +156,9 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     const currentModules = new Set(localQuizzes.map((q) => q.module_title || "Other"));
     setModuleOrder((prev) => {
       const filtered = prev.filter((m) => currentModules.has(m));
-      for (const m of currentModules) {
-        if (!filtered.includes(m)) filtered.push(m);
-      }
-      return filtered.length === prev.length && filtered.every((m, i) => m === prev[i])
-        ? prev
-        : filtered;
+      const newModules = Array.from(currentModules).filter((m) => !filtered.includes(m)).sort(sortByWeekNumber);
+      const next = [...filtered, ...newModules];
+      return next.length === prev.length && next.every((m, i) => m === prev[i]) ? prev : next;
     });
   }, [localQuizzes]);
 
