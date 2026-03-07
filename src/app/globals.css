@@ -148,3 +148,39 @@ html.theme-dark.high-contrast .status-badge {
   float: left;
   height: 0;
 }
+
+/* Inline code in quiz question editor and saved display */
+.ProseMirror code:not(pre code),
+.quiz-html code:not(pre code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: rgba(0, 0, 0, 0.05);
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.13);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+html.theme-dark .ProseMirror code:not(pre code),
+html.theme-dark .quiz-html code:not(pre code) {
+  background: #1e1e2e;
+  color: #fbbf24;
+  border: none;
+}
+
+/* Code blocks in choice editor (ProseMirror) */
+.ProseMirror pre {
+  background: #1e1e2e;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+.ProseMirror pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85em;
+  color: #cdd6f4;
+  background: none;
+  padding: 0;
+}

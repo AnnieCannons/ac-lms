@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import StudentTopNav from "@/components/ui/StudentTopNav";
@@ -62,7 +62,9 @@ export default async function StudentQuizzesPage({
 
   if (!course) redirect("/student/courses");
 
-  const { data: quizzes } = await supabase
+  const admin = createServiceSupabaseClient();
+
+  const { data: quizzes } = await admin
     .from("quizzes")
     .select("id, title, due_at, module_title, questions, max_attempts")
     .eq("course_id", id)
@@ -75,7 +77,7 @@ export default async function StudentQuizzesPage({
 
   const { data: submissions } =
     quizIds.length > 0
-      ? await supabase
+      ? await admin
           .from("quiz_submissions")
           .select("quiz_id, score_percent, attempt_count")
           .eq("student_id", user.id)
@@ -111,29 +113,48 @@ export default async function StudentQuizzesPage({
                 const maxAttempts: number | null = quiz.max_attempts ?? null;
                 const outOfAttempts = maxAttempts !== null && attemptsUsed >= maxAttempts;
 
+                  const scorePercent = sub?.score_percent != null ? Math.round(sub.score_percent as number) : null;
+                const isComplete = scorePercent === 100;
+                const canRetake = !!sub && !isComplete && !outOfAttempts;
+
+                // Link destination: go straight to retake when applicable
+                const href = canRetake
+                  ? `/student/courses/${id}/quizzes/${quiz.id}?retake=1`
+                  : `/student/courses/${id}/quizzes/${quiz.id}`;
+
                 return (
                   <Link
                     key={quiz.id}
-                    href={`/student/courses/${id}/quizzes/${quiz.id}`}
+                    href={href}
                     className="block bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
                   >
-                    <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
-                    {quiz.module_title && (
-                      <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
-                    )}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
+                        {quiz.module_title && (
+                          <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
+                        )}
+                      </div>
+                      {isComplete && (
+                        <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 dark:bg-green-950/40 dark:text-green-400 dark:border-green-700">
+                          Complete ✓
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-text mt-2">
                       Due: {formatDueDate(quiz.due_at)} · {questionCount} question{questionCount !== 1 ? "s" : ""}
-                      {maxAttempts !== null && ` · up to ${maxAttempts} attempts`}
                     </p>
                     {sub && (
                       <p className="text-sm text-muted-text mt-1">
-                        Score: {sub.score_percent != null ? `${Math.round(sub.score_percent)}%` : "—"}
+                        Score: {scorePercent != null ? `${scorePercent}%` : "—"}
                         {" · "}{attemptsUsed} attempt{attemptsUsed !== 1 ? "s" : ""} used
                       </p>
                     )}
-                    <p className={`text-sm font-medium mt-3 ${outOfAttempts ? "text-muted-text" : "text-teal-primary"}`}>
-                      {outOfAttempts ? "View results →" : sub ? "Retake quiz →" : "Take quiz →"}
-                    </p>
+                    {!isComplete && (
+                      <p className={`text-sm font-medium mt-3 ${outOfAttempts ? "text-muted-text" : "text-teal-primary"}`}>
+                        {outOfAttempts ? "View results →" : canRetake ? "Retake quiz →" : "Take quiz →"}
+                      </p>
+                    )}
                   </Link>
                 );
               })}

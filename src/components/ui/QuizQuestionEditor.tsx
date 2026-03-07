@@ -1,6 +1,8 @@
 "use client";
 
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
+import { mergeAttributes } from "@tiptap/core";
+import { useRef } from "react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
@@ -26,6 +28,10 @@ type Props = {
 };
 
 export default function QuizQuestionEditor({ initialContent, onChange, storagePath }: Props) {
+  // Always call the latest onChange even if the editor was created with a stale closure
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -39,6 +45,13 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
         addNodeView() {
           return ReactNodeViewRenderer(CodeBlockNode);
         },
+        renderHTML({ node, HTMLAttributes }) {
+          return [
+            "pre",
+            mergeAttributes(HTMLAttributes),
+            ["code", { class: node.attrs.language ? `language-${node.attrs.language}` : null }, 0],
+          ];
+        },
       }).configure({
         lowlight,
         defaultLanguage: "javascript",
@@ -48,15 +61,14 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
     content: initialContent,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      onChange(html === "<p></p>" ? "" : html);
+      onChangeRef.current(html === "<p></p>" ? "" : html);
     },
     editorProps: {
       attributes: {
         class:
           "min-h-[120px] max-h-[500px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2 " +
           "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
-          "[&_li_p]:inline [&_strong]:font-bold [&_em]:italic " +
-          "[&_code]:font-mono [&_code]:bg-border/30 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs",
+          "[&_li_p]:inline [&_strong]:font-bold [&_em]:italic",
       },
     },
   });

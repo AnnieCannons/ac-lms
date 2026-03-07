@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
@@ -8,10 +8,13 @@ import { getQuizzesForCourse, type QuizRow } from "@/data/quizzes";
 
 export default async function InstructorQuizzesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ open?: string }>;
 }) {
   const { id } = await params;
+  const { open: initialOpenQuizId } = await searchParams;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -37,7 +40,12 @@ export default async function InstructorQuizzesPage({
   if (!course) redirect("/instructor/courses");
 
   const jsonQuizzes = getQuizzesForCourse(course);
-  const { data: dbQuizzesRaw } = await supabase
+
+  let adminClient: ReturnType<typeof createServiceSupabaseClient> | null = null;
+  try { adminClient = createServiceSupabaseClient(); } catch { /* no service key */ }
+  const readClient = adminClient ?? supabase;
+
+  const { data: dbQuizzesRaw } = await readClient
     .from("quizzes")
     .select("*")
     .eq("course_id", id)
@@ -47,7 +55,8 @@ export default async function InstructorQuizzesPage({
 
   // Auto-sync from JSON if DB is empty
   if ((!dbQuizzes || dbQuizzes.length === 0) && jsonQuizzes.length > 0) {
-    const { error } = await supabase.from("quizzes").insert(
+    const insertClient = readClient;
+    const { error } = await insertClient.from("quizzes").insert(
       jsonQuizzes.map((q) => ({
         course_id: id,
         identifier: q.identifier,
@@ -60,7 +69,7 @@ export default async function InstructorQuizzesPage({
       }))
     );
     if (!error) {
-      const res = await supabase
+      const res = await insertClient
         .from("quizzes")
         .select("*")
         .eq("course_id", id)
@@ -109,7 +118,7 @@ export default async function InstructorQuizzesPage({
               </Link>
             </div>
 
-            <QuizzesSection courseId={id} quizzes={quizzes} />
+            <QuizzesSection courseId={id} quizzes={quizzes} initialOpenQuizId={initialOpenQuizId} />
           </main>
         </div>
       </div>

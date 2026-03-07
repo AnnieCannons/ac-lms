@@ -26,7 +26,32 @@ export default function HighlightedContent({ html, className }: Props) {
   useEffect(() => {
     if (!ref.current) return;
     ref.current.querySelectorAll("pre code").forEach((block) => {
-      hljs.highlightElement(block as HTMLElement);
+      const el = block as HTMLElement;
+      const pre = el.parentElement;
+
+      // Detect language from <code> class, then <pre> class, then default to javascript
+      let language = "";
+      for (const cls of [...el.classList]) {
+        if (cls.startsWith("language-")) { language = cls.slice(9); break; }
+      }
+      if (!language && pre) {
+        for (const cls of [...pre.classList]) {
+          if (cls.startsWith("language-")) { language = cls.slice(9); break; }
+        }
+      }
+      if (!language) language = "javascript";
+
+      // Use hljs.highlight() directly — more reliable than highlightElement()
+      // which can silently skip elements it thinks are already processed
+      const code = el.textContent ?? "";
+      try {
+        const result = hljs.highlight(code, { language, ignoreIllegals: true });
+        el.innerHTML = result.value;
+        el.classList.add("hljs");
+      } catch {
+        // Unknown language — add class so base theme styles still apply
+        el.classList.add("hljs");
+      }
     });
   }, [html]);
 

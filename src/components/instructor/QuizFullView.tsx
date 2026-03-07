@@ -2,18 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { QuizRow, QuizQuestion, QuizChoice, CodeLanguage } from "@/data/quizzes";
 import HtmlContent from "@/components/ui/HtmlContent";
-import FileUpload from "@/components/ui/FileUpload";
 import dynamic from "next/dynamic";
 import {
   updateQuizMeta,
   updateQuizQuestions,
   toggleQuizPublished,
   upsertQuizFromJson,
+  deleteQuiz,
 } from "@/lib/quiz-actions";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
+const HighlightedContent = dynamic(() => import("@/components/ui/HighlightedContent"), { ssr: false });
+const ChoiceEditor = dynamic(() => import("@/components/ui/ChoiceEditor"), { ssr: false });
 const QuizQuestionEditor = dynamic(
   () => import("@/components/ui/QuizQuestionEditor"),
   { ssr: false }
@@ -27,6 +44,8 @@ type QuizFullViewProps = {
   quiz: QuizRow;
   courseId: string;
   onClose: () => void;
+  onSaved?: (updatedQuiz: QuizRow) => void;
+  onDeleted?: (quizId: string) => void;
 };
 
 function formatDueDate(dueAt: string | null): string {
@@ -51,6 +70,25 @@ function getCorrectChoice(question: QuizQuestion): QuizChoice | undefined {
 
 const isJsonOnlyQuiz = (id: string) => id.startsWith("json-");
 
+function SortableQuestion({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandleProps: object) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`border-b border-border pb-8 last:border-0 ${isDragging ? "opacity-40" : ""}`}
+    >
+      {children({ ...attributes, ...listeners })}
+    </li>
+  );
+}
+
 const TRUE_FALSE_CHOICES = (trueIdent: string, falseIdent: string) => [
   { ident: trueIdent, text: "True" },
   { ident: falseIdent, text: "False" },
@@ -64,7 +102,7 @@ const LANG_LABELS: Record<CodeLanguage, string> = {
   sql: "SQL",
 };
 
-export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewProps) {
+export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDeleted }: QuizFullViewProps) {
   const router = useRouter();
   const fromJsonOnly = isJsonOnlyQuiz(quiz.id);
   const [editing, setEditing] = useState(false);
@@ -93,7 +131,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     setSaving(true);
     try {
       if (fromJsonOnly) {
-        await upsertQuizFromJson(courseId, quiz.identifier, {
+        const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
           title: editTitle.trim() || quiz.title,
           due_at: editDueDate || quiz.due_at || null,
           module_title: quiz.module_title ?? "",
@@ -101,13 +139,30 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
           questions: quiz.questions ?? [],
           max_attempts: quiz.max_attempts ?? null,
         });
-        onClose();
+        if (saved) onSaved?.(saved as QuizRow);
       } else {
         await toggleQuizPublished(quiz.id, !quiz.published);
+        onSaved?.({ ...quiz, published: !quiz.published });
       }
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    const title = quiz.title.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    setError(null);
+    setSaving(true);
+    try {
+      if (!fromJsonOnly) {
+        await deleteQuiz(quiz.id);
+      }
+      onDeleted?.(quiz.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
     }
     setSaving(false);
   };
@@ -118,7 +173,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     setSaving(true);
     try {
       if (fromJsonOnly) {
-        await upsertQuizFromJson(courseId, quiz.identifier, {
+        const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
           title: editTitle.trim(),
           due_at: editDueDate || null,
           module_title: quiz.module_title ?? "",
@@ -126,13 +181,15 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
           questions: quiz.questions ?? [],
           max_attempts: editMaxAttempts,
         });
-        onClose();
+        if (saved) onSaved?.(saved as QuizRow);
+        setEditing(false);
       } else {
         await updateQuizMeta(quiz.id, {
           title: editTitle.trim(),
           due_at: editDueDate || null,
           max_attempts: editMaxAttempts,
         });
+        onSaved?.({ ...quiz, title: editTitle.trim(), due_at: editDueDate || null, max_attempts: editMaxAttempts });
         setEditing(false);
       }
       router.refresh();
@@ -147,7 +204,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     setSaving(true);
     try {
       if (fromJsonOnly) {
-        await upsertQuizFromJson(courseId, quiz.identifier, {
+        const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
           title: quiz.title,
           due_at: quiz.due_at || null,
           module_title: quiz.module_title ?? "",
@@ -155,9 +212,11 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
           questions: editQuestions,
           max_attempts: quiz.max_attempts ?? null,
         });
-        onClose();
+        if (saved) onSaved?.(saved as QuizRow);
+        setEditingQuestions(false);
       } else {
         await updateQuizQuestions(quiz.id, editQuestions);
+        onSaved?.({ ...quiz, questions: editQuestions });
         setEditingQuestions(false);
       }
       router.refresh();
@@ -278,14 +337,16 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     });
   };
 
-  const insertImageIntoChoice = (qIdx: number, cIdx: number, url: string, fileName: string) => {
-    const img = `<p><img src="${url}" alt="${fileName.replace(/"/g, "&quot;")}" /></p>`;
-    setEditQuestions((prev) => {
-      const next = JSON.parse(JSON.stringify(prev));
-      if (!next[qIdx].choices) next[qIdx].choices = [];
-      next[qIdx].choices[cIdx].text = (next[qIdx].choices[cIdx].text || "") + img;
-      return next;
-    });
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleQuestionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setEditQuestions((prev) =>
+      arrayMove(prev, parseInt(active.id as string), parseInt(over.id as string))
+    );
   };
 
   const displayTitle = quiz.title.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
@@ -295,14 +356,37 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="text-sm text-muted-text hover:text-dark-text transition-colors flex items-center gap-1.5"
-            type="button"
-          >
-            ← Back to quizzes
-          </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if ((editing || editingQuestions) && !confirm("You have unsaved changes. Leave without saving?")) return;
+                onClose();
+              }}
+              className="text-sm text-muted-text hover:text-dark-text transition-colors flex items-center gap-1.5"
+              type="button"
+            >
+              ← Back to quizzes
+            </button>
+            {!fromJsonOnly && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={saving}
+                className="text-xs text-red-500 hover:text-red-400 disabled:opacity-40 transition-colors"
+              >
+                Delete quiz
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {!editing && !quiz.id.startsWith("json-") && (
+              <a
+                href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
+                className="text-xs font-medium px-3 py-1 rounded-full border border-border text-muted-text hover:border-teal-primary/50 hover:text-dark-text transition-colors"
+              >
+                ▶ Conduct quiz
+              </a>
+            )}
             {!editing && (
               <button
                 onClick={handleTogglePublished}
@@ -442,18 +526,27 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                 <h2 className="text-sm font-bold text-muted-text uppercase tracking-wide mb-4">
                   Edit questions &amp; answers
                 </h2>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleQuestionDragEnd}>
+                  <SortableContext items={editQuestions.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
                 <ul className="space-y-8">
                   {editQuestions.map((q, qIdx) => {
                     const isTrueFalse = q.question_type === "true_false";
                     const hasSnippet = !!q.code_snippet;
                     return (
-                      <li
-                        key={`edit-q-${qIdx}`}
-                        className="border-b border-border pb-8 last:border-0"
-                      >
+                      <SortableQuestion key={`edit-q-${qIdx}`} id={String(qIdx)}>
+                        {(dragHandleProps) => (
+                        <>
                         {/* Question header row */}
                         <div className="flex items-center justify-between gap-2 mb-3">
                           <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              {...(dragHandleProps as React.HTMLAttributes<HTMLButtonElement>)}
+                              className="cursor-grab text-border hover:text-muted-text transition-colors shrink-0 touch-none"
+                              aria-label="Drag to reorder question"
+                            >
+                              ⠿
+                            </button>
                             <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
                               Question {qIdx + 1}
                             </label>
@@ -594,21 +687,13 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                                   </span>
                                 ) : (
                                   <>
-                                    <textarea
-                                      value={choice.text}
-                                      onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
-                                      rows={2}
-                                      className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
+                                    <ChoiceEditor
+                                      key={choice.ident}
+                                      initialContent={choice.text || ""}
+                                      onChange={(html) => updateChoice(qIdx, cIdx, html)}
+                                      storagePath={quizStoragePath}
                                     />
-                                    <div className="flex items-center gap-2">
-                                      <FileUpload
-                                        bucket="lms-resources"
-                                        path={quizStoragePath}
-                                        accept="image/*"
-                                        onUpload={(url, fileName) =>
-                                          insertImageIntoChoice(qIdx, cIdx, url, fileName)
-                                        }
-                                      />
+                                    <div className="flex justify-end">
                                       <button
                                         type="button"
                                         onClick={() => removeChoice(qIdx, cIdx)}
@@ -624,10 +709,14 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                             </div>
                           ))}
                         </div>
-                      </li>
+                        </>
+                        )}
+                      </SortableQuestion>
                     );
                   })}
                 </ul>
+                  </SortableContext>
+                </DndContext>
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
                   <button
                     type="button"
@@ -663,11 +752,11 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
               <h2 className="text-sm font-bold text-muted-text uppercase tracking-wide mb-4">
                 All questions &amp; answers
               </h2>
-              {(!quiz.questions || quiz.questions.length === 0) ? (
+              {editQuestions.length === 0 ? (
                 <p className="text-sm text-muted-text">No questions in this quiz.</p>
               ) : (
                 <ul className="space-y-8">
-                  {(quiz.questions ?? []).map((q, i) => {
+                  {editQuestions.map((q, i) => {
                     const correctChoice = getCorrectChoice(q);
                     return (
                       <li
@@ -685,8 +774,8 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
-                            <HtmlContent html={q.question_text || ""} />
+                          <div className="quiz-html mt-1 text-sm text-dark-text [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
+                            <HighlightedContent html={q.question_text || ""} />
                           </div>
                           {q.code_snippet && (
                             <div className="mt-3">
@@ -713,7 +802,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                                 <span className="shrink-0 mt-0.5">
                                   {isCorrect ? "✓" : "○"}
                                 </span>
-                                <div className="min-w-0 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
+                                <div className="quiz-html min-w-0 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-3">
                                   <HtmlContent html={choice.text || ""} />
                                 </div>
                               </li>

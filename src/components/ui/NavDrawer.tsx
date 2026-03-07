@@ -17,18 +17,19 @@ export default function NavDrawer({ courseId, courseName, paidLearners = false, 
   return (
     <div className="flex min-h-[calc(100vh-83px)]">
       {/* Collapsible sidebar — in document flow so content pushes over */}
-      <div
-        className={`relative shrink-0 transition-[width] duration-200 ${open ? 'border-r border-border' : ''}`}
-        style={{ width: open ? SIDEBAR_W : 0 }}
-      >
+      <div className="relative shrink-0">
+        {/* overflow-hidden on the animating div clips nav content at width:0 */}
         <div
-          className="py-8 px-3 overflow-hidden h-full"
+          className={`overflow-hidden transition-[width] duration-200 ${open ? 'border-r border-border' : ''}`}
           style={{ width: open ? SIDEBAR_W : 0 }}
         >
-          <StudentCourseNav courseId={courseId} courseName={courseName} paidLearners={paidLearners} />
+          {/* Inner content at fixed width so it doesn't collapse */}
+          <div className="py-8 px-3 h-full" style={{ width: SIDEBAR_W }}>
+            <StudentCourseNav courseId={courseId} courseName={courseName} paidLearners={paidLearners} />
+          </div>
         </div>
 
-        {/* Half-circle toggle on right edge — always visible */}
+        {/* Half-circle toggle — on outer (non-clipping) div so it escapes */}
         <button
           type="button"
           onClick={() => setOpen(v => !v)}

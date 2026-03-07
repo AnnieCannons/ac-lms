@@ -68,6 +68,39 @@ export async function toggleQuizPublished(quizId: string, published: boolean) {
   if (error) throw new Error(error.message);
 }
 
+export async function deleteQuiz(quizId: string) {
+  await getInstructorSession();
+  const admin = createServiceSupabaseClient();
+  // Delete related records first
+  await admin.from("quiz_submissions").delete().eq("quiz_id", quizId);
+  await admin.from("quiz_progress").delete().eq("quiz_id", quizId);
+  const { error } = await admin.from("quizzes").delete().eq("id", quizId);
+  if (error) throw new Error(error.message);
+}
+
+export async function getConductSubmissions(quizId: string) {
+  await getInstructorSession();
+  const admin = createServiceSupabaseClient();
+  const [{ data: submissions, error }, { data: progressRaw }] = await Promise.all([
+    admin
+      .from("quiz_submissions")
+      .select("student_id, score_percent, attempt_count, submitted_at")
+      .eq("quiz_id", quizId),
+    admin
+      .from("quiz_progress")
+      .select("student_id, answers_json, started_at, updated_at")
+      .eq("quiz_id", quizId),
+  ]);
+  if (error) throw new Error(error.message);
+  const progress = (progressRaw ?? []).map((r) => ({
+    student_id: r.student_id as string,
+    answers_count: Array.isArray(r.answers_json) ? (r.answers_json as unknown[]).length : 0,
+    started_at: r.started_at as string,
+    updated_at: r.updated_at as string,
+  }));
+  return { submissions: submissions ?? [], progress };
+}
+
 export async function upsertQuizFromJson(
   courseId: string,
   identifier: string,
@@ -82,11 +115,14 @@ export async function upsertQuizFromJson(
 ) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
-  const { error } = await admin
+  const { data, error } = await admin
     .from("quizzes")
     .upsert(
       { course_id: courseId, identifier, ...fields, updated_at: new Date().toISOString() },
       { onConflict: "course_id,identifier" }
-    );
+    )
+    .select("*")
+    .single();
   if (error) throw new Error(error.message);
+  return data;
 }

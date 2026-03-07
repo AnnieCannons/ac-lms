@@ -12,14 +12,14 @@ const LANGUAGES = [
   { value: "sql", label: "SQL" },
 ];
 
-export default function CodeBlockNode({ node, updateAttributes }: NodeViewProps) {
+export default function CodeBlockNode({ node, updateAttributes, deleteNode }: NodeViewProps) {
   const lang = (node.attrs.language as string) || "";
 
   return (
     <NodeViewWrapper className="relative my-3 not-italic">
       <div
         contentEditable={false}
-        className="absolute top-2 right-2 z-10 select-none"
+        className="absolute top-2 right-2 z-10 select-none flex items-center gap-1.5"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <select
@@ -34,8 +34,16 @@ export default function CodeBlockNode({ node, updateAttributes }: NodeViewProps)
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); deleteNode(); }}
+          className="text-[#585c73] hover:text-red-400 transition-colors text-lg leading-none px-1"
+          title="Remove code block"
+        >
+          ×
+        </button>
       </div>
-      <pre className="!m-0 rounded-lg overflow-x-auto text-sm leading-relaxed" style={{ background: "#1e1e2e", padding: "2.5rem 1rem 1rem" }}>
+      <pre className="!m-0 rounded-lg overflow-x-auto text-sm leading-relaxed" style={{ background: "#1e1e2e", padding: "36px 14px 10px" }}>
         {/* NodeViewContent renders the code; cast needed due to @tiptap/react types */}
         <NodeViewContent as={"code" as "div"} />
       </pre>
