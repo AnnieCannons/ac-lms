@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
@@ -19,47 +19,49 @@ interface Props {
   className?: string;
 }
 
-export default function HighlightedContent({ html, className }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
+function highlight(html: string): string {
   const clean = DOMPurify.sanitize(html);
+  if (typeof document === "undefined") return clean;
+  const div = document.createElement("div");
+  div.innerHTML = clean;
+  div.querySelectorAll("pre code").forEach((block) => {
+    const el = block as HTMLElement;
+    const pre = el.parentElement;
 
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.querySelectorAll("pre code").forEach((block) => {
-      const el = block as HTMLElement;
-      const pre = el.parentElement;
-
-      // Detect language from <code> class, then <pre> class, then default to javascript
-      let language = "";
-      for (const cls of [...el.classList]) {
+    let language = "";
+    for (const cls of [...el.classList]) {
+      if (cls.startsWith("language-")) { language = cls.slice(9); break; }
+    }
+    if (!language && pre) {
+      for (const cls of [...pre.classList]) {
         if (cls.startsWith("language-")) { language = cls.slice(9); break; }
       }
-      if (!language && pre) {
-        for (const cls of [...pre.classList]) {
-          if (cls.startsWith("language-")) { language = cls.slice(9); break; }
-        }
-      }
-      if (!language) language = "javascript";
+    }
+    if (!language) language = "javascript";
 
-      // Use hljs.highlight() directly — more reliable than highlightElement()
-      // which can silently skip elements it thinks are already processed
-      const code = el.textContent ?? "";
-      try {
-        const result = hljs.highlight(code, { language, ignoreIllegals: true });
-        el.innerHTML = result.value;
-        el.classList.add("hljs");
-      } catch {
-        // Unknown language — add class so base theme styles still apply
-        el.classList.add("hljs");
-      }
-    });
+    const code = el.textContent ?? "";
+    try {
+      const result = hljs.highlight(code, { language, ignoreIllegals: true });
+      el.innerHTML = result.value;
+    } catch {
+      // Unknown language — base styles still apply
+    }
+    el.classList.add("hljs");
+  });
+  return div.innerHTML;
+}
+
+export default function HighlightedContent({ html, className }: Props) {
+  const [displayHtml, setDisplayHtml] = useState(() => DOMPurify.sanitize(html));
+
+  useEffect(() => {
+    setDisplayHtml(highlight(html));
   }, [html]);
 
   return (
     <div
-      ref={ref}
       className={className}
-      dangerouslySetInnerHTML={{ __html: clean }}
+      dangerouslySetInnerHTML={{ __html: displayHtml }}
       suppressHydrationWarning
     />
   );
