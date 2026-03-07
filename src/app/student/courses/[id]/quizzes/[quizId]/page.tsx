@@ -7,6 +7,7 @@ import { isStudentPreview } from "@/lib/student-preview";
 import StudentViewBanner from "@/components/ui/StudentViewBanner";
 import QuizForm from "./QuizForm";
 import HtmlContent from "@/components/ui/HtmlContent";
+import HighlightedContent from "@/components/ui/HighlightedContent";
 
 type Question = {
   ident: string;
@@ -198,9 +199,10 @@ export default async function TakeQuizPage({
                           <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
                             Question {i + 1}
                           </p>
-                          <div className="text-sm text-dark-text [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_code]:font-mono [&_code]:bg-border/30 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-border/20 [&_pre]:rounded-lg [&_pre]:px-4 [&_pre]:py-3 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:text-xs [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
-                            <HtmlContent html={q.question_text || ""} />
-                          </div>
+                          <HighlightedContent
+                            html={q.question_text || ""}
+                            className="text-sm text-dark-text [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_code:not(pre_code)]:font-mono [&_code:not(pre_code)]:bg-border/30 [&_code:not(pre_code)]:px-1 [&_code:not(pre_code)]:rounded [&_code:not(pre_code)]:text-xs [&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
+                          />
                         </div>
                       </div>
 

@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import type { QuizRow, QuizQuestion, QuizChoice, CodeLanguage } from "@/data/quizzes";
 import HtmlContent from "@/components/ui/HtmlContent";
 import FileUpload from "@/components/ui/FileUpload";
 import dynamic from "next/dynamic";
+import {
+  updateQuizMeta,
+  updateQuizQuestions,
+  toggleQuizPublished,
+  upsertQuizFromJson,
+} from "@/lib/quiz-actions";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
 const QuizQuestionEditor = dynamic(
@@ -61,7 +66,6 @@ const LANG_LABELS: Record<CodeLanguage, string> = {
 
 export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewProps) {
   const router = useRouter();
-  const supabase = createClient();
   const fromJsonOnly = isJsonOnlyQuiz(quiz.id);
   const [editing, setEditing] = useState(false);
   const [editingQuestions, setEditingQuestions] = useState(false);
@@ -87,37 +91,23 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   const handleTogglePublished = async () => {
     setError(null);
     setSaving(true);
-    if (fromJsonOnly) {
-      const row = {
-        course_id: courseId,
-        identifier: quiz.identifier,
-        title: editTitle.trim() || quiz.title,
-        due_at: editDueDate || quiz.due_at || null,
-        module_title: quiz.module_title ?? "",
-        published: true,
-        questions: quiz.questions ?? [],
-        max_attempts: quiz.max_attempts ?? null,
-        updated_at: new Date().toISOString(),
-      };
-      const { error: err } = await supabase
-        .from("quizzes")
-        .upsert(row, { onConflict: "course_id,identifier" });
-      if (err) {
-        setError(err.message);
-      } else {
+    try {
+      if (fromJsonOnly) {
+        await upsertQuizFromJson(courseId, quiz.identifier, {
+          title: editTitle.trim() || quiz.title,
+          due_at: editDueDate || quiz.due_at || null,
+          module_title: quiz.module_title ?? "",
+          published: true,
+          questions: quiz.questions ?? [],
+          max_attempts: quiz.max_attempts ?? null,
+        });
         onClose();
-        router.refresh();
-      }
-    } else {
-      const { error: err } = await supabase
-        .from("quizzes")
-        .update({ published: !quiz.published, updated_at: new Date().toISOString() })
-        .eq("id", quiz.id);
-      if (err) {
-        setError(err.message);
       } else {
-        router.refresh();
+        await toggleQuizPublished(quiz.id, !quiz.published);
       }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
     }
     setSaving(false);
   };
@@ -126,43 +116,28 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     if (!editTitle.trim()) return;
     setError(null);
     setSaving(true);
-    if (fromJsonOnly) {
-      const row = {
-        course_id: courseId,
-        identifier: quiz.identifier,
-        title: editTitle.trim(),
-        due_at: editDueDate || null,
-        module_title: quiz.module_title ?? "",
-        published: false,
-        questions: quiz.questions ?? [],
-        max_attempts: editMaxAttempts,
-        updated_at: new Date().toISOString(),
-      };
-      const { error: err } = await supabase
-        .from("quizzes")
-        .upsert(row, { onConflict: "course_id,identifier" });
-      if (err) {
-        setError(err.message);
-      } else {
+    try {
+      if (fromJsonOnly) {
+        await upsertQuizFromJson(courseId, quiz.identifier, {
+          title: editTitle.trim(),
+          due_at: editDueDate || null,
+          module_title: quiz.module_title ?? "",
+          published: false,
+          questions: quiz.questions ?? [],
+          max_attempts: editMaxAttempts,
+        });
         onClose();
-        router.refresh();
-      }
-    } else {
-      const { error: err } = await supabase
-        .from("quizzes")
-        .update({
+      } else {
+        await updateQuizMeta(quiz.id, {
           title: editTitle.trim(),
           due_at: editDueDate || null,
           max_attempts: editMaxAttempts,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", quiz.id);
-      if (err) {
-        setError(err.message);
-      } else {
+        });
         setEditing(false);
-        router.refresh();
       }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
     }
     setSaving(false);
   };
@@ -170,41 +145,24 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   const handleSaveQuestions = async () => {
     setError(null);
     setSaving(true);
-    if (fromJsonOnly) {
-      const row = {
-        course_id: courseId,
-        identifier: quiz.identifier,
-        title: quiz.title,
-        due_at: quiz.due_at || null,
-        module_title: quiz.module_title ?? "",
-        published: false,
-        questions: editQuestions,
-        max_attempts: quiz.max_attempts ?? null,
-        updated_at: new Date().toISOString(),
-      };
-      const { error: err } = await supabase
-        .from("quizzes")
-        .upsert(row, { onConflict: "course_id,identifier" });
-      if (err) {
-        setError(err.message);
-      } else {
-        onClose();
-        router.refresh();
-      }
-    } else {
-      const { error: err } = await supabase
-        .from("quizzes")
-        .update({
+    try {
+      if (fromJsonOnly) {
+        await upsertQuizFromJson(courseId, quiz.identifier, {
+          title: quiz.title,
+          due_at: quiz.due_at || null,
+          module_title: quiz.module_title ?? "",
+          published: false,
           questions: editQuestions,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", quiz.id);
-      if (err) {
-        setError(err.message);
+          max_attempts: quiz.max_attempts ?? null,
+        });
+        onClose();
       } else {
+        await updateQuizQuestions(quiz.id, editQuestions);
         setEditingQuestions(false);
-        router.refresh();
       }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
     }
     setSaving(false);
   };

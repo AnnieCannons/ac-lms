@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import type { QuizRow } from "@/data/quizzes";
+import { createQuiz } from "@/lib/quiz-actions";
 import QuizFullView from "./QuizFullView";
 
 type QuizzesSectionProps = {
@@ -29,32 +29,24 @@ function formatDueDate(dueAt: string | null): string {
 
 export default function QuizzesSection({ courseId, quizzes = [] }: QuizzesSectionProps) {
   const router = useRouter();
-  const supabase = createClient();
   const [selectedQuiz, setSelectedQuiz] = useState<QuizRow | null>(null);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const list = Array.isArray(quizzes) ? quizzes : [];
 
   const handleNewQuiz = async () => {
     setCreating(true);
-    const identifier = `new-quiz-${Date.now()}`;
-    const { data, error } = await supabase
-      .from("quizzes")
-      .insert({
-        course_id: courseId,
-        identifier,
-        title: "New Quiz",
-        due_at: null,
-        module_title: "",
-        published: false,
-        questions: [],
-        max_attempts: null,
-      })
-      .select("*")
-      .single();
-    setCreating(false);
-    if (!error && data) {
-      setSelectedQuiz(data as QuizRow);
-      router.refresh();
+    setCreateError(null);
+    try {
+      const data = await createQuiz(courseId);
+      if (data) {
+        setSelectedQuiz(data as QuizRow);
+        router.refresh();
+      }
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create quiz");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -88,6 +80,11 @@ export default function QuizzesSection({ courseId, quizzes = [] }: QuizzesSectio
             {creating ? "Creating…" : "+ New Quiz"}
           </button>
         </div>
+        {createError && (
+          <div className="mb-3 rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            {createError}
+          </div>
+        )}
 
         {list.length === 0 ? (
           <div className="bg-surface rounded-2xl border border-border p-6 text-center">

@@ -1,9 +1,23 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { createLowlight } from "lowlight";
+import javascript from "highlight.js/lib/languages/javascript";
+import xml from "highlight.js/lib/languages/xml";
+import css from "highlight.js/lib/languages/css";
+import sql from "highlight.js/lib/languages/sql";
 import FileUpload from "@/components/ui/FileUpload";
+import CodeBlockNode from "@/components/ui/CodeBlockNode";
+
+const lowlight = createLowlight();
+lowlight.register("javascript", javascript);
+lowlight.register("jsx", javascript); // JSX uses the JS grammar
+lowlight.register("html", xml);
+lowlight.register("css", css);
+lowlight.register("sql", sql);
 
 type Props = {
   initialContent: string;
@@ -16,9 +30,18 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
+        codeBlock: false, // replaced by CodeBlockLowlight
         heading: false,
         horizontalRule: false,
         blockquote: false,
+      }),
+      CodeBlockLowlight.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockNode);
+        },
+      }).configure({
+        lowlight,
+        defaultLanguage: "javascript",
       }),
       Placeholder.configure({ placeholder: "Question text…" }),
     ],
@@ -30,12 +53,10 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
     editorProps: {
       attributes: {
         class:
-          "min-h-[120px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2 " +
+          "min-h-[120px] max-h-[500px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2 " +
           "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
           "[&_li_p]:inline [&_strong]:font-bold [&_em]:italic " +
-          "[&_code]:font-mono [&_code]:bg-border/30 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs " +
-          "[&_pre]:bg-border/20 [&_pre]:rounded-lg [&_pre]:px-4 [&_pre]:py-3 [&_pre]:my-2 [&_pre]:overflow-x-auto " +
-          "[&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:text-xs [&_pre_code]:font-mono",
+          "[&_code]:font-mono [&_code]:bg-border/30 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs",
       },
     },
   });
@@ -130,6 +151,7 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
           className={btn(editor.isActive("codeBlock"))}
           aria-label="Code block"
           aria-pressed={editor.isActive("codeBlock")}
+          title="Insert code block (pick language inside)"
         >
           {"</>"}
         </button>
