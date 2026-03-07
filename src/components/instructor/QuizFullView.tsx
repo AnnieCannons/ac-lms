@@ -9,6 +9,10 @@ import FileUpload from "@/components/ui/FileUpload";
 import dynamic from "next/dynamic";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
+const QuizQuestionEditor = dynamic(
+  () => import("@/components/ui/QuizQuestionEditor"),
+  { ssr: false }
+);
 
 function newIdent(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -316,18 +320,6 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     });
   };
 
-  const insertImageIntoQuestion = (qIdx: number, url: string, fileName: string) => {
-    const img = `<p><img src="${url}" alt="${fileName.replace(/"/g, "&quot;")}" /></p>`;
-    setEditQuestions((prev) => {
-      const next = [...prev];
-      next[qIdx] = {
-        ...next[qIdx],
-        question_text: (next[qIdx].question_text || "") + img,
-      };
-      return next;
-    });
-  };
-
   const insertImageIntoChoice = (qIdx: number, cIdx: number, url: string, fileName: string) => {
     const img = `<p><img src="${url}" alt="${fileName.replace(/"/g, "&quot;")}" /></p>`;
     setEditQuestions((prev) => {
@@ -543,25 +535,13 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                           </button>
                         </div>
 
-                        {/* Question text */}
-                        <textarea
-                          value={q.question_text}
-                          onChange={(e) =>
-                            updateQuestion(qIdx, { question_text: e.target.value })
-                          }
-                          rows={4}
-                          placeholder="Question text (HTML supported)"
-                          className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
+                        {/* Question text — rich text editor */}
+                        <QuizQuestionEditor
+                          key={q.ident}
+                          initialContent={q.question_text || ""}
+                          onChange={(html) => updateQuestion(qIdx, { question_text: html })}
+                          storagePath={quizStoragePath}
                         />
-                        <div className="mt-2">
-                          <span className="text-xs text-muted-text mr-2">Add image to question:</span>
-                          <FileUpload
-                            bucket="lms-resources"
-                            path={quizStoragePath}
-                            accept="image/*"
-                            onUpload={(url, fileName) => insertImageIntoQuestion(qIdx, url, fileName)}
-                          />
-                        </div>
 
                         {/* Code snippet */}
                         <div className="mt-3">

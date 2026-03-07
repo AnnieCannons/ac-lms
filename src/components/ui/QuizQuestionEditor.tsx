@@ -1,0 +1,155 @@
+"use client";
+
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import FileUpload from "@/components/ui/FileUpload";
+
+type Props = {
+  initialContent: string;
+  onChange: (html: string) => void;
+  storagePath?: string;
+};
+
+export default function QuizQuestionEditor({ initialContent, onChange, storagePath }: Props) {
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+        horizontalRule: false,
+        blockquote: false,
+      }),
+      Placeholder.configure({ placeholder: "Question text…" }),
+    ],
+    content: initialContent,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      onChange(html === "<p></p>" ? "" : html);
+    },
+    editorProps: {
+      attributes: {
+        class:
+          "min-h-[120px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2 " +
+          "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
+          "[&_li_p]:inline [&_strong]:font-bold [&_em]:italic " +
+          "[&_code]:font-mono [&_code]:bg-border/30 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs " +
+          "[&_pre]:bg-border/20 [&_pre]:rounded-lg [&_pre]:px-4 [&_pre]:py-3 [&_pre]:my-2 [&_pre]:overflow-x-auto " +
+          "[&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:text-xs [&_pre_code]:font-mono",
+      },
+    },
+  });
+
+  if (!editor) return null;
+
+  const hasStoredMark = (name: string) =>
+    !!(editor.state.storedMarks?.find((m) => m.type.name === name));
+
+  const isBold = editor.isActive("bold") || hasStoredMark("bold");
+  const isItalic = editor.isActive("italic") || hasStoredMark("italic");
+
+  const tool = (fn: () => void) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    fn();
+  };
+
+  const btn = (active: boolean) =>
+    `px-2 py-1 rounded text-xs font-medium transition-colors ${
+      active
+        ? "bg-teal-primary text-white"
+        : "text-muted-text hover:text-dark-text hover:bg-border/40"
+    }`;
+
+  const insertImage = (url: string, fileName: string) => {
+    const img = `<img src="${url}" alt="${fileName.replace(/"/g, "&quot;")}" />`;
+    editor.chain().focus().insertContent(img).run();
+  };
+
+  return (
+    <div className="border border-border rounded-lg bg-background overflow-hidden focus-within:ring-2 focus-within:ring-teal-primary">
+      {/* Toolbar */}
+      <div
+        role="toolbar"
+        aria-label="Text formatting"
+        className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-surface flex-wrap"
+      >
+        <button
+          type="button"
+          onMouseDown={tool(() => editor.chain().focus().toggleBold().run())}
+          className={`${btn(isBold)} font-bold`}
+          aria-label="Bold"
+          aria-pressed={isBold}
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onMouseDown={tool(() => editor.chain().focus().toggleItalic().run())}
+          className={`${btn(isItalic)} italic`}
+          aria-label="Italic"
+          aria-pressed={isItalic}
+        >
+          I
+        </button>
+
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1 shrink-0" />
+
+        <button
+          type="button"
+          onMouseDown={tool(() => editor.chain().focus().toggleBulletList().run())}
+          className={btn(editor.isActive("bulletList"))}
+          aria-label="Bullet list"
+          aria-pressed={editor.isActive("bulletList")}
+        >
+          • List
+        </button>
+        <button
+          type="button"
+          onMouseDown={tool(() => editor.chain().focus().toggleOrderedList().run())}
+          className={btn(editor.isActive("orderedList"))}
+          aria-label="Numbered list"
+          aria-pressed={editor.isActive("orderedList")}
+        >
+          1. List
+        </button>
+
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1 shrink-0" />
+
+        <button
+          type="button"
+          onMouseDown={tool(() => editor.chain().focus().toggleCode().run())}
+          className={`${btn(editor.isActive("code"))} font-mono`}
+          aria-label="Inline code"
+          aria-pressed={editor.isActive("code")}
+        >
+          `code`
+        </button>
+        <button
+          type="button"
+          onMouseDown={tool(() => editor.chain().focus().toggleCodeBlock().run())}
+          className={btn(editor.isActive("codeBlock"))}
+          aria-label="Code block"
+          aria-pressed={editor.isActive("codeBlock")}
+        >
+          {"</>"}
+        </button>
+
+        {storagePath && (
+          <>
+            <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1 shrink-0" />
+            <span className="text-xs text-muted-text">img:</span>
+            <FileUpload
+              bucket="lms-resources"
+              path={storagePath}
+              accept="image/*"
+              onUpload={insertImage}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Editor */}
+      <EditorContent editor={editor} />
+    </div>
+  );
+}

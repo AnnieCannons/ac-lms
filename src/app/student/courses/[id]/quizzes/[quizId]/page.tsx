@@ -6,6 +6,7 @@ import NavDrawer from "@/components/ui/NavDrawer";
 import { isStudentPreview } from "@/lib/student-preview";
 import StudentViewBanner from "@/components/ui/StudentViewBanner";
 import QuizForm from "./QuizForm";
+import HtmlContent from "@/components/ui/HtmlContent";
 
 type Question = {
   ident: string;
@@ -197,10 +198,9 @@ export default async function TakeQuizPage({
                           <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
                             Question {i + 1}
                           </p>
-                          <div
-                            className="text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
-                            dangerouslySetInnerHTML={{ __html: q.question_text || "" }}
-                          />
+                          <div className="text-sm text-dark-text [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_code]:font-mono [&_code]:bg-border/30 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-border/20 [&_pre]:rounded-lg [&_pre]:px-4 [&_pre]:py-3 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:text-xs [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
+                            <HtmlContent html={q.question_text || ""} />
+                          </div>
                         </div>
                       </div>
 
@@ -208,17 +208,17 @@ export default async function TakeQuizPage({
                         {!isCorrect && (
                           <p className="text-red-500">
                             Your answer:{" "}
-                            <span
-                              dangerouslySetInnerHTML={{
-                                __html: studentChoice?.text ?? "(no answer)",
-                              }}
-                            />
+                            <span className="[&_img]:inline [&_img]:max-h-6">
+                              <HtmlContent html={studentChoice?.text ?? "(no answer)"} />
+                            </span>
                           </p>
                         )}
                         {outOfAttempts && !isCorrect && correctChoice && (
                           <p className="text-green-600 dark:text-green-400 mt-1">
                             Correct answer:{" "}
-                            <span dangerouslySetInnerHTML={{ __html: correctChoice.text }} />
+                            <span className="[&_img]:inline [&_img]:max-h-6">
+                              <HtmlContent html={correctChoice.text} />
+                            </span>
                           </p>
                         )}
                       </div>
