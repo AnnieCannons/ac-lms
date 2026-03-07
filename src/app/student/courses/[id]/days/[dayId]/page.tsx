@@ -87,6 +87,31 @@ export default async function StudentDayDetailPage({
 
   const module = Array.isArray(day.modules) ? day.modules[0] : day.modules
 
+  // Only show quizzes on "Assignments" days
+  const isAssignmentsDay = day.day_name?.toLowerCase().includes('assignment')
+  let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null }> = []
+  let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
+
+  if (isAssignmentsDay && module?.title) {
+    const { data: quizData } = await supabase
+      .from('quizzes')
+      .select('id, title, questions, max_attempts, due_at')
+      .eq('course_id', id)
+      .eq('module_title', module.title)
+      .eq('published', true)
+    quizzes = (quizData ?? []) as typeof quizzes
+
+    if (quizzes.length > 0) {
+      const quizIds = quizzes.map(q => q.id)
+      const { data: subData } = await supabase
+        .from('quiz_submissions')
+        .select('quiz_id, score_percent, attempt_count')
+        .eq('student_id', user.id)
+        .in('quiz_id', quizIds)
+      quizSubmissions = (subData ?? []) as typeof quizSubmissions
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
@@ -165,6 +190,56 @@ export default async function StudentDayDetailPage({
               <p className="text-muted-text text-sm">No assignments for this day.</p>
             )}
           </section>
+
+          {/* Quizzes (only on Assignments days) */}
+          {isAssignmentsDay && quizzes.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Quizzes</h3>
+              <div className="flex flex-col gap-3">
+                {quizzes.map(quiz => {
+                  const sub = quizSubmissions.find(s => s.quiz_id === quiz.id)
+                  const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title
+                  const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0
+                  const attemptsUsed = sub?.attempt_count ?? 0
+                  const maxAttempts = quiz.max_attempts
+                  const outOfAttempts = maxAttempts !== null && attemptsUsed >= maxAttempts
+                  return (
+                    <div key={quiz.id} className="bg-surface rounded-xl border border-border px-4 py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-dark-text">{displayTitle}</p>
+                          <p className="text-xs text-muted-text mt-1">
+                            {questionCount} question{questionCount !== 1 ? 's' : ''}
+                            {sub && sub.score_percent != null && (
+                              <> · Score: {Math.round(sub.score_percent)}%</>
+                            )}
+                            {maxAttempts !== null && (
+                              <> · {attemptsUsed}/{maxAttempts} attempts</>
+                            )}
+                          </p>
+                        </div>
+                        {!outOfAttempts ? (
+                          <Link
+                            href={`/student/courses/${id}/quizzes/${quiz.id}`}
+                            className="text-xs text-teal-primary font-medium hover:underline shrink-0"
+                          >
+                            {sub ? 'Retake →' : 'Take →'}
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/student/courses/${id}/quizzes/${quiz.id}`}
+                            className="text-xs text-muted-text hover:underline shrink-0"
+                          >
+                            View results →
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
         </div>
       </main>
       </NavDrawer>

@@ -1,0 +1,118 @@
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import InstructorTopNav from "@/components/ui/InstructorTopNav";
+import InstructorSidebar from "@/components/ui/InstructorSidebar";
+import QuizzesSection from "@/components/instructor/QuizzesSection";
+import { getQuizzesForCourse, type QuizRow } from "@/data/quizzes";
+
+export default async function InstructorQuizzesPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("name, role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "instructor" && profile?.role !== "admin") {
+    redirect("/unauthorized");
+  }
+
+  const { data: course } = await supabase
+    .from("courses")
+    .select("id, name, code")
+    .eq("id", id)
+    .single();
+
+  if (!course) redirect("/instructor/courses");
+
+  const jsonQuizzes = getQuizzesForCourse(course);
+  const { data: dbQuizzesRaw } = await supabase
+    .from("quizzes")
+    .select("*")
+    .eq("course_id", id)
+    .order("module_title", { ascending: true })
+    .order("title", { ascending: true });
+  let dbQuizzes = dbQuizzesRaw as QuizRow[] | null;
+
+  // Auto-sync from JSON if DB is empty
+  if ((!dbQuizzes || dbQuizzes.length === 0) && jsonQuizzes.length > 0) {
+    const { error } = await supabase.from("quizzes").insert(
+      jsonQuizzes.map((q) => ({
+        course_id: id,
+        identifier: q.identifier,
+        title: q.title,
+        due_at: q.due_at?.trim() || null,
+        module_title: q.module_title || "",
+        published: false,
+        questions: q.questions ?? [],
+        max_attempts: null,
+      }))
+    );
+    if (!error) {
+      const res = await supabase
+        .from("quizzes")
+        .select("*")
+        .eq("course_id", id)
+        .order("module_title", { ascending: true })
+        .order("title", { ascending: true });
+      dbQuizzes = (res.data ?? []) as QuizRow[];
+    }
+  }
+
+  const quizzes: QuizRow[] =
+    dbQuizzes && dbQuizzes.length > 0
+      ? dbQuizzes
+      : jsonQuizzes.map((q) => ({
+          id: `json-${q.identifier}`,
+          course_id: id,
+          identifier: q.identifier,
+          title: q.title,
+          due_at: q.due_at?.trim() || null,
+          module_title: q.module_title || "",
+          published: false,
+          questions: q.questions ?? [],
+          max_attempts: null,
+        })) as QuizRow[];
+
+  return (
+    <div className="min-h-screen bg-background">
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
+
+      <div className="flex">
+        <InstructorSidebar courseId={id} courseName={course.name} />
+
+        <div className="flex-1 min-w-0">
+          <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-6 sm:px-8 sm:py-10 focus:outline-none">
+            <div className="flex items-center justify-between mb-6">
+              <Link
+                href={`/instructor/courses/${id}`}
+                className="text-muted-text hover:text-teal-primary text-sm"
+              >
+                ← Course
+              </Link>
+              <Link
+                href={`/instructor/courses/${id}/quiz-submissions`}
+                className="text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:border-teal-primary hover:text-teal-primary transition-colors"
+              >
+                View Submissions →
+              </Link>
+            </div>
+
+            <QuizzesSection courseId={id} quizzes={quizzes} />
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -12,12 +12,13 @@ interface Props {
   courseName: string
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions']
 
 const CATEGORY_ITEMS = [
   { label: 'All Modules', slug: '' },
   { label: 'Course Outline', slug: 'syllabus' },
   { label: 'Assignments', slug: 'assignments' },
+  { label: 'Quizzes', slug: 'quizzes' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },
   { label: 'Level Up Your Skills', slug: 'level-up' },
@@ -33,6 +34,9 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/submissions`)
     } else if (slug === 'assignments') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/assignments`)
+    } else if (slug === 'quizzes') {
+      isActive = pathname.startsWith(`/instructor/courses/${courseId}/quizzes`) ||
+        pathname.startsWith(`/instructor/courses/${courseId}/quiz-submissions`)
     } else if (slug === 'users') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/users`)
     } else if (slug === 'roster') {

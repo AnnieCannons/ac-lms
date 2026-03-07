@@ -7,11 +7,16 @@ export type QuizChoice = {
   text: string;
 };
 
+export type CodeLanguage = 'javascript' | 'jsx' | 'html' | 'css' | 'sql';
+
 export type QuizQuestion = {
   ident: string;
   question_text: string;
   choices: QuizChoice[];
   correct_response_ident: string;
+  question_type?: 'multiple_choice' | 'true_false';
+  code_snippet?: string;
+  code_language?: CodeLanguage;
 };
 
 export type QuizAssessment = {
@@ -40,6 +45,7 @@ export type QuizRow = {
   module_title: string;
   published: boolean;
   questions: QuizQuestion[];
+  max_attempts: number | null;
   created_at?: string;
   updated_at?: string;
 };

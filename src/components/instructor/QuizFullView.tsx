@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { QuizRow, QuizQuestion, QuizChoice } from "@/data/quizzes";
+import type { QuizRow, QuizQuestion, QuizChoice, CodeLanguage } from "@/data/quizzes";
 import HtmlContent from "@/components/ui/HtmlContent";
 import FileUpload from "@/components/ui/FileUpload";
+import dynamic from "next/dynamic";
+
+const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
 
 function newIdent(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -33,12 +36,24 @@ function formatDueDate(dueAt: string | null): string {
   }
 }
 
-/** Get the correct choice for a question */
 function getCorrectChoice(question: QuizQuestion): QuizChoice | undefined {
   return question.choices?.find((c) => c.ident === question.correct_response_ident);
 }
 
 const isJsonOnlyQuiz = (id: string) => id.startsWith("json-");
+
+const TRUE_FALSE_CHOICES = (trueIdent: string, falseIdent: string) => [
+  { ident: trueIdent, text: "True" },
+  { ident: falseIdent, text: "False" },
+];
+
+const LANG_LABELS: Record<CodeLanguage, string> = {
+  javascript: "JavaScript",
+  jsx: "React (JSX)",
+  html: "HTML",
+  css: "CSS",
+  sql: "SQL",
+};
 
 export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewProps) {
   const router = useRouter();
@@ -50,6 +65,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   const [editDueDate, setEditDueDate] = useState(
     quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : ""
   );
+  const [editMaxAttempts, setEditMaxAttempts] = useState<number | null>(quiz.max_attempts ?? null);
   const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +73,8 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   useEffect(() => {
     setEditTitle(quiz.title);
     setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
-  }, [quiz.id, quiz.title, quiz.due_at]);
+    setEditMaxAttempts(quiz.max_attempts ?? null);
+  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts]);
 
   useEffect(() => {
     setEditQuestions(JSON.parse(JSON.stringify(quiz.questions ?? [])));
@@ -75,6 +92,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
         module_title: quiz.module_title ?? "",
         published: true,
         questions: quiz.questions ?? [],
+        max_attempts: quiz.max_attempts ?? null,
         updated_at: new Date().toISOString(),
       };
       const { error: err } = await supabase
@@ -113,6 +131,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
         module_title: quiz.module_title ?? "",
         published: false,
         questions: quiz.questions ?? [],
+        max_attempts: editMaxAttempts,
         updated_at: new Date().toISOString(),
       };
       const { error: err } = await supabase
@@ -130,6 +149,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
         .update({
           title: editTitle.trim(),
           due_at: editDueDate || null,
+          max_attempts: editMaxAttempts,
           updated_at: new Date().toISOString(),
         })
         .eq("id", quiz.id);
@@ -155,6 +175,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
         module_title: quiz.module_title ?? "",
         published: false,
         questions: editQuestions,
+        max_attempts: quiz.max_attempts ?? null,
         updated_at: new Date().toISOString(),
       };
       const { error: err } = await supabase
@@ -192,6 +213,29 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     });
   };
 
+  const setQuestionType = (qIdx: number, type: "multiple_choice" | "true_false") => {
+    setEditQuestions((prev) => {
+      const next = JSON.parse(JSON.stringify(prev));
+      const q = next[qIdx];
+      q.question_type = type;
+      if (type === "true_false") {
+        const trueIdent = newIdent("tf-t");
+        const falseIdent = newIdent("tf-f");
+        q.choices = TRUE_FALSE_CHOICES(trueIdent, falseIdent);
+        q.correct_response_ident = trueIdent;
+      } else if (!q.choices || q.choices.length < 2) {
+        const c1 = newIdent("c");
+        const c2 = newIdent("c");
+        q.choices = [
+          { ident: c1, text: "" },
+          { ident: c2, text: "" },
+        ];
+        q.correct_response_ident = c1;
+      }
+      return next;
+    });
+  };
+
   const updateChoice = (qIndex: number, cIndex: number, text: string) => {
     setEditQuestions((prev) => {
       const next = JSON.parse(JSON.stringify(prev));
@@ -215,6 +259,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
     const newQ: QuizQuestion = {
       ident: newIdent("q"),
       question_text: "",
+      question_type: "multiple_choice",
       choices: [
         { ident: choice1Ident, text: "" },
         { ident: choice2Ident, text: "" },
@@ -246,10 +291,27 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
       const choices = next[qIdx].choices ?? [];
       if (choices.length <= 2) return prev;
       const removedIdent = choices[cIdx].ident;
-      next[qIdx].choices = choices.filter((_, i) => i !== cIdx);
+      next[qIdx].choices = choices.filter((_: QuizChoice, i: number) => i !== cIdx);
       if (next[qIdx].correct_response_ident === removedIdent) {
         next[qIdx].correct_response_ident = next[qIdx].choices[0]?.ident ?? "";
       }
+      return next;
+    });
+  };
+
+  const setCodeSnippet = (qIdx: number, snippet: string) => {
+    updateQuestion(qIdx, { code_snippet: snippet });
+  };
+
+  const setCodeLanguage = (qIdx: number, lang: CodeLanguage) => {
+    updateQuestion(qIdx, { code_language: lang });
+  };
+
+  const removeCodeSnippet = (qIdx: number) => {
+    setEditQuestions((prev) => {
+      const next = JSON.parse(JSON.stringify(prev));
+      delete next[qIdx].code_snippet;
+      delete next[qIdx].code_language;
       return next;
     });
   };
@@ -332,12 +394,49 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                 className="flex-1 bg-surface border border-border text-dark-text rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
               />
             </div>
+            {/* Max attempts */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                Max Attempts
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
+                  <input
+                    type="radio"
+                    name="max_attempts_mode"
+                    checked={editMaxAttempts === null}
+                    onChange={() => setEditMaxAttempts(null)}
+                  />
+                  Unlimited
+                </label>
+                <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
+                  <input
+                    type="radio"
+                    name="max_attempts_mode"
+                    checked={editMaxAttempts !== null}
+                    onChange={() => setEditMaxAttempts(editMaxAttempts ?? 3)}
+                  />
+                  Limited
+                </label>
+                {editMaxAttempts !== null && (
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={editMaxAttempts}
+                    onChange={(e) => setEditMaxAttempts(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 bg-surface border border-border text-dark-text rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  />
+                )}
+              </div>
+            </div>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => {
                   setEditing(false);
                   setEditTitle(quiz.title);
                   setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
+                  setEditMaxAttempts(quiz.max_attempts ?? null);
                 }}
                 className="text-sm text-muted-text hover:text-dark-text px-4 py-2"
                 type="button"
@@ -365,6 +464,9 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                 {quiz.module_title && (
                   <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
                 )}
+                <p className="text-xs text-muted-text mt-1">
+                  Attempts: {quiz.max_attempts ? `Up to ${quiz.max_attempts}` : "Unlimited"}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -391,99 +493,202 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                   Edit questions &amp; answers
                 </h2>
                 <ul className="space-y-8">
-                  {editQuestions.map((q, qIdx) => (
-                    <li
-                      key={`edit-q-${qIdx}`}
-                      className="border-b border-border pb-8 last:border-0"
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                          Question {qIdx + 1} (HTML)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => removeQuestion(qIdx)}
-                          disabled={editQuestions.length <= 1}
-                          className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Remove question
-                        </button>
-                      </div>
-                      <textarea
-                        value={q.question_text}
-                        onChange={(e) =>
-                          updateQuestion(qIdx, { question_text: e.target.value })
-                        }
-                        rows={4}
-                        className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
-                      />
-                      <div className="mt-2">
-                        <span className="text-xs text-muted-text mr-2">Add image to question:</span>
-                        <FileUpload
-                          bucket="lms-resources"
-                          path={quizStoragePath}
-                          accept="image/*"
-                          onUpload={(url, fileName) => insertImageIntoQuestion(qIdx, url, fileName)}
-                        />
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                            Choices (correct = ✓)
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => addChoice(qIdx)}
-                            className="text-xs text-teal-primary hover:opacity-90"
-                          >
-                            + Add choice
-                          </button>
-                        </div>
-                        {(q.choices ?? []).map((choice, cIdx) => (
-                          <div key={`edit-q-${qIdx}-c-${cIdx}`} className="flex items-start gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setCorrectChoice(qIdx, choice.ident)}
-                              className={`shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center text-xs ${
-                                q.correct_response_ident === choice.ident
-                                  ? "border-teal-primary bg-teal-primary text-white"
-                                  : "border-border text-muted-text hover:border-teal-primary/50"
-                              }`}
-                              title="Mark as correct answer"
-                            >
-                              {q.correct_response_ident === choice.ident ? "✓" : ""}
-                            </button>
-                            <div className="flex-1 min-w-0 flex flex-col gap-1">
-                              <textarea
-                                value={choice.text}
-                                onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
-                                rows={2}
-                                className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
-                              />
-                              <div className="flex items-center gap-2">
-                                <FileUpload
-                                  bucket="lms-resources"
-                                  path={quizStoragePath}
-                                  accept="image/*"
-                                  onUpload={(url, fileName) =>
-                                    insertImageIntoChoice(qIdx, cIdx, url, fileName)
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeChoice(qIdx, cIdx)}
-                                  disabled={(q.choices ?? []).length <= 2}
-                                  className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                  Remove choice
-                                </button>
-                              </div>
+                  {editQuestions.map((q, qIdx) => {
+                    const isTrueFalse = q.question_type === "true_false";
+                    const hasSnippet = !!q.code_snippet;
+                    return (
+                      <li
+                        key={`edit-q-${qIdx}`}
+                        className="border-b border-border pb-8 last:border-0"
+                      >
+                        {/* Question header row */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-3">
+                            <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                              Question {qIdx + 1}
+                            </label>
+                            {/* Question type selector */}
+                            <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setQuestionType(qIdx, "multiple_choice")}
+                                className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                                  !isTrueFalse
+                                    ? "bg-teal-primary text-white"
+                                    : "text-muted-text hover:text-dark-text"
+                                }`}
+                              >
+                                Multiple choice
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setQuestionType(qIdx, "true_false")}
+                                className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                                  isTrueFalse
+                                    ? "bg-teal-primary text-white"
+                                    : "text-muted-text hover:text-dark-text"
+                                }`}
+                              >
+                                True / False
+                              </button>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
+                          <button
+                            type="button"
+                            onClick={() => removeQuestion(qIdx)}
+                            disabled={editQuestions.length <= 1}
+                            className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Remove question
+                          </button>
+                        </div>
+
+                        {/* Question text */}
+                        <textarea
+                          value={q.question_text}
+                          onChange={(e) =>
+                            updateQuestion(qIdx, { question_text: e.target.value })
+                          }
+                          rows={4}
+                          placeholder="Question text (HTML supported)"
+                          className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
+                        />
+                        <div className="mt-2">
+                          <span className="text-xs text-muted-text mr-2">Add image to question:</span>
+                          <FileUpload
+                            bucket="lms-resources"
+                            path={quizStoragePath}
+                            accept="image/*"
+                            onUpload={(url, fileName) => insertImageIntoQuestion(qIdx, url, fileName)}
+                          />
+                        </div>
+
+                        {/* Code snippet */}
+                        <div className="mt-3">
+                          {!hasSnippet ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateQuestion(qIdx, {
+                                  code_snippet: "",
+                                  code_language: "javascript",
+                                })
+                              }
+                              className="text-xs text-teal-primary hover:opacity-90"
+                            >
+                              + Add code snippet
+                            </button>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                                  Code snippet
+                                </label>
+                                <div className="flex items-center gap-3">
+                                  <select
+                                    value={q.code_language ?? "javascript"}
+                                    onChange={(e) =>
+                                      setCodeLanguage(qIdx, e.target.value as CodeLanguage)
+                                    }
+                                    className="text-xs bg-background border border-border text-dark-text rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                                  >
+                                    {(Object.entries(LANG_LABELS) as [CodeLanguage, string][]).map(
+                                      ([val, label]) => (
+                                        <option key={val} value={val}>
+                                          {label}
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCodeSnippet(qIdx)}
+                                    className="text-xs text-red-400 hover:text-red-300"
+                                  >
+                                    Remove snippet
+                                  </button>
+                                </div>
+                              </div>
+                              <CodeEditor
+                                value={q.code_snippet ?? ""}
+                                onChange={(val) => setCodeSnippet(qIdx, val)}
+                                language={q.code_language ?? "javascript"}
+                                editable={true}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Choices */}
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                              Choices (correct = ✓)
+                            </span>
+                            {!isTrueFalse && (
+                              <button
+                                type="button"
+                                onClick={() => addChoice(qIdx)}
+                                className="text-xs text-teal-primary hover:opacity-90"
+                              >
+                                + Add choice
+                              </button>
+                            )}
+                          </div>
+                          {(q.choices ?? []).map((choice, cIdx) => (
+                            <div key={`edit-q-${qIdx}-c-${cIdx}`} className="flex items-start gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCorrectChoice(qIdx, choice.ident)}
+                                className={`shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center text-xs ${
+                                  q.correct_response_ident === choice.ident
+                                    ? "border-teal-primary bg-teal-primary text-white"
+                                    : "border-border text-muted-text hover:border-teal-primary/50"
+                                }`}
+                                title="Mark as correct answer"
+                              >
+                                {q.correct_response_ident === choice.ident ? "✓" : ""}
+                              </button>
+                              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                {isTrueFalse ? (
+                                  <span className="text-sm text-dark-text px-3 py-2 bg-background border border-border rounded-lg">
+                                    {choice.text}
+                                  </span>
+                                ) : (
+                                  <>
+                                    <textarea
+                                      value={choice.text}
+                                      onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
+                                      rows={2}
+                                      className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <FileUpload
+                                        bucket="lms-resources"
+                                        path={quizStoragePath}
+                                        accept="image/*"
+                                        onUpload={(url, fileName) =>
+                                          insertImageIntoChoice(qIdx, cIdx, url, fileName)
+                                        }
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeChoice(qIdx, cIdx)}
+                                        disabled={(q.choices ?? []).length <= 2}
+                                        className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        Remove choice
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
                   <button
@@ -532,12 +737,28 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                         className="border-b border-border pb-8 last:border-0 last:pb-0 last:mb-0"
                       >
                         <div className="mb-3">
-                          <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                            Question {i + 1}
-                          </span>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                              Question {i + 1}
+                            </span>
+                            {q.question_type === "true_false" && (
+                              <span className="text-xs bg-border/30 text-muted-text px-1.5 py-0.5 rounded">
+                                True / False
+                              </span>
+                            )}
+                          </div>
                           <div className="mt-1 text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
                             <HtmlContent html={q.question_text || ""} />
                           </div>
+                          {q.code_snippet && (
+                            <div className="mt-3">
+                              <CodeEditor
+                                value={q.code_snippet}
+                                language={q.code_language ?? "javascript"}
+                                editable={false}
+                              />
+                            </div>
+                          )}
                         </div>
                         <ul className="space-y-2 pl-2">
                           {(q.choices ?? []).map((choice, cIdx) => {

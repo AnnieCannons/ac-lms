@@ -1,8 +1,10 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import LogoutButton from "@/components/ui/LogoutButton";
-import StudentCourseNav from "@/components/ui/StudentCourseNav";
+import StudentTopNav from "@/components/ui/StudentTopNav";
+import NavDrawer from "@/components/ui/NavDrawer";
+import { isStudentPreview } from "@/lib/student-preview";
+import StudentViewBanner from "@/components/ui/StudentViewBanner";
 
 function formatDueDate(dueAt: string | null): string {
   if (!dueAt || !dueAt.trim()) return "No due date";
@@ -34,23 +36,27 @@ export default async function StudentQuizzesPage({
     .eq("id", user.id)
     .single();
 
-  if (profile?.role === "instructor" || profile?.role === "admin") {
+  const preview = await isStudentPreview(id);
+
+  if (!preview && (profile?.role === "instructor" || profile?.role === "admin")) {
     redirect(`/instructor/courses/${id}`);
   }
 
-  const { data: enrollment } = await supabase
-    .from("course_enrollments")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("course_id", id)
-    .eq("role", "student")
-    .maybeSingle();
+  if (!preview) {
+    const { data: enrollment } = await supabase
+      .from("course_enrollments")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_id", id)
+      .eq("role", "student")
+      .maybeSingle();
 
-  if (!enrollment) redirect("/student/courses");
+    if (!enrollment) redirect("/student/courses");
+  }
 
   const { data: course } = await supabase
     .from("courses")
-    .select("id, name, code")
+    .select("id, name, code, paid_learners")
     .eq("id", id)
     .single();
 
@@ -58,76 +64,83 @@ export default async function StudentQuizzesPage({
 
   const { data: quizzes } = await supabase
     .from("quizzes")
-    .select("id, title, due_at, module_title, questions")
+    .select("id, title, due_at, module_title, questions, max_attempts")
     .eq("course_id", id)
     .eq("published", true)
     .order("module_title", { ascending: true })
     .order("title", { ascending: true });
 
   const quizList = quizzes ?? [];
+  const quizIds = quizList.map((q) => q.id);
+
+  const { data: submissions } =
+    quizIds.length > 0
+      ? await supabase
+          .from("quiz_submissions")
+          .select("quiz_id, score_percent, attempt_count")
+          .eq("student_id", user.id)
+          .in("quiz_id", quizIds)
+      : { data: [] };
+
+  const subMap = new Map(
+    (submissions ?? []).map((s) => [s.quiz_id, s])
+  );
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <StudentTopNav name={profile?.name} role={profile?.role} />
+      {preview && <StudentViewBanner courseId={id} />}
+      <NavDrawer courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false}>
+        <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-dark-text">Quizzes</h1>
+            <p className="text-sm text-muted-text mt-1">{course.name}</p>
+          </div>
 
-      <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <StudentCourseNav courseId={id} courseName={course.name} />
-        </aside>
-
-        <div className="flex-1 min-w-0">
-          <main className="max-w-3xl mx-auto px-8 py-10">
-            <div className="mb-8">
-              <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm mb-2 inline-block">
-                ← My Courses
-              </Link>
-              <h1 className="text-2xl font-bold text-dark-text">Quizzes</h1>
-              <p className="text-sm text-muted-text mt-1">{course.name}</p>
+          {quizList.length === 0 ? (
+            <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+              <p className="text-muted-text">No published quizzes for this course yet.</p>
             </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {quizList.map((quiz) => {
+                const displayTitle = quiz.title?.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
+                const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
+                const sub = subMap.get(quiz.id);
+                const attemptsUsed = sub?.attempt_count ?? 0;
+                const maxAttempts: number | null = quiz.max_attempts ?? null;
+                const outOfAttempts = maxAttempts !== null && attemptsUsed >= maxAttempts;
 
-            {quizList.length === 0 ? (
-              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-                <p className="text-muted-text">No published quizzes for this course yet.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {quizList.map((quiz) => {
-                  const displayTitle = quiz.title?.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
-                  const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
-                  return (
-                    <Link
-                      key={quiz.id}
-                      href={`/student/courses/${id}/quizzes/${quiz.id}`}
-                      className="block bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
-                    >
-                      <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
-                      {quiz.module_title && (
-                        <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
-                      )}
-                      <p className="text-sm text-muted-text mt-2">
-                        Due: {formatDueDate(quiz.due_at)} · {questionCount} question{questionCount !== 1 ? "s" : ""}
+                return (
+                  <Link
+                    key={quiz.id}
+                    href={`/student/courses/${id}/quizzes/${quiz.id}`}
+                    className="block bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
+                  >
+                    <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
+                    {quiz.module_title && (
+                      <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
+                    )}
+                    <p className="text-sm text-muted-text mt-2">
+                      Due: {formatDueDate(quiz.due_at)} · {questionCount} question{questionCount !== 1 ? "s" : ""}
+                      {maxAttempts !== null && ` · up to ${maxAttempts} attempts`}
+                    </p>
+                    {sub && (
+                      <p className="text-sm text-muted-text mt-1">
+                        Score: {sub.score_percent != null ? `${Math.round(sub.score_percent)}%` : "—"}
+                        {" · "}{attemptsUsed} attempt{attemptsUsed !== 1 ? "s" : ""} used
                       </p>
-                      <p className="text-teal-primary text-sm font-medium mt-3">
-                        Take quiz →
-                      </p>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </main>
-        </div>
-      </div>
+                    )}
+                    <p className={`text-sm font-medium mt-3 ${outOfAttempts ? "text-muted-text" : "text-teal-primary"}`}>
+                      {outOfAttempts ? "View results →" : sub ? "Retake quiz →" : "Take quiz →"}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </main>
+      </NavDrawer>
     </div>
   );
 }

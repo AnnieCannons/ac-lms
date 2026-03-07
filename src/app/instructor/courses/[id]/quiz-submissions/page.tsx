@@ -1,7 +1,8 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import LogoutButton from "@/components/ui/LogoutButton";
+import InstructorTopNav from "@/components/ui/InstructorTopNav";
+import InstructorSidebar from "@/components/ui/InstructorSidebar";
 
 export default async function QuizSubmissionsPage({
   params,
@@ -50,7 +51,7 @@ export default async function QuizSubmissionsPage({
     quizIds.length > 0
       ? await admin
           .from("quiz_submissions")
-          .select("id, quiz_id, student_id, submitted_at, score_percent")
+          .select("id, quiz_id, student_id, submitted_at, score_percent, attempt_count")
           .in("quiz_id", quizIds)
       : { data: [] };
 
@@ -90,118 +91,112 @@ export default async function QuizSubmissionsPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} ·{" "}
-            <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
-        <div className="flex items-center gap-2 text-sm text-muted-text mb-6">
-          <Link href="/instructor/courses" className="hover:text-teal-primary">
-            Courses
-          </Link>
-          <span className="text-border">/</span>
-          <Link href={`/instructor/courses/${id}`} className="hover:text-teal-primary">
-            {course.name}
-          </Link>
-          <span className="text-border">/</span>
-          <span className="text-dark-text font-medium">Quiz submissions</span>
-        </div>
+      <div className="flex">
+        <InstructorSidebar courseId={id} courseName={course.name} />
 
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-dark-text mb-1">Quiz submissions</h1>
-            <p className="text-sm text-muted-text">
-              {course.name} · {totalStudents} students enrolled
-            </p>
-          </div>
-          <Link
-            href={`/instructor/courses/${id}`}
-            className="text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:border-teal-primary hover:text-teal-primary transition-colors"
-          >
-            ← Back to course
-          </Link>
-        </div>
+        <div className="flex-1 min-w-0">
+          <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-6 sm:px-8 sm:py-10 focus:outline-none">
+            <div className="flex items-center justify-between mb-6">
+              <Link
+                href={`/instructor/courses/${id}/quizzes`}
+                className="text-muted-text hover:text-teal-primary text-sm"
+              >
+                ← Quizzes
+              </Link>
+            </div>
 
-        {quizList.length === 0 ? (
-          <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-            <p className="text-muted-text">No quizzes in this course yet.</p>
-            <Link
-              href={`/instructor/courses/${id}`}
-              className="inline-block mt-4 text-sm text-teal-primary hover:underline"
-            >
-              Manage course
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {quizList.map((quiz) => {
-              const quizSubmissions = submissionsByQuiz.get(quiz.id) ?? [];
-              const displayTitle = quiz.title?.startsWith("Quiz: ")
-                ? quiz.title.slice(6)
-                : quiz.title;
-              return (
-                <div
-                  key={quiz.id}
-                  className="bg-surface rounded-2xl border border-border overflow-hidden"
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-dark-text mb-1">Quiz Submissions</h1>
+              <p className="text-sm text-muted-text">
+                {course.name} · {totalStudents} students enrolled
+              </p>
+            </div>
+
+            {quizList.length === 0 ? (
+              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+                <p className="text-muted-text">No quizzes in this course yet.</p>
+                <Link
+                  href={`/instructor/courses/${id}/quizzes`}
+                  className="inline-block mt-4 text-sm text-teal-primary hover:underline"
                 >
-                  <div className="px-6 py-4 border-b border-border">
-                    <h2 className="font-semibold text-dark-text">{displayTitle}</h2>
-                    {quiz.module_title && (
-                      <p className="text-xs text-muted-text mt-0.5">{quiz.module_title}</p>
-                    )}
-                    <p className="text-sm text-muted-text mt-1">
-                      {quizSubmissions.length} / {totalStudents} submitted
-                    </p>
-                  </div>
-                  {quizSubmissions.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-sm text-muted-text">
-                      No submissions yet.
+                  Manage quizzes
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {quizList.map((quiz) => {
+                  const quizSubmissions = submissionsByQuiz.get(quiz.id) ?? [];
+                  const displayTitle = quiz.title?.startsWith("Quiz: ")
+                    ? quiz.title.slice(6)
+                    : quiz.title;
+                  return (
+                    <div
+                      key={quiz.id}
+                      className="bg-surface rounded-2xl border border-border overflow-hidden"
+                    >
+                      <div className="px-6 py-4 border-b border-border">
+                        <h2 className="font-semibold text-dark-text">{displayTitle}</h2>
+                        {quiz.module_title && (
+                          <p className="text-xs text-muted-text mt-0.5">{quiz.module_title}</p>
+                        )}
+                        <p className="text-sm text-muted-text mt-1">
+                          {quizSubmissions.length} / {totalStudents} submitted
+                        </p>
+                      </div>
+                      {quizSubmissions.length === 0 ? (
+                        <div className="px-6 py-8 text-center text-sm text-muted-text">
+                          No submissions yet.
+                        </div>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Student</th>
+                              <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Score</th>
+                              <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Attempts</th>
+                              <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Submitted</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {quizSubmissions.map((sub) => {
+                              const student = studentMap.get(sub.student_id);
+                              return (
+                                <tr key={sub.id}>
+                                  <td className="px-6 py-4">
+                                    <p className="font-medium text-dark-text">
+                                      {student?.name ?? "Unknown"}
+                                    </p>
+                                    {student?.email && (
+                                      <p className="text-xs text-muted-text">{student.email}</p>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 text-dark-text">
+                                    {sub.score_percent != null
+                                      ? `${Math.round(sub.score_percent)}%`
+                                      : "—"}
+                                  </td>
+                                  <td className="px-6 py-4 text-muted-text">
+                                    {sub.attempt_count ?? 1}
+                                  </td>
+                                  <td className="px-6 py-4 text-muted-text">
+                                    {formatDate(sub.submitted_at)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {quizSubmissions.map((sub) => {
-                        const student = studentMap.get(sub.student_id);
-                        return (
-                          <li
-                            key={sub.id}
-                            className="px-6 py-4 flex items-center justify-between gap-4"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-dark-text">
-                                {student?.name ?? "Unknown"}
-                              </p>
-                              {student?.email && (
-                                <p className="text-xs text-muted-text">{student.email}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-text shrink-0">
-                              {sub.score_percent != null && (
-                                <span className="font-medium text-dark-text">
-                                  {Math.round(sub.score_percent)}%
-                                </span>
-                              )}
-                              <span>{formatDate(sub.submitted_at)}</span>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
+                  );
+                })}
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,25 +1,40 @@
 import { submitQuiz } from "./actions";
 import HtmlContent from "@/components/ui/HtmlContent";
+import dynamic from "next/dynamic";
+
+const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
 
 type Question = {
   ident: string;
   question_text: string;
   choices: Array<{ ident: string; text: string }>;
+  question_type?: "multiple_choice" | "true_false";
+  code_snippet?: string;
+  code_language?: string;
 };
+
+type AnswerInput = { question_ident: string; choice_ident: string };
 
 export default function QuizForm({
   courseId,
   quizId,
   questions,
+  previousAnswers,
 }: {
   courseId: string;
   quizId: string;
   questions: Question[];
+  previousAnswers: AnswerInput[];
 }) {
   return (
     <form action={submitQuiz} className="space-y-8">
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="quizId" value={quizId} />
+      <input
+        type="hidden"
+        name="previousAnswers"
+        value={JSON.stringify(previousAnswers)}
+      />
       {questions.map((q, i) => (
         <fieldset
           key={q.ident}
@@ -31,6 +46,15 @@ export default function QuizForm({
           <div className="text-sm text-dark-text mb-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
             <HtmlContent html={q.question_text || ""} />
           </div>
+          {q.code_snippet && (
+            <div className="mb-4">
+              <CodeEditor
+                value={q.code_snippet}
+                language={(q.code_language as "javascript" | "jsx" | "html" | "css" | "sql") ?? "javascript"}
+                editable={false}
+              />
+            </div>
+          )}
           <ul className="space-y-2">
             {(q.choices ?? []).map((choice) => (
               <li key={choice.ident}>
