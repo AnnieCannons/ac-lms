@@ -52,6 +52,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   );
   const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setEditTitle(quiz.title);
@@ -63,50 +64,68 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   }, [quiz.id, quiz.questions]);
 
   const handleTogglePublished = async () => {
+    setError(null);
     setSaving(true);
     if (fromJsonOnly) {
-      const { error } = await supabase.from("quizzes").insert({
+      const row = {
         course_id: courseId,
         identifier: quiz.identifier,
         title: editTitle.trim() || quiz.title,
-        due_at: editDueDate || quiz.due_at,
-        module_title: quiz.module_title,
+        due_at: editDueDate || quiz.due_at || null,
+        module_title: quiz.module_title ?? "",
         published: true,
         questions: quiz.questions ?? [],
-      });
-      if (!error) {
+        updated_at: new Date().toISOString(),
+      };
+      const { error: err } = await supabase
+        .from("quizzes")
+        .upsert(row, { onConflict: "course_id,identifier" });
+      if (err) {
+        setError(err.message);
+      } else {
         onClose();
         router.refresh();
       }
     } else {
-      await supabase
+      const { error: err } = await supabase
         .from("quizzes")
         .update({ published: !quiz.published, updated_at: new Date().toISOString() })
         .eq("id", quiz.id);
-      router.refresh();
+      if (err) {
+        setError(err.message);
+      } else {
+        router.refresh();
+      }
     }
     setSaving(false);
   };
 
   const handleSaveEdit = async () => {
     if (!editTitle.trim()) return;
+    setError(null);
     setSaving(true);
     if (fromJsonOnly) {
-      const { error } = await supabase.from("quizzes").insert({
+      const row = {
         course_id: courseId,
         identifier: quiz.identifier,
         title: editTitle.trim(),
         due_at: editDueDate || null,
-        module_title: quiz.module_title,
+        module_title: quiz.module_title ?? "",
         published: false,
         questions: quiz.questions ?? [],
-      });
-      if (!error) {
+        updated_at: new Date().toISOString(),
+      };
+      const { error: err } = await supabase
+        .from("quizzes")
+        .upsert(row, { onConflict: "course_id,identifier" });
+      if (err) {
+        setError(err.message);
+      } else {
         onClose();
         router.refresh();
       }
     } else {
-      await supabase
+      const { error: err } = await supabase
         .from("quizzes")
         .update({
           title: editTitle.trim(),
@@ -114,37 +133,50 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
           updated_at: new Date().toISOString(),
         })
         .eq("id", quiz.id);
-      setEditing(false);
-      router.refresh();
+      if (err) {
+        setError(err.message);
+      } else {
+        setEditing(false);
+        router.refresh();
+      }
     }
     setSaving(false);
   };
 
   const handleSaveQuestions = async () => {
+    setError(null);
     setSaving(true);
     if (fromJsonOnly) {
-      const { error } = await supabase.from("quizzes").insert({
+      const row = {
         course_id: courseId,
         identifier: quiz.identifier,
         title: quiz.title,
-        due_at: quiz.due_at,
-        module_title: quiz.module_title,
+        due_at: quiz.due_at || null,
+        module_title: quiz.module_title ?? "",
         published: false,
         questions: editQuestions,
-      });
-      if (!error) {
+        updated_at: new Date().toISOString(),
+      };
+      const { error: err } = await supabase
+        .from("quizzes")
+        .upsert(row, { onConflict: "course_id,identifier" });
+      if (err) {
+        setError(err.message);
+      } else {
         onClose();
         router.refresh();
       }
     } else {
-      const { error } = await supabase
+      const { error: err } = await supabase
         .from("quizzes")
         .update({
           questions: editQuestions,
           updated_at: new Date().toISOString(),
         })
         .eq("id", quiz.id);
-      if (!error) {
+      if (err) {
+        setError(err.message);
+      } else {
         setEditingQuestions(false);
         router.refresh();
       }
@@ -248,12 +280,12 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
   const quizStoragePath = `quizzes/${courseId}/${quiz.identifier || quiz.id}/`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#12072a] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <button
             onClick={onClose}
-            className="text-sm text-[#c4a8df] hover:text-white transition-colors flex items-center gap-1.5"
+            className="text-sm text-muted-text hover:text-dark-text transition-colors flex items-center gap-1.5"
             type="button"
           >
             ← Back to quizzes
@@ -266,7 +298,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                 className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
                   quiz.published
                     ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
-                    : "border-[#3d2260] text-[#7a5299] hover:border-[#a888c8] hover:text-[#c4a8df]"
+                    : "border-border text-muted-text hover:border-teal-primary/50 hover:text-dark-text"
                 }`}
                 type="button"
               >
@@ -276,6 +308,12 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
           </div>
         </div>
 
+        {error && (
+          <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400" role="alert">
+            {error}
+          </div>
+        )}
+
         {editing ? (
           <div className="flex flex-col gap-4">
             <input
@@ -283,15 +321,15 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               autoFocus
-              className="text-2xl font-bold text-white bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
+              className="text-2xl font-bold text-dark-text bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
             />
             <div className="flex items-center gap-2">
-              <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
+              <label className="text-xs text-muted-text shrink-0">Due:</label>
               <input
                 type="datetime-local"
                 value={editDueDate}
                 onChange={(e) => setEditDueDate(e.target.value)}
-                className="flex-1 bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="flex-1 bg-surface border border-border text-dark-text rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -301,7 +339,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                   setEditTitle(quiz.title);
                   setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
                 }}
-                className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2"
+                className="text-sm text-muted-text hover:text-dark-text px-4 py-2"
                 type="button"
               >
                 Cancel
@@ -320,25 +358,25 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
           <>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-white">{displayTitle}</h1>
-                <p className="text-sm text-[#c4a8df] mt-1">
+                <h1 className="text-2xl font-bold text-dark-text">{displayTitle}</h1>
+                <p className="text-sm text-muted-text mt-1">
                   Due: {formatDueDate(quiz.due_at)}
                 </p>
                 {quiz.module_title && (
-                  <p className="text-xs text-[#9080b0] mt-1">{quiz.module_title}</p>
+                  <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
                 )}
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setEditing(true)}
-                  className="text-sm text-[#9080b0] hover:text-[#dac8ee] transition-colors"
+                  className="text-sm text-muted-text hover:text-dark-text transition-colors"
                   type="button"
                 >
                   ✎ Edit title &amp; due date
                 </button>
                 <button
                   onClick={() => setEditingQuestions(true)}
-                  className="text-sm text-[#9080b0] hover:text-[#dac8ee] transition-colors"
+                  className="text-sm text-muted-text hover:text-dark-text transition-colors"
                   type="button"
                 >
                   ✎ Edit questions &amp; answers
@@ -348,18 +386,18 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
 
             {/* Edit questions mode */}
             {editingQuestions ? (
-              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
-                <h2 className="text-sm font-bold text-[#a888c8] uppercase tracking-wide mb-4">
+              <div className="bg-surface rounded-2xl border border-border p-6">
+                <h2 className="text-sm font-bold text-muted-text uppercase tracking-wide mb-4">
                   Edit questions &amp; answers
                 </h2>
                 <ul className="space-y-8">
                   {editQuestions.map((q, qIdx) => (
                     <li
                       key={`edit-q-${qIdx}`}
-                      className="border-b border-[#301850] pb-8 last:border-0"
+                      className="border-b border-border pb-8 last:border-0"
                     >
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <label className="text-xs font-semibold text-[#a888c8] uppercase tracking-wide">
+                        <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
                           Question {qIdx + 1} (HTML)
                         </label>
                         <button
@@ -377,10 +415,10 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                           updateQuestion(qIdx, { question_text: e.target.value })
                         }
                         rows={4}
-                        className="w-full bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
+                        className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
                       />
                       <div className="mt-2">
-                        <span className="text-xs text-[#9080b0] mr-2">Add image to question:</span>
+                        <span className="text-xs text-muted-text mr-2">Add image to question:</span>
                         <FileUpload
                           bucket="lms-resources"
                           path={quizStoragePath}
@@ -390,13 +428,13 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                       </div>
                       <div className="mt-4 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-[#a888c8] uppercase tracking-wide">
+                          <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
                             Choices (correct = ✓)
                           </span>
                           <button
                             type="button"
                             onClick={() => addChoice(qIdx)}
-                            className="text-xs text-teal-primary hover:text-teal-300"
+                            className="text-xs text-teal-primary hover:opacity-90"
                           >
                             + Add choice
                           </button>
@@ -409,7 +447,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                               className={`shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center text-xs ${
                                 q.correct_response_ident === choice.ident
                                   ? "border-teal-primary bg-teal-primary text-white"
-                                  : "border-[#3d2260] text-[#9080b0] hover:border-[#a888c8]"
+                                  : "border-border text-muted-text hover:border-teal-primary/50"
                               }`}
                               title="Mark as correct answer"
                             >
@@ -420,7 +458,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                                 value={choice.text}
                                 onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
                                 rows={2}
-                                className="w-full bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
+                                className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono"
                               />
                               <div className="flex items-center gap-2">
                                 <FileUpload
@@ -451,7 +489,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                   <button
                     type="button"
                     onClick={addQuestion}
-                    className="text-sm text-teal-primary hover:text-teal-300 font-medium"
+                    className="text-sm text-teal-primary hover:opacity-90 font-medium"
                   >
                     + Add question
                   </button>
@@ -460,7 +498,7 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                       onClick={() =>
                         setEditQuestions(JSON.parse(JSON.stringify(quiz.questions ?? [])))
                       }
-                      className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2"
+                      className="text-sm text-muted-text hover:text-dark-text px-4 py-2"
                       type="button"
                     >
                       Cancel
@@ -478,12 +516,12 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
               </div>
             ) : (
             /* All questions and multiple choice answers (with HTML/images) */
-            <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
-              <h2 className="text-sm font-bold text-[#a888c8] uppercase tracking-wide mb-4">
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <h2 className="text-sm font-bold text-muted-text uppercase tracking-wide mb-4">
                 All questions &amp; answers
               </h2>
               {(!quiz.questions || quiz.questions.length === 0) ? (
-                <p className="text-sm text-[#9080b0]">No questions in this quiz.</p>
+                <p className="text-sm text-muted-text">No questions in this quiz.</p>
               ) : (
                 <ul className="space-y-8">
                   {(quiz.questions ?? []).map((q, i) => {
@@ -491,13 +529,13 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                     return (
                       <li
                         key={`view-q-${i}`}
-                        className="border-b border-[#301850] pb-8 last:border-0 last:pb-0 last:mb-0"
+                        className="border-b border-border pb-8 last:border-0 last:pb-0 last:mb-0"
                       >
                         <div className="mb-3">
-                          <span className="text-xs font-semibold text-[#a888c8] uppercase tracking-wide">
+                          <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
                             Question {i + 1}
                           </span>
-                          <div className="mt-1 text-sm text-[#ede0f5] [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-[#301850]">
+                          <div className="mt-1 text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
                             <HtmlContent html={q.question_text || ""} />
                           </div>
                         </div>
@@ -510,13 +548,13 @@ export default function QuizFullView({ quiz, courseId, onClose }: QuizFullViewPr
                                 className={`flex items-start gap-2 text-sm ${
                                   isCorrect
                                     ? "text-teal-primary font-medium"
-                                    : "text-[#c4a8df]"
+                                    : "text-dark-text"
                                 }`}
                               >
                                 <span className="shrink-0 mt-0.5">
                                   {isCorrect ? "✓" : "○"}
                                 </span>
-                                <div className="min-w-0 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-[#301850]">
+                                <div className="min-w-0 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
                                   <HtmlContent html={choice.text || ""} />
                                 </div>
                               </li>

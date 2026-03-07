@@ -291,7 +291,7 @@
           },
           {
             "ident": "g6362307fec874389bf9a7e45a92b980c",
-            "question_text": "<div><p>Let's say you type the API URL into the search bar of your web browser, and press Enter. You see the screen shown below. What does this mean? </p>\n<p><img src=\"/public/course-images-backend/image-e4df96c6-d220-450b-a4da-e717ca4cb11c.png\" alt=\"image.png\" loading=\"lazy\"></p></div>",
+            "question_text": "<div><p>Let's say you type the API URL into the search bar of your web browser, and press Enter. You see the screen shown below. What does this mean? </p>\n<p><img src=\"/public/course-images/backend/image-e4df96c6-d220-450b-a4da-e717ca4cb11c.png\" alt=\"image.png\" loading=\"lazy\"></p></div>",
             "choices": [
               {
                 "ident": "8556",
@@ -2256,7 +2256,7 @@
         "questions": [
           {
             "ident": "gf47b767d37e06559ff801f2d253307ba",
-            "question_text": "<div><p>Which SQL clause explains how the two tables (owners and pets) are related in this SQL JOIN? </p>\n<p><img src=\"/public/course-images-backend/sqljoins.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners INNER JOIN pets\nON owners.owner_id = pets.owner_id;\" loading=\"lazy\"></p></div>",
+            "question_text": "<div><p>Which SQL clause explains how the two tables (owners and pets) are related in this SQL JOIN? </p>\n<p><img src=\"/public/course-images/backend/sqljoins.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners INNER JOIN pets\nON owners.owner_id = pets.owner_id;\" loading=\"lazy\"></p></div>",
             "choices": [
               {
                 "ident": "9354",
@@ -2303,7 +2303,7 @@
           },
           {
             "ident": "gf47b767d37e06559ff801f2d253307ba",
-            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">only</span> matches between pets and owners? </p>\n<p><img src=\"/public/course-images-backend/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ______ pets\nON owners.owner_id = pets.owner_id;\" loading=\"lazy\"></p>\n<p> </p></div>",
+            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">only</span> matches between pets and owners? </p>\n<p><img src=\"/public/course-images/backend/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ______ pets\nON owners.owner_id = pets.owner_id;\" loading=\"lazy\"></p>\n<p> </p></div>",
             "choices": [
               {
                 "ident": "3470",
@@ -2327,7 +2327,7 @@
           },
           {
             "ident": "gf47b767d37e06559ff801f2d253307ba",
-            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all</span> pets and owners, regardless of whether they have a match? </p>\n<p><img id=\"302186634\" src=\"/public/course-images-backend/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ______ pets\nON owners.owner_id = pets.owner_id;\" width=\"772\" height=\"198\" loading=\"lazy\"></p></div>",
+            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all</span> pets and owners, regardless of whether they have a match? </p>\n<p><img id=\"302186634\" src=\"/public/course-images/backend/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ______ pets\nON owners.owner_id = pets.owner_id;\" width=\"772\" height=\"198\" loading=\"lazy\"></p></div>",
             "choices": [
               {
                 "ident": "3588",
@@ -2351,7 +2351,7 @@
           },
           {
             "ident": "gf47b767d37e06559ff801f2d253307ba",
-            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all owners</span>, even if they don’t have a pet? </p>\n<p><img id=\"302186634\" src=\"/public/course-images-backend/sqljoins2.webp\" alt=\"sqljoins2.webp\" loading=\"lazy\"></p></div>",
+            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all owners</span>, even if they don’t have a pet? </p>\n<p><img id=\"302186634\" src=\"/public/course-images/backend/sqljoins2.webp\" alt=\"sqljoins2.webp\" loading=\"lazy\"></p></div>",
             "choices": [
               {
                 "ident": "4933",
@@ -2375,7 +2375,7 @@
           },
           {
             "ident": "gf47b767d37e06559ff801f2d253307ba",
-            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all pets</span>, even if they don’t have an owner? </p>\n<p><img id=\"302186634\" src=\"/public/course-images-backend/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ____ pets\nON owners.owner_id = pets.owner_id;\" width=\"772\" height=\"198\" loading=\"lazy\"></p></div>",
+            "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all pets</span>, even if they don’t have an owner? </p>\n<p><img id=\"302186634\" src=\"/public/course-images/backend/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ____ pets\nON owners.owner_id = pets.owner_id;\" width=\"772\" height=\"198\" loading=\"lazy\"></p></div>",
             "choices": [
               {
                 "ident": "1353",
