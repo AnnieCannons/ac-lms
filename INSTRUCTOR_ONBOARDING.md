@@ -14,11 +14,13 @@ Welcome to the AnnieCannons Learning Management System. This guide walks you thr
 6. [Creating Assignments](#6-creating-assignments)
 7. [Setting Up General Info](#7-setting-up-general-info)
 8. [Grading Student Work](#8-grading-student-work)
-9. [Student View — Previewing as a Student](#9-student-view--previewing-as-a-student)
-10. [Global Templates](#10-global-templates)
-11. [Calendar](#11-calendar)
-12. [Benefits & Paid Time Off (Paid Learner Courses)](#12-benefits--paid-time-off-paid-learner-courses)
-13. [Tips & Common Questions](#13-tips--common-questions)
+9. [Roster & Student Details](#9-roster--student-details)
+10. [Users — Managing Enrollment](#10-users--managing-enrollment)
+11. [Student View — Previewing as a Student](#11-student-view--previewing-as-a-student)
+12. [Global Templates](#12-global-templates)
+13. [Calendar](#13-calendar)
+14. [Benefits & Paid Time Off (Paid Learner Courses)](#14-benefits--paid-time-off-paid-learner-courses)
+15. [Tips & Common Questions](#15-tips--common-questions)
 
 ---
 
@@ -198,7 +200,63 @@ On the submissions list page, you can add an **Answer Key URL** (shown only to i
 
 ---
 
-## 9. Student View — Previewing as a Student
+## 9. Roster & Student Details
+
+The **Roster** page shows all students enrolled in a course, along with any accommodations on file.
+
+### Viewing Accommodations
+
+Each student row displays:
+- A **Camera Off** badge (red) if they have a camera-off accommodation
+- A **Notes** badge (amber) if there are written accommodation notes — hover to read them
+
+### Editing Accommodations
+
+Click **Edit** at the end of any student row to expand an inline form:
+- Toggle the **Camera Off accommodation** switch
+- Enter free-text notes in the **Other accommodations / notes** field
+- Click **Save** to update
+
+### Student Detail Page
+
+Click a student's name in the roster to open their detail page, which shows:
+
+| Section | Contents |
+|---------|---------|
+| **Student info** | Name, email, role badge |
+| **Last login** | Most recent sign-in date and time |
+| **Accommodations** | Camera-off and notes summary |
+| **Progress** | Count of complete assignments out of total published |
+| **Assignment Breakdown** | Five clickable stat cards: Missing, Late, Needs Grading, Needs Revision, Complete |
+
+Click any stat card to expand the assignment list for that category. Each assignment links directly to the grading page.
+
+---
+
+## 10. Users — Managing Enrollment
+
+The **Users** page manages who is enrolled in your course.
+
+### Current Class tab
+
+Shows all enrolled members (students and instructors). From here you can:
+- **Remove** a member (trash icon)
+- **Change role** (student ↔ instructor via the role pill)
+- **Invite new members** by email (bulk paste emails in the invite box)
+
+### All Users tab
+
+Shows every student across all courses, plus all instructors/admins. Useful for finding students or checking which course someone is in.
+
+### Invitations
+
+Pending invitations (emails sent but not yet accepted) appear in a separate list. You can **Resend** or **Revoke** any pending invitation.
+
+> **Note:** Only admins can assign the admin role. Instructors can manage students and other instructors in their own courses.
+
+---
+
+## 11. Student View — Previewing as a Student
 
 You can preview exactly what your students see without creating a separate test account.
 
@@ -211,7 +269,7 @@ You can preview exactly what your students see without creating a separate test 
 
 ---
 
-## 10. Global Templates
+## 12. Global Templates
 
 **Global Templates** are shared pieces of content that appear across all courses. Edit them once and every course picks up the change automatically.
 
@@ -229,7 +287,7 @@ Click the template name, then click **✎ Edit** on any section. Use the rich te
 
 ---
 
-## 11. Calendar
+## 13. Calendar
 
 The Calendar manages the school-wide schedule that appears on students' General Info → Yearly Schedule section and on the Paid Time Off page.
 
@@ -253,7 +311,7 @@ Use **Copy to [next year] →** to duplicate the current year's holidays into th
 
 ---
 
-## 12. Benefits & Paid Time Off (Paid Learner Courses)
+## 14. Benefits & Paid Time Off (Paid Learner Courses)
 
 For Advanced courses where students receive employment benefits:
 
@@ -277,7 +335,7 @@ To update PTO content, go to **Global Templates → Paid Time Off** and edit bre
 
 ---
 
-## 13. Tips & Common Questions
+## 15. Tips & Common Questions
 
 **How do I hide a module while I'm still building it?**
 Toggle the module to **Unpublished** using the eye icon. Students won't see it until you publish it.

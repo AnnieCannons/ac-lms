@@ -456,7 +456,7 @@ function AssignmentFullView({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#12072a] overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-6">
+      <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 flex flex-col gap-6">
 
         {/* Top bar */}
         <div className="flex items-center justify-between">
@@ -1158,11 +1158,11 @@ function SortableDay({
 
   return (
     <div ref={setNodeRef} style={style} className="bg-background rounded-lg">
-      <div className="flex items-center gap-3 px-4 py-2">
+      <div className="flex items-center gap-2 sm:gap-3 px-4 py-2">
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+          className="hidden sm:block text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           aria-label={`Drag day ${day.day_name}`}
           type="button"
         >
@@ -1211,7 +1211,7 @@ function SortableDay({
       {open && (
         <div
           id={`day-panel-${day.id}`}
-          className="px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
+          className="px-4 sm:px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
         >
           {/* Resources */}
           <div className="bg-surface/60 rounded-xl p-3">
@@ -1391,11 +1391,11 @@ function SortableModule({
       style={style}
       className={`bg-surface rounded-2xl border border-border overflow-hidden transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
     >
-      <div className="flex items-center gap-3 px-6 py-4">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4">
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+          className="hidden sm:block text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           aria-label={`Drag module ${module.title}`}
           type="button"
         >
@@ -1425,7 +1425,7 @@ function SortableModule({
         <select
           value={module.category ?? ''}
           onChange={(e) => onUpdateCategory(module.id, e.target.value || null)}
-          className="text-xs bg-background border border-border rounded-md px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary shrink-0"
+          className="hidden sm:block text-xs bg-background border border-border rounded-md px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           {CATEGORY_OPTIONS.map(opt => (

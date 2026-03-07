@@ -298,6 +298,20 @@ Holidays per year. Single-day or multi-day (e.g. Thanksgiving Week).
 
 ---
 
+### accommodations
+Per-student accommodations tracked per user (global, not per-course).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → users, unique |
+| `camera_off` | boolean | Default: false — student has camera-off accommodation |
+| `notes` | text | Free-text accommodation notes |
+
+Unique constraint on `user_id`.
+
+---
+
 ### resource_stars
 Students bookmarking/starring resources.
 
@@ -343,6 +357,8 @@ courses
                     │     ├── submission_comments (users ↔ submissions)
                     │     └── submission_history
                     └── ...
+
+accommodations (users → one row per student)
 
 global_content (shared across all courses)
 

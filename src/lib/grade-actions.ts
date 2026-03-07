@@ -10,6 +10,8 @@ export async function markCompleteNoSubmission(
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
 
   const admin = createServiceSupabaseClient()
 
@@ -52,6 +54,8 @@ export async function saveGrade(
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
 
   const admin = createServiceSupabaseClient()
   const now = grade ? new Date().toISOString() : null

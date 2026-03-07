@@ -188,11 +188,14 @@ export async function updateUserRole(
   if (!user) return { error: 'Not authenticated' }
 
   const admin = createServiceSupabaseClient()
+  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+
+  // Only instructors and admins can change roles
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
 
   // Only admins can assign the admin role
-  if (role === 'admin') {
-    const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'admin') return { error: 'Only admins can assign the admin role.' }
+  if (role === 'admin' && profile?.role !== 'admin') {
+    return { error: 'Only admins can assign the admin role.' }
   }
 
   const { error } = await admin.from('users').update({ role }).eq('id', targetUserId)

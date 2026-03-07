@@ -139,7 +139,7 @@ export default async function StudentAssignmentPage({
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
       <NavDrawer courseId={id} courseName={course?.name ?? ''} paidLearners={course?.paid_learners ?? false}>
-      <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-12 focus:outline-none">
+      <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-6 sm:py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/student/courses" className="hover:text-teal-primary">My Courses</Link>
@@ -157,8 +157,8 @@ export default async function StudentAssignmentPage({
           <span className="text-dark-text font-medium truncate max-w-[200px]">{assignment.title}</span>
         </div>
 
-        <div className="flex items-start justify-between gap-4 mb-1">
-          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+        <div className="flex items-start justify-between gap-4 mb-1 flex-wrap">
+          <h1 className="text-xl sm:text-2xl font-bold text-dark-text">{assignment.title}</h1>
           {existingSubmission?.grade === 'complete' && (
             <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-600">
               Complete ✓

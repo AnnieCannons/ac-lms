@@ -18,6 +18,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  // Non-admins can only duplicate courses they are enrolled in as instructor
+  if (profile?.role !== 'admin') {
+    const { data: enrollment } = await authClient
+      .from('course_enrollments')
+      .select('id')
+      .eq('course_id', sourceCourseId)
+      .eq('user_id', user.id)
+      .eq('role', 'instructor')
+      .maybeSingle()
+    if (!enrollment) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   let service: ReturnType<typeof createServiceSupabaseClient>
   try { service = createServiceSupabaseClient() } catch {
     return NextResponse.json({ error: 'Service role not configured' }, { status: 500 })

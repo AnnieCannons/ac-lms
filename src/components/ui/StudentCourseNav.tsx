@@ -72,7 +72,7 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
               : 'text-muted-text hover:text-dark-text hover:bg-border/20'
           }`}
         >
-          Account
+          Profile
         </Link>
       </div>
     </nav>

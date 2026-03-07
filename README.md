@@ -14,6 +14,7 @@ A custom LMS built for [AnnieCannons](https://anniecannons.org), supporting inst
 | Database / Auth | Supabase (PostgreSQL + @supabase/ssr) |
 | Drag & Drop | @dnd-kit |
 | Rich Text | Tiptap (via RichTextEditor component) |
+| HTML Sanitization | isomorphic-dompurify |
 | Deployment | Vercel |
 
 ---
@@ -70,6 +71,10 @@ src/
 │   │   │   └── [id]/
 │   │   │       ├── page.tsx      # Main course editor (modules, days, drag-and-drop)
 │   │   │       ├── info/         # General Info sections editor
+│   │   │       ├── users/        # Users page (enroll/invite/remove members)
+│   │   │       │   └── all/      # All users across all courses
+│   │   │       ├── roster/       # Accommodation roster (camera-off, notes)
+│   │   │       │   └── [userId]/ # Student detail: progress, last login, assignment breakdown
 │   │   │       └── assignments/[assignmentId]/
 │   │   │           ├── page.tsx          # Assignment editor
 │   │   │           └── submissions/      # Submissions list + per-student grading
@@ -103,11 +108,14 @@ src/
 │   ├── InstructorCourseNav.tsx   # Instructor sidebar navigation
 │   ├── InstructorGlobalNav.tsx   # Global Templates sidebar
 │   ├── InstructorSidebar.tsx     # Wraps InstructorCourseNav in ResizableSidebar
+│   ├── NavMobileMenu.tsx         # Hamburger menu for top nav on mobile
 │   ├── PaidLearnersToggle.tsx    # Toggle paid_learners flag on a course
 │   ├── PTOEditor.tsx             # Manage breaks + holidays for PTO page
-│   ├── ResizableSidebar.tsx      # Collapsible sidebar shell
+│   ├── ResizableSidebar.tsx      # Collapsible sidebar (auto-collapses on mobile)
+│   ├── RosterView.tsx            # Accommodation roster table with inline edit
 │   ├── StudentChecklist.tsx      # Student self-check progress
 │   ├── StudentCourseNav.tsx      # Student sidebar navigation
+│   ├── StudentDetailView.tsx     # Student progress breakdown (missing/late/complete cards)
 │   ├── StudentViewBanner.tsx     # Amber banner shown in instructor preview mode
 │   ├── StudentViewButton.tsx     # "Student View" button in instructor sidebar
 │   ├── SubmissionComments.tsx    # Threaded comments on a submission
@@ -152,6 +160,28 @@ Instructors build courses with a drag-and-drop editor:
 - Items can be marked as **bonus** (optional)
 - Students track their own progress (saved to `student_checklist_progress`)
 - Instructor responses are saved to `checklist_responses` and shown read-only to students
+
+### Roster & Student Detail
+The Roster page (`/instructor/courses/[id]/roster`) shows all enrolled students with accommodation badges:
+- **Camera Off** accommodation (red badge)
+- **Notes** (amber badge with tooltip)
+- Inline edit to set/update accommodations per student
+- Click any student name to open the **Student Detail** page showing: last login, accommodation summary, and a breakdown of assignments by category (Missing, Late, Needs Grading, Needs Revision, Complete)
+- Clicking a category card expands the assignment list with direct links to grading
+
+### Users Page
+The Users page (`/instructor/courses/[id]/users`) manages course enrollment:
+- Add students and instructors by email invitation
+- Remove members from the course
+- Change member roles
+- View all users across all courses (All Users tab)
+
+### Mobile & Responsive Layout
+The app is fully responsive from 375px phones to desktop:
+- **Top nav**: hamburger menu on mobile (`NavMobileMenu`) for quick access to Attendance Portal, Profile, and logout
+- **Sidebar**: auto-collapses on mobile (< 768px) on first visit; toggle button hidden on mobile
+- **Course editor**: drag handles and category selectors hidden on mobile for a minimal view
+- Breakpoint strategy: default = mobile, `sm:` = 640px+, `md:` = 768px+
 
 ### Student View (Instructor Preview Mode)
 Instructors can preview exactly what students see without a separate test account:
@@ -216,6 +246,7 @@ Key tables:
 | `calendar_cohorts` | Named cohort sessions with dates |
 | `calendar_breaks` | Multi-day school breaks |
 | `calendar_holidays` | Single-day holidays by year |
+| `accommodations` | Per-student camera-off flag and notes (one row per student, global) |
 | `resource_stars` | Students starring/bookmarking resources |
 | `resource_completions` | Students marking resources complete |
 
@@ -239,6 +270,18 @@ Course JSON files are organized in `src/data/` by program:
 - `frontend/` — Advanced Frontend
 - `itp/` — Intro to Programming
 - `tcf/` — The Coding Foundation
+
+---
+
+## Security
+
+Several server-side authorization checks are enforced beyond RLS:
+
+- **HTML sanitization** — all user-generated rich HTML is passed through `isomorphic-dompurify` before `dangerouslySetInnerHTML` (prevents XSS)
+- **Grade actions** — `saveGrade()` and `markCompleteNoSubmission()` verify the caller is an instructor or admin before writing to the database
+- **Student preview cookie** — `isStudentPreview()` verifies the caller is an instructor/admin before returning `true`; students cannot spoof the preview cookie to bypass enrollment checks
+- **Course duplication** — non-admin instructors can only duplicate courses they are enrolled in
+- **Role promotion** — `updateUserRole()` requires instructor/admin role; only admins can assign the admin role
 
 ---
 

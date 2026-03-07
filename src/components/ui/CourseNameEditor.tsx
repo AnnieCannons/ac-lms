@@ -74,7 +74,7 @@ export default function CourseNameEditor({
   return (
     <div className="flex items-start gap-3 mb-8 group">
       <div>
-        <h2 className="text-2xl font-bold text-dark-text">{name}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-dark-text">{name}</h2>
         {code && <p className="text-muted-text text-sm mt-0.5">{code}</p>}
       </div>
       <button

@@ -173,7 +173,7 @@ function DayModal({
       onClick={onClose}
     >
       <div
-        className="bg-surface w-full max-w-2xl rounded-2xl shadow-2xl mb-12"
+        className="bg-surface w-full sm:max-w-2xl rounded-2xl shadow-2xl mb-12"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

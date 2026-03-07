@@ -215,70 +215,96 @@ export default function PeopleManager({ courseId, members, invitations, currentU
         {members.length === 0 ? (
           <p className="text-sm text-muted-text">No members yet.</p>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-surface border-b border-border">
-                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Role</th>
-                  <th className="sr-only">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {members.map((member) => (
-                  <tr key={member.userId} className="bg-background">
-                    <td className="px-4 py-3 text-dark-text">{member.name || '—'}</td>
-                    <td className="px-4 py-3 text-muted-text">{member.email}</td>
-                    <td className="px-4 py-3">
-                      {editingRoleFor === member.userId ? (
-                        <div className="flex items-center gap-2">
-                          <select
-                            defaultValue={member.role}
-                            disabled={savingRole}
-                            autoFocus
-                            onChange={(e) => handleRoleChange(member.userId, e.target.value as Role)}
-                            onBlur={() => setEditingRoleFor(null)}
-                            className="border border-border rounded px-2 py-0.5 text-xs bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                            aria-label={`Change role for ${member.name || member.email}`}
-                          >
-                            <option value="student">Student</option>
-                            <option value="instructor">Instructor</option>
-                            {currentUserRole === 'admin' && <option value="admin">Admin</option>}
-                          </select>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setEditingRoleFor(member.userId)}
-                          className="group flex items-center gap-1.5"
-                          aria-label={`Edit role for ${member.name || member.email}`}
-                          title="Click to change role"
-                        >
-                          <RolePill role={member.role} />
-                          <span className="text-xs text-muted-text opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleRemove(member.userId)}
-                        disabled={isPending}
-                        aria-label={`Remove ${member.name || member.email} from course`}
-                        className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-                      >
-                        <TrashIcon />
-                      </button>
-                      {actionStatus?.id === member.userId && (
-                        <span className={`ml-2 text-xs ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
-                          {actionStatus.message}
-                        </span>
-                      )}
-                    </td>
+          <>
+            {/* Mobile card list */}
+            <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
+              {members.map((member) => (
+                <div key={member.userId} className="bg-background px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-dark-text truncate">{member.name || '—'}</span>
+                      <RolePill role={member.role} />
+                    </div>
+                    <p className="text-xs text-muted-text mt-0.5 truncate">{member.email}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRemove(member.userId)}
+                    disabled={isPending}
+                    aria-label={`Remove ${member.name || member.email} from course`}
+                    className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors shrink-0"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-surface border-b border-border">
+                    <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
+                    <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
+                    <th className="text-left px-4 py-3 font-semibold text-muted-text">Role</th>
+                    <th className="sr-only">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {members.map((member) => (
+                    <tr key={member.userId} className="bg-background">
+                      <td className="px-4 py-3 text-dark-text">{member.name || '—'}</td>
+                      <td className="px-4 py-3 text-muted-text">{member.email}</td>
+                      <td className="px-4 py-3">
+                        {editingRoleFor === member.userId ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              defaultValue={member.role}
+                              disabled={savingRole}
+                              autoFocus
+                              onChange={(e) => handleRoleChange(member.userId, e.target.value as Role)}
+                              onBlur={() => setEditingRoleFor(null)}
+                              className="border border-border rounded px-2 py-0.5 text-xs bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                              aria-label={`Change role for ${member.name || member.email}`}
+                            >
+                              <option value="student">Student</option>
+                              <option value="instructor">Instructor</option>
+                              {currentUserRole === 'admin' && <option value="admin">Admin</option>}
+                            </select>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingRoleFor(member.userId)}
+                            className="group flex items-center gap-1.5"
+                            aria-label={`Edit role for ${member.name || member.email}`}
+                            title="Click to change role"
+                          >
+                            <RolePill role={member.role} />
+                            <span className="text-xs text-muted-text opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleRemove(member.userId)}
+                          disabled={isPending}
+                          aria-label={`Remove ${member.name || member.email} from course`}
+                          className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+                        >
+                          <TrashIcon />
+                        </button>
+                        {actionStatus?.id === member.userId && (
+                          <span className={`ml-2 text-xs ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
+                            {actionStatus.message}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 
@@ -288,57 +314,101 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           <h2 className="text-base font-semibold text-dark-text mb-4">
             Pending Invitations <span className="text-muted-text font-normal">({invitations.length})</span>
           </h2>
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-surface border-b border-border">
-                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Role</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Sent</th>
-                  <th className="sr-only">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {invitations.map((inv) => (
-                  <tr key={inv.id} className="bg-background">
-                    <td className="px-4 py-3 text-muted-text">{inv.email}</td>
-                    <td className="px-4 py-3">
-                      <RolePill role={inv.role} />
-                    </td>
-                    <td className="px-4 py-3 text-muted-text text-xs">
-                      {inv.resent_at
-                        ? `Resent ${formatDate(inv.resent_at)}`
-                        : formatDate(inv.invited_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => handleResend(inv.id, inv.email)}
-                          disabled={isPending}
-                          className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50"
-                        >
-                          Resend
-                        </button>
-                        <button
-                          onClick={() => handleRevoke(inv.id)}
-                          disabled={isPending}
-                          aria-label={`Revoke invite for ${inv.email}`}
-                          className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-                        >
-                          <TrashIcon />
-                        </button>
+          <>
+            {/* Mobile card list */}
+            <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
+              {invitations.map((inv) => (
+                <div key={inv.id} className="bg-background px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-dark-text truncate">{inv.email}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <RolePill role={inv.role} />
+                        <span className="text-xs text-muted-text">
+                          {inv.resent_at ? `Resent ${formatDate(inv.resent_at)}` : formatDate(inv.invited_at)}
+                        </span>
                       </div>
-                      {actionStatus?.id === inv.id && (
-                        <p className={`text-xs mt-1 text-right ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
-                          {actionStatus.message}
-                        </p>
-                      )}
-                    </td>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleResend(inv.id, inv.email)}
+                        disabled={isPending}
+                        className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50"
+                      >
+                        Resend
+                      </button>
+                      <button
+                        onClick={() => handleRevoke(inv.id)}
+                        disabled={isPending}
+                        aria-label={`Revoke invite for ${inv.email}`}
+                        className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </div>
+                  {actionStatus?.id === inv.id && (
+                    <p className={`text-xs mt-1 ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
+                      {actionStatus.message}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-surface border-b border-border">
+                    <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
+                    <th className="text-left px-4 py-3 font-semibold text-muted-text">Role</th>
+                    <th className="text-left px-4 py-3 font-semibold text-muted-text">Sent</th>
+                    <th className="sr-only">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {invitations.map((inv) => (
+                    <tr key={inv.id} className="bg-background">
+                      <td className="px-4 py-3 text-muted-text">{inv.email}</td>
+                      <td className="px-4 py-3">
+                        <RolePill role={inv.role} />
+                      </td>
+                      <td className="px-4 py-3 text-muted-text text-xs">
+                        {inv.resent_at
+                          ? `Resent ${formatDate(inv.resent_at)}`
+                          : formatDate(inv.invited_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => handleResend(inv.id, inv.email)}
+                            disabled={isPending}
+                            className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50"
+                          >
+                            Resend
+                          </button>
+                          <button
+                            onClick={() => handleRevoke(inv.id)}
+                            disabled={isPending}
+                            aria-label={`Revoke invite for ${inv.email}`}
+                            className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
+                        {actionStatus?.id === inv.id && (
+                          <p className={`text-xs mt-1 text-right ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
+                            {actionStatus.message}
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         </section>
       )}
     </div>

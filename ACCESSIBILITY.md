@@ -309,6 +309,7 @@ Icon-only buttons and buttons with ambiguous visual labels all have `aria-label`
 | Resource read toggle | `"Mark as read"` / `"Mark as unread"` |
 | Sidebar toggle | `"Collapse sidebar"` / `"Expand sidebar"` |
 | Drag handles | `"Drag module [title]"`, `"Drag day [name]"`, etc. |
+| Mobile menu (hamburger) | `"Open menu"` with `aria-expanded` toggled |
 
 Delete and remove actions use a trash can SVG icon rather than ×. Close and dismiss actions (modals, popovers) keep the × character. This visual distinction reduces the risk of accidentally deleting instead of closing.
 

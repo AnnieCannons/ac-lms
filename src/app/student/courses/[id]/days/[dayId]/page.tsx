@@ -92,7 +92,7 @@ export default async function StudentDayDetailPage({
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
       <NavDrawer courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false}>
-      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 sm:py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/student/courses" className="hover:text-teal-primary">My Courses</Link>
@@ -104,7 +104,7 @@ export default async function StudentDayDetailPage({
           <span className="text-dark-text font-medium">{day.day_name}</span>
         </div>
 
-        <h2 className="text-2xl font-bold text-dark-text mb-1">{day.day_name}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">{day.day_name}</h2>
         {module && (
           <p className="text-muted-text text-sm mb-8">
             {module.title}{module.week_number ? ` · Week ${module.week_number}` : ''}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import DOMPurify from "isomorphic-dompurify";
 
 export default function HtmlContent({
   html,
@@ -10,6 +11,7 @@ export default function HtmlContent({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const clean = DOMPurify.sanitize(html);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -23,7 +25,7 @@ export default function HtmlContent({
     <div
       ref={ref}
       className={className}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: clean }}
     />
   );
 }

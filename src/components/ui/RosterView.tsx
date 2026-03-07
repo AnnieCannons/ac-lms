@@ -136,7 +136,12 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                 <Fragment key={student.userId}>
                   <tr className={`bg-background ${hasAnyAccommodation(student) ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}>
                     <td className="px-4 py-3 font-medium text-dark-text">
-                      {student.name || '—'}
+                      <Link
+                        href={`/instructor/courses/${currentCourseId}/roster/${student.userId}`}
+                        className="hover:text-teal-primary hover:underline"
+                      >
+                        {student.name || '—'}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-text">{student.email}</td>
                     <td className="px-4 py-3">

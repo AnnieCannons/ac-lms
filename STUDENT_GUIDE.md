@@ -42,7 +42,9 @@ After logging in you will see **My Courses** — a list of all courses you are e
 
 ## 3. Navigating Your Course
 
-Every course page has a **sidebar on the left** with links to all sections of your course. You can collapse the sidebar using the arrow button on its edge if you need more screen space.
+Every course page has a **sidebar on the left** with links to all sections of your course. You can collapse the sidebar using the arrow button on its edge if you need more screen space. On mobile, the sidebar is collapsed by default — tap the arrow to expand it.
+
+On mobile, the top-right **hamburger menu** (three lines) gives you access to your Profile and logout.
 
 | Sidebar Item | What you'll find |
 |--------------|-----------------|

@@ -39,8 +39,8 @@ export default async function StudentCoursesPage() {
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
 
-      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
-        <h2 className="text-2xl font-bold text-dark-text mb-2">My Courses</h2>
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 md:px-8 md:py-12 focus:outline-none">
+        <h2 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">My Courses</h2>
         <p className="text-muted-text text-sm mb-8">
           {courses?.length ?? 0} course{(courses?.length ?? 0) !== 1 ? 's' : ''} enrolled
         </p>
@@ -51,7 +51,7 @@ export default async function StudentCoursesPage() {
               <Link
                 key={course.id}
                 href={`/student/courses/${course.id}`}
-                className="bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
+                className="bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>

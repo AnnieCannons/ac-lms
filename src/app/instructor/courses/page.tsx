@@ -29,7 +29,7 @@ export default async function CoursesPage() {
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} />
 
-      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-8 sm:py-12 focus:outline-none">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-dark-text">Courses</h2>
           <Link
@@ -45,13 +45,12 @@ export default async function CoursesPage() {
             {courses.map(course => (
               <div
                 key={course.id}
-                className="bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors flex items-center justify-between gap-4"
+                className="bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors flex flex-col gap-3"
               >
-                <Link href={`/instructor/courses/${course.id}`} className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-dark-text">{course.name}</h3>
-                  <p className="text-sm text-muted-text mt-1">{course.code}</p>
+                <Link href={`/instructor/courses/${course.id}`} className="font-semibold text-dark-text">
+                  {course.name}
                 </Link>
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-4">
                   <Link href={`/instructor/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
                     Manage →
                   </Link>

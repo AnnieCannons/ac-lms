@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
+import NavMobileMenu from '@/components/ui/NavMobileMenu'
 
 const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
 
 export default function StudentTopNav({ name, role }: { name?: string | null; role?: string | null }) {
   return (
-    <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
+    <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
@@ -16,7 +17,9 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
           </span>
         )}
       </div>
-      <div className="flex items-center gap-5">
+
+      {/* Desktop right side */}
+      <div className="hidden sm:flex items-center gap-5">
         <a
           href={ATTENDANCE_URL}
           target="_blank"
@@ -30,6 +33,9 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
         </Link>
         <LogoutButton />
       </div>
+
+      {/* Mobile hamburger */}
+      <NavMobileMenu name={name} accountHref="/account" />
     </nav>
   )
 }

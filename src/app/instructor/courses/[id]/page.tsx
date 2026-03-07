@@ -51,7 +51,7 @@ export default async function CoursePage({
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-10 focus:outline-none">
+          <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-6 sm:px-8 sm:py-10 focus:outline-none">
             <div className="mb-6">
               <Link
                 href="/instructor/courses"

@@ -102,7 +102,7 @@ export default async function StudentCourseDetailPage({
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
+          <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-6 sm:py-10 focus:outline-none">
             <div className="flex items-center gap-3 mb-2">
               <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm">
                 ← My Courses
@@ -111,7 +111,7 @@ export default async function StudentCourseDetailPage({
 
             <div className="flex items-center justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
                 <div className="flex items-center gap-4 flex-wrap">
                   <p className="text-muted-text text-sm">{course.code}</p>
                   {course.start_date && (

@@ -221,7 +221,7 @@ export default function SubmissionForm({
   return (
     <>
     {hasChecklist && (
-      <div className="bg-surface rounded-2xl border border-border p-6">
+      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Checklist</p>
           <span className="text-xs text-muted-text">
@@ -274,7 +274,7 @@ export default function SubmissionForm({
         </p>
       </div>
     )}
-    <div className="bg-surface rounded-2xl border border-border p-6 flex flex-col gap-5">
+    <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Turn In</p>
@@ -354,7 +354,7 @@ export default function SubmissionForm({
               </p>
               {history.map((entry, i) => (
                 <div key={entry.id} className="flex items-start gap-3 text-xs">
-                  <span className="text-muted-text shrink-0 mt-0.5 w-32">
+                  <span className="text-muted-text shrink-0 whitespace-nowrap mt-0.5">
                     {new Date(entry.submitted_at).toLocaleDateString("en-US", {
                       month: "short", day: "numeric",
                       hour: "numeric", minute: "2-digit",
