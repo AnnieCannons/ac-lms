@@ -417,7 +417,12 @@ export default function CourseOutlineAccordion({
                     const isToday = isCurrentWeek && day.day_name === todayName
                     const publishedAssignments = day.assignments?.filter(a => a.published) ?? []
                     const resources = day.resources ?? []
-                    const dayQuizzes = (quizzes ?? []).filter(q => q.module_title === module.title && q.day_title === day.day_name)
+                    const dayQuizzes = (quizzes ?? []).filter(q => {
+                      if (q.day_title?.trim() !== day.day_name?.trim()) return false
+                      if (q.module_title?.trim() === module.title?.trim()) return true
+                      const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
+                      return !!(quizWeek && module.week_number === parseInt(quizWeek, 10))
+                    })
                     const total = publishedAssignments.length + resources.length + dayQuizzes.length
 
                     return (
@@ -474,7 +479,12 @@ export default function CourseOutlineAccordion({
           onToggleStar={toggleStar}
           onToggleComplete={toggleComplete}
           hideLevelUpBanner={hideLevelUpBanner}
-          quizzesForDay={(quizzes ?? []).filter(q => q.module_title === openDay.module.title && q.day_title === openDay.day.day_name)}
+          quizzesForDay={(quizzes ?? []).filter(q => {
+            if (q.day_title?.trim() !== openDay.day.day_name?.trim()) return false
+            if (q.module_title?.trim() === openDay.module.title?.trim()) return true
+            const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
+            return !!(quizWeek && openDay.module.week_number === parseInt(quizWeek, 10))
+          })}
         />
       )}
     </>
