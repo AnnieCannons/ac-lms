@@ -7,6 +7,7 @@ import SubmissionForm from '@/components/ui/SubmissionForm'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import NavDrawer from '@/components/ui/NavDrawer'
 
 export default async function StudentAssignmentPage({
   params,
@@ -64,7 +65,7 @@ export default async function StudentAssignmentPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 
@@ -137,7 +138,7 @@ export default async function StudentAssignmentPage({
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
-
+      <NavDrawer courseId={id} courseName={course?.name ?? ''} paidLearners={course?.paid_learners ?? false}>
       <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
@@ -280,6 +281,7 @@ export default async function StudentAssignmentPage({
           )}
         </div>
       </main>
+      </NavDrawer>
     </div>
   )
 }

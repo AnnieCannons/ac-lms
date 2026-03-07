@@ -111,7 +111,7 @@ export default async function StudentCourseDetailPage({
 
             <div className="flex items-center justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-dark-text mb-1">Syllabus</h1>
+                <h1 className="text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
                 <div className="flex items-center gap-4 flex-wrap">
                   <p className="text-muted-text text-sm">{course.code}</p>
                   {course.start_date && (
@@ -127,6 +127,12 @@ export default async function StudentCourseDetailPage({
                   )}
                 </div>
               </div>
+              <a
+                href={`/student/courses/${id}/info#syllabus`}
+                className="text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors shrink-0"
+              >
+                Syllabus
+              </a>
             </div>
 
             <PageRefresher />

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -68,14 +68,23 @@ interface Props {
 const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 
 function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
-  const isLate = !info && !!dueDate && new Date(dueDate) < new Date()
+  const isLate = !!dueDate && new Date(dueDate) < new Date()
   if (!info) return isLate
     ? <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>
     : <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
   if (info.grade === 'complete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-green-600/20 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
   if (info.grade === 'incomplete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
   if (info.status === 'submitted') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
-  return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
+  // draft
+  return (
+    <>
+      {isLate
+        ? <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>
+        : <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
+      }
+      <span className="text-xs italic text-muted-text shrink-0">draft</span>
+    </>
+  )
 }
 
 function StarButton({ starred, onToggle }: { starred: boolean; onToggle: () => void }) {
@@ -104,7 +113,7 @@ function CheckButton({ completed, onToggle }: { completed: boolean; onToggle: ()
       title={completed ? 'Mark as unread' : 'Mark as read'}
     >
       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10" fill={completed ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75"/>
+        <circle cx="12" cy="12" r="10" fill={completed ? 'var(--color-teal-primary)' : 'none'} stroke={completed ? 'var(--color-teal-primary)' : 'currentColor'} strokeWidth="1.75"/>
         {completed && <path d="M8 12l3 3 5-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
       </svg>
     </button>
@@ -354,10 +363,11 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   if (filter === 'complete') return info?.grade === 'complete'
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
-  if (filter === 'late') return !info && !!dueDate && new Date(dueDate) < new Date()
+  const isLate = !!dueDate && new Date(dueDate) < new Date()
+  if (filter === 'late') return isLate && (!info || (info.status === 'draft' && !info.grade))
   if (filter === 'not-started') {
-    if (!info) return !(!!dueDate && new Date(dueDate) < new Date())
-    return info.status === 'draft' && !info.grade
+    if (!info) return !isLate
+    return info.status === 'draft' && !info.grade && !isLate
   }
   return true
 }
@@ -376,21 +386,21 @@ export default function ResourceOutline({
   const moduleKey = `outline-modules-${courseId}-${mode}`
   const dayKey = `outline-days-${courseId}-${mode}`
 
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(
-    () => new Set(modules.map(m => m.id))
-  )
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState<AssignmentFilter>('all')
-
-  // Load persisted collapse state before first paint
-  useLayoutEffect(() => {
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
     try {
-      const m = localStorage.getItem(moduleKey)
-      if (m !== null) setCollapsedModules(new Set(JSON.parse(m)))
-      const d = localStorage.getItem(dayKey)
-      if (d !== null) setCollapsedDays(new Set(JSON.parse(d)))
+      const saved = localStorage.getItem(moduleKey)
+      if (saved !== null) return new Set(JSON.parse(saved))
     } catch {}
-  }, [])
+    return new Set(modules.map(m => m.id))
+  })
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(dayKey)
+      if (saved !== null) return new Set(JSON.parse(saved))
+    } catch {}
+    return new Set()
+  })
+  const [filter, setFilter] = useState<AssignmentFilter>('all')
 
   // Save whenever collapse state changes
   useEffect(() => {
@@ -654,7 +664,7 @@ export default function ResourceOutline({
                           <div className="flex flex-col gap-2 pl-3">
                             {!instructorView && visibleAssignments.length === 0 ? (
                               <p className="text-xs text-muted-text py-2 pl-1">No assignments on {day.day_name.toLowerCase()}.</p>
-                            ) : visibleAssignments.map(a => (
+                            ) : visibleAssignments.map(a => instructorView ? (
                               <div
                                 key={a.id}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
@@ -662,7 +672,7 @@ export default function ResourceOutline({
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                                    {!a.published && instructorView && (
+                                    {!a.published && (
                                       <span className="text-[10px] font-bold bg-muted-text/20 text-muted-text px-1.5 py-0.5 rounded-full leading-none shrink-0">Draft</span>
                                     )}
                                   </div>
@@ -672,36 +682,42 @@ export default function ResourceOutline({
                                     </p>
                                   )}
                                 </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <Link
+                                    href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-dark-text hover:text-dark-text transition-colors"
+                                    prefetch={true}
+                                  >
+                                    Edit
+                                  </Link>
+                                  <Link
+                                    href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-primary text-purple-primary hover:bg-purple-light transition-colors"
+                                    prefetch={true}
+                                  >
+                                    Submissions →
+                                  </Link>
+                                </div>
+                              </div>
+                            ) : (
+                              <Link
+                                key={a.id}
+                                href={assignmentHref(a.id)}
+                                prefetch={true}
+                                className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                                  {a.due_date && (
+                                    <p className="text-xs text-muted-text mt-0.5">
+                                      Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    </p>
+                                  )}
+                                </div>
                                 {submissionMap && (
                                   <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} />
                                 )}
-                                {instructorView ? (
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <Link
-                                      href={`/instructor/courses/${courseId}/assignments/${a.id}`}
-                                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-dark-text hover:text-dark-text transition-colors"
-                                      prefetch={true}
-                                    >
-                                      Edit
-                                    </Link>
-                                    <Link
-                                      href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
-                                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-primary text-purple-primary hover:bg-purple-light transition-colors"
-                                      prefetch={true}
-                                    >
-                                      Submissions →
-                                    </Link>
-                                  </div>
-                                ) : (
-                                  <Link
-                                    href={assignmentHref(a.id)}
-                                    className="text-sm text-teal-primary font-semibold hover:underline shrink-0"
-                                    prefetch={true}
-                                  >
-                                    View →
-                                  </Link>
-                                )}
-                              </div>
+                              </Link>
                             ))}
                           </div>
                         )}

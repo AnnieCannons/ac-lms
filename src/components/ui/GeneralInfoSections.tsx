@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import HtmlContent from './HtmlContent'
 import DailySchedule from './DailySchedule'
 import { CourseOutlineView } from './GeneralInfoEditor'
@@ -28,6 +28,27 @@ interface Section {
 export default function GeneralInfoSections({ sections }: { sections: Section[] }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (!hash) return
+    const target = document.getElementById(hash)
+    if (!target) return
+
+    const scroll = () => target.scrollIntoView({ block: 'start' })
+    scroll()
+
+    // Re-scroll if any section above the target grows (e.g. GlobalContentSection loading)
+    const deadline = Date.now() + 4000
+    const observer = new ResizeObserver(() => {
+      if (Date.now() < deadline) scroll()
+    })
+    let el = target.previousElementSibling
+    while (el) { observer.observe(el); el = el.previousElementSibling }
+
+    const stopTimer = setTimeout(() => observer.disconnect(), 4000)
+    return () => { observer.disconnect(); clearTimeout(stopTimer) }
+  }, [])
+
   const toggle = (id: string) => setCollapsed(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
   })
@@ -42,7 +63,7 @@ export default function GeneralInfoSections({ sections }: { sections: Section[] 
         </div>
       )}
       {sections.map(section => (
-        <div key={section.id} className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div key={section.id} id={section.type === 'course_outline' ? 'syllabus' : undefined} className="bg-surface rounded-2xl border border-border overflow-hidden">
           <button
             type="button"
             onClick={() => toggle(section.id)}

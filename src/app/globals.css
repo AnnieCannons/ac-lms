@@ -26,6 +26,13 @@ html {
   font-size: 22px !important;
 }
 
+a, button, select, [role="button"], [role="tab"], [role="switch"], label {
+  cursor: pointer;
+}
+button:disabled, input:disabled, select:disabled {
+  cursor: not-allowed;
+}
+
 body {
   background-color: #F8F6FC;
   color: #1a1030;

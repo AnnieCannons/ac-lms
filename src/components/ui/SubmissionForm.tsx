@@ -33,6 +33,11 @@ type HistoryEntry = {
   submitted_at: string;
 };
 
+function isImageUrl(url: string | null): boolean {
+  if (!url) return false
+  return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(url)
+}
+
 export default function SubmissionForm({
   assignmentId,
   studentId,
@@ -301,7 +306,15 @@ export default function SubmissionForm({
                 hour: "numeric", minute: "2-digit",
               })}
             </p>
-            {saved.submission_type === "file" || saved.submission_type === "link" ? (
+            {saved.submission_type === "file" && isImageUrl(saved.content) ? (
+              <a href={saved.content ?? ""} target="_blank" rel="noopener noreferrer" className="block w-fit">
+                <img
+                  src={saved.content ?? ""}
+                  alt="Submitted file"
+                  className="max-h-48 max-w-full rounded-lg border border-border object-contain hover:opacity-90 transition-opacity"
+                />
+              </a>
+            ) : saved.submission_type === "file" || saved.submission_type === "link" ? (
               <a
                 href={saved.content ?? ""}
                 target="_blank"
@@ -347,7 +360,15 @@ export default function SubmissionForm({
                       hour: "numeric", minute: "2-digit",
                     })}
                   </span>
-                  {entry.submission_type === "file" || entry.submission_type === "link" ? (
+                  {entry.submission_type === "file" && isImageUrl(entry.content) ? (
+                    <a href={entry.content ?? ""} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <img
+                        src={entry.content ?? ""}
+                        alt="Submitted file"
+                        className="max-h-16 max-w-full rounded border border-border object-contain hover:opacity-90 transition-opacity"
+                      />
+                    </a>
+                  ) : entry.submission_type === "file" || entry.submission_type === "link" ? (
                     <a
                       href={entry.content ?? ""}
                       target="_blank"

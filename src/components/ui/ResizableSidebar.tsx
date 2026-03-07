@@ -10,10 +10,8 @@ export default function ResizableSidebar({ children }: { children: React.ReactNo
   const [collapsed, setCollapsed] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const widthRef = useRef(DEFAULT_WIDTH)
-  const startXRef = useRef(0)
-  const startWidthRef = useRef(DEFAULT_WIDTH)
+  widthRef.current = width
 
-  // Load persisted values after hydration
   useEffect(() => {
     try {
       const w = localStorage.getItem('sidebar-width')
@@ -22,6 +20,8 @@ export default function ResizableSidebar({ children }: { children: React.ReactNo
       if (c === 'true') setCollapsed(true)
     } catch {}
   }, [])
+  const startXRef = useRef(0)
+  const startWidthRef = useRef(DEFAULT_WIDTH)
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()

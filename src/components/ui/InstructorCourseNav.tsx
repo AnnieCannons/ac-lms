@@ -16,7 +16,7 @@ const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assi
 
 const CATEGORY_ITEMS = [
   { label: 'All Modules', slug: '' },
-  { label: 'Syllabus', slug: 'syllabus' },
+  { label: 'Course Outline', slug: 'syllabus' },
   { label: 'Assignments', slug: 'assignments' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },

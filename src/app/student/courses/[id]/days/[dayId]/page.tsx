@@ -4,16 +4,20 @@ import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import DayResourceList from '@/components/ui/DayResourceList'
+import NavDrawer from '@/components/ui/NavDrawer'
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-const RESOURCE_ICONS: Record<string, string> = {
-  video: '▶',
-  reading: '📖',
-  link: '🔗',
-  file: '📄',
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export default async function StudentDayDetailPage({
@@ -51,7 +55,7 @@ export default async function StudentDayDetailPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 
@@ -65,11 +69,14 @@ export default async function StudentDayDetailPage({
 
   if (!day) redirect(`/student/courses/${id}`)
 
-  const { data: resources } = await supabase
-    .from('resources')
-    .select('*')
-    .eq('module_day_id', dayId)
-    .order('order', { ascending: true })
+  const [{ data: resources }, { data: stars }, { data: completions }] = await Promise.all([
+    supabase.from('resources').select('id, type, title, content, description, order').eq('module_day_id', dayId).order('order', { ascending: true }),
+    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
+    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+  ])
+
+  const starredIds = (stars ?? []).map(s => s.resource_id)
+  const completedIds = (completions ?? []).map(c => c.resource_id)
 
   const { data: assignments } = await supabase
     .from('assignments')
@@ -84,7 +91,7 @@ export default async function StudentDayDetailPage({
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
-
+      <NavDrawer courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false}>
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
@@ -109,28 +116,12 @@ export default async function StudentDayDetailPage({
           <section>
             <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Resources</h3>
             {resources && resources.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {resources.map(resource => (
-                  <a
-                    key={resource.id}
-                    href={resource.content ?? '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-surface rounded-xl border border-border px-4 py-3 flex items-center gap-3 hover:border-teal-primary transition-colors"
-                  >
-                    <span className="text-base">{RESOURCE_ICONS[resource.type] ?? '•'}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-dark-text truncate">{resource.title}</p>
-                      {resource.description ? (
-                        <p className="text-xs text-muted-text truncate">{resource.description}</p>
-                      ) : (
-                        <p className="text-xs text-muted-text capitalize">{resource.type}</p>
-                      )}
-                    </div>
-                    <span className="text-xs text-teal-primary shrink-0">Open →</span>
-                  </a>
-                ))}
-              </div>
+              <DayResourceList
+                resources={resources}
+                courseId={id}
+                initialStarredIds={starredIds}
+                initialCompletedIds={completedIds}
+              />
             ) : (
               <p className="text-muted-text text-sm">No resources for this day.</p>
             )}
@@ -176,6 +167,7 @@ export default async function StudentDayDetailPage({
           </section>
         </div>
       </main>
+      </NavDrawer>
     </div>
   )
 }

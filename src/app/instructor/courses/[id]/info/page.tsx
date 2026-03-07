@@ -15,7 +15,7 @@ const DEFAULT_SECTIONS = [
   { title: 'Everyday Resources',    type: 'text',             content: null,                                                         order: 5 },
   { title: 'Computer and Wifi',     type: 'computer_wifi',    content: null,                                                         order: 6 },
   {
-    title: 'Course Outline',
+    title: 'Syllabus',
     type: 'course_outline',
     content: JSON.stringify({ rows: Array.from({ length: 15 }, (_, i) => ({ week: i + 1, topics: '', description: '' })) }),
     order: 7,

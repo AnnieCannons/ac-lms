@@ -13,7 +13,7 @@ const TOP_ITEMS = [
 ]
 
 const COURSE_ITEMS = [
-  { label: 'Syllabus', slug: '' },
+  { label: 'Course Outline', slug: '' },
   { label: 'Assignments', slug: 'assignments' },
   { label: 'Class Resources', slug: 'class-resources' },
   { label: 'Career Development', slug: 'career' },
