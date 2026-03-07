@@ -1,8 +1,15 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import ResizableSidebar from '@/components/ui/ResizableSidebar'
+import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
+import PageRefresher from '@/components/ui/PageRefresher'
+import { isStudentPreview } from '@/lib/student-preview'
+import StudentViewBanner from '@/components/ui/StudentViewBanner'
+
+export const dynamic = 'force-dynamic'
 
 function getCurrentWeek(startDate: string | null): number | null {
   if (!startDate) return null
@@ -32,7 +39,9 @@ export default async function StudentCourseDetailPage({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  const preview = await isStudentPreview(id)
+
+  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
     redirect(`/instructor/courses/${id}`)
   }
 
@@ -45,7 +54,7 @@ export default async function StudentCourseDetailPage({
     .eq('role', 'student')
     .maybeSingle()
 
-  if (!enrollment) redirect('/student/courses')
+  if (!preview && !enrollment) redirect('/student/courses')
 
   const { data: course } = await supabase
     .from('courses')
@@ -55,38 +64,45 @@ export default async function StudentCourseDetailPage({
 
   if (!course) redirect('/student/courses')
 
-  const { data: modules } = await supabase
+  const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, assignments(id, title, due_date, published))')
+    .select('*, module_days(id, day_name, order, assignments(id, title, due_date, published), resources(id, type, title, content, description, order))')
     .eq('course_id', id)
     .order('order', { ascending: true })
+
+  const modules = (rawModules ?? []).filter(m =>
+    !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
+  )
+
+  const [{ data: submissions }, { data: stars }, { data: completions }] = await Promise.all([
+    supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
+    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
+    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+  ])
+
+  const submissionMap = Object.fromEntries(
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
+  )
+  const starredIds = (stars ?? []).map(s => s.resource_id)
+  const completedIds = (completions ?? []).map(c => c.resource_id)
 
   const currentWeek = getCurrentWeek(course.start_date)
   const todayName = DAY_NAMES[new Date().getDay()]
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <StudentTopNav name={profile?.name} role={profile?.role} />
+      {preview && <StudentViewBanner courseId={id} />}
 
       <div className="flex">
         {/* Left sidebar */}
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <StudentCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        <ResizableSidebar>
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+        </ResizableSidebar>
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <main className="max-w-3xl mx-auto px-8 py-10">
+          <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
             <div className="flex items-center gap-3 mb-2">
               <Link href="/student/courses" className="text-muted-text hover:text-teal-primary text-sm">
                 ← My Courses
@@ -95,7 +111,7 @@ export default async function StudentCourseDetailPage({
 
             <div className="flex items-center justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
+                <h1 className="text-2xl font-bold text-dark-text mb-1">Syllabus</h1>
                 <div className="flex items-center gap-4 flex-wrap">
                   <p className="text-muted-text text-sm">{course.code}</p>
                   {course.start_date && (
@@ -113,78 +129,17 @@ export default async function StudentCourseDetailPage({
               </div>
             </div>
 
-            {modules && modules.length > 0 ? (
-              <div className="flex flex-col gap-6">
-                {modules.map(module => {
-                  const isCurrentWeek = currentWeek !== null && module.week_number === currentWeek
-                  const sortedDays = [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)
-
-                  return (
-                    <div
-                      key={module.id}
-                      className={`bg-surface rounded-2xl border p-6 transition-colors ${
-                        isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="font-semibold text-dark-text">{module.title}</h3>
-                        {module.week_number && (
-                          <span className="text-xs text-muted-text">Week {module.week_number}</span>
-                        )}
-                        {isCurrentWeek && (
-                          <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
-                            Current Week
-                          </span>
-                        )}
-                      </div>
-
-                      {sortedDays.length > 0 ? (
-                        <div className="flex flex-col gap-2">
-                          {sortedDays.map(day => {
-                            const isToday = isCurrentWeek && day.day_name === todayName
-                            const assignmentCount = day.assignments?.filter((a: { published: boolean }) => a.published).length ?? 0
-
-                            return (
-                              <div
-                                key={day.id}
-                                className={`flex items-center justify-between rounded-xl px-4 py-3 ${
-                                  isToday
-                                    ? 'bg-teal-light border border-teal-primary'
-                                    : 'bg-background border border-border'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className={`text-sm font-medium ${isToday ? 'text-teal-primary' : 'text-dark-text'}`}>
-                                    {day.day_name}
-                                  </span>
-                                  {isToday && (
-                                    <span className="text-xs text-teal-primary font-semibold">Today</span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  {assignmentCount > 0 && (
-                                    <span className="text-xs text-muted-text">
-                                      {assignmentCount} assignment{assignmentCount !== 1 ? 's' : ''}
-                                    </span>
-                                  )}
-                                  <Link
-                                    href={`/student/courses/${id}/days/${day.id}`}
-                                    className="text-xs text-teal-primary font-medium hover:underline"
-                                  >
-                                    View →
-                                  </Link>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-muted-text text-sm">No days scheduled yet.</p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+            <PageRefresher />
+            {modules.length > 0 ? (
+              <CourseOutlineAccordion
+                modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
+                courseId={id}
+                currentWeek={currentWeek}
+                todayName={todayName}
+                submissionMap={submissionMap}
+                initialStarredIds={starredIds}
+                initialCompletedIds={completedIds}
+              />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
                 <p className="text-muted-text">No modules available yet.</p>

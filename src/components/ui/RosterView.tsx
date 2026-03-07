@@ -1,0 +1,236 @@
+'use client'
+import { useState, useTransition, Fragment } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { upsertAccommodation } from '@/lib/accommodation-actions'
+
+interface Accommodation {
+  cameraOff: boolean
+  notes: string
+}
+
+interface Student {
+  userId: string
+  name: string
+  email: string
+  accommodation: Accommodation | null
+}
+
+interface CourseTab {
+  id: string
+  name: string
+}
+
+interface Props {
+  courses: CourseTab[]
+  currentCourseId: string
+  students: Student[]
+}
+
+function CameraOffIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="2" y1="2" x2="22" y2="22" />
+      <path d="M7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12" />
+      <path d="M9.5 4h5l2 3h3" />
+      <polyline points="22 8 22 18" />
+    </svg>
+  )
+}
+
+export default function RosterView({ courses, currentCourseId, students }: Props) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+  const [editingFor, setEditingFor] = useState<string | null>(null)
+  const [cameraOff, setCameraOff] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  function startEdit(student: Student) {
+    setEditingFor(student.userId)
+    setCameraOff(student.accommodation?.cameraOff ?? false)
+    setNotes(student.accommodation?.notes ?? '')
+    setSaveError(null)
+  }
+
+  function cancelEdit() {
+    setEditingFor(null)
+    setSaveError(null)
+  }
+
+  async function handleSave(userId: string) {
+    setSaving(true)
+    setSaveError(null)
+    const result = await upsertAccommodation(userId, cameraOff, notes)
+    setSaving(false)
+    if (result.error) {
+      setSaveError(result.error)
+    } else {
+      setEditingFor(null)
+      startTransition(() => router.refresh())
+    }
+  }
+
+  const hasAnyAccommodation = (s: Student) =>
+    s.accommodation?.cameraOff || s.accommodation?.notes
+
+  return (
+    <div>
+      {/* Course tabs */}
+      <div className="flex border-b border-border mb-8 overflow-x-auto">
+        {courses.map(course => (
+          <Link
+            key={course.id}
+            href={`/instructor/courses/${course.id}/roster`}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap -mb-px transition-colors ${
+              course.id === currentCourseId
+                ? 'border-teal-primary text-teal-primary'
+                : 'border-transparent text-muted-text hover:text-dark-text hover:border-border'
+            }`}
+          >
+            {course.name}
+          </Link>
+        ))}
+      </div>
+
+      {/* Student count */}
+      <p className="text-sm text-muted-text mb-4">
+        {students.length} {students.length === 1 ? 'student' : 'students'}
+        {students.filter(s => s.accommodation?.cameraOff).length > 0 && (
+          <span className="ml-3 inline-flex items-center gap-1 text-red-600">
+            <CameraOffIcon size={12} />
+            {students.filter(s => s.accommodation?.cameraOff).length} camera off
+          </span>
+        )}
+      </p>
+
+      {students.length === 0 ? (
+        <div className="border border-border rounded-lg p-8 text-center text-sm text-muted-text">
+          No students enrolled in this course.
+        </div>
+      ) : (
+        <div className="border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface border-b border-border">
+                <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-text">Accommodations</th>
+                <th className="sr-only">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {students.map(student => (
+                <Fragment key={student.userId}>
+                  <tr className={`bg-background ${hasAnyAccommodation(student) ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}>
+                    <td className="px-4 py-3 font-medium text-dark-text">
+                      {student.name || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-muted-text">{student.email}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {student.accommodation?.cameraOff && (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-red-500 px-2.5 py-1 rounded-full">
+                            <CameraOffIcon size={12} />
+                            Camera Off
+                          </span>
+                        )}
+                        {student.accommodation?.notes && (
+                          <span
+                            className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full cursor-default"
+                            title={student.accommodation.notes}
+                          >
+                            Notes
+                          </span>
+                        )}
+                        {!hasAnyAccommodation(student) && (
+                          <span className="text-xs text-muted-text">—</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() =>
+                          editingFor === student.userId ? cancelEdit() : startEdit(student)
+                        }
+                        className="text-xs font-medium text-teal-primary hover:underline"
+                      >
+                        {editingFor === student.userId ? 'Cancel' : 'Edit'}
+                      </button>
+                    </td>
+                  </tr>
+
+                  {editingFor === student.userId && (
+                    <tr className="bg-surface">
+                      <td colSpan={4} className="px-6 py-5">
+                        <div className="flex flex-col gap-4 max-w-lg">
+                          {/* Camera off toggle */}
+                          <label className="flex items-center gap-3 cursor-pointer select-none">
+                            <div
+                              onClick={() => setCameraOff(v => !v)}
+                              className={`relative w-10 h-5 rounded-full transition-colors ${
+                                cameraOff ? 'bg-red-500' : 'bg-border'
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                                  cameraOff ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                            <span className="flex items-center gap-2 text-sm font-medium text-dark-text">
+                              <CameraOffIcon size={15} />
+                              Camera Off accommodation
+                            </span>
+                          </label>
+
+                          {/* Notes */}
+                          <div>
+                            <label className="block text-xs font-medium text-muted-text mb-1.5">
+                              Other accommodations / notes
+                            </label>
+                            <textarea
+                              value={notes}
+                              onChange={e => setNotes(e.target.value)}
+                              rows={3}
+                              placeholder="e.g. Extended time, quiet testing room, screen reader…"
+                              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none placeholder:text-muted-text"
+                            />
+                          </div>
+
+                          {saveError && (
+                            <p className="text-xs text-red-600">{saveError}</p>
+                          )}
+
+                          <button
+                            onClick={() => handleSave(student.userId)}
+                            disabled={saving}
+                            className="self-start bg-teal-primary text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-teal-primary/90 disabled:opacity-50 transition-colors"
+                          >
+                            {saving ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}

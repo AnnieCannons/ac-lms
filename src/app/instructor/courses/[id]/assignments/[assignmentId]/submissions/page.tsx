@@ -1,8 +1,10 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsList'
+import AnswerKeyField from '@/components/ui/AnswerKeyField'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -28,7 +30,7 @@ export default async function InstructorSubmissionsPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, due_date')
+    .select('id, title, due_date, answer_key_url, submission_required')
     .eq('id', assignmentId)
     .single()
 
@@ -86,19 +88,12 @@ export default async function InstructorSubmissionsPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <div className="flex">
+        <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
+
+        <main className="flex-1 min-w-0 px-10 py-12 max-w-5xl">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
@@ -110,14 +105,22 @@ export default async function InstructorSubmissionsPage({
           <span className="text-dark-text font-medium">Submissions</span>
         </div>
 
-        <h1 className="text-2xl font-bold text-dark-text mb-1">{assignment.title}</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          {!assignment.submission_required && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 shrink-0">
+              No submission
+            </span>
+          )}
+        </div>
         {assignment.due_date && (
-          <p className="text-xs text-muted-text mb-4">
+          <p className="text-xs text-muted-text mt-1">
             Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
             })}
           </p>
         )}
+        <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
 
         {/* Stats */}
         <div className="flex items-center gap-6 mb-8 flex-wrap">
@@ -148,9 +151,12 @@ export default async function InstructorSubmissionsPage({
             students={students}
             courseId={id}
             assignmentId={assignmentId}
+            submissionRequired={assignment.submission_required}
+            currentUserId={user.id}
           />
         )}
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

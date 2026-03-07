@@ -1,7 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-@theme inline {
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
   --color-teal-primary: #6D2B5E;
   --color-teal-light: #F5E6F3;
   --color-purple-primary: #7B3FB0;
@@ -14,22 +22,91 @@
   --font-sans: 'Inter', sans-serif;
 }
 
+html {
+  font-size: 22px !important;
+}
+
 body {
   background-color: #F8F6FC;
   color: #1a1030;
   font-family: 'Inter', sans-serif;
+  font-size: 22px !important;
 }
 
 /* Rich text editor output styles */
-.tiptap h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
-.tiptap h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
-.tiptap p { margin: 0.25rem 0; }
-.tiptap ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
-.tiptap ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
-.tiptap li { margin: 0.125rem 0; }
-.tiptap strong { font-weight: 700; }
-.tiptap em { font-style: italic; }
-.tiptap blockquote { border-left: 3px solid #6D2B5E; padding-left: 0.75rem; color: #6B5D80; margin: 0.5rem 0; }
+.tiptap h2, .wiki-content h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.tiptap h3, .wiki-content h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.tiptap h1, .wiki-content h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.tiptap p, .wiki-content p { margin: 0.25rem 0; }
+.tiptap ul, .wiki-content ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap ol, .wiki-content ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap li, .wiki-content li { margin: 0.125rem 0; }
+.tiptap strong, .wiki-content strong { font-weight: 700; }
+.tiptap em, .wiki-content em { font-style: italic; }
+.tiptap blockquote, .wiki-content blockquote { border-left: 3px solid #6D2B5E; padding-left: 0.75rem; color: #6B5D80; margin: 0.5rem 0; }
+.wiki-content a { color: #6D2B5E; }
+.wiki-content a:hover { text-decoration: underline; }
+.wiki-content code { background: #F0E8FF; border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.85em; font-family: monospace; }
+.wiki-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.5rem 0; }
+/* Dyslexia-friendly font */
+html.dyslexic,
+html.dyslexic body,
+html.dyslexic * {
+  font-family: 'OpenDyslexic', sans-serif !important;
+}
+
+/* Dark mode */
+html.theme-dark {
+  --color-background: #120d1e;
+  --color-surface: #1e1530;
+  --color-dark-text: #f0eaf8;
+  --color-muted-text: #a898c0;
+  --color-border: #2e2245;
+  --color-teal-primary: #c870b0;
+  --color-teal-light: #2a1530;
+  --color-purple-primary: #b080e0;
+  --color-purple-light: #251540;
+}
+html.theme-dark body {
+  background-color: #120d1e !important;
+  color: #f0eaf8 !important;
+}
+html.theme-dark button {
+  color: #f0eaf8 !important;
+}
+html.theme-dark button:disabled {
+  opacity: 1 !important;
+  background-color: rgba(200, 112, 176, 0.35) !important;
+  color: rgba(240, 234, 248, 0.5) !important;
+}
+
+/* High contrast mode */
+html.high-contrast {
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-dark-text: #000000;
+  --color-muted-text: #111111;
+  --color-border: #000000;
+  --color-teal-primary: #4a0040;
+  --color-teal-light: #edd5e8;
+  --color-purple-primary: #3a0080;
+  --color-purple-light: #e0d5ff;
+}
+html.high-contrast body {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: #9ca3af;

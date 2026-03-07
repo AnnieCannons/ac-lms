@@ -1,11 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import QuizzesSection from "@/components/instructor/QuizzesSection";
 import { getQuizzesForCourse, type QuizRow } from "@/data/quizzes";
-import InstructorCourseNav from "@/components/ui/InstructorCourseNav";
+import InstructorSidebar from "@/components/ui/InstructorSidebar";
 
 export default async function CoursePage({
   params,
@@ -21,7 +22,7 @@ export default async function CoursePage({
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role")
+    .select("name, role")
     .eq("id", user.id)
     .single();
 
@@ -93,25 +94,15 @@ export default async function CoursePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link
-          href="/instructor/courses"
-          className="text-xl font-extrabold text-dark-text"
-        >
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
       <div className="flex">
-        {/* Left sidebar */}
-        <aside className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] py-8 px-3">
-          <InstructorCourseNav courseId={id} courseName={course.name} />
-        </aside>
+        <InstructorSidebar courseId={id} courseName={course.name} />
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <main className="max-w-4xl mx-auto px-8 py-10">
-            <div className="flex items-center justify-between gap-3 mb-6">
+          <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-10 focus:outline-none">
+            <div className="mb-6">
               <Link
                 href="/instructor/courses"
                 className="text-muted-text hover:text-teal-primary text-sm"

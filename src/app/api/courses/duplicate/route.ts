@@ -46,9 +46,12 @@ export async function POST(req: NextRequest) {
     : [{ data: [] }, { data: [] }]
 
   const assignmentIds = (assignments ?? []).map(a => a.id)
-  const { data: checklistItems } = assignmentIds.length
-    ? await service.from('checklist_items').select('*').in('assignment_id', assignmentIds).order('order')
-    : { data: [] }
+  const [{ data: checklistItems }, { data: courseSections }] = await Promise.all([
+    assignmentIds.length
+      ? service.from('checklist_items').select('*').in('assignment_id', assignmentIds).order('order')
+      : Promise.resolve({ data: [] }),
+    service.from('course_sections').select('*').eq('course_id', sourceCourseId).order('order'),
+  ])
 
   // ── DATE SHIFT ───────────────────────────────────────────────────────────
 
@@ -167,6 +170,20 @@ export async function POST(req: NextRequest) {
     : { data: [], error: null }
   if (checklistError) return NextResponse.json({ error: checklistError.message }, { status: 500 })
 
+  // Course sections
+  const sectionInserts = (courseSections ?? []).map(s => ({
+    course_id: newCourse.id,
+    title: s.title,
+    content: s.content,
+    order: s.order,
+    type: s.type,
+    published: s.published,
+  }))
+  const { data: newSections, error: sectionsError } = sectionInserts.length
+    ? await service.from('course_sections').insert(sectionInserts).select()
+    : { data: [], error: null }
+  if (sectionsError) return NextResponse.json({ error: sectionsError.message }, { status: 500 })
+
   return NextResponse.json({
     newCourseId: newCourse.id,
     stats: {
@@ -175,6 +192,7 @@ export async function POST(req: NextRequest) {
       assignments: newAssignments?.length ?? 0,
       resources: newResources?.length ?? 0,
       checklistItems: newChecklists?.length ?? 0,
+      sections: newSections?.length ?? 0,
       datesShifted,
     },
   })

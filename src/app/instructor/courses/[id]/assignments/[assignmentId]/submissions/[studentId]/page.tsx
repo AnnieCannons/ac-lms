@@ -1,17 +1,23 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import HtmlContent from '@/components/ui/HtmlContent'
 import GradeButtons from '@/components/ui/GradeButtons'
 import InstructorChecklist from '@/components/ui/InstructorChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
+import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
+import AnswerKeyField from '@/components/ui/AnswerKeyField'
+import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
 function SubmissionContent({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <p className="text-muted-text italic text-sm">No content</p>
-  if (type === 'link' || type === 'file') {
+  if (type === 'file') {
+    return <SubmissionFilePreview content={content} />
+  }
+  if (type === 'link') {
     return (
       <a href={content} target="_blank" rel="noopener noreferrer"
         className="text-teal-primary underline break-all text-sm">
@@ -46,7 +52,7 @@ export default async function GradingPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date')
+    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required')
     .eq('id', assignmentId)
     .single()
 
@@ -64,12 +70,41 @@ export default async function GradingPage({
     .eq('id', studentId)
     .single()
 
-  const { data: submission } = await admin
+  // Fetch all enrolled students to build prev/next navigation
+  const { data: enrollments } = await admin
+    .from('course_enrollments')
+    .select('user_id, users(id, name)')
+    .eq('course_id', id)
+    .eq('role', 'student')
+
+  const allStudents = (enrollments ?? [])
+    .map(e => { const u = Array.isArray(e.users) ? e.users[0] : e.users; return { id: e.user_id, name: (u as { name: string } | null)?.name ?? 'Unknown' } })
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const currentIndex = allStudents.findIndex(s => s.id === studentId)
+  const prevStudent = currentIndex > 0 ? allStudents[currentIndex - 1] : null
+  const nextStudent = currentIndex < allStudents.length - 1 ? allStudents[currentIndex + 1] : null
+  const studentPosition = currentIndex + 1
+  const studentTotal = allStudents.length
+
+  const subBase = `/instructor/courses/${id}/assignments/${assignmentId}/submissions`
+
+  let { data: submission } = await admin
     .from('submissions')
     .select('id, submission_type, content, status, grade, graded_at, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
+
+  // For no-submission assignments, auto-create a placeholder so grading works normally
+  if (!submission && assignment?.submission_required === false) {
+    const { data: created } = await admin
+      .from('submissions')
+      .insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })
+      .select('id, submission_type, content, status, grade, graded_at, submitted_at')
+      .single()
+    submission = created ?? null
+  }
 
   const { data: submissionHistory } = await admin
     .from('submission_history')
@@ -127,36 +162,56 @@ export default async function GradingPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
-      <main className="max-w-3xl mx-auto px-8 py-12">
+      <div className="flex">
+        <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
+
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 px-10 py-12 max-w-4xl focus:outline-none">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-muted-text mb-4 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
           <span className="text-border">/</span>
           <Link href={`/instructor/courses/${id}`} className="hover:text-teal-primary">{course?.name}</Link>
           <span className="text-border">/</span>
-          <Link href={`/instructor/courses/${id}/assignments/${assignmentId}/submissions`} className="hover:text-teal-primary truncate max-w-[200px]">
-            {assignment.title}
-          </Link>
+          <Link href={subBase} className="hover:text-teal-primary truncate max-w-[200px]">{assignment.title}</Link>
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium">{student?.name ?? 'Student'}</span>
+        </div>
+
+        {/* Grader nav strip */}
+        <div className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-3 mb-6 gap-4">
+          <div className="w-1/3">
+            {prevStudent ? (
+              <Link href={`${subBase}/${prevStudent.id}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate">
+                <span className="shrink-0">←</span>
+                <span className="truncate">{prevStudent.name}</span>
+              </Link>
+            ) : (
+              <span className="text-sm text-border">← First</span>
+            )}
+          </div>
+          <div className="text-center shrink-0">
+            <p className="text-xs font-semibold text-dark-text">{studentPosition} / {studentTotal}</p>
+            <Link href={subBase} className="text-xs text-teal-primary hover:underline">Back to list</Link>
+          </div>
+          <div className="w-1/3 text-right">
+            {nextStudent ? (
+              <Link href={`${subBase}/${nextStudent.id}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate">
+                <span className="truncate">{nextStudent.name}</span>
+                <span className="shrink-0">→</span>
+              </Link>
+            ) : (
+              <span className="text-sm text-border">Last →</span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-dark-text">{student?.name ?? 'Student'}</h1>
             <p className="text-base font-semibold text-dark-text mt-1 truncate max-w-md">{assignment.title}</p>
+            <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
           </div>
           {submission && (
             <GradeButtons
@@ -170,14 +225,20 @@ export default async function GradingPage({
 
         <div className="flex flex-col gap-6">
           {/* Submission */}
-          <div className="bg-surface rounded-2xl border border-border p-6">
+          {assignment.submission_required === false ? (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
+              <p className="text-sm text-muted-text mt-2 italic">No submission — instructor check-off only.</p>
+            </div>
+          ) : null}
+          {assignment.submission_required !== false && <div className="bg-surface rounded-2xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
               {submission && (
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  currentGrade === 'complete' ? 'bg-teal-light text-teal-primary' :
-                  currentGrade === 'incomplete' ? 'bg-red-50 text-red-500' :
-                  submission.status === 'submitted' ? 'bg-teal-light text-teal-primary' :
+                  currentGrade === 'complete' ? 'bg-green-50 text-green-700 border border-green-600' :
+                  currentGrade === 'incomplete' ? 'bg-red-50 text-red-500 border border-red-500' :
+                  submission.status === 'submitted' ? 'bg-teal-light text-teal-primary border border-teal-primary' :
                   'bg-yellow-50 text-yellow-600'
                 }`}>
                   {currentGrade === 'complete' ? 'Complete' :
@@ -231,7 +292,7 @@ export default async function GradingPage({
             ) : (
               <p className="text-sm text-muted-text italic">No submission yet.</p>
             )}
-          </div>
+          </div>}
 
           {/* Checklist */}
           {checklistItems && checklistItems.length > 0 && submission && (
@@ -271,7 +332,31 @@ export default async function GradingPage({
             </details>
           )}
         </div>
-      </main>
+
+        {/* Bottom nav */}
+        <div className="flex items-center justify-between mt-10 pt-6 border-t border-border gap-4">
+          <div className="w-1/3">
+            {prevStudent ? (
+              <Link href={`${subBase}/${prevStudent.id}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
+                <span className="shrink-0">←</span>
+                <span className="truncate">{prevStudent.name}</span>
+              </Link>
+            ) : null}
+          </div>
+          <Link href={subBase} className="text-sm text-muted-text hover:text-teal-primary transition-colors shrink-0">
+            All submissions
+          </Link>
+          <div className="w-1/3 flex justify-end">
+            {nextStudent ? (
+              <Link href={`${subBase}/${nextStudent.id}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
+                <span className="truncate">{nextStudent.name}</span>
+                <span className="shrink-0">→</span>
+              </Link>
+            ) : null}
+          </div>
+        </div>
+        </main>
+      </div>
     </div>
   )
 }

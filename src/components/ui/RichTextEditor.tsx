@@ -55,12 +55,13 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
   return (
     <div className="border border-gray-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-teal-primary">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 flex-wrap">
+      <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 flex-wrap">
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleBold().run())}
           className={btn(isBold)}
-          title="Bold"
+          aria-label="Bold"
+          aria-pressed={isBold}
         >
           B
         </button>
@@ -68,16 +69,18 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleItalic().run())}
           className={`${btn(isItalic)} italic`}
-          title="Italic"
+          aria-label="Italic"
+          aria-pressed={isItalic}
         >
           I
         </button>
-        <div className="w-px h-4 bg-gray-200 mx-1" />
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-gray-200 mx-1" />
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleHeading({ level: 2 }).run())}
           className={btn(editor.isActive("heading", { level: 2 }))}
-          title="Heading"
+          aria-label="Heading 2"
+          aria-pressed={editor.isActive("heading", { level: 2 })}
         >
           H2
         </button>
@@ -85,16 +88,18 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleHeading({ level: 3 }).run())}
           className={btn(editor.isActive("heading", { level: 3 }))}
-          title="Subheading"
+          aria-label="Heading 3"
+          aria-pressed={editor.isActive("heading", { level: 3 })}
         >
           H3
         </button>
-        <div className="w-px h-4 bg-gray-200 mx-1" />
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-gray-200 mx-1" />
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleBulletList().run())}
           className={btn(editor.isActive("bulletList"))}
-          title="Bullet list"
+          aria-label="Bullet list"
+          aria-pressed={editor.isActive("bulletList")}
         >
           • List
         </button>
@@ -102,16 +107,18 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleOrderedList().run())}
           className={btn(editor.isActive("orderedList"))}
-          title="Numbered list"
+          aria-label="Numbered list"
+          aria-pressed={editor.isActive("orderedList")}
         >
           1. List
         </button>
-        <div className="w-px h-4 bg-gray-200 mx-1" />
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-gray-200 mx-1" />
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleBlockquote().run())}
           className={btn(editor.isActive("blockquote"))}
-          title="Blockquote"
+          aria-label="Blockquote"
+          aria-pressed={editor.isActive("blockquote")}
         >
           " Quote
         </button>

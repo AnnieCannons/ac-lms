@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { createClient } from "@/lib/supabase/client";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import FileUpload from "@/components/ui/FileUpload";
 import { RUBRIC_TEMPLATES, type RubricItem } from "@/data/rubric-templates";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   MouseSensor,
@@ -16,6 +17,7 @@ import {
   useDraggable,
   useDroppable,
   DragEndEvent,
+  DragStartEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -25,6 +27,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
+import AddResourceButton from "@/components/ui/AddResourceButton";
 
 
 type Assignment = {
@@ -35,6 +39,7 @@ type Assignment = {
   how_to_turn_in?: string | null;
   module_day_id: string;
   published: boolean;
+  order: number;
 };
 
 const DEFAULT_HOW_TO_TURN_IN =
@@ -133,6 +138,7 @@ type Resource = {
   type: "video" | "reading" | "link" | "file";
   title: string;
   content: string | null;
+  description: string | null;
   order: number;
 };
 
@@ -151,31 +157,45 @@ type Module = {
   week_number: number;
   order: number;
   course_id: string;
+  category: string | null;
+  published: boolean;
   module_days: Day[];
 };
+
+const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday"];
+
+type RelocateCtx = {
+  weekOptions: number[];
+  relocateAssignment: (assignmentId: string, targetWeek: number, targetDay: string) => Promise<void>;
+  relocateResource: (resourceId: string, targetWeek: number, targetDay: string, onRemoved: () => void) => Promise<void>;
+};
+const RelocateContext = createContext<RelocateCtx | null>(null);
 
 // ─── AssignmentCard ───────────────────────────────────────────────────────────
 
 function AssignmentCard({
   assignment,
   dayId,
+  weekNumber,
+  dayName,
   onOpen,
   onDelete,
   onTogglePublished,
 }: {
   assignment: Assignment;
   dayId: string;
+  weekNumber: number | null;
+  dayName: string;
   onOpen: (assignment: Assignment, dayId: string) => void;
   onDelete: (id: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `assignment-${assignment.id}`,
     data: { type: "assignment", assignmentId: assignment.id, sourceDayId: dayId },
   });
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  const ctx = useContext(RelocateContext);
 
   return (
     <div
@@ -187,7 +207,7 @@ function AssignmentCard({
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab shrink-0"
+          className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           type="button"
           aria-label="Drag assignment"
         >
@@ -206,21 +226,56 @@ function AssignmentCard({
             {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
           </p>
         </button>
+        {ctx && (() => {
+          const isRealDay = DAY_OPTIONS.includes(dayName);
+          return (
+            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+              <select
+                value={weekNumber ?? ""}
+                onChange={e => {
+                  if (isRealDay) ctx.relocateAssignment(assignment.id, Number(e.target.value), dayName);
+                }}
+                className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-14"
+                title="Week"
+              >
+                <option value="">W?</option>
+                {ctx.weekOptions.map(w => (
+                  <option key={w} value={w}>W{w}</option>
+                ))}
+              </select>
+              <select
+                value={isRealDay ? dayName : ""}
+                onChange={e => ctx.relocateAssignment(assignment.id, weekNumber ?? 1, e.target.value)}
+                className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-16"
+                title="Day"
+              >
+                {!isRealDay && <option value="">Day?</option>}
+                {DAY_OPTIONS.map(d => (
+                  <option key={d} value={d}>{d.slice(0, 3)}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })()}
         <button
           onClick={() => onTogglePublished(assignment.id, assignment.published)}
-          className={`text-xs shrink-0 font-medium transition-colors ${assignment.published ? "text-teal-primary hover:text-muted-text" : "text-muted-text hover:text-teal-primary"}`}
+          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            assignment.published
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+          }`}
           type="button"
-          title={assignment.published ? "Published — click to unpublish" : "Unpublished — click to publish"}
+          aria-label={assignment.published ? "Published — click to unpublish" : "Draft — click to publish"}
         >
-          {assignment.published ? "●" : "○"}
+          {assignment.published ? "Published" : "Draft"}
         </button>
         <button
           onClick={() => onDelete(assignment.id)}
-          className="text-muted-text hover:text-red-400 text-xs shrink-0"
+          className="text-muted-text hover:text-red-400 shrink-0"
           type="button"
           aria-label="Delete assignment"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
         </button>
       </div>
     </div>
@@ -580,11 +635,11 @@ function AssignmentFullView({
                         />
                         <button
                           onClick={() => deleteChecklistItem(item.id, i)}
-                          className="text-[#3d2260] hover:text-red-400 text-xs shrink-0 transition-colors"
+                          className="text-[#3d2260] hover:text-red-400 shrink-0 transition-colors"
                           type="button"
                           aria-label="Delete item"
                         >
-                          ✕
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
                         </button>
                       </div>
                       <div className="pl-6">
@@ -693,6 +748,7 @@ function AssignmentFullView({
 
 function AssignmentDropZone({
   day,
+  weekNumber,
   assignments,
   onOpenAssignment,
   onOpenAdd,
@@ -700,6 +756,7 @@ function AssignmentDropZone({
   onTogglePublished,
 }: {
   day: Day;
+  weekNumber: number | null;
   assignments: Assignment[];
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
@@ -716,43 +773,47 @@ function AssignmentDropZone({
       <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
         Assignments
       </p>
-      <div
-        ref={setNodeRef}
-        className={`flex flex-col gap-2 min-h-[48px] rounded-lg p-1 transition-colors ${
-          isOver ? "bg-teal-light border border-dashed border-teal-primary/50" : ""
-        }`}
-      >
-        {assignments.length === 0 ? (
-          <p className="text-xs text-muted-text py-2 px-1">
-            No assignments. Drag one here or add below.
-          </p>
-        ) : (
-          assignments
-            .slice()
-            .sort((a, b) => {
-              if (!a.due_date && !b.due_date) return 0;
-              if (!a.due_date) return 1;
-              if (!b.due_date) return -1;
-              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-            })
-            .map((a) => (
-              <AssignmentCard
-                key={a.id}
-                assignment={a}
-                dayId={day.id}
-                onOpen={onOpenAssignment}
-                onDelete={onDeleteAssignment}
-                onTogglePublished={onTogglePublished}
-              />
-            ))
-        )}
-      </div>
+      {(() => {
+        const sorted = [...assignments].sort((a, b) => a.order - b.order);
+        return (
+          <SortableContext
+            items={sorted.map((a) => `assignment-${a.id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div
+              ref={setNodeRef}
+              className={`flex flex-col gap-2 min-h-[48px] rounded-lg p-1 transition-colors ${
+                isOver ? "bg-teal-light border border-dashed border-teal-primary/50" : ""
+              }`}
+            >
+              {sorted.length === 0 ? (
+                <p className="text-xs text-muted-text py-2 px-1">
+                  No assignments. Drag one here or add below.
+                </p>
+              ) : (
+                sorted.map((a) => (
+                  <AssignmentCard
+                    key={a.id}
+                    assignment={a}
+                    dayId={day.id}
+                    weekNumber={weekNumber}
+                    dayName={day.day_name}
+                    onOpen={onOpenAssignment}
+                    onDelete={onDeleteAssignment}
+                    onTogglePublished={onTogglePublished}
+                  />
+                ))
+              )}
+            </div>
+          </SortableContext>
+        );
+      })()}
       <button
         onClick={() => onOpenAdd(day.id)}
-        className="mt-2 w-full text-xs text-teal-primary hover:underline text-left px-1"
+        className="mt-3 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity"
         type="button"
       >
-        + Add assignment
+        + Add Assignment
       </button>
     </div>
   );
@@ -769,22 +830,30 @@ const RESOURCE_TYPE_LABELS: Record<Resource["type"], string> = {
 
 function SortableResource({
   resource,
+  weekNumber,
   onEdit,
   onDelete,
+  onRelocated,
 }: {
   resource: Resource;
-  onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content">>) => void;
+  weekNumber: number | null;
+  onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>) => void;
   onDelete: (id: string) => void;
+  onRelocated: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: `resource-${resource.id}`,
     data: { type: "resource" },
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const ctx = useContext(RelocateContext);
+  const [relocWeek, setRelocWeek] = useState<string>(weekNumber ? String(weekNumber) : "");
+  const [relocDay, setRelocDay] = useState<string>("");
   const [editing, setEditing] = useState(false);
   const [editType, setEditType] = useState<Resource["type"]>(resource.type);
   const [editTitle, setEditTitle] = useState(resource.title);
   const [editContent, setEditContent] = useState(resource.content ?? "");
+  const [editDescription, setEditDescription] = useState(resource.description ?? "");
 
   const handleSave = () => {
     if (!editTitle.trim()) return;
@@ -792,6 +861,7 @@ function SortableResource({
       type: editType,
       title: editTitle.trim(),
       content: editContent.trim() || null,
+      description: editDescription.trim() || null,
     });
     setEditing(false);
   };
@@ -840,6 +910,13 @@ function SortableResource({
             className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
           />
         )}
+        <input
+          type="text"
+          value={editDescription}
+          onChange={(e) => setEditDescription(e.target.value)}
+          placeholder="Description (optional)"
+          className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        />
         <div className="flex gap-2 justify-end">
           <button
             onClick={() => setEditing(false)}
@@ -869,7 +946,7 @@ function SortableResource({
       <button
         {...attributes}
         {...listeners}
-        className="text-border hover:text-muted-text cursor-grab shrink-0"
+        className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
         type="button"
         aria-label="Drag resource"
       >
@@ -887,7 +964,10 @@ function SortableResource({
           {resource.title}
           <span className="opacity-0 group-hover:opacity-100 transition-opacity text-teal-primary shrink-0">✎</span>
         </button>
-        {resource.content && (() => {
+        {resource.description && (
+          <p className="text-xs text-muted-text truncate">{resource.description}</p>
+        )}
+        {resource.content && resource.type !== "reading" && (() => {
           const href = resource.content.startsWith("http") ? resource.content : `https://${resource.content}`;
           const isImg = resource.type === "file" && /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(resource.content);
           return isImg ? (
@@ -907,13 +987,47 @@ function SortableResource({
           );
         })()}
       </div>
+      {ctx && (
+        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+          <select
+            value={relocWeek}
+            onChange={e => {
+              const w = e.target.value;
+              setRelocWeek(w);
+              if (w && relocDay) ctx.relocateResource(resource.id, Number(w), relocDay, onRelocated);
+            }}
+            className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-14"
+            title="Week"
+          >
+            <option value="">W?</option>
+            {ctx.weekOptions.map(w => (
+              <option key={w} value={w}>W{w}</option>
+            ))}
+          </select>
+          <select
+            value={relocDay}
+            onChange={e => {
+              const d = e.target.value;
+              setRelocDay(d);
+              if (relocWeek && d) ctx.relocateResource(resource.id, Number(relocWeek), d, onRelocated);
+            }}
+            className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-16"
+            title="Day"
+          >
+            <option value="">Day?</option>
+            {DAY_OPTIONS.map(d => (
+              <option key={d} value={d}>{d.slice(0, 3)}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <button
         onClick={() => onDelete(resource.id)}
-        className="text-muted-text hover:text-red-400 text-xs shrink-0"
+        className="text-muted-text hover:text-red-400 shrink-0"
         type="button"
         aria-label="Delete resource"
       >
-        ✕
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
       </button>
     </div>
   );
@@ -923,6 +1037,8 @@ function SortableResource({
 
 function SortableDay({
   day,
+  weekNumber,
+  refreshTrigger,
   onDelete,
   onOpenAssignment,
   onOpenAdd,
@@ -930,6 +1046,8 @@ function SortableDay({
   onTogglePublished,
 }: {
   day: Day;
+  weekNumber: number | null;
+  refreshTrigger: number;
   onDelete: (id: string) => void;
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
@@ -962,7 +1080,7 @@ function SortableDay({
       .then(({ data }) => {
         if (data) setResources(data);
       });
-  }, [day.id]);
+  }, [day.id, refreshTrigger]);
 
   const resourceSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -1012,7 +1130,7 @@ function SortableDay({
 
   const editResource = async (
     id: string,
-    updates: Partial<Pick<Resource, "type" | "title" | "content">>
+    updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>
   ) => {
     await supabase.from("resources").update(updates).eq("id", id);
     setResources((prev) =>
@@ -1044,7 +1162,7 @@ function SortableDay({
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab"
+          className="text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           aria-label={`Drag day ${day.day_name}`}
           type="button"
         >
@@ -1065,12 +1183,28 @@ function SortableDay({
         </button>
 
         <button
-          onClick={() => onDelete(day.id)}
-          className="text-muted-text hover:text-red-400 text-xs"
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenAdd(day.id); }}
+          className="text-xs font-semibold text-purple-primary hover:opacity-70 shrink-0 px-1"
+          title="Add assignment to this day"
+        >
+          +A
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          className="text-xs font-semibold text-teal-primary hover:opacity-70 shrink-0 px-1"
+          title="Add resource to this day"
+        >
+          +R
+        </button>
+        <button
+          onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
+          className="text-muted-text hover:text-red-400"
           aria-label={`Delete day ${day.day_name}`}
           type="button"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
         </button>
       </div>
 
@@ -1080,7 +1214,7 @@ function SortableDay({
           className="px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
         >
           {/* Resources */}
-          <div>
+          <div className="bg-surface/60 rounded-xl p-3">
             <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
               Resources
             </p>
@@ -1088,6 +1222,17 @@ function SortableDay({
               sensors={resourceSensors}
               collisionDetection={closestCenter}
               onDragEnd={handleResourceDragEnd}
+              accessibility={{
+                screenReaderInstructions: {
+                  draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
+                },
+                announcements: {
+                  onDragStart: ({ active }) => `Picked up: ${active.id}.`,
+                  onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
+                  onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
+                  onDragCancel: () => 'Drag cancelled.',
+                },
+              }}
             >
               <SortableContext
                 items={resources.map((r) => `resource-${r.id}`)}
@@ -1098,8 +1243,10 @@ function SortableDay({
                     <SortableResource
                       key={r.id}
                       resource={r}
+                      weekNumber={weekNumber}
                       onEdit={editResource}
                       onDelete={deleteResource}
+                      onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
                     />
                   ))}
                 </div>
@@ -1162,6 +1309,7 @@ function SortableDay({
           {/* Assignments */}
           <AssignmentDropZone
             day={day}
+            weekNumber={weekNumber}
             assignments={assignments}
             onOpenAssignment={onOpenAssignment}
             onOpenAdd={onOpenAdd}
@@ -1176,8 +1324,19 @@ function SortableDay({
 
 // ─── SortableModule ───────────────────────────────────────────────────────────
 
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Unassigned' },
+  { value: 'syllabus', label: 'Syllabus' },
+  { value: 'level_up', label: 'Level Up Your Skills' },
+  { value: 'resources', label: 'Class Resources' },
+  { value: 'career', label: 'Career Development' },
+]
+
 function SortableModule({
   module,
+  courseId,
+  expanded,
+  onToggleExpand,
   onDelete,
   onAddDay,
   onDeleteDay,
@@ -1185,8 +1344,16 @@ function SortableModule({
   onOpenAdd,
   onDeleteAssignment,
   onTogglePublished,
+  onUpdateCategory,
+  onToggleModulePublished,
+  onUpdateTitle,
+  dayRefreshTriggers,
+  isDraggingOverlay = false,
 }: {
   module: Module;
+  courseId: string;
+  expanded: boolean;
+  onToggleExpand: () => void;
   onDelete: (id: string) => void;
   onAddDay: (moduleId: string, dayName: string) => void;
   onDeleteDay: (dayId: string, moduleId: string) => void;
@@ -1194,6 +1361,11 @@ function SortableModule({
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
+  onUpdateCategory: (moduleId: string, category: string | null) => void;
+  onToggleModulePublished: (id: string, current: boolean) => void;
+  onUpdateTitle: (moduleId: string, title: string) => void;
+  dayRefreshTriggers: Record<string, number>;
+  isDraggingOverlay?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1202,31 +1374,78 @@ function SortableModule({
     });
 
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const [expanded, setExpanded] = useState(true);
   const [newDayName, setNewDayName] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(module.title);
+
+  const saveTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== module.title) onUpdateTitle(module.id, trimmed);
+    else setTitleDraft(module.title);
+    setEditingTitle(false);
+  };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-surface rounded-2xl border border-border overflow-hidden"
+      className={`bg-surface rounded-2xl border border-border overflow-hidden transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
     >
       <div className="flex items-center gap-3 px-6 py-4">
         <button
           {...attributes}
           {...listeners}
-          className="text-border hover:text-muted-text cursor-grab text-lg"
+          className="text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
           aria-label={`Drag module ${module.title}`}
           type="button"
         >
           ⠿
         </button>
-        <div className="flex-1">
-          <h3 className="font-semibold text-dark-text">{module.title}</h3>
-          <p className="text-xs text-muted-text">Week {module.week_number}</p>
+        <div className="flex-1 min-w-0">
+          {editingTitle ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleDraft(module.title); setEditingTitle(false); } }}
+              className="font-semibold text-dark-text bg-background border border-teal-primary rounded px-2 py-0.5 w-full focus:outline-none"
+            />
+          ) : (
+            <h3
+              className="font-semibold text-dark-text truncate cursor-pointer hover:text-teal-primary transition-colors"
+              onClick={() => { setTitleDraft(module.title); setEditingTitle(true); }}
+              title="Click to edit title"
+            >
+              {module.title}
+            </h3>
+          )}
+          {module.week_number != null && <p className="text-xs text-muted-text">Week {module.week_number}</p>}
         </div>
+        <select
+          value={module.category ?? ''}
+          onChange={(e) => onUpdateCategory(module.id, e.target.value || null)}
+          className="text-xs bg-background border border-border rounded-md px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {CATEGORY_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={(e) => { e.stopPropagation(); onToggleModulePublished(module.id, module.published); }}
+          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            module.published
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+          }`}
+          type="button"
+          aria-label={module.published ? "Published — click to unpublish" : "Draft — click to publish"}
+        >
+          {module.published ? "Published" : "Draft"}
+        </button>
+        <button
+          onClick={onToggleExpand}
           className="text-muted-text hover:text-teal-primary text-sm px-3"
           aria-label={expanded ? "Collapse module" : "Expand module"}
           type="button"
@@ -1234,12 +1453,12 @@ function SortableModule({
           {expanded ? "▲" : "▼"}
         </button>
         <button
-          onClick={() => onDelete(module.id)}
-          className="text-muted-text hover:text-red-400 text-sm"
+          onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
+          className="text-muted-text hover:text-red-400"
           aria-label={`Delete module ${module.title}`}
           type="button"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
         </button>
       </div>
 
@@ -1257,6 +1476,8 @@ function SortableModule({
                 <SortableDay
                   key={day.id}
                   day={day}
+                  weekNumber={module.week_number}
+                  refreshTrigger={dayRefreshTriggers[day.id] ?? 0}
                   onDelete={(id) => onDeleteDay(id, module.id)}
                   onOpenAssignment={onOpenAssignment}
                   onOpenAdd={onOpenAdd}
@@ -1265,6 +1486,17 @@ function SortableModule({
                 />
               ))}
           </SortableContext>
+
+          <div className="flex gap-3 mt-1">
+            <AddAssignmentButton courseId={courseId} variant="link"
+              defaultModuleId={module.id}
+              defaultSection={module.category === 'career' ? 'career' : 'coding'}
+            />
+            <AddResourceButton courseId={courseId} variant="link"
+              defaultModuleId={module.id}
+              defaultSection={module.category === 'career' ? 'career' : 'coding'}
+            />
+          </div>
 
           <div className="flex gap-2 mt-2">
             <input
@@ -1305,14 +1537,28 @@ function SortableModule({
 export default function CourseEditor({
   course,
   initialModules,
+  filterCategory,
 }: {
   course: any;
   initialModules: Module[];
+  filterCategory?: string;
 }) {
   const [modules, setModules] = useState<Module[]>(initialModules);
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleWeek, setNewModuleWeek] = useState("");
   const [isMounted, setIsMounted] = useState(false);
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+
+  const isModuleExpanded = (id: string) => !collapsedModules.has(id);
+  const toggleModuleExpand = (id: string) => {
+    setCollapsedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const expandAllModules = () => setCollapsedModules(new Set());
+  const collapseAllModules = (ids: string[]) => setCollapsedModules(new Set(ids));
   const supabase = createClient();
 
   const usesCodePenRubric = [course.name, course.code].some(
@@ -1322,6 +1568,8 @@ export default function CourseEditor({
   const defaultTemplateId = usesCodePenRubric ? "frontend-codepen" : undefined;
 
   const [activeView, setActiveView] = useState<ActiveView | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [dayRefreshTriggers, setDayRefreshTriggers] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setIsMounted(true);
@@ -1344,24 +1592,56 @@ export default function CourseEditor({
     modulesRef.current = modules;
   }, [modules]);
 
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    setActiveDragId(active.id as string);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
     const { active, over } = event;
     if (!over) return;
 
     const activeData = active.data.current;
     const overData = over.data.current;
 
-    // Handle cross-day assignment moves
+    // Handle assignment moves (within-day reorder or cross-day)
     if (activeData?.type === "assignment") {
+      const { assignmentId, sourceDayId } = activeData;
+
+      // Within-day reorder: dropped on another assignment in the same day
+      if (overData?.type === "assignment" && overData.sourceDayId === sourceDayId) {
+        const currentMods = modulesRef.current;
+        const sourceDay = currentMods.flatMap((m) => m.module_days).find((d) => d.id === sourceDayId);
+        if (!sourceDay) return;
+        const sorted = [...(sourceDay.assignments ?? [])].sort((a, b) => a.order - b.order);
+        const oldIndex = sorted.findIndex((a) => a.id === assignmentId);
+        const newIndex = sorted.findIndex((a) => a.id === overData.assignmentId);
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+        const reordered = arrayMove(sorted, oldIndex, newIndex).map((a, i) => ({ ...a, order: i }));
+        setModules((prev) =>
+          prev.map((m) => ({
+            ...m,
+            module_days: m.module_days.map((d) =>
+              d.id === sourceDayId ? { ...d, assignments: reordered } : d
+            ),
+          }))
+        );
+        await Promise.all(
+          reordered.map((a, i) => supabase.from("assignments").update({ order: i }).eq("id", a.id))
+        );
+        return;
+      }
+
+      // Determine target day for cross-day move
       let targetDayId: string | null = null;
       if (overData?.type === "day-drop") {
         targetDayId = overData.dayId;
       } else if (overData?.type === "day") {
         targetDayId = (over.id as string).replace("day-", "");
+      } else if (overData?.type === "assignment" && overData.sourceDayId !== sourceDayId) {
+        targetDayId = overData.sourceDayId;
       }
-      if (!targetDayId || targetDayId === activeData.sourceDayId) return;
-
-      const { assignmentId, sourceDayId } = activeData;
+      if (!targetDayId || targetDayId === sourceDayId) return;
 
       let assignmentToMove: Assignment | undefined;
       for (const m of modulesRef.current) {
@@ -1375,9 +1655,13 @@ export default function CourseEditor({
       }
       if (!assignmentToMove) return;
 
+      // Compute new order = end of target day
+      const targetDay = modulesRef.current.flatMap((m) => m.module_days).find((d) => d.id === targetDayId);
+      const newOrder = (targetDay?.assignments ?? []).length;
+
       const { error: assignmentMoveError } = await supabase
         .from("assignments")
-        .update({ module_day_id: targetDayId })
+        .update({ module_day_id: targetDayId, order: newOrder })
         .eq("id", assignmentId);
       if (assignmentMoveError) console.error("Failed to move assignment:", assignmentMoveError);
 
@@ -1393,7 +1677,7 @@ export default function CourseEditor({
                 ...d,
                 assignments: [
                   ...(d.assignments ?? []),
-                  { ...assignmentToMove!, module_day_id: targetDayId },
+                  { ...assignmentToMove!, module_day_id: targetDayId, order: newOrder },
                 ],
               };
             }
@@ -1405,20 +1689,40 @@ export default function CourseEditor({
     }
 
     if (active.id === over.id) return;
-    if (activeData?.type !== overData?.type) return;
 
     const currentModules = modulesRef.current;
+    const scopedModules = filterCategory
+      ? currentModules.filter((m) => m.category === filterCategory)
+      : currentModules;
 
     if (activeData?.type === "module") {
-      const oldIndex = currentModules.findIndex(
+      // When dragging a module, `over` could be another module OR a day inside a module.
+      // Resolve the target module id in either case.
+      let targetModuleId: string | null = null;
+      if (overData?.type === "module") {
+        targetModuleId = (over.id as string).replace("module-", "");
+      } else if (overData?.type === "day") {
+        const parent = currentModules.find((m) =>
+          m.module_days.some((d) => `day-${d.id}` === over.id)
+        );
+        if (parent) targetModuleId = parent.id;
+      }
+      if (!targetModuleId) return;
+
+      const oldIndex = scopedModules.findIndex(
         (m) => `module-${m.id}` === active.id
       );
-      const newIndex = currentModules.findIndex(
-        (m) => `module-${m.id}` === over.id
-      );
-      if (oldIndex === -1 || newIndex === -1) return;
+      const newIndex = scopedModules.findIndex((m) => m.id === targetModuleId);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
-      const reordered = arrayMove([...currentModules], oldIndex, newIndex);
+      const reorderedScoped = arrayMove([...scopedModules], oldIndex, newIndex);
+
+      // Rebuild the full modules array with the scoped reorder applied
+      const scopedIds = new Set(scopedModules.map((m) => m.id));
+      let scopedIdx = 0;
+      const reordered = currentModules.map((m) =>
+        scopedIds.has(m.id) ? reorderedScoped[scopedIdx++] : m
+      );
       setModules(reordered);
 
       await Promise.all(
@@ -1429,7 +1733,7 @@ export default function CourseEditor({
       return;
     }
 
-    if (activeData?.type === "day") {
+    if (activeData?.type === "day" && overData?.type === "day") {
       const moduleId = activeData.moduleId;
       const mod = modulesRef.current.find((m) => m.id === moduleId);
       if (!mod) return;
@@ -1470,8 +1774,9 @@ export default function CourseEditor({
       .insert({
         course_id: course.id,
         title: newModuleTitle.trim(),
-        week_number: parseInt(newModuleWeek) || modules.length + 1,
+        week_number: parseInt(newModuleWeek) || null,
         order: modules.length,
+        category: filterCategory ?? null,
       })
       .select()
       .single();
@@ -1486,6 +1791,81 @@ export default function CourseEditor({
   const deleteModule = async (id: string) => {
     await supabase.from("modules").delete().eq("id", id);
     setModules((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const updateModuleCategory = async (moduleId: string, category: string | null) => {
+    const { error } = await supabase.from("modules").update({ category }).eq("id", moduleId);
+    if (error) { console.error("updateModuleCategory failed:", error.message, error.code); return; }
+    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, category } : m));
+  };
+
+  const updateModulePublished = async (moduleId: string, current: boolean) => {
+    const { error } = await supabase.from("modules").update({ published: !current }).eq("id", moduleId);
+    if (error) { console.error("updateModulePublished failed:", error.message, error.code); return; }
+    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, published: !current } : m));
+  };
+
+  const updateModuleTitle = async (moduleId: string, title: string) => {
+    const { error } = await supabase.from("modules").update({ title }).eq("id", moduleId);
+    if (error) { console.error("updateModuleTitle failed:", error.message); return; }
+    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, title } : m));
+  };
+
+  const relocateAssignment = async (assignmentId: string, targetWeek: number, targetDayName: string) => {
+    const currentMods = modulesRef.current;
+    const targetModule = currentMods.find((m) => m.week_number === targetWeek);
+    if (!targetModule) { console.error(`No module for week ${targetWeek}`); return; }
+    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (!targetDay) { console.error(`No day "${targetDayName}" in week ${targetWeek}`); return; }
+
+    // Find assignment and its current day
+    let assignmentToMove: Assignment | undefined;
+    let sourceDayId: string | undefined;
+    for (const m of currentMods) {
+      for (const d of m.module_days) {
+        const found = d.assignments?.find((a) => a.id === assignmentId);
+        if (found) { assignmentToMove = found; sourceDayId = d.id; break; }
+      }
+      if (assignmentToMove) break;
+    }
+    if (!assignmentToMove || !sourceDayId || sourceDayId === targetDay.id) return;
+
+    const newOrder = (targetDay.assignments ?? []).length;
+    const { error } = await supabase
+      .from("assignments")
+      .update({ module_day_id: targetDay.id, order: newOrder })
+      .eq("id", assignmentId);
+    if (error) { console.error("relocateAssignment failed:", error.message); return; }
+
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => {
+          if (d.id === sourceDayId)
+            return { ...d, assignments: (d.assignments ?? []).filter((a) => a.id !== assignmentId) };
+          if (d.id === targetDay.id)
+            return { ...d, assignments: [...(d.assignments ?? []), { ...assignmentToMove!, module_day_id: targetDay.id, order: newOrder }] };
+          return d;
+        }),
+      }))
+    );
+  };
+
+  const relocateResource = async (resourceId: string, targetWeek: number, targetDayName: string, onRemoved: () => void) => {
+    const currentMods = modulesRef.current;
+    const targetModule = currentMods.find((m) => m.week_number === targetWeek);
+    if (!targetModule) { console.error(`No module for week ${targetWeek}`); return; }
+    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (!targetDay) { console.error(`No day "${targetDayName}" in week ${targetWeek}`); return; }
+
+    const { error } = await supabase
+      .from("resources")
+      .update({ module_day_id: targetDay.id })
+      .eq("id", resourceId);
+    if (error) { console.error("relocateResource failed:", error.message); return; }
+
+    onRemoved();
+    setDayRefreshTriggers(prev => ({ ...prev, [targetDay.id]: (prev[targetDay.id] ?? 0) + 1 }));
   };
 
   const addDay = async (moduleId: string, dayName: string) => {
@@ -1533,6 +1913,9 @@ export default function CourseEditor({
     dueDate: string | null,
     checklistItems: RubricItem[]
   ) => {
+    const existingDay = modulesRef.current.flatMap((m) => m.module_days).find((d) => d.id === dayId);
+    const newOrder = (existingDay?.assignments ?? []).length;
+
     const { data, error } = await supabase
       .from("assignments")
       .insert({
@@ -1541,6 +1924,7 @@ export default function CourseEditor({
         description: description || null,
         how_to_turn_in: howToTurnIn || null,
         due_date: dueDate || null,
+        order: newOrder,
       })
       .select()
       .single();
@@ -1629,7 +2013,14 @@ export default function CourseEditor({
 
   const closeView = () => setActiveView(null);
 
+  const visibleModules = filterCategory
+    ? modules.filter((m) => m.category === filterCategory)
+    : modules;
+
+  const weekOptions = [...new Set(modules.map((m) => m.week_number).filter(Boolean))].sort((a, b) => a - b) as number[];
+
   return (
+    <RelocateContext.Provider value={{ weekOptions, relocateAssignment, relocateResource }}>
     <>
       {activeView && (
         <AssignmentFullView
@@ -1647,17 +2038,51 @@ export default function CourseEditor({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
+            },
+            announcements: {
+              onDragStart: ({ active }) => `Picked up: ${active.id}.`,
+              onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
+              onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
+              onDragCancel: () => 'Drag cancelled.',
+            },
+          }}
         >
           <div className="flex flex-col gap-4">
+            {visibleModules.length > 0 && (
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={expandAllModules}
+                  className="text-xs text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Expand all
+                </button>
+                <span className="text-xs text-border">·</span>
+                <button
+                  type="button"
+                  onClick={() => collapseAllModules(visibleModules.map(m => m.id))}
+                  className="text-xs text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Collapse all
+                </button>
+              </div>
+            )}
             <SortableContext
-              items={modules.map((m) => `module-${m.id}`)}
+              items={visibleModules.map((m) => `module-${m.id}`)}
               strategy={verticalListSortingStrategy}
             >
-              {modules.map((module) => (
+              {visibleModules.map((module) => (
                 <SortableModule
                   key={module.id}
                   module={module}
+                  courseId={course.id}
+                  expanded={isModuleExpanded(module.id)}
+                  onToggleExpand={() => toggleModuleExpand(module.id)}
                   onDelete={deleteModule}
                   onAddDay={addDay}
                   onDeleteDay={deleteDay}
@@ -1665,6 +2090,11 @@ export default function CourseEditor({
                   onOpenAdd={openAdd}
                   onDeleteAssignment={deleteAssignment}
                   onTogglePublished={togglePublished}
+                  onUpdateCategory={updateModuleCategory}
+                  onToggleModulePublished={updateModulePublished}
+                  onUpdateTitle={updateModuleTitle}
+                  dayRefreshTriggers={dayRefreshTriggers}
+                  isDraggingOverlay={activeDragId === `module-${module.id}`}
                 />
               ))}
             </SortableContext>
@@ -1703,8 +2133,22 @@ export default function CourseEditor({
               </div>
             </div>
           </div>
+
+          <DragOverlay>
+            {activeDragId ? (() => {
+              const m = modules.find(mod => `module-${mod.id}` === activeDragId);
+              if (!m) return null;
+              return (
+                <div className="bg-surface rounded-2xl border border-teal-primary shadow-lg px-6 py-4 opacity-95 cursor-grabbing">
+                  <p className="font-semibold text-dark-text">{m.title}</p>
+                  <p className="text-xs text-muted-text">Week {m.week_number}</p>
+                </div>
+              );
+            })() : null}
+          </DragOverlay>
         </DndContext>
       )}
     </>
+    </RelocateContext.Provider>
   );
 }

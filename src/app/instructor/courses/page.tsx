@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import DeleteCourseButton from '@/components/ui/DeleteCourseButton'
 import DuplicateCourseButton from '@/components/ui/DuplicateCourseButton'
 
@@ -11,7 +12,7 @@ export default async function CoursesPage() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role')
+    .select('name, role')
     .eq('id', user.id)
     .single()
 
@@ -26,14 +27,9 @@ export default async function CoursesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/dashboard" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <span className="text-sm text-muted-text capitalize">{profile?.role}</span>
-      </nav>
+      <InstructorTopNav name={profile?.name} role={profile?.role} />
 
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-dark-text">Courses</h2>
           <Link

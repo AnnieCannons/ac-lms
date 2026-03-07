@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Modal from "./Modal";
 
 type Stats = {
   modules: number;
@@ -85,8 +86,8 @@ export default function DuplicateCourseButton({
     }, 1800);
   };
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         type="button"
         onClick={handleOpen}
@@ -94,18 +95,9 @@ export default function DuplicateCourseButton({
       >
         Duplicate
       </button>
-    );
-  }
 
-  return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/30 z-40"
-        onClick={handleClose}
-      />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-surface rounded-2xl border border-border shadow-lg p-8 w-full max-w-md">
-
+      {open && (
+        <Modal title="Duplicate Course" onClose={handleClose} maxWidth="max-w-md">
           {stats ? (
             <div className="flex flex-col gap-3 text-center py-4">
               <div className="text-4xl">✓</div>
@@ -124,17 +116,6 @@ export default function DuplicateCourseButton({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-dark-text">Duplicate Course</h3>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="text-muted-text hover:text-dark-text text-xl leading-none"
-                >
-                  ✕
-                </button>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-dark-text mb-1">Course Name</label>
                 <input
@@ -212,9 +193,8 @@ export default function DuplicateCourseButton({
               </div>
             </form>
           )}
-
-        </div>
-      </div>
+        </Modal>
+      )}
     </>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { saveGrade } from "@/lib/grade-actions";
 
 type Grade = "complete" | "incomplete" | null;
 
@@ -17,7 +17,6 @@ export default function GradeButtons({
   initialGradedAt: string | null;
   gradedById: string;
 }) {
-  const supabase = createClient();
   const router = useRouter();
   const [grade, setGrade] = useState<Grade>(initialGrade);
   const [gradedAt, setGradedAt] = useState<string | null>(initialGradedAt);
@@ -29,17 +28,9 @@ export default function GradeButtons({
     setSaving(true);
     setGrade(newGrade);
     setGradedAt(now);
-    const { error } = await supabase
-      .from("submissions")
-      .update({
-        grade: newGrade,
-        status: newGrade ? "graded" : "submitted",
-        graded_at: now,
-        graded_by: newGrade ? gradedById : null,
-      })
-      .eq("id", submissionId);
-    if (error) {
-      console.error("Failed to save grade:", error.message);
+    const result = await saveGrade(submissionId, newGrade, gradedById);
+    if (result.error) {
+      console.error("Failed to save grade:", result.error);
       setGrade(grade);
       setGradedAt(initialGradedAt);
     }
@@ -55,8 +46,8 @@ export default function GradeButtons({
           disabled={saving}
           className={`text-sm font-semibold px-4 py-2 rounded-full transition-all disabled:opacity-50 ${
             grade === "complete"
-              ? "bg-teal-primary text-white"
-              : "bg-surface border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+              ? "bg-green-600 text-white"
+              : "bg-surface border border-border text-muted-text hover:border-green-600 hover:text-green-700"
           }`}
         >
           Complete

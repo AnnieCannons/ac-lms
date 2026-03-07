@@ -1,11 +1,12 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import LogoutButton from '@/components/ui/LogoutButton'
+import StudentTopNav from '@/components/ui/StudentTopNav'
 import HtmlContent from '@/components/ui/HtmlContent'
 import SubmissionForm from '@/components/ui/SubmissionForm'
-import StudentChecklist from '@/components/ui/StudentChecklist'
 import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
+import { isStudentPreview } from '@/lib/student-preview'
+import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
 export default async function StudentAssignmentPage({
   params,
@@ -23,7 +24,9 @@ export default async function StudentAssignmentPage({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  const preview = await isStudentPreview(id)
+
+  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
     redirect(`/instructor/courses/${id}`)
   }
 
@@ -36,11 +39,11 @@ export default async function StudentAssignmentPage({
     .eq('role', 'student')
     .maybeSingle()
 
-  if (!enrollment) redirect('/student/courses')
+  if (!preview && !enrollment) redirect('/student/courses')
 
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published')
+    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required')
     .eq('id', assignmentId)
     .eq('published', true)
     .single()
@@ -55,7 +58,7 @@ export default async function StudentAssignmentPage({
 
   const { data: checklistItems } = await supabase
     .from('checklist_items')
-    .select('id, text, description, order')
+    .select('id, text, description, order, required')
     .eq('assignment_id', assignmentId)
     .order('order', { ascending: true })
 
@@ -90,6 +93,19 @@ export default async function StudentAssignmentPage({
         .eq('submission_id', existingSubmission.id)
     : { data: [] }
 
+  // Student's own checklist progress (use service role to bypass RLS)
+  const { data: studentProgress } = admin
+    ? await admin
+        .from('student_checklist_progress')
+        .select('checklist_item_id, checked')
+        .eq('student_id', user.id)
+        .in('checklist_item_id', (checklistItems ?? []).map(i => i.id))
+    : { data: [] }
+
+  const initialChecked: Record<string, boolean> = {}
+  ;(checklistItems ?? []).forEach(i => { initialChecked[i.id] = false })
+  ;(studentProgress ?? []).forEach(r => { initialChecked[r.checklist_item_id] = r.checked })
+
   const instructorResponseMap = new Map(
     (instructorResponses ?? []).map(r => [r.checklist_item_id, r.checked])
   )
@@ -119,19 +135,10 @@ export default async function StudentAssignmentPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
-        <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
-          </span>
-          <LogoutButton />
-        </div>
-      </nav>
+      <StudentTopNav name={profile?.name} role={profile?.role} />
+      {preview && <StudentViewBanner courseId={id} />}
 
-      <main className="max-w-3xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/student/courses" className="hover:text-teal-primary">My Courses</Link>
@@ -152,13 +159,18 @@ export default async function StudentAssignmentPage({
         <div className="flex items-start justify-between gap-4 mb-1">
           <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
           {existingSubmission?.grade === 'complete' && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-teal-light text-teal-primary">
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-600">
               Complete ✓
             </span>
           )}
           {existingSubmission?.grade === 'incomplete' && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500">
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500 border border-red-500">
               Needs Revision
+            </span>
+          )}
+          {!existingSubmission && assignment.due_date && new Date(assignment.due_date) < new Date() && (
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-500">
+              Late
             </span>
           )}
         </div>
@@ -207,10 +219,10 @@ export default async function StudentAssignmentPage({
                   <p className="text-xs text-muted-text mt-0.5">This checklist determines your grade.</p>
                 </div>
                 {existingSubmission?.grade === 'complete' && (
-                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-teal-light text-teal-primary">Complete ✓</span>
+                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600">Complete ✓</span>
                 )}
                 {existingSubmission?.grade === 'incomplete' && (
-                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500">Needs Revision</span>
+                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500 border border-red-500">Needs Revision</span>
                 )}
               </div>
               <div className="flex flex-col gap-2">
@@ -218,7 +230,7 @@ export default async function StudentAssignmentPage({
                   const checked = instructorResponseMap.get(item.id) === true
                   return (
                     <div key={item.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${checked ? 'border-teal-primary bg-teal-light/30' : 'border-border bg-background'}`}>
-                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-border'}`}>
+                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-gray-400'}`}>
                         {checked && (
                           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
@@ -238,18 +250,23 @@ export default async function StudentAssignmentPage({
             </div>
           )}
 
-          {/* Student Checklist */}
-          {checklistItems && checklistItems.length > 0 && (
-            <StudentChecklist assignmentId={assignmentId} studentId={user.id} items={checklistItems} />
+          {/* Submission form (includes student checklist when items exist) */}
+          {assignment.submission_required !== false ? (
+            <SubmissionForm
+              assignmentId={assignmentId}
+              studentId={user.id}
+              courseId={id}
+              existingSubmission={existingSubmission ?? null}
+              initialHistory={submissionHistory ?? []}
+              checklistItems={checklistItems ?? undefined}
+              initialChecked={initialChecked}
+            />
+          ) : (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
+              <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
+            </div>
           )}
-
-          {/* Submission form */}
-          <SubmissionForm
-            assignmentId={assignmentId}
-            studentId={user.id}
-            existingSubmission={existingSubmission ?? null}
-            initialHistory={submissionHistory ?? []}
-          />
 
           {/* Comments (only shown once there's a submission) */}
           {existingSubmission && (

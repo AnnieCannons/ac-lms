@@ -21,11 +21,11 @@ export type WorkAssignment = {
 };
 
 function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean }) {
-  if (grade === "complete") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete ✓</span>;
-  if (grade === "incomplete") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Needs Revision</span>;
-  if (status === "submitted") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned in</span>;
+  if (grade === "complete") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>;
+  if (grade === "incomplete") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>;
+  if (status === "submitted") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned in</span>;
   if (status === "draft") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-600 shrink-0">Draft</span>;
-  if (isLate) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Late</span>;
+  if (isLate) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-500 shrink-0">Late</span>;
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not started</span>;
 }
 
@@ -69,12 +69,12 @@ export default function StudentWorkList({
       className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-4 hover:border-teal-primary transition-colors gap-4"
     >
       <div className="flex-1 min-w-0">
-        <p className={`font-semibold text-base truncate ${a.isLate && !a.status && !a.grade ? "text-red-500" : "text-dark-text"}`}>
+        <p className={`font-semibold text-base truncate ${a.isLate && !a.status && !a.grade ? "text-amber-700" : "text-dark-text"}`}>
           {a.title}
         </p>
         {filter === "all" ? (
           a.due_date && (
-            <p className={`text-xs mt-0.5 ${a.isLate && !a.status && !a.grade ? "text-red-400" : "text-muted-text"}`}>
+            <p className={`text-xs mt-0.5 ${a.isLate && !a.status && !a.grade ? "text-amber-600" : "text-muted-text"}`}>
               Due {new Date(a.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </p>
           )
@@ -97,8 +97,16 @@ export default function StudentWorkList({
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
-              filter === f.key ? "bg-teal-primary text-white" : "text-muted-text hover:text-dark-text"
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+              filter === f.key
+                ? f.key === "complete"   ? "bg-green-600 text-white border-green-600"
+                : f.key === "incomplete" ? "bg-red-500 text-white border-red-500"
+                : f.key === "turned-in"  ? "bg-teal-primary text-white border-teal-primary"
+                : "bg-dark-text text-white border-dark-text"
+                : f.key === "complete"   ? "bg-green-50 text-green-700 border-green-600"
+                : f.key === "incomplete" ? "bg-red-50 text-red-500 border-red-500"
+                : f.key === "turned-in"  ? "bg-teal-light text-teal-primary border-teal-primary"
+                : "bg-background text-muted-text border-border"
             }`}
           >
             {f.label}

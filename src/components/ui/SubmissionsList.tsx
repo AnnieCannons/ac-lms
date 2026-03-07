@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { markCompleteNoSubmission } from "@/lib/grade-actions";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type SubmissionType = "text" | "link" | "file";
@@ -26,13 +28,13 @@ type Sort = "name-asc" | "name-desc" | "date-newest" | "date-oldest";
 
 function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade?: "complete" | "incomplete" | null }) {
   if (grade === "complete") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Complete</span>
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete</span>
   );
   if (grade === "incomplete") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 shrink-0">Incomplete</span>
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Incomplete</span>
   );
   if (status === "submitted") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary shrink-0">Turned in</span>
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned in</span>
   );
   if (status === "graded") return (
     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-primary shrink-0">Graded</span>
@@ -59,13 +61,21 @@ export default function SubmissionsList({
   students,
   courseId,
   assignmentId,
+  submissionRequired = true,
+  currentUserId,
 }: {
   students: StudentRow[];
   courseId: string;
   assignmentId: string;
+  submissionRequired?: boolean;
+  currentUserId?: string;
 }) {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("name-asc");
+  // Optimistic grade overrides: studentId -> 'complete' | null
+  const [gradeOverrides, setGradeOverrides] = useState<Record<string, 'complete' | null>>({});
+  const [pending, startTransition] = useTransition();
 
   const counts = {
     all: students.length,
@@ -98,6 +108,20 @@ export default function SubmissionsList({
     }
     return 0;
   });
+
+  const toggleComplete = (studentId: string, currentGrade: string | null | undefined) => {
+    if (!currentUserId) return;
+    const newGrade: 'complete' | null = currentGrade === 'complete' ? null : 'complete';
+    setGradeOverrides(prev => ({ ...prev, [studentId]: newGrade }));
+    startTransition(async () => {
+      const result = await markCompleteNoSubmission(assignmentId, studentId, newGrade, currentUserId);
+      if (result.error) {
+        setGradeOverrides(prev => ({ ...prev, [studentId]: currentGrade === 'complete' ? 'complete' : null }));
+      } else {
+        router.refresh();
+      }
+    });
+  };
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
@@ -150,7 +174,11 @@ export default function SubmissionsList({
         <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
           {sorted.map(student => {
             const sub = student.submission;
-            const canGrade = sub?.status === "submitted" || sub?.status === "graded";
+            const canGrade = !submissionRequired || sub?.status === "submitted" || sub?.status === "graded";
+            const effectiveGrade = gradeOverrides.hasOwnProperty(student.id)
+              ? gradeOverrides[student.id]
+              : sub?.grade;
+            const isComplete = effectiveGrade === 'complete';
 
             return (
               <div key={student.id} className="bg-surface px-6 py-4 flex items-center gap-4">
@@ -158,12 +186,12 @@ export default function SubmissionsList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
                     <span className="text-sm font-semibold text-dark-text">{student.name}</span>
-                    <StatusBadge status={sub?.status ?? null} grade={sub?.grade} />
+                    <StatusBadge status={sub?.status ?? null} grade={effectiveGrade ?? sub?.grade} />
                     {student.historyCount > 1 && (
                       <span className="text-xs text-muted-text">{student.historyCount} submissions</span>
                     )}
                   </div>
-                  {sub ? (
+                  {sub && submissionRequired ? (
                     <div className="flex items-center gap-3 text-xs">
                       <span className="text-muted-text shrink-0">
                         {new Date(sub.submitted_at).toLocaleDateString("en-US", {
@@ -175,20 +203,35 @@ export default function SubmissionsList({
                         <SubmissionPreview type={sub.submission_type} content={sub.content} />
                       </div>
                     </div>
-                  ) : (
+                  ) : !submissionRequired ? null : (
                     <p className="text-xs text-muted-text italic">No submission yet.</p>
                   )}
                 </div>
 
-                {/* Grade link */}
-                {canGrade && (
-                  <Link
-                    href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${student.id}`}
-                    className="shrink-0 text-xs font-semibold text-teal-primary hover:underline"
-                  >
-                    {sub?.status === "graded" ? "Review →" : "Grade →"}
-                  </Link>
-                )}
+                {/* Actions */}
+                <div className="flex items-center gap-3 shrink-0">
+                  {!submissionRequired && currentUserId && (
+                    <button
+                      onClick={() => toggleComplete(student.id, effectiveGrade)}
+                      disabled={pending}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${
+                        isComplete
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-surface text-muted-text border-border hover:border-green-600 hover:text-green-700'
+                      }`}
+                    >
+                      {isComplete ? '✓ Complete' : 'Mark complete'}
+                    </button>
+                  )}
+                  {canGrade && submissionRequired && (
+                    <Link
+                      href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${student.id}`}
+                      className="text-xs font-semibold text-teal-primary hover:underline"
+                    >
+                      {sub?.status === "graded" ? "Review →" : "Grade →"}
+                    </Link>
+                  )}
+                </div>
               </div>
             );
           })}
