@@ -16,7 +16,7 @@ export default function StudentViewBanner({ courseId }: { courseId: string }) {
       </p>
       <button
         onClick={leavePreview}
-        className="text-xs font-semibold text-amber-900 bg-amber-200 hover:bg-amber-300 border border-amber-400 px-3 py-1 rounded-full transition-colors shrink-0"
+        className="text-xs font-semibold text-amber-50 bg-amber-700 hover:bg-amber-800 border border-amber-600 px-3 py-1 rounded-full transition-colors shrink-0"
       >
         Leave Student View
       </button>

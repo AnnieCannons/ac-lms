@@ -30,7 +30,7 @@ export default async function AccountPage() {
         <div className="flex items-center gap-3 mb-8">
           <BackButton />
           <span className="text-border">/</span>
-          <h1 className="text-2xl font-bold text-dark-text">My Account</h1>
+          <h1 className="text-2xl font-bold text-dark-text">Profile</h1>
         </div>
 
         <AccountForm
