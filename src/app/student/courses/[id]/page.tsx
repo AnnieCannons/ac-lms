@@ -74,11 +74,15 @@ export default async function StudentCourseDetailPage({
     !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
   )
 
-  const [{ data: submissions }, { data: stars }, { data: completions }] = await Promise.all([
+  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }] = await Promise.all([
     supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+    supabase.from('quizzes').select('id, title, module_title, day_title, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).not('day_title', 'is', null),
   ])
+
+  type CourseQuiz = { id: string; title: string; module_title: string; day_title: string | null; max_attempts: number | null; due_at: string | null; questions: unknown[] }
+  const quizzes = (quizData ?? []) as CourseQuiz[]
 
   const submissionMap = Object.fromEntries(
     (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
@@ -145,6 +149,7 @@ export default async function StudentCourseDetailPage({
                 submissionMap={submissionMap}
                 initialStarredIds={starredIds}
                 initialCompletedIds={completedIds}
+                quizzes={quizzes}
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">

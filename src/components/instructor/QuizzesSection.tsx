@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
-import { createQuiz, toggleQuizPublished, upsertQuizFromJson } from "@/lib/quiz-actions";
+import { createQuiz, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
 import QuizFullView from "./QuizFullView";
 import {
   DndContext,
@@ -232,6 +232,19 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     }
   };
 
+  const handleDayChange = async (quiz: QuizRow, dayTitle: string | null) => {
+    setLocalQuizzes((prev) =>
+      prev.map((q) => (q.id === quiz.id ? { ...q, day_title: dayTitle } : q))
+    );
+    try {
+      await updateQuizDay(quiz.id, dayTitle);
+    } catch {
+      setLocalQuizzes((prev) =>
+        prev.map((q) => (q.id === quiz.id ? quiz : q))
+      );
+    }
+  };
+
   return (
     <>
       {selectedQuiz && (
@@ -373,6 +386,21 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
                                       >
                                         {quiz.published ? "Published" : "Unpublished"}
                                       </button>
+
+                                      {!quiz.id.startsWith("json-") && (
+                                        <select
+                                          value={quiz.day_title ?? ""}
+                                          onChange={(e) => handleDayChange(quiz, e.target.value || null)}
+                                          className="shrink-0 text-xs bg-background border border-border text-muted-text rounded-full px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <option value="">— Day —</option>
+                                          <option value="Monday">Mon</option>
+                                          <option value="Tuesday">Tue</option>
+                                          <option value="Wednesday">Wed</option>
+                                          <option value="Thursday">Thu</option>
+                                        </select>
+                                      )}
 
                                       {!quiz.id.startsWith("json-") && (
                                         <Link

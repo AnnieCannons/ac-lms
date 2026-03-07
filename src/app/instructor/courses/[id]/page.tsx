@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
@@ -42,6 +42,17 @@ export default async function CoursePage({
     .eq("course_id", id)
     .order("order", { ascending: true });
 
+  const admin = createServiceSupabaseClient();
+  const { data: quizzesData } = await admin
+    .from("quizzes")
+    .select("id, title, questions, published, module_title, day_title")
+    .eq("course_id", id)
+    .not("day_title", "is", null);
+
+  const courseQuizzes = (quizzesData ?? []) as Array<{
+    id: string; title: string; questions: unknown[]; published: boolean; module_title: string; day_title: string;
+  }>;
+
   return (
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} />
@@ -66,7 +77,7 @@ export default async function CoursePage({
               initialCode={course.code}
             />
 
-            <CourseEditor course={course} initialModules={modules || []} />
+            <CourseEditor course={course} initialModules={modules || []} courseQuizzes={courseQuizzes} />
           </main>
         </div>
       </div>

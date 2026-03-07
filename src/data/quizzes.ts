@@ -46,6 +46,7 @@ export type QuizRow = {
   published: boolean;
   questions: QuizQuestion[];
   max_attempts: number | null;
+  day_title?: string | null;
   created_at?: string;
   updated_at?: string;
 };

@@ -101,6 +101,16 @@ export async function getConductSubmissions(quizId: string) {
   return { submissions: submissions ?? [], progress };
 }
 
+export async function updateQuizDay(quizId: string, dayTitle: string | null) {
+  await getInstructorSession();
+  const admin = createServiceSupabaseClient();
+  const { error } = await admin
+    .from("quizzes")
+    .update({ day_title: dayTitle, updated_at: new Date().toISOString() })
+    .eq("id", quizId);
+  if (error) throw new Error(error.message);
+}
+
 export async function upsertQuizFromJson(
   courseId: string,
   identifier: string,

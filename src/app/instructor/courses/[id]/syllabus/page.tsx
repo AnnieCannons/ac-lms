@@ -1,9 +1,11 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
+
+export const dynamic = 'force-dynamic';
 
 export default async function InstructorSyllabusPage({
   params,
@@ -39,6 +41,17 @@ export default async function InstructorSyllabusPage({
     .eq("course_id", id)
     .order("order", { ascending: true });
 
+  const admin = createServiceSupabaseClient();
+  const { data: quizzesData } = await admin
+    .from("quizzes")
+    .select("id, title, questions, published, module_title, day_title")
+    .eq("course_id", id)
+    .not("day_title", "is", null);
+
+  const courseQuizzes = (quizzesData ?? []) as Array<{
+    id: string; title: string; questions: unknown[]; published: boolean; module_title: string; day_title: string;
+  }>;
+
   return (
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} />
@@ -52,7 +65,8 @@ export default async function InstructorSyllabusPage({
               ← Courses
             </Link>
             <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Course Outline</h2>
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="syllabus" />
+
+            <CourseEditor course={course} initialModules={modules || []} filterCategory="syllabus" courseQuizzes={courseQuizzes} />
           </main>
         </div>
       </div>

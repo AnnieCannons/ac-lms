@@ -98,6 +98,16 @@ interface Assignment {
   published: boolean
 }
 
+interface Quiz {
+  id: string
+  title: string
+  module_title: string
+  day_title: string | null
+  max_attempts: number | null
+  due_at: string | null
+  questions: unknown[]
+}
+
 interface Day {
   id: string
   day_name: string
@@ -136,6 +146,7 @@ interface Props {
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
   hideLevelUpBanner?: boolean
+  quizzes?: Quiz[]
 }
 
 function DayModal({
@@ -150,6 +161,7 @@ function DayModal({
   onToggleStar,
   onToggleComplete,
   hideLevelUpBanner,
+  quizzesForDay,
 }: {
   module: Module
   day: Day
@@ -162,10 +174,11 @@ function DayModal({
   onToggleStar: (id: string) => void
   onToggleComplete: (id: string) => void
   hideLevelUpBanner?: boolean
+  quizzesForDay: Quiz[]
 }) {
   const publishedAssignments = (day.assignments ?? []).filter(a => a.published)
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
-  const hasContent = publishedAssignments.length > 0 || resources.length > 0
+  const hasContent = publishedAssignments.length > 0 || resources.length > 0 || quizzesForDay.length > 0
 
   return (
     <div
@@ -269,6 +282,34 @@ function DayModal({
             </div>
           )}
 
+          {/* Quizzes */}
+          {quizzesForDay.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-3">Quizzes</p>
+              <div className="flex flex-col gap-2">
+                {quizzesForDay.map(quiz => {
+                  const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title
+                  const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0
+                  return (
+                    <div key={quiz.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark-text">{displayTitle}</p>
+                        <p className="text-xs text-muted-text mt-0.5">{questionCount} question{questionCount !== 1 ? 's' : ''}</p>
+                      </div>
+                      <Link
+                        href={`/student/courses/${courseId}/quizzes/${quiz.id}`}
+                        className="text-sm text-teal-primary font-semibold hover:underline shrink-0"
+                        onClick={onClose}
+                      >
+                        Take →
+                      </Link>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Empty state */}
           {!hasContent && (
             <p className="text-sm text-muted-text text-center py-6">Nothing scheduled for this day yet.</p>
@@ -299,7 +340,7 @@ function DayModal({
 
 export default function CourseOutlineAccordion({
   modules, courseId, currentWeek, todayName, submissionMap,
-  initialStarredIds, initialCompletedIds, hideLevelUpBanner,
+  initialStarredIds, initialCompletedIds, hideLevelUpBanner, quizzes,
 }: Props) {
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
@@ -376,7 +417,8 @@ export default function CourseOutlineAccordion({
                     const isToday = isCurrentWeek && day.day_name === todayName
                     const publishedAssignments = day.assignments?.filter(a => a.published) ?? []
                     const resources = day.resources ?? []
-                    const total = publishedAssignments.length + resources.length
+                    const dayQuizzes = (quizzes ?? []).filter(q => q.module_title === module.title && q.day_title === day.day_name)
+                    const total = publishedAssignments.length + resources.length + dayQuizzes.length
 
                     return (
                       <button
@@ -403,6 +445,7 @@ export default function CourseOutlineAccordion({
                               {[
                                 publishedAssignments.length > 0 && `${publishedAssignments.length} assignment${publishedAssignments.length !== 1 ? 's' : ''}`,
                                 resources.length > 0 && `${resources.length} resource${resources.length !== 1 ? 's' : ''}`,
+                                dayQuizzes.length > 0 && `${dayQuizzes.length} quiz${dayQuizzes.length !== 1 ? 'zes' : ''}`,
                               ].filter(Boolean).join(' · ')}
                             </span>
                           )}
@@ -431,6 +474,7 @@ export default function CourseOutlineAccordion({
           onToggleStar={toggleStar}
           onToggleComplete={toggleComplete}
           hideLevelUpBanner={hideLevelUpBanner}
+          quizzesForDay={(quizzes ?? []).filter(q => q.module_title === openDay.module.title && q.day_title === openDay.day.day_name)}
         />
       )}
     </>

@@ -29,6 +29,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
 import AddResourceButton from "@/components/ui/AddResourceButton";
+import Link from "next/link";
+import { toggleQuizPublished } from "@/lib/quiz-actions";
 
 
 type Assignment = {
@@ -140,6 +142,15 @@ type Resource = {
   content: string | null;
   description: string | null;
   order: number;
+};
+
+type QuizEntry = {
+  id: string;
+  title: string;
+  questions: unknown[];
+  published: boolean;
+  module_title: string;
+  day_title: string | null;
 };
 
 type Day = {
@@ -1044,6 +1055,8 @@ function SortableDay({
   onOpenAdd,
   onDeleteAssignment,
   onTogglePublished,
+  courseId,
+  quizzesForDay,
 }: {
   day: Day;
   weekNumber: number | null;
@@ -1053,6 +1066,8 @@ function SortableDay({
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
+  courseId: string;
+  quizzesForDay: QuizEntry[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1081,6 +1096,13 @@ function SortableDay({
         if (data) setResources(data);
       });
   }, [day.id, refreshTrigger]);
+
+  const [quizzes, setQuizzes] = useState<QuizEntry[]>(quizzesForDay);
+  const quizzesKey = quizzesForDay.map(q => `${q.id}:${q.published}`).join(',');
+  useEffect(() => {
+    setQuizzes(quizzesForDay);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizzesKey]);
 
   const resourceSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -1178,7 +1200,7 @@ function SortableDay({
         >
           <span>{day.day_name}</span>
           <span className="text-xs text-muted-text">
-            ({assignments.length + resources.length})
+            ({assignments.length + resources.length + quizzes.length})
           </span>
         </button>
 
@@ -1316,6 +1338,55 @@ function SortableDay({
             onDeleteAssignment={onDeleteAssignment}
             onTogglePublished={onTogglePublished}
           />
+
+          {/* Quizzes */}
+          {quizzes.length > 0 && (
+            <div className="bg-surface/60 rounded-xl p-3">
+              <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
+                Quizzes
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {quizzes.map(quiz => {
+                  const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title;
+                  const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
+                  return (
+                    <div key={quiz.id} className="bg-surface rounded-lg border border-border px-3 py-2 flex items-center gap-2">
+                      <Link
+                        href={`/instructor/courses/${courseId}/quizzes?open=${quiz.id}`}
+                        className="flex-1 min-w-0"
+                      >
+                        <p className="text-sm text-dark-text truncate hover:text-teal-primary transition-colors">
+                          {displayTitle}
+                        </p>
+                        <p className="text-xs text-muted-text">
+                          {questionCount} question{questionCount !== 1 ? 's' : ''}
+                        </p>
+                      </Link>
+                      <button
+                        onClick={async () => {
+                          const newPublished = !quiz.published;
+                          setQuizzes(prev => prev.map(q => q.id === quiz.id ? { ...q, published: newPublished } : q));
+                          try {
+                            await toggleQuizPublished(quiz.id, newPublished);
+                          } catch {
+                            setQuizzes(prev => prev.map(q => q.id === quiz.id ? quiz : q));
+                          }
+                        }}
+                        className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                          quiz.published
+                            ? 'border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white'
+                            : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+                        }`}
+                        type="button"
+                      >
+                        {quiz.published ? 'Published' : 'Unpublished'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1349,6 +1420,7 @@ function SortableModule({
   onUpdateTitle,
   dayRefreshTriggers,
   isDraggingOverlay = false,
+  allQuizzes,
 }: {
   module: Module;
   courseId: string;
@@ -1366,6 +1438,7 @@ function SortableModule({
   onUpdateTitle: (moduleId: string, title: string) => void;
   dayRefreshTriggers: Record<string, number>;
   isDraggingOverlay?: boolean;
+  allQuizzes: QuizEntry[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1483,6 +1556,13 @@ function SortableModule({
                   onOpenAdd={onOpenAdd}
                   onDeleteAssignment={onDeleteAssignment}
                   onTogglePublished={onTogglePublished}
+                  courseId={courseId}
+                  quizzesForDay={allQuizzes.filter(q => {
+                    if (q.day_title?.trim() !== day.day_name?.trim()) return false;
+                    if (q.module_title?.trim() === module.title?.trim()) return true;
+                    const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1];
+                    return !!(quizWeek && module.week_number === parseInt(quizWeek, 10));
+                  })}
                 />
               ))}
           </SortableContext>
@@ -1538,10 +1618,12 @@ export default function CourseEditor({
   course,
   initialModules,
   filterCategory,
+  courseQuizzes = [],
 }: {
   course: any;
   initialModules: Module[];
   filterCategory?: string;
+  courseQuizzes?: QuizEntry[];
 }) {
   const [modules, setModules] = useState<Module[]>(initialModules);
   const [newModuleTitle, setNewModuleTitle] = useState("");
@@ -2095,6 +2177,7 @@ export default function CourseEditor({
                   onUpdateTitle={updateModuleTitle}
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
+                  allQuizzes={courseQuizzes}
                 />
               ))}
             </SortableContext>

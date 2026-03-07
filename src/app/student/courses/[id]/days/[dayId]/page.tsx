@@ -87,17 +87,16 @@ export default async function StudentDayDetailPage({
 
   const module = Array.isArray(day.modules) ? day.modules[0] : day.modules
 
-  // Only show quizzes on "Assignments" days
-  const isAssignmentsDay = day.day_name?.toLowerCase().includes('assignment')
   let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null }> = []
   let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
 
-  if (isAssignmentsDay && module?.title) {
+  if (module?.title && day.day_name) {
     const { data: quizData } = await supabase
       .from('quizzes')
       .select('id, title, questions, max_attempts, due_at')
       .eq('course_id', id)
       .eq('module_title', module.title)
+      .eq('day_title', day.day_name)
       .eq('published', true)
     quizzes = (quizData ?? []) as typeof quizzes
 
@@ -191,8 +190,8 @@ export default async function StudentDayDetailPage({
             )}
           </section>
 
-          {/* Quizzes (only on Assignments days) */}
-          {isAssignmentsDay && quizzes.length > 0 && (
+          {/* Quizzes */}
+          {quizzes.length > 0 && (
             <section>
               <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Quizzes</h3>
               <div className="flex flex-col gap-3">
