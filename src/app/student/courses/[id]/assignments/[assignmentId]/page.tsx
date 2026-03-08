@@ -55,9 +55,15 @@ export default async function StudentAssignmentPage({
 
   const { data: day } = await supabase
     .from('module_days')
-    .select('id, day_name, module_id, modules(id, title, week_number)')
+    .select('id, day_name, module_id, modules(id, title, week_number, course_id)')
     .eq('id', assignment.module_day_id)
     .single()
+
+  // Verify the assignment actually belongs to this course
+  const dayModule = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
+  if (!day || (dayModule as { course_id: string } | null)?.course_id !== id) {
+    redirect(`/student/courses/${id}`)
+  }
 
   const { data: checklistItems } = await supabase
     .from('checklist_items')

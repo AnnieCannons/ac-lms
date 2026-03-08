@@ -29,6 +29,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { toggleQuizPublished } from "@/lib/quiz-actions";
+import HtmlContent from "@/components/ui/HtmlContent";
 
 
 type Assignment = {
@@ -589,9 +590,9 @@ function AssignmentFullView({
               <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
                 <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-3">Instructions</p>
                 {assignment!.description ? (
-                  <div
+                  <HtmlContent
+                    html={assignment!.description}
                     className="tiptap text-sm text-[#ede0f5] leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-bold [&_h2]:text-base [&_h2]:text-white [&_h3]:font-semibold [&_h3]:text-white [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
-                    dangerouslySetInnerHTML={{ __html: assignment!.description }}
                   />
                 ) : (
                   <p className="text-sm text-[#7a5299] italic">No instructions.</p>
@@ -601,9 +602,9 @@ function AssignmentFullView({
               {assignment!.how_to_turn_in && (
                 <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
                   <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-3">How to turn this in</p>
-                  <div
+                  <HtmlContent
+                    html={assignment!.how_to_turn_in}
                     className="tiptap text-sm text-[#ede0f5] leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
-                    dangerouslySetInnerHTML={{ __html: assignment!.how_to_turn_in }}
                   />
                 </div>
               )}

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
+import HtmlContent from '@/components/ui/HtmlContent'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -76,9 +77,9 @@ function ReadingResource({
         <StarButton starred={starred} onToggle={onToggleStar} />
       </div>
       {open && resource.content && (
-        <div
+        <HtmlContent
+          html={resource.content}
           className="px-5 py-4 border-t border-border text-sm text-dark-text wiki-content"
-          dangerouslySetInnerHTML={{ __html: resource.content }}
         />
       )}
     </div>

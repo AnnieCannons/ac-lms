@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
+import HtmlContent from '@/components/ui/HtmlContent'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -271,9 +272,9 @@ function ReadingResource({
         )}
       </div>
       {open && resource.content && (
-        <div
+        <HtmlContent
+          html={resource.content}
           className="px-5 py-4 border-t border-border text-sm text-dark-text wiki-content"
-          dangerouslySetInnerHTML={{ __html: resource.content }}
         />
       )}
     </div>

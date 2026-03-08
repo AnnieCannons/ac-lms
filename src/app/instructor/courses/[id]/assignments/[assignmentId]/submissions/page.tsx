@@ -93,6 +93,11 @@ export default async function InstructorSubmissionsPage({
   // First ungraded student for "Grade all ungraded →" CTA
   const firstUngradedStudent = students.find(s => s.submission?.status === 'submitted') ?? null
 
+  // In grader mode, skip the list and go straight to the first ungraded student's page
+  if (isGraderMode && firstUngradedStudent) {
+    redirect(`/instructor/courses/${id}/assignments/${assignmentId}/submissions/${firstUngradedStudent.id}?grader=all`)
+  }
+
   // Grader mode: build ordered list of assignments with ungraded submissions for assignment navigation
   let graderPrev: { id: string; title: string } | null = null
   let graderNext: { id: string; title: string } | null = null

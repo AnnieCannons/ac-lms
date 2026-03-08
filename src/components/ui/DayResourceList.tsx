@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
+import HtmlContent from '@/components/ui/HtmlContent'
 
 interface Resource {
   id: string
@@ -112,9 +113,9 @@ export default function DayResourceList({
                 <StarButton starred={starred} onToggle={() => toggleStar(resource.id)} />
               </div>
               {open && resource.content && (
-                <div
+                <HtmlContent
+                  html={resource.content}
                   className="px-5 py-4 border-t border-border text-sm text-dark-text wiki-content"
-                  dangerouslySetInnerHTML={{ __html: resource.content }}
                 />
               )}
             </div>

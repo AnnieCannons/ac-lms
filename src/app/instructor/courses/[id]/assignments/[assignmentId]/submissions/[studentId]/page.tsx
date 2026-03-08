@@ -30,10 +30,14 @@ function SubmissionContent({ type, content }: { type: SubmissionType; content: s
 
 export default async function GradingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; assignmentId: string; studentId: string }>
+  searchParams: Promise<{ grader?: string }>
 }) {
   const { id, assignmentId, studentId } = await params
+  const { grader } = await searchParams
+  const isGraderMode = grader === 'all'
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -92,19 +96,71 @@ export default async function GradingPage({
   // Ungraded queue: students with status = 'submitted' (needs grading)
   const ungradedStudents = allStudents.filter(s => submissionStatusMap.get(s.id) === 'submitted')
   const needsGradingTotal = ungradedStudents.length
-  const currentUngradedIndex = ungradedStudents.findIndex(s => s.id === studentId)
-  const nextUngradedStudent = currentUngradedIndex >= 0 && currentUngradedIndex < ungradedStudents.length - 1
-    ? ungradedStudents[currentUngradedIndex + 1]
-    : null
 
-  // All-students prev/next for general browsing
-  const currentIndex = allStudents.findIndex(s => s.id === studentId)
-  const prevStudent = currentIndex > 0 ? allStudents[currentIndex - 1] : null
-  const nextStudent = currentIndex < allStudents.length - 1 ? allStudents[currentIndex + 1] : null
-  const studentPosition = currentIndex + 1
-  const studentTotal = allStudents.length
+  // In grader mode: navigate through ungraded students only; otherwise all students
+  const navStudents = isGraderMode ? ungradedStudents : allStudents
+  const currentNavIndex = navStudents.findIndex(s => s.id === studentId)
+  const prevStudent = currentNavIndex > 0 ? navStudents[currentNavIndex - 1] : null
+  const nextStudent = currentNavIndex < navStudents.length - 1 ? navStudents[currentNavIndex + 1] : null
+  const studentPosition = currentNavIndex + 1
+  const studentTotal = navStudents.length
 
   const subBase = `/instructor/courses/${id}/assignments/${assignmentId}/submissions`
+  const graderSuffix = isGraderMode ? '?grader=all' : ''
+
+  // Grader mode: compute ordered ungraded assignments for assignment-level navigation
+  let graderPrev: { id: string; title: string } | null = null
+  let graderNext: { id: string; title: string } | null = null
+  let graderPosition = 0
+  let graderTotal = 0
+
+  if (isGraderMode) {
+    const { data: allModules } = await admin
+      .from('modules')
+      .select('order, module_days(order, assignments!module_day_id(id, title, order))')
+      .eq('course_id', id)
+
+    type GraderDay = { order: number; assignments: { id: string; title: string; order: number }[] }
+    type GraderModule = { order: number; module_days: GraderDay[] }
+
+    const orderedAssignments = (allModules as GraderModule[] ?? [])
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .flatMap(m =>
+        (m.module_days ?? [])
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .flatMap(d =>
+            (d.assignments ?? [])
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map(a => ({ id: a.id, title: a.title }))
+          )
+      )
+
+    const allAssignmentIds = orderedAssignments.map(a => a.id)
+    if (allAssignmentIds.length > 0) {
+      const { data: ungradedSubData } = await admin
+        .from('submissions')
+        .select('assignment_id')
+        .in('assignment_id', allAssignmentIds)
+        .eq('status', 'submitted')
+
+      const ungradedSet = new Set(ungradedSubData?.map(s => s.assignment_id) ?? [])
+      // Include current assignment even if it's now fully graded (for position display)
+      const ungradedAssignments = orderedAssignments.filter(a => ungradedSet.has(a.id) || a.id === assignmentId)
+      const currentIdx = ungradedAssignments.findIndex(a => a.id === assignmentId)
+      graderTotal = ungradedAssignments.length
+      graderPosition = currentIdx + 1
+      graderPrev = currentIdx > 0 ? ungradedAssignments[currentIdx - 1] : null
+      graderNext = currentIdx < ungradedAssignments.length - 1 ? ungradedAssignments[currentIdx + 1] : null
+    }
+  }
+
+  // nextUngradedStudent: next ungraded in this assignment, or first student of next assignment (via submissions page redirect)
+  const nextUngradedStudent = isGraderMode
+    ? (nextStudent ?? null)
+    : (() => {
+        const idx = ungradedStudents.findIndex(s => s.id === studentId)
+        return idx >= 0 && idx < ungradedStudents.length - 1 ? ungradedStudents[idx + 1] : null
+      })()
 
   let { data: submission } = await admin
     .from('submissions')
@@ -185,6 +241,44 @@ export default async function GradingPage({
         <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
 
         <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 px-10 py-12 max-w-4xl focus:outline-none">
+        {/* Grader mode: assignment nav strip */}
+        {isGraderMode && (
+          <div className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-3 mb-3 gap-4">
+            <div className="w-1/3">
+              {graderPrev ? (
+                <Link
+                  href={`/instructor/courses/${id}/assignments/${graderPrev.id}/submissions?grader=all`}
+                  className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate"
+                >
+                  <span className="shrink-0">←</span>
+                  <span className="truncate">{graderPrev.title}</span>
+                </Link>
+              ) : (
+                <span className="text-sm text-border">← First</span>
+              )}
+            </div>
+            <div className="text-center shrink-0">
+              <p className="text-xs font-semibold text-dark-text">{graderPosition} / {graderTotal} assignments</p>
+              <Link href={`/instructor/courses/${id}/submissions`} className="text-xs text-teal-primary hover:underline">
+                Back to grades
+              </Link>
+            </div>
+            <div className="w-1/3 text-right">
+              {graderNext ? (
+                <Link
+                  href={`/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=all`}
+                  className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate"
+                >
+                  <span className="truncate">{graderNext.title}</span>
+                  <span className="shrink-0">→</span>
+                </Link>
+              ) : (
+                <span className="text-sm text-border">Last →</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-4 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
@@ -196,11 +290,11 @@ export default async function GradingPage({
           <span className="text-dark-text font-medium">{student?.name ?? 'Student'}</span>
         </div>
 
-        {/* Grader nav strip */}
+        {/* Student nav strip */}
         <div className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-3 mb-6 gap-4">
           <div className="w-1/3">
             {prevStudent ? (
-              <Link href={`${subBase}/${prevStudent.id}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate">
+              <Link href={`${subBase}/${prevStudent.id}${graderSuffix}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate">
                 <span className="shrink-0">←</span>
                 <span className="truncate">{prevStudent.name}</span>
               </Link>
@@ -209,15 +303,17 @@ export default async function GradingPage({
             )}
           </div>
           <div className="text-center shrink-0 flex flex-col gap-0.5">
-            <p className="text-xs font-semibold text-dark-text">{studentPosition} / {studentTotal}</p>
-            {needsGradingTotal > 0 && (
+            <p className="text-xs font-semibold text-dark-text">
+              {isGraderMode ? `${studentPosition} / ${studentTotal} ungraded` : `${studentPosition} / ${studentTotal}`}
+            </p>
+            {!isGraderMode && needsGradingTotal > 0 && (
               <p className="text-xs text-yellow-600 font-medium">{needsGradingTotal} need grading</p>
             )}
             <Link href={subBase} className="text-xs text-teal-primary hover:underline">Back to list</Link>
           </div>
           <div className="w-1/3 text-right">
             {nextStudent ? (
-              <Link href={`${subBase}/${nextStudent.id}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate">
+              <Link href={`${subBase}/${nextStudent.id}${graderSuffix}`} className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate">
                 <span className="truncate">{nextStudent.name}</span>
                 <span className="shrink-0">→</span>
               </Link>
@@ -239,7 +335,13 @@ export default async function GradingPage({
               initialGrade={currentGrade}
               initialGradedAt={submission.graded_at ?? null}
               gradedById={user.id}
-              nextUrl={nextUngradedStudent ? `${subBase}/${nextUngradedStudent.id}` : null}
+              nextUrl={
+                nextUngradedStudent
+                  ? `${subBase}/${nextUngradedStudent.id}${graderSuffix}`
+                  : isGraderMode && graderNext
+                  ? `/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=all`
+                  : null
+              }
             />
           )}
         </div>
@@ -358,7 +460,7 @@ export default async function GradingPage({
         <div className="flex items-center justify-between mt-10 pt-6 border-t border-border gap-4">
           <div className="w-1/3">
             {prevStudent ? (
-              <Link href={`${subBase}/${prevStudent.id}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
+              <Link href={`${subBase}/${prevStudent.id}${graderSuffix}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
                 <span className="shrink-0">←</span>
                 <span className="truncate">{prevStudent.name}</span>
               </Link>
@@ -369,7 +471,7 @@ export default async function GradingPage({
           </Link>
           <div className="w-1/3 flex justify-end">
             {nextStudent ? (
-              <Link href={`${subBase}/${nextStudent.id}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
+              <Link href={`${subBase}/${nextStudent.id}${graderSuffix}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors truncate max-w-full">
                 <span className="truncate">{nextStudent.name}</span>
                 <span className="shrink-0">→</span>
               </Link>
