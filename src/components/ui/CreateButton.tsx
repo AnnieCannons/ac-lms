@@ -168,7 +168,7 @@ export default function CreateButton({ courseId }: Props) {
     const firstCodingMod = mods.find(m => m.category !== 'career' && m.category !== 'level_up')
     setModules(mods)
     setSection('coding')
-    setModuleId((firstCodingMod ?? mods[0])?.id ?? '')
+    setModuleId(firstCodingMod?.id ?? '')
     setDayId('')
     setCreateType('assignment')
     setResType('link')
@@ -344,7 +344,7 @@ export default function CreateButton({ courseId }: Props) {
                         ? modules.find(m => m.category === 'level_up')
                         : modules.find(m => m.category !== 'career' && m.category !== 'level_up')
                     setSection(s)
-                    setModuleId((firstForSection ?? modules[0])?.id ?? '')
+                    setModuleId(firstForSection?.id ?? '')
                     setDayId('')
                     setShowNewModule(false)
                     setNewModuleTitle('')
@@ -373,31 +373,17 @@ export default function CreateButton({ courseId }: Props) {
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
-                  {/* Group modules by section so it's clear where each lives */}
-                  {(() => {
-                    const sectionLabel = { 'coding': 'Coding Class', 'career': 'Career Dev', 'level_up': 'Level Up' }
-                    const groups: Record<string, Module[]> = { coding: [], career: [], level_up: [] }
-                    modules.forEach(m => {
-                      if (m.category === 'career') groups.career.push(m)
-                      else if (m.category === 'level_up') groups.level_up.push(m)
-                      else groups.coding.push(m)
-                    })
-                    // Put the current section's group first
-                    const order: Array<'coding' | 'career' | 'level_up'> = section === 'career'
-                      ? ['career', 'coding', 'level_up']
-                      : section === 'level_up'
-                        ? ['level_up', 'coding', 'career']
-                        : ['coding', 'career', 'level_up']
-                    return order.map(key =>
-                      groups[key].length > 0 ? (
-                        <optgroup key={key} label={sectionLabel[key]}>
-                          {groups[key].map(m => (
-                            <option key={m.id} value={m.id}>{m.title}</option>
-                          ))}
-                        </optgroup>
-                      ) : null
+                  {/* Only show modules relevant to the selected section */}
+                  {modules
+                    .filter(m =>
+                      section === 'career' ? m.category === 'career' :
+                      section === 'level_up' ? m.category === 'level_up' :
+                      (m.category !== 'career' && m.category !== 'level_up')
                     )
-                  })()}
+                    .map(m => (
+                      <option key={m.id} value={m.id}>{m.title}</option>
+                    ))
+                  }
                 </select>
               )}
 
