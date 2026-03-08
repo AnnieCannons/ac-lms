@@ -173,7 +173,7 @@ export default async function StudentAssignmentPage({
                 {assignment.is_bonus && (
                   <span className="text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2.5 py-1">Bonus</span>
                 )}
-                {(assignment.skill_tags ?? []).map(tag => (
+                {(assignment.skill_tags ?? []).map((tag: string) => (
                   <span key={tag} className="text-xs font-medium bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2.5 py-1">{tag}</span>
                 ))}
               </div>

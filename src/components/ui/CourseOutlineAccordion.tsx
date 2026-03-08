@@ -171,6 +171,7 @@ function DayModal({
   onToggleStar,
   onToggleComplete,
   hideLevelUpBanner,
+  showBonusAssignments,
   quizzesForDay,
 }: {
   module: Module

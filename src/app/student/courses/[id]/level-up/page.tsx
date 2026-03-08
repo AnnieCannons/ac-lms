@@ -68,7 +68,7 @@ export default async function StudentLevelUpPage({
 
   // Filter bonus assignments to this course and non-level_up modules
   type BonusAssignment = { id: string; title: string; due_date: string | null; skill_tags: string[] | null }
-  const bonusAssignments: BonusAssignment[] = ((bonusAssignmentsRaw ?? []) as Array<{
+  const bonusAssignments: BonusAssignment[] = ((bonusAssignmentsRaw ?? []) as unknown as Array<{
     id: string; title: string; due_date: string | null; skill_tags: string[] | null
     module_days: { module_id: string; modules: { course_id: string; category: string | null } | null } | null
   }>).filter(a => {

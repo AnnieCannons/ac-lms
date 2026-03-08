@@ -118,7 +118,7 @@ export default function QuizForm({
   }
 
   return (
-    <form action={submitQuiz} className="space-y-4">
+    <form action={(fd) => { void submitQuiz(fd) }} className="space-y-4">
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="quizId" value={quizId} />
       <input

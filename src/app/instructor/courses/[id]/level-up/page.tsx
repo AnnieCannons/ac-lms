@@ -51,7 +51,7 @@ export default async function InstructorLevelUpPage({
     id: string; title: string; due_date: string | null; published: boolean; skill_tags: string[] | null
     moduleTitle: string | null
   }
-  const bonusAssignments: BonusAssignment[] = ((bonusAssignmentsRaw ?? []) as Array<{
+  const bonusAssignments: BonusAssignment[] = ((bonusAssignmentsRaw ?? []) as unknown as Array<{
     id: string; title: string; due_date: string | null; published: boolean; skill_tags: string[] | null
     module_days: { module_id: string; modules: { course_id: string; category: string | null; title: string } | null } | null
   }>).filter(a => {
