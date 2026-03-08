@@ -1,5 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, createContext, useContext } from 'react'
+
+const ReadOnlyCtx = createContext(false)
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import HtmlContent from '@/components/ui/HtmlContent'
@@ -117,6 +119,7 @@ function CourseOutlineCard({
   onDelete: () => Promise<void>
   onTogglePublish: () => void
 }) {
+  const readOnly = useContext(ReadOnlyCtx)
   const [editing, setEditing] = useState(false)
   const [rows, setRows] = useState<OutlineRow[]>(() => parseOutline(section.content))
   const [saving, setSaving] = useState(false)
@@ -131,14 +134,14 @@ function CourseOutlineCard({
 
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
-      <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+      {!readOnly && <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
         <GripIcon />
-      </button>
+      </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
           <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
-          <PublishToggle published={section.published} onToggle={onTogglePublish} />
-          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
+          {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {!editing && (
               <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
             )}
@@ -151,7 +154,7 @@ function CourseOutlineCard({
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
             )}
-          </div>
+          </div>}
         </div>
 
         {editing ? (
@@ -230,17 +233,18 @@ function YearlyScheduleGlobalCard({
   onDelete: () => Promise<void>
   onTogglePublish: () => void
 }) {
+  const readOnly = useContext(ReadOnlyCtx)
   const [confirmDelete, setConfirmDelete] = useState(false)
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
-      <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+      {!readOnly && <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
         <GripIcon />
-      </button>
+      </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
           <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
-          <PublishToggle published={section.published} onToggle={onTogglePublish} />
-          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
+          {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <a href="/instructor/calendar" className="text-xs text-muted-text hover:text-teal-primary transition-colors">
               ✎ Manage calendar
             </a>
@@ -253,7 +257,7 @@ function YearlyScheduleGlobalCard({
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
             )}
-          </div>
+          </div>}
         </div>
         <YearlyScheduleSection instructorEditHref="/instructor/calendar" />
       </div>
@@ -272,17 +276,18 @@ function DailyScheduleCard({
   onDelete: () => Promise<void>
   onTogglePublish: () => void
 }) {
+  const readOnly = useContext(ReadOnlyCtx)
   const [confirmDelete, setConfirmDelete] = useState(false)
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
-      <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+      {!readOnly && <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
         <GripIcon />
-      </button>
+      </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-4">
           <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
-          <PublishToggle published={section.published} onToggle={onTogglePublish} />
-          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
+          {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {confirmDelete ? (
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-text">Delete?</span>
@@ -292,7 +297,7 @@ function DailyScheduleCard({
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
             )}
-          </div>
+          </div>}
         </div>
         <DailySchedule />
       </div>
@@ -315,6 +320,7 @@ function GlobalTextCard({
   slug: string
   editHref: string
 }) {
+  const readOnly = useContext(ReadOnlyCtx)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [removing, setRemoving] = useState(false)
 
@@ -327,14 +333,14 @@ function GlobalTextCard({
 
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
-      <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+      {!readOnly && <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
         <GripIcon />
-      </button>
+      </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
           <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
-          <PublishToggle published={section.published} onToggle={onTogglePublish} />
-          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
+          {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <a href={editHref} className="text-xs text-muted-text hover:text-teal-primary transition-colors">
               ✎ Edit globally
             </a>
@@ -357,7 +363,7 @@ function GlobalTextCard({
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
             )}
-          </div>
+          </div>}
         </div>
         <GlobalContentSection slug={slug} />
       </div>
@@ -379,6 +385,7 @@ function TextSectionCard({
   onTogglePublish: () => void
   onToggleCollapse?: () => void
 }) {
+  const readOnly = useContext(ReadOnlyCtx)
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(section.title)
   const [content, setContent] = useState(section.content ?? '')
@@ -437,14 +444,14 @@ function TextSectionCard({
 
   return (
     <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
-      <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+      {!readOnly && <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
         <GripIcon />
-      </button>
+      </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-3 mb-3">
           <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
-          <PublishToggle published={section.published} onToggle={onTogglePublish} />
-          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
+          {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
             <button
               onClick={handleMakeGlobal}
@@ -463,11 +470,11 @@ function TextSectionCard({
             ) : (
               <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
             )}
-          </div>
+          </div>}
         </div>
         {section.content
           ? <HtmlContent html={section.content} className={HTML_CLASSES} />
-          : <button onClick={() => setEditing(true)} className="text-sm text-muted-text hover:text-teal-primary italic transition-colors">+ Add content</button>
+          : !readOnly && <button onClick={() => setEditing(true)} className="text-sm text-muted-text hover:text-teal-primary italic transition-colors">+ Add content</button>
         }
       </div>
     </div>
@@ -486,20 +493,21 @@ function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate,
   onTogglePublish: () => void
   onRemoveGlobal?: () => Promise<void>
 }) {
+  const readOnly = useContext(ReadOnlyCtx)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
 
   if (collapsed) {
     return (
       <div ref={setNodeRef} style={style} className={`bg-surface rounded-2xl border border-border px-5 py-3.5 flex items-center gap-3 ${isDragging ? 'opacity-50' : ''}`}>
-        <button {...attributes} {...listeners} className="shrink-0 text-border hover:text-muted-text cursor-grab active:cursor-grabbing touch-none" tabIndex={-1} aria-label="Drag to reorder">
+        {!readOnly && <button {...attributes} {...listeners} className="shrink-0 text-border hover:text-muted-text cursor-grab active:cursor-grabbing touch-none" tabIndex={-1} aria-label="Drag to reorder">
           <GripIcon />
-        </button>
+        </button>}
         <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center justify-between text-left gap-2">
           <h3 className="font-semibold text-dark-text">{section.title}</h3>
           <span className="text-xs text-muted-text">▾</span>
         </button>
-        <PublishToggle published={section.published} onToggle={onTogglePublish} />
+        {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
       </div>
     )
   }
@@ -520,9 +528,10 @@ function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate,
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function GeneralInfoEditor({ courseId, initialSections }: {
+export default function GeneralInfoEditor({ courseId, initialSections, readOnly = false }: {
   courseId: string
   initialSections: CourseSection[]
+  readOnly?: boolean
 }) {
   const supabase = createClient()
   const [sections, setSections] = useState<CourseSection[]>(
@@ -593,6 +602,7 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
   }
 
   return (
+    <ReadOnlyCtx.Provider value={readOnly}>
     <div className="flex flex-col gap-3">
       {sections.length > 1 && (
         <div className="flex justify-end gap-2">
@@ -623,7 +633,7 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
         <p className="text-sm text-muted-text mb-1">No sections yet.</p>
       )}
 
-      {adding ? (
+      {!readOnly && (adding ? (
         <div className="bg-surface rounded-2xl border border-border p-5 flex flex-col gap-3">
           <input
             type="text"
@@ -646,7 +656,8 @@ export default function GeneralInfoEditor({ courseId, initialSections }: {
         <button onClick={() => setAdding(true)} className="flex items-center gap-2 text-sm text-teal-primary font-medium hover:underline py-1 self-start">
           + Add section
         </button>
-      )}
+      ))}
     </div>
+    </ReadOnlyCtx.Provider>
   )
 }

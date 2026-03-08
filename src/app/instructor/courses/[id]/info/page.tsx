@@ -96,9 +96,9 @@ export default async function InstructorGeneralInfoPage({
               </Link>
             </div>
 
-            <PaidLearnersToggle courseId={id} initialValue={course.paid_learners ?? false} />
+            {!isTa && <PaidLearnersToggle courseId={id} initialValue={course.paid_learners ?? false} />}
             <div className="mt-6">
-              <GeneralInfoEditor courseId={id} initialSections={sections ?? []} />
+              <GeneralInfoEditor courseId={id} initialSections={sections ?? []} readOnly={isTa} />
             </div>
           </main>
         </div>
