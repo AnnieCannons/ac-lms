@@ -69,8 +69,7 @@ export default function CreateButton({ courseId }: Props) {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hasCoding = modules.some(m => m.category !== 'career' && m.category !== 'level_up')
-  const showSectionFilter = hasCoding
+  const showSectionFilter = true
 
   const codingModules = modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
   const crossModuleAllDays = codingModules.find(m => m.id === crossModuleId)?.module_days ?? []
