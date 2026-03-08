@@ -15,7 +15,8 @@ export default async function InstructorSubmissionsPage({
 }) {
   const { id, assignmentId } = await params
   const { grader } = await searchParams
-  const isGraderMode = grader === 'all'
+  const isGraderMode = grader === 'all' || grader === 'me'
+  const graderParam = isGraderMode ? grader as 'all' | 'me' : undefined
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -34,7 +35,7 @@ export default async function InstructorSubmissionsPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, due_date, answer_key_url, submission_required')
+    .select('id, title, due_date, answer_key_url, submission_required, grader_id')
     .eq('id', assignmentId)
     .single()
 
@@ -84,18 +85,37 @@ export default async function InstructorSubmissionsPage({
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const turnedInCount = students.filter(s =>
+  // For grader=me, filter students to current user's group
+  let displayStudents = students
+  if (grader === 'me') {
+    const { data: myGroups } = await admin
+      .from('grading_groups')
+      .select('student_id')
+      .eq('course_id', id)
+      .eq('grader_id', user.id)
+    const myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+    const assignmentGraderOverride = (assignment as typeof assignment & { grader_id: string | null })?.grader_id ?? null
+    if (assignmentGraderOverride === user.id) {
+      displayStudents = students // I'm the override grader — all students
+    } else if (assignmentGraderOverride !== null) {
+      displayStudents = [] // Someone else is override grader
+    } else {
+      displayStudents = students.filter(s => myStudentIds.has(s.id))
+    }
+  }
+
+  const turnedInCount = displayStudents.filter(s =>
     s.submission?.status === 'submitted' || s.submission?.status === 'graded'
   ).length
-  const gradedCount = students.filter(s => s.submission?.status === 'graded').length
-  const needsGradingCount = students.filter(s => s.submission?.status === 'submitted').length
+  const gradedCount = displayStudents.filter(s => s.submission?.status === 'graded').length
+  const needsGradingCount = displayStudents.filter(s => s.submission?.status === 'submitted').length
 
   // First ungraded student for "Grade all ungraded →" CTA
-  const firstUngradedStudent = students.find(s => s.submission?.status === 'submitted') ?? null
+  const firstUngradedStudent = displayStudents.find(s => s.submission?.status === 'submitted') ?? null
 
   // In grader mode, skip the list and go straight to the first ungraded student's page
   if (isGraderMode && firstUngradedStudent) {
-    redirect(`/instructor/courses/${id}/assignments/${assignmentId}/submissions/${firstUngradedStudent.id}?grader=all`)
+    redirect(`/instructor/courses/${id}/assignments/${assignmentId}/submissions/${firstUngradedStudent.id}?grader=${graderParam}`)
   }
 
   // Grader mode: build ordered list of assignments with ungraded submissions for assignment navigation
@@ -157,7 +177,7 @@ export default async function InstructorSubmissionsPage({
             <div className="w-1/3">
               {graderPrev ? (
                 <Link
-                  href={`/instructor/courses/${id}/assignments/${graderPrev.id}/submissions?grader=all`}
+                  href={`/instructor/courses/${id}/assignments/${graderPrev.id}/submissions?grader=${graderParam}`}
                   className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate"
                 >
                   <span className="shrink-0">←</span>
@@ -176,7 +196,7 @@ export default async function InstructorSubmissionsPage({
             <div className="w-1/3 text-right">
               {graderNext ? (
                 <Link
-                  href={`/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=all`}
+                  href={`/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=${graderParam}`}
                   className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate"
                 >
                   <span className="truncate">{graderNext.title}</span>
@@ -243,14 +263,14 @@ export default async function InstructorSubmissionsPage({
           </div>
         ) : (
           <SubmissionsList
-            students={students}
+            students={displayStudents}
             courseId={id}
             assignmentId={assignmentId}
             submissionRequired={assignment.submission_required}
             currentUserId={user.id}
             initialFilter={needsGradingCount > 0 ? 'needs-grading' : 'all'}
             firstUngradedStudentId={firstUngradedStudent?.id ?? null}
-            graderMode={isGraderMode}
+            grader={graderParam}
           />
         )}
         </main>

@@ -1,7 +1,6 @@
 'use client'
 import { useState, useTransition } from 'react'
-import { DndContext, DragEndEvent, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { setStudentGrader, bulkAssignStudentGraders, setAssignmentGrader } from '@/lib/grading-groups-actions'
 
 interface Student    { id: string; name: string; email: string }
@@ -15,10 +14,11 @@ interface Props {
   groupMap: Record<string, string | null>
   assignments: Assignment[]
   assignmentGraderMap: Record<string, string | null>
+  graderUngradedCount: Record<string, number>
 }
 
 export default function GradingGroupsManager({
-  courseId, students, graders, groupMap, assignments, assignmentGraderMap,
+  courseId, students, graders, groupMap, assignments, assignmentGraderMap, graderUngradedCount,
 }: Props) {
   const [studentAssignments, setStudentAssignments] = useState<Record<string, string | null>>(
     Object.fromEntries(students.map(s => [s.id, groupMap[s.id] ?? null]))
@@ -27,11 +27,19 @@ export default function GradingGroupsManager({
     Object.fromEntries(assignments.map(a => [a.id, assignmentGraderMap[a.id] ?? null]))
   )
   const [distributing, setDistributing] = useState(false)
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
+  const activeStudent = students.find(s => s.id === activeStudentId) ?? null
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveStudentId(event.active.id as string)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveStudentId(null)
     const { active, over } = event
     if (!over) return
     const studentId = active.id as string
@@ -40,6 +48,28 @@ export default function GradingGroupsManager({
     setStudentAssignments(prev => ({ ...prev, [studentId]: newGraderId }))
     startTransition(async () => {
       await setStudentGrader(courseId, studentId, newGraderId)
+    })
+  }
+
+  async function handleRotate() {
+    if (graders.length < 2) return
+    const newAssignments: Record<string, string | null> = {}
+    for (const student of students) {
+      const currentGraderId = studentAssignments[student.id]
+      if (currentGraderId === null) {
+        newAssignments[student.id] = null
+      } else {
+        const currentIdx = graders.findIndex(g => g.id === currentGraderId)
+        const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % graders.length
+        newAssignments[student.id] = graders[nextIdx].id
+      }
+    }
+    setStudentAssignments(newAssignments)
+    startTransition(async () => {
+      const assigned = students
+        .map(s => ({ studentId: s.id, graderId: newAssignments[s.id] }))
+        .filter((e): e is { studentId: string; graderId: string } => e.graderId !== null)
+      await bulkAssignStudentGraders(courseId, assigned)
     })
   }
 
@@ -75,27 +105,47 @@ export default function GradingGroupsManager({
         <p className="text-sm text-muted-text">
           {assignedCount} of {students.length} students assigned · {graders.length} grader{graders.length !== 1 ? 's' : ''}
         </p>
-        <button
-          onClick={handleAutoDistribute}
-          disabled={distributing || students.length === 0}
-          className="bg-teal-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          {distributing ? 'Distributing…' : 'Auto-distribute evenly'}
-        </button>
+        <div className="flex items-center gap-2">
+          {graders.length >= 2 && (
+            <button
+              onClick={handleRotate}
+              disabled={distributing}
+              className="border border-border text-dark-text px-4 py-2 rounded-lg text-sm font-medium hover:border-teal-primary hover:text-teal-primary disabled:opacity-50 transition-colors"
+              title={graders.length === 2 ? 'Swap the two groups' : 'Shift each grader to the next group in order'}
+            >
+              {graders.length === 2 ? 'Swap Groups ⇄' : 'Rotate Groups →'}
+            </button>
+          )}
+          <button
+            onClick={handleAutoDistribute}
+            disabled={distributing || students.length === 0}
+            className="bg-teal-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {distributing ? 'Distributing…' : 'Auto-distribute evenly'}
+          </button>
+        </div>
       </div>
 
       {/* Grader cards — drag students between them */}
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className={`grid gap-4 ${graders.length === 1 ? 'grid-cols-1 max-w-sm' : graders.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
           {graders.map(grader => (
             <GraderCard
               key={grader.id}
               grader={grader}
               students={studentsForGrader(grader.id)}
+              ungradedCount={graderUngradedCount[grader.id] ?? 0}
             />
           ))}
           <UnassignedCard students={unassigned} />
         </div>
+        <DragOverlay>
+          {activeStudent ? (
+            <div className="px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
+              {activeStudent.name}
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Assignment overrides */}
@@ -131,7 +181,7 @@ export default function GradingGroupsManager({
   )
 }
 
-function GraderCard({ grader, students }: { grader: Grader; students: Student[] }) {
+function GraderCard({ grader, students, ungradedCount }: { grader: Grader; students: Student[]; ungradedCount: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: grader.id })
   return (
     <div
@@ -145,6 +195,11 @@ function GraderCard({ grader, students }: { grader: Grader; students: Student[] 
         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${grader.type === 'ta' ? 'badge-ta' : 'bg-purple-light text-purple-primary'}`}>
           {grader.type === 'ta' ? 'TA' : 'Instructor'}
         </span>
+        {ungradedCount > 0 && (
+          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full badge-count shrink-0">
+            {ungradedCount} ungraded
+          </span>
+        )}
         <span className="text-xs text-muted-text shrink-0 w-5 text-right">{students.length}</span>
       </div>
       <div className="p-2 min-h-[72px] flex flex-col gap-1">
@@ -180,12 +235,12 @@ function UnassignedCard({ students }: { students: Student[] }) {
 }
 
 function DraggableStudent({ student }: { student: Student }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: student.id })
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: student.id })
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform) }}
-      className={`px-3 py-2 rounded-lg bg-background border border-border text-sm text-dark-text cursor-grab active:cursor-grabbing select-none transition-opacity ${isDragging ? 'opacity-40' : 'hover:border-teal-primary/40'}`}
+      style={{ touchAction: 'none', opacity: isDragging ? 0 : 1 }}
+      className="px-3 py-2 rounded-lg bg-background border border-border text-sm text-dark-text cursor-grab active:cursor-grabbing select-none hover:border-teal-primary/40"
       {...attributes}
       {...listeners}
     >

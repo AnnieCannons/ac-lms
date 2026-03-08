@@ -37,7 +37,7 @@ export default async function GradingPage({
 }) {
   const { id, assignmentId, studentId } = await params
   const { grader } = await searchParams
-  const isGraderMode = grader === 'all'
+  const isGraderMode = grader === 'all' || grader === 'me'
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -56,7 +56,7 @@ export default async function GradingPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required')
+    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required, grader_id')
     .eq('id', assignmentId)
     .single()
 
@@ -94,8 +94,25 @@ export default async function GradingPage({
   const submissionStatusMap = new Map((allSubmissions ?? []).map(s => [s.student_id, s.status]))
 
   // Ungraded queue: students with status = 'submitted' (needs grading)
-  const ungradedStudents = allStudents.filter(s => submissionStatusMap.get(s.id) === 'submitted')
+  let ungradedStudents = allStudents.filter(s => submissionStatusMap.get(s.id) === 'submitted')
   const needsGradingTotal = ungradedStudents.length
+
+  // For grader=me, filter ungraded queue to current user's group
+  if (grader === 'me') {
+    const { data: myGroups } = await admin
+      .from('grading_groups')
+      .select('student_id')
+      .eq('course_id', id)
+      .eq('grader_id', user.id)
+    const myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+    const assignmentGraderOverride = (assignment as typeof assignment & { grader_id: string | null })?.grader_id ?? null
+    if (assignmentGraderOverride !== user.id && assignmentGraderOverride !== null) {
+      ungradedStudents = [] // someone else is override grader
+    } else if (assignmentGraderOverride === null) {
+      ungradedStudents = ungradedStudents.filter(s => myStudentIds.has(s.id))
+    }
+    // if override === user.id: keep all ungraded (I'm grading everyone for this assignment)
+  }
 
   // In grader mode: navigate through ungraded students only; otherwise all students
   const navStudents = isGraderMode ? ungradedStudents : allStudents
@@ -106,7 +123,7 @@ export default async function GradingPage({
   const studentTotal = navStudents.length
 
   const subBase = `/instructor/courses/${id}/assignments/${assignmentId}/submissions`
-  const graderSuffix = isGraderMode ? '?grader=all' : ''
+  const graderSuffix = isGraderMode ? `?grader=${grader}` : ''
 
   // Grader mode: compute ordered ungraded assignments for assignment-level navigation
   let graderPrev: { id: string; title: string } | null = null
@@ -247,7 +264,7 @@ export default async function GradingPage({
             <div className="w-1/3">
               {graderPrev ? (
                 <Link
-                  href={`/instructor/courses/${id}/assignments/${graderPrev.id}/submissions?grader=all`}
+                  href={`/instructor/courses/${id}/assignments/${graderPrev.id}/submissions?grader=${grader}`}
                   className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate"
                 >
                   <span className="shrink-0">←</span>
@@ -266,7 +283,7 @@ export default async function GradingPage({
             <div className="w-1/3 text-right">
               {graderNext ? (
                 <Link
-                  href={`/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=all`}
+                  href={`/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=${grader}`}
                   className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate"
                 >
                   <span className="truncate">{graderNext.title}</span>
@@ -339,7 +356,7 @@ export default async function GradingPage({
                 nextUngradedStudent
                   ? `${subBase}/${nextUngradedStudent.id}${graderSuffix}`
                   : isGraderMode && graderNext
-                  ? `/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=all`
+                  ? `/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=${grader}`
                   : null
               }
             />

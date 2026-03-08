@@ -4,6 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import DeleteCourseButton from '@/components/ui/DeleteCourseButton'
 import DuplicateCourseButton from '@/components/ui/DuplicateCourseButton'
+import EditCourseDatesButton from '@/components/ui/EditCourseDatesButton'
 
 export default async function CoursesPage() {
   const supabase = await createServerSupabaseClient()
@@ -39,7 +40,7 @@ export default async function CoursesPage() {
     const allCourseIds = [...new Set((enrollments ?? []).map(e => e.course_id))]
     const { data: coursesData } = await admin
       .from('courses')
-      .select('id, name')
+      .select('id, name, start_date')
       .in('id', allCourseIds)
 
     const courseMap = Object.fromEntries((coursesData ?? []).map(c => [c.id, c]))
@@ -55,6 +56,18 @@ export default async function CoursesPage() {
       ...[...studentCourseIds].map(id => ({ ...courseMap[id], enrollmentRole: 'student' as const })),
     ].filter(r => r.id)
 
+    const isCurrentCourse = (startDate: string | null | undefined) => {
+      if (!startDate) return false
+      const start = new Date(startDate).getTime()
+      return Date.now() >= start && Date.now() <= start + 105 * 24 * 60 * 60 * 1000
+    }
+
+    const sortedRows = [...rows].sort((a, b) => {
+      const aC = isCurrentCourse((a as typeof a & { start_date?: string }).start_date) ? 0 : 1
+      const bC = isCurrentCourse((b as typeof b & { start_date?: string }).start_date) ? 0 : 1
+      return aC - bC
+    })
+
     return (
       <div className="min-h-screen bg-background">
         <InstructorTopNav name={profile?.name} role={profile?.role} />
@@ -65,7 +78,9 @@ export default async function CoursesPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            {rows.map(course => (
+            {sortedRows.map(course => {
+              const current = isCurrentCourse((course as typeof course & { start_date?: string }).start_date)
+              return (
               <div
                 key={course.id}
                 className="bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors flex items-center justify-between gap-4"
@@ -74,6 +89,9 @@ export default async function CoursesPage() {
                   <Link href={course.enrollmentRole === 'ta' ? `/instructor/courses/${course.id}` : `/student/courses/${course.id}`} className="font-semibold text-dark-text truncate">
                     {course.name}
                   </Link>
+                  {current && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-current shrink-0">Current</span>
+                  )}
                   {course.enrollmentRole === 'ta' ? (
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-ta shrink-0">TA</span>
                   ) : (
@@ -87,17 +105,30 @@ export default async function CoursesPage() {
                   {course.enrollmentRole === 'ta' ? 'Instructor View →' : 'Student View →'}
                 </Link>
               </div>
-            ))}
+              )
+            })}
           </div>
         </main>
       </div>
     )
   }
 
-  const { data: courses } = await supabase
+  const { data: rawCourses } = await supabase
     .from('courses')
     .select('*')
     .order('created_at', { ascending: false })
+
+  const isCurrentCourse = (startDate: string | null | undefined, isTemplate: boolean) => {
+    if (!startDate || isTemplate) return false
+    const start = new Date(startDate).getTime()
+    return Date.now() >= start && Date.now() <= start + 105 * 24 * 60 * 60 * 1000
+  }
+
+  const courses = [...(rawCourses ?? [])].sort((a, b) => {
+    const aC = isCurrentCourse(a.start_date, a.is_template) ? 0 : 1
+    const bC = isCurrentCourse(b.start_date, b.is_template) ? 0 : 1
+    return aC - bC
+  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,20 +145,35 @@ export default async function CoursesPage() {
           </Link>
         </div>
 
-        {courses && courses.length > 0 ? (
+        {courses.length > 0 ? (
           <div className="flex flex-col gap-4">
             {courses.map(course => (
               <div
                 key={course.id}
                 className="bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors flex flex-col gap-3"
               >
-                <Link href={`/instructor/courses/${course.id}`} className="font-semibold text-dark-text">
-                  {course.name}
-                </Link>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Link href={`/instructor/courses/${course.id}`} className="font-semibold text-dark-text">
+                    {course.name}
+                  </Link>
+                  {isCurrentCourse(course.start_date, course.is_template) && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-current shrink-0">Current</span>
+                  )}
+                  {course.start_date && (
+                    <span className="text-xs text-muted-text shrink-0">
+                      {new Date(course.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-4">
                   <Link href={`/instructor/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
                     Manage →
                   </Link>
+                  <EditCourseDatesButton
+                    courseId={course.id}
+                    initialStartDate={course.start_date ?? null}
+                    initialEndDate={course.end_date ?? null}
+                  />
                   <DuplicateCourseButton
                     courseId={course.id}
                     courseName={course.name}

@@ -58,9 +58,24 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
     (assignmentsData ?? []).map(a => [a.id, (a.grader_id as string | null) ?? null])
   )
 
+  // Per-grader ungraded count (respects assignment overrides and student groups)
+  const allAssignmentIds = (assignmentsData ?? []).map(a => a.id)
+  const { data: ungradedSubs } = allAssignmentIds.length
+    ? await admin.from('submissions').select('assignment_id, student_id')
+        .in('assignment_id', allAssignmentIds).eq('status', 'submitted')
+    : { data: [] }
+  const graderUngradedCount: Record<string, number> = {}
+  for (const sub of ungradedSubs ?? []) {
+    const override = assignmentGraderMap[sub.assignment_id] ?? null
+    const graderId = override !== null ? override : (groupMap[sub.student_id] ?? null)
+    if (graderId) {
+      graderUngradedCount[graderId] = (graderUngradedCount[graderId] ?? 0) + 1
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />
         <main id="main-content" tabIndex={-1} className="flex-1 p-6 md:p-8 focus:outline-none">
@@ -92,6 +107,7 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
                 groupMap={groupMap}
                 assignments={assignments}
                 assignmentGraderMap={assignmentGraderMap}
+                graderUngradedCount={graderUngradedCount}
               />
             )}
           </div>

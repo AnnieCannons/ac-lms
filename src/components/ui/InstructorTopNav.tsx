@@ -4,16 +4,17 @@ import NavMobileMenu from '@/components/ui/NavMobileMenu'
 
 const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
 
-export default function InstructorTopNav({ name, role }: { name?: string | null; role?: string | null }) {
+export default function InstructorTopNav({ name, role, isTa }: { name?: string | null; role?: string | null; isTa?: boolean }) {
+  const displayRole = isTa ? 'TA' : role
   return (
     <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
-        {role && (
+        {displayRole && (
           <span className="text-xs font-semibold text-teal-primary bg-teal-light px-2 py-0.5 rounded-full capitalize">
-            {role}
+            {displayRole}
           </span>
         )}
       </div>

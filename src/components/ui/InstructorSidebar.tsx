@@ -5,6 +5,8 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName: string }) {
   let needsGrading = 0
   let firstUngradedAssignmentId: string | null = null
+  let myGroupNeedsGrading = 0
+  let myGroupFirstAssignmentId: string | null = null
   let isTa = false
 
   try {
@@ -50,13 +52,37 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
     if (orderedAssignmentIds.length > 0) {
       const { data: ungradedSubs } = await admin
         .from('submissions')
-        .select('assignment_id')
+        .select('assignment_id, student_id')
         .in('assignment_id', orderedAssignmentIds)
         .eq('status', 'submitted')
 
       needsGrading = ungradedSubs?.length ?? 0
       const ungradedSet = new Set(ungradedSubs?.map(s => s.assignment_id) ?? [])
       firstUngradedAssignmentId = orderedAssignmentIds.find(id => ungradedSet.has(id)) ?? null
+
+      // Compute my-group stats (applies to everyone — TAs see filtered badge, instructors see Grade for My Group button)
+      if (user && ungradedSubs && ungradedSubs.length > 0) {
+        const [{ data: myGroups }, { data: assignmentGraderRows }] = await Promise.all([
+          admin.from('grading_groups').select('student_id').eq('course_id', courseId).eq('grader_id', user.id),
+          admin.from('assignments').select('id, grader_id').in('id', orderedAssignmentIds),
+        ])
+        const myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+        const assignmentGraderMap = new Map(
+          (assignmentGraderRows ?? []).map(a => [a.id, (a.grader_id as string | null)])
+        )
+        const myGroupAssignmentIds = new Set<string>()
+        for (const sub of ungradedSubs) {
+          const override = assignmentGraderMap.get(sub.assignment_id)
+          const belongsToMe = override !== undefined && override !== null
+            ? override === user.id
+            : myStudentIds.has(sub.student_id)
+          if (belongsToMe) {
+            myGroupAssignmentIds.add(sub.assignment_id)
+            myGroupNeedsGrading++
+          }
+        }
+        myGroupFirstAssignmentId = orderedAssignmentIds.find(id => myGroupAssignmentIds.has(id)) ?? null
+      }
     }
   } catch {
     // Non-critical — badge and grader button degrade gracefully
@@ -69,6 +95,8 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
         courseName={courseName}
         needsGrading={needsGrading}
         firstUngradedAssignmentId={firstUngradedAssignmentId}
+        myGroupNeedsGrading={myGroupNeedsGrading}
+        myGroupFirstAssignmentId={myGroupFirstAssignmentId}
         isTa={isTa}
       />
     </ResizableSidebar>

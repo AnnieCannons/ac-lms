@@ -38,6 +38,9 @@ If you forget your password, use the **Forgot password** link on the login page.
 
 After logging in you will see **My Courses** — a list of all courses you are enrolled in. Click any course to open it.
 
+- A green **Current** badge appears next to courses that are actively running right now
+- A blue **TA** badge appears if you have been assigned a Teaching Assistant role for that course — you will see both an **Instructor View** and a **Student View** link for TA courses
+
 ---
 
 ## 3. Navigating Your Course

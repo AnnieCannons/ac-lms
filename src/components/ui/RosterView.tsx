@@ -204,8 +204,8 @@ export default function RosterView({ courses, currentCourseId, students }: Props
 
   return (
     <div>
-      {/* Course tabs */}
-      <div className="flex border-b border-border mb-8 overflow-x-auto">
+      {/* Course tabs — hidden when only one course (e.g. TA view) */}
+      <div className={`flex border-b border-border mb-8 overflow-x-auto ${courses.length <= 1 ? 'hidden' : ''}`}>
         {courses.map(course => (
           <Link
             key={course.id}

@@ -8,7 +8,7 @@ Built on Supabase (PostgreSQL). All IDs are UUIDs. Timestamps are `timestamptz`.
 
 | Enum | Values |
 |------|--------|
-| `user_role` | `admin`, `instructor`, `student` |
+| `user_role` | `admin`, `instructor`, `student` — note: `ta` is NOT a user_role; it is stored as `course_enrollments.role` (plain text, per-course) |
 | `resource_type` | `video`, `reading`, `link`, `file` |
 | `submission_type` | `text`, `file`, `link` |
 | `submission_status` | `draft`, `submitted`, `graded` |

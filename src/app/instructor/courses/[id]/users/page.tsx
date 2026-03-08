@@ -85,7 +85,7 @@ export default async function InstructorUsersPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />

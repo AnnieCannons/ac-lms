@@ -12,6 +12,8 @@ interface Props {
   courseName: string
   needsGrading?: number
   firstUngradedAssignmentId?: string | null
+  myGroupNeedsGrading?: number
+  myGroupFirstAssignmentId?: string | null
   isTa?: boolean
 }
 
@@ -59,6 +61,8 @@ export default function InstructorCourseNav({
   courseName,
   needsGrading = 0,
   firstUngradedAssignmentId = null,
+  myGroupNeedsGrading = 0,
+  myGroupFirstAssignmentId = null,
   isTa = false,
 }: Props) {
   const pathname = usePathname()
@@ -127,7 +131,7 @@ export default function InstructorCourseNav({
         <SectionHeader label="Grades" open={gradesOpen} onToggle={toggleGradesOpen} />
         {gradesOpen && (
           <>
-            <GradesNavLink courseId={courseId} needsGrading={needsGrading} pathname={pathname} />
+            <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
             <button
               onClick={() => setGraderOpen(true)}
               className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20"
@@ -179,6 +183,8 @@ export default function InstructorCourseNav({
           courseId={courseId}
           needsGrading={needsGrading}
           firstUngradedAssignmentId={firstUngradedAssignmentId}
+          myGroupNeedsGrading={myGroupNeedsGrading}
+          myGroupFirstAssignmentId={myGroupFirstAssignmentId}
           onClose={() => setGraderOpen(false)}
         />
       )}
@@ -212,23 +218,29 @@ function LaunchGraderModal({
   courseId,
   needsGrading,
   firstUngradedAssignmentId,
+  myGroupNeedsGrading,
+  myGroupFirstAssignmentId,
   onClose,
 }: {
   courseId: string
   needsGrading: number
   firstUngradedAssignmentId: string | null
+  myGroupNeedsGrading: number
+  myGroupFirstAssignmentId: string | null
   onClose: () => void
 }) {
   const router = useRouter()
 
-  const choose = (mode: 'students' | 'assignments' | 'all') => {
+  const choose = (mode: 'students' | 'assignments' | 'all' | 'me') => {
     onClose()
     if (mode === 'students') {
       router.push(`/instructor/courses/${courseId}/submissions?tab=students`)
     } else if (mode === 'assignments') {
       router.push(`/instructor/courses/${courseId}/submissions?tab=assignments`)
-    } else if (firstUngradedAssignmentId) {
+    } else if (mode === 'all' && firstUngradedAssignmentId) {
       router.push(`/instructor/courses/${courseId}/assignments/${firstUngradedAssignmentId}/submissions?grader=all`)
+    } else if (mode === 'me' && myGroupFirstAssignmentId) {
+      router.push(`/instructor/courses/${courseId}/assignments/${myGroupFirstAssignmentId}/submissions?grader=me`)
     }
   }
 
@@ -288,6 +300,32 @@ function LaunchGraderModal({
               {firstUngradedAssignmentId
                 ? 'Jump straight into grading — move through each assignment with ungraded work'
                 : 'No submissions need grading right now'}
+            </p>
+          </button>
+
+          <button
+            onClick={() => choose('me')}
+            disabled={!myGroupFirstAssignmentId}
+            className={`w-full text-left px-4 py-3.5 rounded-xl border transition-colors group ${
+              myGroupFirstAssignmentId
+                ? 'border-border hover:border-teal-primary/40 hover:bg-teal-light/30'
+                : 'border-border opacity-40 cursor-not-allowed'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-sm font-semibold ${myGroupFirstAssignmentId ? 'text-dark-text group-hover:text-teal-primary' : 'text-muted-text'}`}>
+                Grade for My Group
+              </p>
+              {myGroupNeedsGrading > 0 && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-count shrink-0">
+                  {myGroupNeedsGrading} waiting
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-text mt-0.5">
+              {myGroupFirstAssignmentId
+                ? 'Grade only submissions assigned to you'
+                : 'No submissions in your group need grading'}
             </p>
           </button>
         </div>

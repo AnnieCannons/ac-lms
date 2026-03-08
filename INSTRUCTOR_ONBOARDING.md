@@ -14,13 +14,15 @@ Welcome to the AnnieCannons Learning Management System. This guide walks you thr
 6. [Creating Assignments](#6-creating-assignments)
 7. [Setting Up General Info](#7-setting-up-general-info)
 8. [Grading Student Work](#8-grading-student-work)
-9. [Roster & Student Details](#9-roster--student-details)
-10. [Users — Managing Enrollment](#10-users--managing-enrollment)
-11. [Student View — Previewing as a Student](#11-student-view--previewing-as-a-student)
-12. [Global Templates](#12-global-templates)
-13. [Calendar](#13-calendar)
-14. [Benefits & Paid Time Off (Paid Learner Courses)](#14-benefits--paid-time-off-paid-learner-courses)
-15. [Tips & Common Questions](#15-tips--common-questions)
+9. [Grading Groups](#9-grading-groups)
+10. [Roster & Student Details](#10-roster--student-details)
+11. [Users — Managing Enrollment](#11-users--managing-enrollment)
+12. [Teaching Assistants (TAs)](#12-teaching-assistants-tas)
+13. [Student View — Previewing as a Student](#13-student-view--previewing-as-a-student)
+14. [Global Templates](#14-global-templates)
+15. [Calendar](#15-calendar)
+16. [Benefits & Paid Time Off (Paid Learner Courses)](#16-benefits--paid-time-off-paid-learner-courses)
+17. [Tips & Common Questions](#17-tips--common-questions)
 
 ---
 
@@ -38,8 +40,13 @@ After logging in you will land on the **Courses** page — a list of all your co
 
 The Courses page shows all courses you have access to. From here you can:
 
-- Click a course name to open the **Course Editor**
+- Click a course name or **Manage →** to open the **Course Editor**
 - Click **+ New Course** to create a new course
+- Click **Edit Dates** on any course to set or update the start and end dates using a calendar picker
+- Click **Duplicate** to copy a course (with optional date-shifting for due dates)
+- Click **Delete** to permanently remove a course
+
+Courses with a matching start date and a 15-week window show a green **Current** badge so you can quickly identify the active cohort.
 
 ---
 
@@ -57,7 +64,7 @@ Click **+ New Course** and fill in:
 
 Click **Create Course**. You will be taken directly to the Course Editor.
 
-> You can change all of these settings later on the **Info** page of the course.
+> You can update start and end dates any time from the **Courses list** (click **Edit Dates**) or by re-opening the course settings.
 
 ---
 
@@ -198,9 +205,47 @@ For assignments where no upload is needed (e.g. a live demo or in-class check-of
 
 On the submissions list page, you can add an **Answer Key URL** (shown only to instructors) for reference while grading.
 
+### Launch Grader
+
+The **Launch Grader** button in the sidebar opens a modal with three speed-grading modes:
+
+| Mode | What it does |
+|------|-------------|
+| **By Student** | Work through all ungraded submissions one student at a time |
+| **By Assignment** | Work through all ungraded submissions one assignment at a time |
+| **All Ungraded** | Grade everything in sequence — assignment by assignment, student by student |
+| **Grade for My Group** | Grade only the students assigned to you in Grading Groups |
+
+**Grade for My Group** respects per-assignment overrides: if an assignment has a specific grader set, that grader handles all students for that assignment regardless of group.
+
 ---
 
-## 9. Roster & Student Details
+## 9. Grading Groups
+
+Grading Groups let you divide students among instructors and TAs so each grader is responsible for a specific subset of students.
+
+Go to your course → **Grading Groups** in the sidebar.
+
+### Assigning Students
+
+- **Auto-distribute evenly** — click once to split students as evenly as possible across all available graders
+- **Drag and drop** — drag a student card from one grader's column to another, or to the **Unassigned** pile
+- Grader cards show how many ungraded submissions each grader currently has
+
+### Rotating Groups
+
+- **Swap Groups ⇄** (2 graders) — swaps the two groups so each grader takes on the other's students
+- **Rotate Groups →** (3+ graders) — shifts each grader to the next group in order (A→B→C→A)
+
+Use Swap or Rotate weekly or bi-weekly so all graders get to know each student's code over the course of the term.
+
+### Assignment Overrides
+
+Below the student cards, the **Assignment Overrides** section lets you pin a specific grader to a single assignment. That person grades it for all students, regardless of their group. Leave it as **"Follow student group"** to use the normal group assignments.
+
+---
+
+## 10. Roster & Student Details
 
 The **Roster** page shows all students enrolled in a course, along with any accommodations on file.
 
@@ -233,15 +278,15 @@ Click any stat card to expand the assignment list for that category. Each assign
 
 ---
 
-## 10. Users — Managing Enrollment
+## 11. Users — Managing Enrollment
 
 The **Users** page manages who is enrolled in your course.
 
 ### Current Class tab
 
-Shows all enrolled members (students and instructors). From here you can:
+Shows all enrolled members (students, TAs, and instructors). From here you can:
 - **Remove** a member (trash icon)
-- **Change role** (student ↔ instructor via the role pill)
+- **Change role** — click the role pill to switch between student, TA, and instructor
 - **Invite new members** by email (bulk paste emails in the invite box)
 
 ### All Users tab
@@ -252,11 +297,49 @@ Shows every student across all courses, plus all instructors/admins. Useful for 
 
 Pending invitations (emails sent but not yet accepted) appear in a separate list. You can **Resend** or **Revoke** any pending invitation.
 
-> **Note:** Only admins can assign the admin role. Instructors can manage students and other instructors in their own courses.
+> **Note:** Only admins can assign the admin role. Instructors can manage students and TAs in their own courses.
 
 ---
 
-## 11. Student View — Previewing as a Student
+## 12. Teaching Assistants (TAs)
+
+A **Teaching Assistant** is a student who has been given read-only instructor access for a specific course. TAs can grade student work but cannot edit course content, manage users, or access Global Templates.
+
+### Assigning the TA Role
+
+1. Go to your course → **Users**
+2. Find the student in the Current Class tab
+3. Click their role pill and select **TA**
+
+The student will now see the course in their instructor-style view when they log in.
+
+### What TAs Can Do
+
+- View the full course (modules, days, assignments, resources, quizzes)
+- Grade submissions — Complete / Needs Revision
+- Leave comments on submissions
+- View the Roster (their course only)
+- Access General Info, Syllabus, Assignments, Class Resources, Career, Level Up, and Quizzes pages
+- Access both instructor and student documentation
+
+### What TAs Cannot Do
+
+- Create, edit, or delete modules, days, assignments, resources, or quizzes
+- Manage enrollments or user roles (Users page is blocked)
+- Access Global Templates or Grading Groups management
+- Duplicate or delete courses
+
+### TA Badge
+
+TAs see a blue **TA** badge in the top navigation bar and in the Courses list, so it's always clear which role they're operating under for that course.
+
+### Employment Section
+
+TAs automatically see a **Benefits** and **Paid Time Off** section in their sidebar under "Employment," regardless of whether the course has Paid Learners enabled.
+
+---
+
+## 13. Student View — Previewing as a Student
 
 You can preview exactly what your students see without creating a separate test account.
 
@@ -269,7 +352,7 @@ You can preview exactly what your students see without creating a separate test 
 
 ---
 
-## 12. Global Templates
+## 14. Global Templates
 
 **Global Templates** are shared pieces of content that appear across all courses. Edit them once and every course picks up the change automatically.
 
@@ -287,7 +370,7 @@ Click the template name, then click **✎ Edit** on any section. Use the rich te
 
 ---
 
-## 13. Calendar
+## 15. Calendar
 
 The Calendar manages the school-wide schedule that appears on students' General Info → Yearly Schedule section and on the Paid Time Off page.
 
@@ -311,7 +394,7 @@ Use **Copy to [next year] →** to duplicate the current year's holidays into th
 
 ---
 
-## 14. Benefits & Paid Time Off (Paid Learner Courses)
+## 16. Benefits & Paid Time Off (Paid Learner Courses)
 
 For Advanced courses where students receive employment benefits:
 
@@ -335,7 +418,7 @@ To update PTO content, go to **Global Templates → Paid Time Off** and edit bre
 
 ---
 
-## 15. Tips & Common Questions
+## 17. Tips & Common Questions
 
 **How do I hide a module while I'm still building it?**
 Toggle the module to **Unpublished** using the eye icon. Students won't see it until you publish it.

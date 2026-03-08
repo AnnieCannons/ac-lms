@@ -65,7 +65,7 @@ export default function SubmissionsList({
   currentUserId,
   initialFilter,
   firstUngradedStudentId,
-  graderMode = false,
+  grader,
 }: {
   students: StudentRow[];
   courseId: string;
@@ -74,7 +74,7 @@ export default function SubmissionsList({
   currentUserId?: string;
   initialFilter?: Filter;
   firstUngradedStudentId?: string | null;
-  graderMode?: boolean;
+  grader?: 'all' | 'me';
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>(initialFilter ?? "all");
@@ -162,7 +162,7 @@ export default function SubmissionsList({
         <div className="flex items-center gap-3">
           {firstUngradedStudentId && submissionRequired && counts["needs-grading"] > 0 && (
             <Link
-              href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${firstUngradedStudentId}${graderMode ? '?grader=all' : ''}`}
+              href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${firstUngradedStudentId}${grader ? `?grader=${grader}` : ''}`}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 transition-colors shrink-0"
             >
               Grade all ungraded →
@@ -241,7 +241,7 @@ export default function SubmissionsList({
                   )}
                   {canGrade && submissionRequired && (
                     <Link
-                      href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${student.id}${graderMode ? '?grader=all' : ''}`}
+                      href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${student.id}${grader ? `?grader=${grader}` : ''}`}
                       className="text-xs font-semibold text-teal-primary hover:underline"
                     >
                       {sub?.status === "graded" ? "Review →" : "Grade →"}

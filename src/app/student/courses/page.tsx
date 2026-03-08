@@ -37,7 +37,21 @@ export default async function StudentCoursesPage() {
         .order('name', { ascending: true })
     : { data: [] }
 
-  const totalCount = courses?.length ?? 0
+  function isCurrent(startDate: string | null | undefined): boolean {
+    if (!startDate) return false
+    const start = new Date(startDate).getTime()
+    const end = start + 105 * 24 * 60 * 60 * 1000 // 15 weeks
+    return Date.now() >= start && Date.now() <= end
+  }
+
+  const sortedCourses = [...(courses ?? [])].sort((a, b) => {
+    const aC = isCurrent(a.start_date) ? 0 : 1
+    const bC = isCurrent(b.start_date) ? 0 : 1
+    if (aC !== bC) return aC - bC
+    return a.name.localeCompare(b.name)
+  })
+
+  const totalCount = sortedCourses.length
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,11 +63,12 @@ export default async function StudentCoursesPage() {
           {totalCount} course{totalCount !== 1 ? 's' : ''} enrolled
         </p>
 
-        {courses && courses.length > 0 ? (
+        {sortedCourses.length > 0 ? (
           <div className="flex flex-col gap-4">
-            {courses.map(course => {
+            {sortedCourses.map(course => {
               const enrollmentRole = enrollmentRoleMap[course.id]
               const isTa = enrollmentRole === 'ta'
+              const current = isCurrent(course.start_date)
               return (
                 <div
                   key={course.id}
@@ -63,6 +78,9 @@ export default async function StudentCoursesPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-dark-text truncate">{course.name}</h3>
+                        {current && (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-current shrink-0">Current</span>
+                        )}
                         {isTa && (
                           <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-ta shrink-0">TA</span>
                         )}

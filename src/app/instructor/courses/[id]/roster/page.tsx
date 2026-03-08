@@ -24,11 +24,10 @@ export default async function RosterPage({
 
   const admin = createServiceSupabaseClient()
 
-  // All courses for tabs
-  const { data: allCourses } = await admin
-    .from('courses')
-    .select('id, name')
-    .order('created_at', { ascending: false })
+  // All courses for tabs — TAs only see their own course
+  const { data: allCourses } = isTa
+    ? { data: null }
+    : await admin.from('courses').select('id, name').order('created_at', { ascending: false })
 
   // Students and observers enrolled in current course
   const { data: enrollments } = await admin
@@ -64,13 +63,13 @@ export default async function RosterPage({
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  // Current course first, then rest sorted by name
-  const otherCourses = (allCourses ?? []).filter(c => c.id !== id)
+  // Current course first, then rest sorted by name (TAs only see their course)
+  const otherCourses = isTa ? [] : (allCourses ?? []).filter(c => c.id !== id)
   const courses = [course, ...otherCourses]
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />
