@@ -136,7 +136,7 @@ export default function CreateButton({ courseId }: Props) {
     setCrossModuleId('')
     setCrossDayId('')
     setError(null)
-    setShowNewModule(firstMods.length === 0)
+    setShowNewModule(false)
     setNewModuleTitle('')
     setModuleError(null)
     setLevelUpTags([])
@@ -296,7 +296,7 @@ export default function CreateButton({ courseId }: Props) {
                     setSection(s)
                     setModuleId(nextMods[0]?.id ?? '')
                     setDayId('')
-                    setShowNewModule(nextMods.length === 0)
+                    setShowNewModule(false)
                     setNewModuleTitle('')
                     if (s === 'level_up') loadModuleTags(nextMods[0])
                     else { setLevelUpTags([]); setCustomTags([]) }
@@ -311,9 +311,9 @@ export default function CreateButton({ courseId }: Props) {
             )}
 
             {/* Module */}
-            {sectionModules.length > 0 && (
-              <div>
-                <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Module</label>
+            <div>
+              <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Module</label>
+              {sectionModules.length > 0 ? (
                 <select
                   value={moduleId}
                   onChange={e => {
@@ -327,8 +327,10 @@ export default function CreateButton({ courseId }: Props) {
                     <option key={m.id} value={m.id}>{m.title}</option>
                   ))}
                 </select>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-text px-1">No modules yet — create one below.</p>
+              )}
+            </div>
 
             {/* New module */}
             {!showNewModule ? (
