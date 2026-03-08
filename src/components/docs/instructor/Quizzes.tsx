@@ -1,4 +1,4 @@
-import { DocH2, DocH3, DocP, DocList, DocTip, DocNote, DocStep } from '@/components/docs/DocComponents'
+import { DocH2, DocH3, DocP, DocList, DocTip, DocNote, DocStep, DocCode } from '@/components/docs/DocComponents'
 
 export default function Quizzes() {
   return (
@@ -8,10 +8,27 @@ export default function Quizzes() {
 
       <DocH2>Creating a Quiz</DocH2>
       <DocStep number={1}>Navigate to <strong>Quizzes</strong> in the course sidebar.</DocStep>
-      <DocStep number={2}>Click <strong>+ New Quiz</strong>.</DocStep>
-      <DocStep number={3}>Enter a title and optionally set a due date and max attempts.</DocStep>
-      <DocStep number={4}>Add questions using the question builder.</DocStep>
+      <DocStep number={2}>Click <strong>+ New Quiz</strong>. A panel opens where you can name the quiz and optionally paste in questions.</DocStep>
+      <DocStep number={3}>To bulk-import questions, paste them into the text area (see format below). Or leave it empty to start blank and add questions individually.</DocStep>
+      <DocStep number={4}>Click <strong>Create Quiz</strong>. The quiz opens in the editor where you can set a due date, max attempts, and add or edit questions.</DocStep>
       <DocStep number={5}>Publish the quiz when ready for students.</DocStep>
+
+      <DocH2>Pasting Questions in Bulk</DocH2>
+      <DocP>
+        When creating a new quiz, paste questions directly into the text area. The format is flexible — blank lines
+        separate questions, and the first answer is always treated as correct.
+      </DocP>
+      <DocList>
+        <li>Question text on the first line (or numbered: <DocCode>1. Question?</DocCode>)</li>
+        <li>Each answer on its own line — first answer = correct</li>
+        <li>Choice labels (<DocCode>a)</DocCode>, <DocCode>b)</DocCode>, etc.) are optional</li>
+        <li>Blank line between questions</li>
+        <li>Fenced code blocks (<DocCode>```js</DocCode>) attach to the preceding question as a code snippet</li>
+        <li>Inline <DocCode>`backtick code`</DocCode> is rendered as code in the question text</li>
+      </DocList>
+      <DocTip>
+        If the first answer is &ldquo;True&rdquo; or &ldquo;False&rdquo;, the question is automatically marked as true/false type.
+      </DocTip>
 
       <DocH2>Question Types</DocH2>
       <DocList>

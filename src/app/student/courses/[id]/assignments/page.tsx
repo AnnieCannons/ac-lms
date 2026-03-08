@@ -35,10 +35,10 @@ export default async function StudentAssignmentsPage({
 
   const { data: enrollment } = await supabase
     .from('course_enrollments')
-    .select('id')
+    .select('id, role')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'observer'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')

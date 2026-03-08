@@ -46,6 +46,7 @@ export default function SubmissionForm({
   initialHistory,
   checklistItems,
   initialChecked,
+  isObserver,
 }: {
   assignmentId: string;
   studentId: string;
@@ -54,6 +55,7 @@ export default function SubmissionForm({
   initialHistory: HistoryEntry[];
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
+  isObserver?: boolean;
 }) {
   const supabase = createClient();
 
@@ -220,6 +222,11 @@ export default function SubmissionForm({
 
   return (
     <>
+    {isObserver && (
+      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+        You&apos;re currently on leave. Your submitted work is visible below, but submissions are paused.
+      </div>
+    )}
     {hasChecklist && (
       <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
@@ -235,8 +242,8 @@ export default function SubmissionForm({
               <li key={item.id}>
                 <button
                   type="button"
-                  onClick={() => toggleCheck(item.id)}
-                  className="flex items-start gap-3 w-full text-left group"
+                  onClick={() => !isObserver && toggleCheck(item.id)}
+                  className={`flex items-start gap-3 w-full text-left group ${isObserver ? 'pointer-events-none opacity-60' : ''}`}
                 >
                   <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
                     checked[item.id]
@@ -333,7 +340,7 @@ export default function SubmissionForm({
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
             </p>
           )}
-          {canResubmit && (
+          {!isObserver && canResubmit && (
             <button
               type="button"
               onClick={() => saved?.status === 'draft' ? editDraft() : setMode("confirm-resubmit")}
@@ -391,7 +398,7 @@ export default function SubmissionForm({
       )}
 
       {/* ── CONFIRM RESUBMIT MODE ── */}
-      {mode === "confirm-resubmit" && saved && (
+      {!isObserver && mode === "confirm-resubmit" && saved && (
         <div className="bg-background rounded-xl border border-border p-4 flex flex-col gap-4">
           <p className="text-sm font-medium text-dark-text">
             Is your {saved.submission_type === "link" ? "link" : saved.submission_type === "file" ? "file" : "response"} the same as before?
@@ -426,7 +433,7 @@ export default function SubmissionForm({
       )}
 
       {/* ── EDIT MODE: submission form ── */}
-      {mode === "edit" && (
+      {!isObserver && mode === "edit" && (
         <>
           {/* Tab selector */}
           <div className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">

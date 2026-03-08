@@ -40,12 +40,13 @@ export default async function ConductQuizPage({
 
   const { data: quiz } = await admin
     .from("quizzes")
-    .select("id, title, questions, max_attempts")
+    .select("id, title, questions, max_attempts, published")
     .eq("id", quizId)
     .eq("course_id", id)
     .single();
 
   if (!quiz) redirect(`/instructor/courses/${id}/quizzes`);
+  if (!quiz.published) redirect(`/instructor/courses/${id}/quizzes?open=${quizId}`);
 
   // Get all enrolled students
   const { data: enrollments } = await admin

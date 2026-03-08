@@ -42,16 +42,18 @@ export default async function StudentQuizzesPage({
     redirect(`/instructor/courses/${id}`);
   }
 
+  let isObserver = false;
   if (!preview) {
     const { data: enrollment } = await supabase
       .from("course_enrollments")
-      .select("id")
+      .select("id, role")
       .eq("user_id", user.id)
       .eq("course_id", id)
-      .eq("role", "student")
+      .in("role", ["student", "observer"])
       .maybeSingle();
 
     if (!enrollment) redirect("/student/courses");
+    isObserver = enrollment.role === "observer";
   }
 
   const { data: course } = await supabase
@@ -113,9 +115,63 @@ export default async function StudentQuizzesPage({
                 const maxAttempts: number | null = quiz.max_attempts ?? null;
                 const outOfAttempts = maxAttempts !== null && attemptsUsed >= maxAttempts;
 
-                  const scorePercent = sub?.score_percent != null ? Math.round(sub.score_percent as number) : null;
+                const scorePercent = sub?.score_percent != null ? Math.round(sub.score_percent as number) : null;
                 const isComplete = scorePercent === 100;
                 const canRetake = !!sub && !isComplete && !outOfAttempts;
+
+                // Observer: no retake link; no-sub cards are non-clickable
+                if (isObserver) {
+                  if (!sub) {
+                    return (
+                      <div
+                        key={quiz.id}
+                        className="block bg-surface rounded-2xl border border-border p-6 opacity-50"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
+                            {quiz.module_title && (
+                              <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-text mt-2">
+                          Due: {formatDueDate(quiz.due_at)} · {questionCount} question{questionCount !== 1 ? "s" : ""}
+                        </p>
+                        <p className="text-sm text-muted-text font-medium mt-3">Not available (on leave)</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={quiz.id}
+                      href={`/student/courses/${id}/quizzes/${quiz.id}`}
+                      className="block bg-surface rounded-2xl border border-border p-6 hover:border-teal-primary transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
+                          {quiz.module_title && (
+                            <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
+                          )}
+                        </div>
+                        {isComplete && (
+                          <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 dark:bg-green-950/40 dark:text-green-400 dark:border-green-700">
+                            Complete ✓
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-text mt-2">
+                        Due: {formatDueDate(quiz.due_at)} · {questionCount} question{questionCount !== 1 ? "s" : ""}
+                      </p>
+                      <p className="text-sm text-muted-text mt-1">
+                        Score: {scorePercent != null ? `${scorePercent}%` : "—"}
+                        {" · "}{attemptsUsed} attempt{attemptsUsed !== 1 ? "s" : ""} used
+                      </p>
+                      <p className="text-sm font-medium mt-3 text-muted-text">View results →</p>
+                    </Link>
+                  );
+                }
 
                 // Link destination: go straight to retake when applicable
                 const href = canRetake

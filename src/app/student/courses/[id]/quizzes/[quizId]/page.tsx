@@ -59,16 +59,18 @@ export default async function TakeQuizPage({
     redirect(`/instructor/courses/${id}`);
   }
 
+  let isObserver = false;
   if (!preview) {
     const { data: enrollment } = await supabase
       .from("course_enrollments")
-      .select("id")
+      .select("id, role")
       .eq("user_id", user.id)
       .eq("course_id", id)
-      .eq("role", "student")
+      .in("role", ["student", "observer"])
       .maybeSingle();
 
     if (!enrollment) redirect("/student/courses");
+    isObserver = enrollment.role === "observer";
   }
 
   const { data: course } = await supabase
@@ -136,8 +138,11 @@ export default async function TakeQuizPage({
     }
   }
 
+  // Observers can never retake — they only see results
+  const effectiveCanRetake = !isObserver && !outOfAttempts;
+
   // Guard retake mode: must have a submission, attempts remaining, and wrong questions
-  if (isRetakeMode && (!submission || outOfAttempts || wrongCount === 0)) {
+  if (isRetakeMode && (!submission || !effectiveCanRetake || wrongCount === 0)) {
     redirect(`/student/courses/${id}/quizzes/${quizId}`);
   }
 
@@ -239,6 +244,7 @@ export default async function TakeQuizPage({
                   questions={questions}
                   previousAnswers={[]}
                   savedProgress={savedProgress}
+                  isObserver={isObserver}
                 />
               )}
 
@@ -269,7 +275,7 @@ export default async function TakeQuizPage({
                   </div>
 
                   {/* Retake button */}
-                  {!outOfAttempts && wrongCount > 0 && (
+                  {effectiveCanRetake && wrongCount > 0 && (
                     <div className="flex items-center justify-between bg-surface border border-border rounded-xl px-5 py-4">
                       <div>
                         <p className="text-sm font-semibold text-dark-text">
@@ -362,10 +368,12 @@ export default async function TakeQuizPage({
                     })}
                   </div>
 
-                  {/* Out of attempts message */}
-                  {outOfAttempts && (
+                  {/* Out of attempts / observer locked message */}
+                  {(outOfAttempts || isObserver) && (
                     <div className="text-sm text-muted-text bg-surface border border-border rounded-xl px-5 py-4">
-                      You&apos;ve used all {maxAttempts} attempt{maxAttempts !== 1 ? "s" : ""}. Correct answers are shown above.
+                      {isObserver
+                        ? "Quiz submissions are paused while you're on leave."
+                        : `You've used all ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""}. Correct answers are shown above.`}
                     </div>
                   )}
                 </div>

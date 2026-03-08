@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -48,10 +48,10 @@ export default async function StudentCourseDetailPage({
   // Verify learner is enrolled in this course
   const { data: enrollment } = await supabase
     .from('course_enrollments')
-    .select('id')
+    .select('id, role')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'observer'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')
@@ -78,7 +78,7 @@ export default async function StudentCourseDetailPage({
     supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
-    supabase.from('quizzes').select('id, title, module_title, day_title, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).not('day_title', 'is', null),
+    createServiceSupabaseClient().from('quizzes').select('id, title, module_title, day_title, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).not('day_title', 'is', null),
   ])
 
   type CourseQuiz = { id: string; title: string; module_title: string; day_title: string | null; max_attempts: number | null; due_at: string | null; questions: unknown[] }

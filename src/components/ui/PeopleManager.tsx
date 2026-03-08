@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { bulkAddPeopleToCourse, updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse } from '@/lib/people-actions'
 
-type Role = 'student' | 'instructor' | 'admin'
+type Role = 'student' | 'instructor' | 'admin' | 'observer'
 
 interface Member {
   userId: string
@@ -39,6 +39,7 @@ function RolePill({ role }: { role: string }) {
     student: 'bg-teal-light text-teal-primary',
     instructor: 'bg-purple-100 text-purple-700',
     admin: 'bg-orange-100 text-orange-700',
+    observer: 'bg-gray-100 text-gray-500',
   }
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${styles[role] ?? 'bg-border text-muted-text'}`}>
@@ -86,6 +87,85 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   // Role editing
   const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null)
   const [savingRole, setSavingRole] = useState(false)
+
+  const activeMembers = members.filter(m => m.role !== 'observer')
+  const observerMembers = members.filter(m => m.role === 'observer')
+
+  function renderMemberDesktopRow(member: Member, muted = false) {
+    return (
+      <tr key={member.userId} className={`bg-background ${muted ? 'opacity-60' : ''}`}>
+        <td className="px-4 py-3 text-dark-text">{member.name || '—'}</td>
+        <td className="px-4 py-3 text-muted-text">{member.email}</td>
+        <td className="px-4 py-3">
+          {editingRoleFor === member.userId ? (
+            <div className="flex items-center gap-2">
+              <select
+                defaultValue={member.role}
+                disabled={savingRole}
+                autoFocus
+                onChange={(e) => handleRoleChange(member.userId, e.target.value as Role)}
+                onBlur={() => setEditingRoleFor(null)}
+                className="border border-border rounded px-2 py-0.5 text-xs bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                aria-label={`Change role for ${member.name || member.email}`}
+              >
+                <option value="student">Student</option>
+                <option value="observer">Observer</option>
+                <option value="instructor">Instructor</option>
+                {currentUserRole === 'admin' && <option value="admin">Admin</option>}
+              </select>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingRoleFor(member.userId)}
+              className="group flex items-center gap-1.5"
+              aria-label={`Edit role for ${member.name || member.email}`}
+              title="Click to change role"
+            >
+              <RolePill role={member.role} />
+              <span className="text-xs text-muted-text opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
+            </button>
+          )}
+        </td>
+        <td className="px-4 py-3 text-right">
+          <button
+            onClick={() => handleRemove(member.userId)}
+            disabled={isPending}
+            aria-label={`Remove ${member.name || member.email} from course`}
+            className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+          >
+            <TrashIcon />
+          </button>
+          {actionStatus?.id === member.userId && (
+            <span className={`ml-2 text-xs ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
+              {actionStatus.message}
+            </span>
+          )}
+        </td>
+      </tr>
+    )
+  }
+
+  function renderMemberMobileCard(member: Member, muted = false) {
+    return (
+      <div key={member.userId} className={`bg-background px-4 py-3 flex items-center justify-between gap-3 ${muted ? 'opacity-60' : ''}`}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-dark-text truncate">{member.name || '—'}</span>
+            <RolePill role={member.role} />
+          </div>
+          <p className="text-xs text-muted-text mt-0.5 truncate">{member.email}</p>
+        </div>
+        <button
+          onClick={() => handleRemove(member.userId)}
+          disabled={isPending}
+          aria-label={`Remove ${member.name || member.email} from course`}
+          className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors shrink-0"
+        >
+          <TrashIcon />
+        </button>
+      </div>
+    )
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -210,35 +290,16 @@ export default function PeopleManager({ courseId, members, invitations, currentU
       {/* Members Table */}
       <section>
         <h2 className="text-base font-semibold text-dark-text mb-4">
-          Members <span className="text-muted-text font-normal">({members.length})</span>
+          Members <span className="text-muted-text font-normal">({activeMembers.length})</span>
         </h2>
-        {members.length === 0 ? (
+        {activeMembers.length === 0 ? (
           <p className="text-sm text-muted-text">No members yet.</p>
         ) : (
           <>
             {/* Mobile card list */}
             <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
-              {members.map((member) => (
-                <div key={member.userId} className="bg-background px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-dark-text truncate">{member.name || '—'}</span>
-                      <RolePill role={member.role} />
-                    </div>
-                    <p className="text-xs text-muted-text mt-0.5 truncate">{member.email}</p>
-                  </div>
-                  <button
-                    onClick={() => handleRemove(member.userId)}
-                    disabled={isPending}
-                    aria-label={`Remove ${member.name || member.email} from course`}
-                    className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors shrink-0"
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-              ))}
+              {activeMembers.map((member) => renderMemberMobileCard(member))}
             </div>
-
             {/* Desktop table */}
             <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
@@ -251,62 +312,41 @@ export default function PeopleManager({ courseId, members, invitations, currentU
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {members.map((member) => (
-                    <tr key={member.userId} className="bg-background">
-                      <td className="px-4 py-3 text-dark-text">{member.name || '—'}</td>
-                      <td className="px-4 py-3 text-muted-text">{member.email}</td>
-                      <td className="px-4 py-3">
-                        {editingRoleFor === member.userId ? (
-                          <div className="flex items-center gap-2">
-                            <select
-                              defaultValue={member.role}
-                              disabled={savingRole}
-                              autoFocus
-                              onChange={(e) => handleRoleChange(member.userId, e.target.value as Role)}
-                              onBlur={() => setEditingRoleFor(null)}
-                              className="border border-border rounded px-2 py-0.5 text-xs bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                              aria-label={`Change role for ${member.name || member.email}`}
-                            >
-                              <option value="student">Student</option>
-                              <option value="instructor">Instructor</option>
-                              {currentUserRole === 'admin' && <option value="admin">Admin</option>}
-                            </select>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setEditingRoleFor(member.userId)}
-                            className="group flex items-center gap-1.5"
-                            aria-label={`Edit role for ${member.name || member.email}`}
-                            title="Click to change role"
-                          >
-                            <RolePill role={member.role} />
-                            <span className="text-xs text-muted-text opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleRemove(member.userId)}
-                          disabled={isPending}
-                          aria-label={`Remove ${member.name || member.email} from course`}
-                          className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-                        >
-                          <TrashIcon />
-                        </button>
-                        {actionStatus?.id === member.userId && (
-                          <span className={`ml-2 text-xs ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
-                            {actionStatus.message}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {activeMembers.map((member) => renderMemberDesktopRow(member))}
                 </tbody>
               </table>
             </div>
           </>
         )}
       </section>
+
+      {/* Observers Section */}
+      {observerMembers.length > 0 && (
+        <section>
+          <h2 className="text-base font-semibold text-dark-text mb-1">Observers</h2>
+          <p className="text-xs text-muted-text mb-4">on leave / paused</p>
+          {/* Mobile card list */}
+          <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
+            {observerMembers.map((member) => renderMemberMobileCard(member, true))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-surface border-b border-border">
+                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-text">Role</th>
+                  <th className="sr-only">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {observerMembers.map((member) => renderMemberDesktopRow(member, true))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Pending Invitations Table */}
       {invitations.length > 0 && (

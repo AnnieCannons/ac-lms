@@ -38,12 +38,12 @@ export default async function RosterPage({
     .select('id, name')
     .order('created_at', { ascending: false })
 
-  // Students enrolled in current course
+  // Students and observers enrolled in current course
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('user_id, users(id, name, email)')
+    .select('user_id, role, users(id, name, email)')
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'observer'])
 
   const studentIds = (enrollments ?? []).map(e => e.user_id)
 
@@ -67,6 +67,7 @@ export default async function RosterPage({
         name: u?.name ?? '',
         email: u?.email ?? '',
         accommodation: accommodationMap[e.user_id] ?? null,
+        enrollmentRole: e.role as 'student' | 'observer',
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name))

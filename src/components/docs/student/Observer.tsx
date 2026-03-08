@@ -4,13 +4,17 @@ export default function Observer() {
   return (
     <>
       <h1 className="text-2xl font-bold text-dark-text mb-1">Observer Mode</h1>
-      <p className="text-sm text-muted-text mb-8">What the Observer role means and how it affects what you can do.</p>
+      <p className="text-sm text-muted-text mb-8">For students who have paused midway through a course.</p>
 
       <DocH2>What Is Observer Mode?</DocH2>
       <DocP>
-        If you are enrolled in a course as an <strong>Observer</strong>, you have read-only access to the course. This
-        status is typically used for students on leave who still need to follow along with course content but are not
-        actively participating.
+        Observer mode is for students who have <strong>paused midway through a course</strong>. If you&apos;ve stepped
+        away and your instructor has set your enrollment to Observer, you keep full access to your records and all the
+        work you&apos;ve done — so everything is right where you left it when you return.
+      </DocP>
+      <DocP>
+        As an Observer you have read-only access to the course. You can follow along with content but submissions and
+        graded activities are disabled until you return to active student status.
       </DocP>
 
       <DocH2>What You Can Do as an Observer</DocH2>

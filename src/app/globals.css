@@ -131,6 +131,11 @@ html.theme-dark.high-contrast .status-badge {
   color: #ffffff !important;
 }
 
+/* Hide native calendar/clock icon on datetime-local inputs */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
 /* Doc note callout - amber, dark-mode aware */
 .doc-note-callout {
   background-color: #fffbeb; /* amber-50 */

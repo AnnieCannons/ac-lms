@@ -34,13 +34,15 @@ export default async function StudentAssignmentPage({
   // Verify enrollment
   const { data: enrollment } = await supabase
     .from('course_enrollments')
-    .select('id')
+    .select('id, role')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'observer'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')
+
+  const isObserver = !preview && enrollment?.role === 'observer'
 
   const { data: assignment } = await supabase
     .from('assignments')
@@ -261,6 +263,7 @@ export default async function StudentAssignmentPage({
               initialHistory={submissionHistory ?? []}
               checklistItems={checklistItems ?? undefined}
               initialChecked={initialChecked}
+              isObserver={isObserver}
             />
           ) : (
             <div className="bg-surface rounded-2xl border border-border p-6">
@@ -277,6 +280,7 @@ export default async function StudentAssignmentPage({
               currentUserId={user.id}
               currentUserName={profile?.name ?? 'Student'}
               currentUserRole={profile?.role ?? 'student'}
+              isObserver={isObserver}
             />
           )}
         </div>

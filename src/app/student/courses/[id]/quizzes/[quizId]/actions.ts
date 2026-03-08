@@ -39,13 +39,17 @@ export async function submitQuiz(formData: FormData) {
 
   const { data: enrollment } = await supabase
     .from("course_enrollments")
-    .select("id")
+    .select("id, role")
     .eq("user_id", user.id)
     .eq("course_id", courseId)
-    .eq("role", "student")
+    .in("role", ["student", "observer"])
     .maybeSingle();
 
   if (!enrollment) redirect("/student/courses");
+
+  if (enrollment.role === "observer") {
+    return { error: "Quiz submissions are paused while on leave." };
+  }
 
   const admin = createServiceSupabaseClient();
 

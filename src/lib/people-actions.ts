@@ -1,7 +1,7 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
-type Role = 'student' | 'instructor' | 'admin'
+type Role = 'student' | 'instructor' | 'admin' | 'observer'
 
 async function getAuthedInstructorOrAdmin() {
   const supabase = await createServerSupabaseClient()

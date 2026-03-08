@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -45,10 +45,10 @@ export default async function StudentDayDetailPage({
   // Verify enrollment
   const { data: enrollment } = await supabase
     .from('course_enrollments')
-    .select('id')
+    .select('id, role')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'observer'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')
@@ -90,15 +90,23 @@ export default async function StudentDayDetailPage({
   let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null }> = []
   let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
 
-  if (module?.title && day.day_name) {
-    const { data: quizData } = await supabase
+  if (day.day_name) {
+    const admin = createServiceSupabaseClient()
+    const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
+    const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
+    const { data: quizData } = await admin
       .from('quizzes')
-      .select('id, title, questions, max_attempts, due_at')
+      .select('id, title, questions, max_attempts, due_at, module_title')
       .eq('course_id', id)
-      .eq('module_title', module.title)
       .eq('day_title', day.day_name)
       .eq('published', true)
-    quizzes = (quizData ?? []) as typeof quizzes
+    // Filter: exact module title match, or week-number match
+    const allDayQuizzes = (quizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>
+    quizzes = allDayQuizzes.filter(q => {
+      if (q.module_title?.trim() === module?.title?.trim()) return true
+      const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
+      return !!(quizWeek && weekNumber !== null && parseInt(quizWeek, 10) === weekNumber)
+    })
 
     if (quizzes.length > 0) {
       const quizIds = quizzes.map(q => q.id)

@@ -1397,7 +1397,7 @@ function SortableDay({
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Unassigned' },
-  { value: 'syllabus', label: 'Syllabus' },
+  { value: 'syllabus', label: 'Course Outline' },
   { value: 'level_up', label: 'Level Up Your Skills' },
   { value: 'resources', label: 'Class Resources' },
   { value: 'career', label: 'Career Development' },

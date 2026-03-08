@@ -18,12 +18,14 @@ export default function SubmissionComments({
   currentUserId,
   currentUserName,
   currentUserRole,
+  isObserver,
 }: {
   submissionId: string;
   initialComments: CommentEntry[];
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
+  isObserver?: boolean;
 }) {
   const supabase = createClient();
   const [comments, setComments] = useState<CommentEntry[]>(initialComments);
@@ -103,27 +105,29 @@ export default function SubmissionComments({
         </div>
       )}
 
-      <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
-          }}
-          placeholder="Add a comment… (⌘↵ to send)"
-          rows={3}
-          className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-        />
-        <div className="flex justify-end mt-2">
-          <button
-            onClick={send}
-            disabled={sending || !text.trim()}
-            className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
+      {!isObserver && (
+        <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
+            }}
+            placeholder="Add a comment… (⌘↵ to send)"
+            rows={3}
+            className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+          />
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={send}
+              disabled={sending || !text.trim()}
+              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

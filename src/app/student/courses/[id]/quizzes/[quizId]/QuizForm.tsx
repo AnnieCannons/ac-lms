@@ -35,6 +35,7 @@ export default function QuizForm({
   previousAnswers,
   savedProgress,
   lockedAnswers,
+  isObserver,
 }: {
   courseId: string;
   quizId: string;
@@ -42,6 +43,7 @@ export default function QuizForm({
   previousAnswers: AnswerEntry[];
   savedProgress?: Record<string, string>; // index → choice_ident (restore in-progress)
   lockedAnswers?: Record<string, string>;  // index → choice_ident (already correct in retake)
+  isObserver?: boolean;
 }) {
   // Track answers by question index — no state, no re-renders
   const answersRef = useRef<Record<string, string>>({});
@@ -70,6 +72,50 @@ export default function QuizForm({
   };
 
   const isRetake = lockedAnswers !== undefined;
+
+  if (isObserver) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+          Quiz submissions are paused while you&apos;re on leave.
+        </div>
+        {questions.map((q, i) => (
+          <fieldset
+            key={i}
+            className="bg-surface rounded-xl border border-border/50 p-5 opacity-60"
+          >
+            <legend className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">
+              Question {i + 1}
+            </legend>
+            <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
+              <HtmlContent html={q.question_text || ""} />
+            </div>
+            {q.code_snippet && (
+              <div className="mb-4">
+                <CodeEditor
+                  value={q.code_snippet}
+                  language={(q.code_language as "javascript" | "jsx" | "html" | "css" | "sql") ?? "javascript"}
+                  editable={false}
+                />
+              </div>
+            )}
+            <ul className="space-y-1.5">
+              {(q.choices ?? []).map((choice) => (
+                <li key={choice.ident}>
+                  <div className="flex items-start gap-3 rounded-lg border border-border/30 px-4 py-2.5">
+                    <div className="mt-1 shrink-0 w-3.5 h-3.5 rounded-full border-2 border-border/30" />
+                    <div className="quiz-html text-sm text-muted-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
+                      <HtmlContent html={choice.text || ""} />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <form action={submitQuiz} className="space-y-4">

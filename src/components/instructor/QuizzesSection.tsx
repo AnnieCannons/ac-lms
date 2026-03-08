@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
-import { createQuiz, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
+import { createQuiz, createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
+import { parseQuizText } from "@/lib/quiz-parser";
 import QuizFullView from "./QuizFullView";
 import {
   DndContext,
@@ -128,6 +129,12 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  const [showImport, setShowImport] = useState(false);
+  const [importTitle, setImportTitle] = useState("");
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
   const [moduleOrder, setModuleOrder] = useState<string[]>(() => {
     const modules = new Set<string>();
     (quizzes || []).forEach((q) => modules.add(q.module_title || "Other"));
@@ -198,21 +205,6 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     });
   };
 
-  const handleNewQuiz = async () => {
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const data = await createQuiz(courseId);
-      if (data) {
-        setSelectedQuiz(data as QuizRow);
-        router.refresh();
-      }
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create quiz");
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleTogglePublished = async (quiz: QuizRow) => {
     const newPublished = !quiz.published;
@@ -248,6 +240,31 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
       setLocalQuizzes((prev) =>
         prev.map((q) => (q.id === quiz.id ? quiz : q))
       );
+    }
+  };
+
+  const parsedQuestions = importText.trim() ? parseQuizText(importText) : [];
+
+  const handleCreate = async () => {
+    const title = importTitle.trim() || "New Quiz";
+    setImporting(true);
+    setImportError(null);
+    try {
+      const data = parsedQuestions.length > 0
+        ? await createQuizWithQuestions(courseId, title, parsedQuestions)
+        : await createQuiz(courseId);
+      if (data) {
+        setLocalQuizzes((prev) => [...prev, data as QuizRow]);
+        setSelectedQuiz(data as QuizRow);
+        setShowImport(false);
+        setImportTitle("");
+        setImportText("");
+        router.refresh();
+      }
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Failed to create quiz");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -287,14 +304,76 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
             )}
             <button
               type="button"
-              onClick={handleNewQuiz}
-              disabled={creating}
-              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              onClick={() => { setShowImport((v) => !v); setImportError(null); }}
+              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 transition-opacity"
             >
-              {creating ? "Creating…" : "+ New Quiz"}
+              + New Quiz
             </button>
           </div>
         </div>
+
+        {/* ── Import panel ─────────────────────────────────────────────── */}
+        {showImport && (
+          <div className="mb-4 bg-surface border border-border rounded-2xl p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-dark-text">New Quiz</p>
+              <button
+                type="button"
+                onClick={() => { setShowImport(false); setImportError(null); }}
+                className="text-muted-text hover:text-dark-text text-lg leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={importTitle}
+              onChange={(e) => setImportTitle(e.target.value)}
+              placeholder="Quiz title"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary/50"
+            />
+
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder={`Paste questions here, or leave empty to start blank and add questions individually.\n\nBlank lines separate questions. First answer is always correct.\n\nWhat is typeof null?\n"object"\n"null"\n"undefined"\n\nIs JS single-threaded?\nTrue\nFalse`}
+              rows={10}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary/50 font-mono resize-y"
+            />
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-text">
+                {parsedQuestions.length > 0
+                  ? <span className="text-teal-primary font-medium">{parsedQuestions.length} question{parsedQuestions.length !== 1 ? "s" : ""} ready to import</span>
+                  : "Leave blank to start empty"}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowImport(false); setImportError(null); }}
+                  className="text-sm px-4 py-2 rounded-full border border-border text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={importing}
+                  className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {importing ? "Creating…" : parsedQuestions.length > 0 ? `Create Quiz (${parsedQuestions.length}q)` : "Create Quiz"}
+                </button>
+              </div>
+            </div>
+
+            {importError && (
+              <p className="text-sm text-red-400">{importError}</p>
+            )}
+          </div>
+        )}
+
         {createError && (
           <div className="mb-3 rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {createError}
@@ -304,7 +383,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
         {localQuizzes.length === 0 ? (
           <div className="bg-surface rounded-2xl border border-border p-6 text-center">
             <p className="text-sm text-muted-text">No quizzes for this course yet.</p>
-            <p className="text-xs text-muted-text mt-1">Click &ldquo;+ New Quiz&rdquo; to create one.</p>
+            <p className="text-xs text-muted-text mt-1">Click &ldquo;+ New Quiz&rdquo; to create one, or paste in questions to import.</p>
           </div>
         ) : (
           <>
@@ -408,7 +487,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
                                         </select>
                                       )}
 
-                                      {!quiz.id.startsWith("json-") && (
+                                      {!quiz.id.startsWith("json-") && quiz.published && (
                                         <Link
                                           href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
                                           className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"

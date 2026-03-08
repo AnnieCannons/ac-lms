@@ -13,6 +13,32 @@ async function getInstructorSession() {
   return user;
 }
 
+export async function createQuizWithQuestions(
+  courseId: string,
+  title: string,
+  questions: QuizQuestion[]
+) {
+  await getInstructorSession()
+  const admin = createServiceSupabaseClient()
+  const identifier = `paste-${Date.now()}`
+  const { data, error } = await admin
+    .from('quizzes')
+    .insert({
+      course_id: courseId,
+      identifier,
+      title,
+      due_at: null,
+      module_title: '',
+      published: false,
+      questions,
+      max_attempts: null,
+    })
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
 export async function createQuiz(courseId: string) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
