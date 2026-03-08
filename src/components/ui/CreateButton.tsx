@@ -179,7 +179,7 @@ export default function CreateButton({ courseId }: Props) {
     setCreating(true)
     // If no module yet but a new module name was entered, create it first
     let resolvedModuleId = moduleId
-    if (!moduleId && showNewModule && newModuleTitle.trim()) {
+    if (!moduleId && newModuleTitle.trim()) {
       const category = section === 'career' ? 'career' : section === 'level_up' ? 'level_up' : null
       const { data, error } = await supabase
         .from('modules')
@@ -246,7 +246,7 @@ export default function CreateButton({ courseId }: Props) {
     }
   }
 
-  const isValid = (!!moduleId || (showNewModule && !!newModuleTitle.trim())) && (createType !== 'resource' || !!resTitle.trim())
+  const isValid = (!!moduleId || !!newModuleTitle.trim()) && (createType !== 'resource' || !!resTitle.trim())
 
   return (
     <>
@@ -313,7 +313,7 @@ export default function CreateButton({ courseId }: Props) {
             {/* Module */}
             <div>
               <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Module</label>
-              {sectionModules.length > 0 ? (
+              {sectionModules.length > 0 && (
                 <select
                   value={moduleId}
                   onChange={e => {
@@ -327,39 +327,38 @@ export default function CreateButton({ courseId }: Props) {
                     <option key={m.id} value={m.id}>{m.title}</option>
                   ))}
                 </select>
+              )}
+
+              {/* New module — required when no modules exist, optional when they do */}
+              {(sectionModules.length === 0 || showNewModule) ? (
+                <div className={`flex flex-col gap-1.5 ${sectionModules.length > 0 ? 'mt-2' : ''}`}>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newModuleTitle}
+                      onChange={e => setNewModuleTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleCreateModule(); if (e.key === 'Escape' && sectionModules.length > 0) { setShowNewModule(false); setNewModuleTitle('') } }}
+                      placeholder={sectionModules.length === 0 ? 'Module title (required)' : 'New module title'}
+                      className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    />
+                    <button type="button" onClick={handleCreateModule} disabled={!newModuleTitle.trim()}
+                      className="text-sm font-semibold bg-teal-primary text-white px-3 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity">
+                      Save
+                    </button>
+                    {sectionModules.length > 0 && (
+                      <button type="button" onClick={() => { setShowNewModule(false); setNewModuleTitle('') }}
+                        className="text-sm text-muted-text hover:text-dark-text px-2">✕</button>
+                    )}
+                  </div>
+                  {moduleError && <p className="text-xs text-red-400">{moduleError}</p>}
+                </div>
               ) : (
-                <p className="text-sm text-muted-text px-1">No modules yet — create one below.</p>
+                <button type="button" onClick={() => setShowNewModule(true)}
+                  className="text-xs text-teal-primary hover:underline mt-2 block">
+                  + New module
+                </button>
               )}
             </div>
-
-            {/* New module */}
-            {!showNewModule ? (
-              <button type="button" onClick={() => setShowNewModule(true)}
-                className="text-xs text-teal-primary hover:underline self-start -mt-2">
-                + New module
-              </button>
-            ) : (
-              <div className="flex flex-col gap-1.5 -mt-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newModuleTitle}
-                    onChange={e => setNewModuleTitle(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleCreateModule(); if (e.key === 'Escape') { setShowNewModule(false); setNewModuleTitle('') } }}
-                    placeholder="New module title"
-                    autoFocus
-                    className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  />
-                  <button type="button" onClick={handleCreateModule} disabled={!newModuleTitle.trim()}
-                    className="text-sm font-semibold bg-teal-primary text-white px-3 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity">
-                    Create
-                  </button>
-                  <button type="button" onClick={() => { setShowNewModule(false); setNewModuleTitle('') }}
-                    className="text-sm text-muted-text hover:text-dark-text px-2">✕</button>
-                </div>
-                {moduleError && <p className="text-xs text-red-400">{moduleError}</p>}
-              </div>
-            )}
 
             {/* Day */}
             {days.length > 0 && (
