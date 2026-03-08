@@ -48,15 +48,35 @@ export default async function StudentLevelUpPage({
 
   if (!course) redirect('/student/courses')
 
-  const { data: rawModules } = await supabase
-    .from('modules')
-    .select('*, skill_tags, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published), resources!module_day_id(id, type, title, content, description, order))')
-    .eq('course_id', id)
-    .eq('category', 'level_up')
-    .eq('published', true)
-    .order('order', { ascending: true })
+  const [{ data: rawModules }, { data: bonusAssignmentsRaw }] = await Promise.all([
+    supabase
+      .from('modules')
+      .select('*, skill_tags, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, skill_tags, is_bonus), resources!module_day_id(id, type, title, content, description, order))')
+      .eq('course_id', id)
+      .eq('category', 'level_up')
+      .eq('published', true)
+      .order('order', { ascending: true }),
+    // Bonus assignments from non-level_up modules
+    supabase
+      .from('assignments')
+      .select('id, title, due_date, skill_tags, module_day_id, module_days!module_day_id(module_id, modules(course_id, category))')
+      .eq('is_bonus', true)
+      .eq('published', true),
+  ])
 
   const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
+
+  // Filter bonus assignments to this course and non-level_up modules
+  type BonusAssignment = { id: string; title: string; due_date: string | null; skill_tags: string[] | null }
+  const bonusAssignments: BonusAssignment[] = ((bonusAssignmentsRaw ?? []) as Array<{
+    id: string; title: string; due_date: string | null; skill_tags: string[] | null
+    module_days: { module_id: string; modules: { course_id: string; category: string | null } | null } | null
+  }>).filter(a => {
+    const mod = Array.isArray(a.module_days) ? a.module_days[0]?.modules : a.module_days?.modules
+    return mod?.course_id === id && mod?.category !== 'level_up'
+  })
+
+  const hasContent = modules.length > 0 || bonusAssignments.length > 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,11 +101,53 @@ export default async function StudentLevelUpPage({
               <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 
-            {modules.length > 0 ? (
-              <LevelUpFilter
-                modules={modules as Parameters<typeof LevelUpFilter>[0]['modules']}
-                courseId={id}
-              />
+            {hasContent ? (
+              <div className="flex flex-col gap-10">
+                {modules.length > 0 && (
+                  <LevelUpFilter
+                    modules={modules as Parameters<typeof LevelUpFilter>[0]['modules']}
+                    courseId={id}
+                  />
+                )}
+
+                {bonusAssignments.length > 0 && (
+                  <div>
+                    <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-4">Bonus Assignments</h2>
+                    <div className="flex flex-col gap-3">
+                      {bonusAssignments.map(a => (
+                        <div key={a.id} className="bg-surface rounded-xl border border-border px-4 py-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <p className="font-medium text-dark-text">{a.title}</p>
+                                <span className="text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2 py-0.5">Bonus</span>
+                              </div>
+                              {(a.skill_tags ?? []).length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {(a.skill_tags ?? []).map(tag => (
+                                    <span key={tag} className="text-xs bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2 py-0.5">{tag}</span>
+                                  ))}
+                                </div>
+                              )}
+                              {a.due_date && (
+                                <p className="text-xs text-muted-text mt-1.5">
+                                  Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              )}
+                            </div>
+                            <Link
+                              href={`/student/courses/${id}/assignments/${a.id}`}
+                              className="text-xs text-teal-primary font-medium hover:underline shrink-0"
+                            >
+                              View →
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
                 <p className="text-muted-text">No content available yet.</p>

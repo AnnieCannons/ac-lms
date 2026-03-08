@@ -112,8 +112,9 @@ export default async function CourseSubmissionsPage({
   const statsByAssignment = Object.fromEntries(statsMap)
   const totalNeedsGrading = [...statsMap.values()].reduce((n, s) => n + s.needsGrading, 0)
 
-  // Slim submissions for client component (drop submitted_at and id)
+  // Slim submissions for client component
   const submissionsForClient = (allSubmissions ?? []).map(s => ({
+    id: s.id,
     assignment_id: s.assignment_id,
     student_id: s.student_id,
     status: s.status,
@@ -148,6 +149,7 @@ export default async function CourseSubmissionsPage({
 
             <CourseGradesView
               courseId={id}
+              instructorId={user.id}
               modules={modulesForClient}
               assignments={assignments}
               students={students}

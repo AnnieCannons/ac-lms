@@ -4,7 +4,7 @@ export default function Roster() {
   return (
     <>
       <h1 className="text-2xl font-bold text-dark-text mb-1">Roster & Student Progress</h1>
-      <p className="text-sm text-muted-text mb-8">Track individual student progress and accommodation needs.</p>
+      <p className="text-sm text-muted-text mb-8">Track individual student progress and grade inline from one view.</p>
 
       <DocH2>The Accommodation Roster</DocH2>
       <DocP>
@@ -21,20 +21,29 @@ export default function Roster() {
       <DocList>
         <li><strong>Missing</strong> — assignments that are past due with no submission</li>
         <li><strong>Late</strong> — submissions received after the due date</li>
+        <li><strong>Needs Grading</strong> — submitted but not yet graded</li>
+        <li><strong>Needs Revision</strong> — graded as incomplete; student should revise</li>
         <li><strong>Complete</strong> — graded as complete</li>
-        <li><strong>Needs Revision</strong> — graded as needing revision</li>
-        <li><strong>Submitted</strong> — submitted but not yet graded</li>
       </DocList>
-
-      <DocTip>
-        Use the student detail view during 1-on-1 check-ins to quickly see where a student is falling behind.
-      </DocTip>
-
-      <DocH3>Assignment Cards</DocH3>
       <DocP>
-        Each assignment appears as a card in the appropriate category column. Click a card to navigate directly to that
-        assignment&apos;s submission for grading or review.
+        Click any stat card to expand the assignment list for that category. The progress line at the top
+        (&ldquo;X / Y assignments complete&rdquo;) updates in real time as you grade.
       </DocP>
+
+      <DocH2>Speed Grading from the Student Detail View</DocH2>
+      <DocP>
+        When you expand the <strong>Needs Grading</strong> or <strong>Needs Revision</strong> categories, each
+        assignment shows inline grade buttons — no need to navigate to the individual submission page.
+      </DocP>
+      <DocList>
+        <li><strong>✓ Complete</strong> — marks the submission as complete; the item moves to the Complete list immediately.</li>
+        <li><strong>✗ Revision</strong> — marks the submission as needing revision (only available for Needs Grading items).</li>
+        <li><strong>View →</strong> / <strong>Grade →</strong> — opens the full submission page when you need to read the work or leave a comment.</li>
+      </DocList>
+      <DocTip>
+        Use this view during 1-on-1 check-ins to see exactly where a student stands and grade outstanding work on the
+        spot without switching pages.
+      </DocTip>
 
       <DocH2>Who Appears on the Roster?</DocH2>
       <DocP>

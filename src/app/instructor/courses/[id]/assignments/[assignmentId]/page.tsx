@@ -35,7 +35,7 @@ export default async function InstructorAssignmentEditPage({
 
   const { data: assignment } = await supabase
     .from("assignments")
-    .select("id, title, description, how_to_turn_in, due_date, published, answer_key_url, submission_required")
+    .select("id, title, description, how_to_turn_in, due_date, published, answer_key_url, submission_required, skill_tags, is_bonus")
     .eq("id", assignmentId)
     .single();
 

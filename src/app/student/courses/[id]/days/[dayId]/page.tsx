@@ -78,11 +78,11 @@ export default async function StudentDayDetailPage({
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)
 
-  type DayAssignment = { id: string; title: string; description: string | null; due_date: string | null; careerDev?: boolean }
+  type DayAssignment = { id: string; title: string; description: string | null; due_date: string | null; skill_tags?: string[] | null; is_bonus?: boolean; careerDev?: boolean }
 
   const [{ data: nativeAssignments }, { data: crossAssignments }] = await Promise.all([
-    supabase.from('assignments').select('id, title, description, due_date').eq('module_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
-    supabase.from('assignments').select('id, title, description, due_date').eq('linked_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
+    supabase.from('assignments').select('id, title, description, due_date, skill_tags, is_bonus').eq('module_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
+    supabase.from('assignments').select('id, title, description, due_date, skill_tags, is_bonus').eq('linked_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
   ])
 
   const assignments: DayAssignment[] = [
@@ -184,10 +184,20 @@ export default async function StudentDayDetailPage({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-dark-text">{assignment.title}</p>
+                          {assignment.is_bonus && (
+                            <span className="text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2 py-0.5">Bonus</span>
+                          )}
                           {'careerDev' in assignment && assignment.careerDev && (
                             <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
                           )}
                         </div>
+                        {(assignment.skill_tags ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {(assignment.skill_tags ?? []).map(tag => (
+                              <span key={tag} className="text-xs bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2 py-0.5">{tag}</span>
+                            ))}
+                          </div>
+                        )}
                         {assignment.description && (
                           <p className="text-sm text-muted-text mt-1 line-clamp-2">{stripHtml(assignment.description)}</p>
                         )}

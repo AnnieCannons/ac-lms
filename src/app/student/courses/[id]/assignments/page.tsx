@@ -53,12 +53,19 @@ export default async function StudentAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, is_bonus))')
     .eq('course_id', id)
     .eq('published', true)
     .order('order', { ascending: true })
 
-  const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
+  // Filter bonus assignments out of the assignments list (they belong to Level Up only)
+  const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH')).map(m => ({
+    ...m,
+    module_days: (m.module_days ?? []).map((d: { id: string; day_name: string; order: number; assignments?: Array<{ id: string; title: string; due_date: string | null; published: boolean; is_bonus?: boolean }> }) => ({
+      ...d,
+      assignments: (d.assignments ?? []).filter((a) => !a.is_bonus),
+    })),
+  }))
 
   const { data: submissions } = await supabase
     .from('submissions')

@@ -63,15 +63,19 @@ export default function SubmissionsList({
   assignmentId,
   submissionRequired = true,
   currentUserId,
+  initialFilter,
+  firstUngradedStudentId,
 }: {
   students: StudentRow[];
   courseId: string;
   assignmentId: string;
   submissionRequired?: boolean;
   currentUserId?: string;
+  initialFilter?: Filter;
+  firstUngradedStudentId?: string | null;
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? "all");
   const [sort, setSort] = useState<Sort>("name-asc");
   // Optimistic grade overrides: studentId -> 'complete' | null
   const [gradeOverrides, setGradeOverrides] = useState<Record<string, 'complete' | null>>({});
@@ -153,16 +157,26 @@ export default function SubmissionsList({
           ))}
         </div>
 
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value as Sort)}
-          className="text-xs bg-surface border border-border rounded-lg px-3 py-1.5 text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary cursor-pointer"
-        >
-          <option value="name-asc">Name A → Z</option>
-          <option value="name-desc">Name Z → A</option>
-          <option value="date-newest">Date: Newest first</option>
-          <option value="date-oldest">Date: Oldest first</option>
-        </select>
+        <div className="flex items-center gap-3">
+          {firstUngradedStudentId && submissionRequired && counts["needs-grading"] > 0 && (
+            <Link
+              href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${firstUngradedStudentId}`}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 transition-colors shrink-0"
+            >
+              Grade all ungraded →
+            </Link>
+          )}
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value as Sort)}
+            className="text-xs bg-surface border border-border rounded-lg px-3 py-1.5 text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary cursor-pointer"
+          >
+            <option value="name-asc">Name A → Z</option>
+            <option value="name-desc">Name Z → A</option>
+            <option value="date-newest">Date: Newest first</option>
+            <option value="date-oldest">Date: Oldest first</option>
+          </select>
+        </div>
       </div>
 
       {/* List */}

@@ -9,8 +9,9 @@ export default function Assignments() {
       <DocH2>Creating an Assignment</DocH2>
       <DocP>Use the <strong>+ Create</strong> button in the course sidebar:</DocP>
       <DocStep number={1}>Click <strong>+ Create</strong> and select <strong>Assignment</strong>.</DocStep>
-      <DocStep number={2}>Choose a <strong>Section</strong> (Coding Class or Career Development), a <strong>Module</strong>, and optionally a <strong>Day</strong>.</DocStep>
-      <DocStep number={3}>Click <strong>Create & Edit →</strong> to open the assignment editor.</DocStep>
+      <DocStep number={2}>Choose a <strong>Section</strong> (Coding Class, Career Development, or Level Up Your Skills), a <strong>Module</strong>, and optionally a <strong>Day</strong>.</DocStep>
+      <DocStep number={3}>Optionally add <strong>Skill Tags</strong> to label what skills the assignment covers — visible to students.</DocStep>
+      <DocStep number={4}>Click <strong>Create &amp; Edit →</strong> to open the assignment editor.</DocStep>
       <DocTip>
         If the module you need doesn&apos;t exist yet, click <strong>+ New module</strong> in the Create modal to add one
         without leaving the flow.
@@ -24,6 +25,8 @@ export default function Assignments() {
         <li><strong>Submission Required</strong> — toggle on if students must upload a link/text/file; toggle off for completion-only assignments</li>
         <li><strong>Due Date</strong> — optional; shown to students on the assignment page and list</li>
         <li><strong>Published</strong> — controls student visibility</li>
+        <li><strong>Bonus</strong> — marks the assignment as a bonus (see Level Up below)</li>
+        <li><strong>Skill Tags</strong> — pick from preset tags or add custom ones; shown to students as teal pills</li>
       </DocList>
 
       <DocTip>
@@ -31,21 +34,66 @@ export default function Assignments() {
         submitting, which helps them self-review before you grade.
       </DocTip>
 
-      <DocH2>Viewing Submissions</DocH2>
+      <DocH2>Bonus Assignments &amp; Level Up</DocH2>
       <DocP>
-        Navigate to <strong>Assignments</strong> in the course sidebar. Each assignment shows a submission count. Click
-        an assignment to see the list of student submissions.
+        Bonus assignments are optional enrichment work that appear in <strong>Level Up Your Skills</strong> rather than
+        in the main Assignments list.
       </DocP>
-      <DocNote>
-        Only submitted (not draft) submissions appear in the grading queue.
-      </DocNote>
-
-      <DocH2>Grading</DocH2>
-      <DocP>Open a student&apos;s submission to review their work and leave a grade.</DocP>
       <DocList>
-        <li><strong>Complete</strong> — the student has met the requirements</li>
-        <li><strong>Needs Revision</strong> — the student should revise and resubmit</li>
+        <li>Mark an assignment as bonus using the <strong>Bonus</strong> toggle in the assignment editor, or by choosing <strong>Level Up Your Skills</strong> as the section when creating.</li>
+        <li>Bonus assignments do not appear in the Assignments list or Grades unless a student has completed them.</li>
+        <li>Publish bonus assignments from the <strong>Level Up</strong> page in the sidebar — they appear in a &ldquo;Bonus Assignments&rdquo; section.</li>
+        <li>Students see published bonus assignments in their Level Up page with skill tags displayed.</li>
       </DocList>
+
+      <DocH2>Grades Overview</DocH2>
+      <DocP>
+        The <strong>Grades</strong> link in the sidebar opens the course-wide grades view. A yellow number badge
+        on the sidebar link shows how many submissions need grading — visible from any page in the course.
+      </DocP>
+      <DocP>The grades view has two tabs:</DocP>
+      <DocList>
+        <li><strong>By Assignment</strong> — all assignments grouped by module, each showing turned-in count, ungraded badge, and complete/incomplete breakdown</li>
+        <li><strong>By Student</strong> — each student with their missing, needs-grading, incomplete, and complete counts; click any count to expand the assignment list inline</li>
+      </DocList>
+      <DocTip>
+        Click the <strong>N need grading</strong> button (top right) to open the <strong>Speed Grader</strong> — a
+        focused modal that walks you through every ungraded student without leaving the page.
+      </DocTip>
+
+      <DocH2>Speed Grader</DocH2>
+      <DocP>
+        The Speed Grader lets you grade all ungraded submissions across the entire course in one flow. Open it from the
+        <strong> N need grading</strong> button on the Grades page.
+      </DocP>
+      <DocList>
+        <li>Students are shown one at a time with their pending assignments listed.</li>
+        <li>Click <strong>✓ Complete</strong> or <strong>✗ Revision</strong> to grade inline — the item disappears immediately.</li>
+        <li>Click <strong>View</strong> to open the full submission when you need to read the work first.</li>
+        <li>Navigate between students with the <strong>← →</strong> arrows or the dot indicators at the bottom.</li>
+      </DocList>
+      <DocTip>
+        Keyboard shortcuts: <strong>C</strong> = Complete, <strong>R</strong> = Revision,
+        <strong> ← →</strong> = prev/next student, <strong>Esc</strong> = close.
+      </DocTip>
+
+      <DocH2>Grading an Individual Submission</DocH2>
+      <DocP>
+        From Grades, click <strong>Grade →</strong> on an assignment to open its submissions list. The list
+        opens on <strong>Needs Grading</strong> automatically when ungraded submissions exist. A
+        <strong> Grade all ungraded →</strong> button jumps directly to the first ungraded student.
+      </DocP>
+      <DocP>On the individual grading page:</DocP>
+      <DocList>
+        <li>Click <strong>Complete</strong> or <strong>Incomplete</strong> — the page automatically advances to the next ungraded student after you grade.</li>
+        <li>The nav strip shows <strong>N need grading</strong> so you always know your progress for this assignment.</li>
+        <li>Use the <strong>← / →</strong> links in the nav strip to browse all students (not just ungraded).</li>
+        <li>The answer key, checklist review, comments, and submission history are all on the same page.</li>
+      </DocList>
+      <DocNote>
+        Auto-advance only happens when grading for the <em>first time</em> (null → complete/incomplete). Changing or
+        removing an existing grade stays on the same page.
+      </DocNote>
 
       <DocH3>Instructor Checklist Review</DocH3>
       <DocP>
@@ -55,14 +103,14 @@ export default function Assignments() {
 
       <DocH3>Comments</DocH3>
       <DocP>
-        Add a comment to explain your grade or provide specific feedback. Comments are visible to the student immediately
-        after you save. They appear below the submission form on the student&apos;s assignment page.
+        Add a comment to explain your grade or provide specific feedback. Comments are visible to the student immediately.
+        They appear below the submission form on the student&apos;s assignment page.
       </DocP>
 
       <DocH2>Mark Complete Without Submission</DocH2>
       <DocP>
-        For assignments without a submission requirement, you can mark a student&apos;s assignment as complete directly
-        from the assignment submissions list without needing a student submission.
+        For assignments without a submission requirement, mark a student&apos;s assignment as complete directly from the
+        submissions list — no student submission required.
       </DocP>
 
       <DocH2>Submission History</DocH2>

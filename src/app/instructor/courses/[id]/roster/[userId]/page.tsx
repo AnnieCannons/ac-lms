@@ -83,6 +83,7 @@ export default async function StudentDetailPage({
           due_date: a.due_date,
           moduleTitle: m.title ?? '',
           weekNumber: m.week_number ?? null,
+          submissionId: null as string | null,
         }))
     )
   })
@@ -92,14 +93,14 @@ export default async function StudentDetailPage({
   const { data: submissions } = assignmentIds.length > 0
     ? await admin
         .from('submissions')
-        .select('assignment_id, status, grade, submitted_at')
+        .select('id, assignment_id, status, grade, submitted_at')
         .eq('student_id', userId)
         .in('assignment_id', assignmentIds)
     : { data: [] }
 
   // Categorize
   const now = new Date()
-  const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s]))
+  const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null }]))
 
   const missing: CategorizedAssignment[] = []
   const late: CategorizedAssignment[] = []
@@ -115,7 +116,7 @@ export default async function StudentDetailPage({
       a.due_date &&
       new Date(sub.submitted_at) > new Date(a.due_date)
     )
-    const entry: CategorizedAssignment = { ...a, isLate }
+    const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null }
 
     if (!sub || sub.status === 'draft') {
       if (duePassed) missing.push(entry)

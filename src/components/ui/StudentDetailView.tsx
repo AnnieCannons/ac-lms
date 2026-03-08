@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { saveGrade } from '@/lib/grade-actions'
 
 export type CategorizedAssignment = {
   id: string
@@ -9,6 +10,7 @@ export type CategorizedAssignment = {
   moduleTitle: string
   weekNumber: number | null
   isLate: boolean
+  submissionId: string | null
 }
 
 type StatCategory = 'missing' | 'late' | 'submitted' | 'incomplete' | 'complete'
@@ -65,12 +67,50 @@ export default function StudentDetailView({
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null)
 
+  // Mutable local state for speed grading
+  const [lists, setLists] = useState<Record<StatCategory, CategorizedAssignment[]>>({
+    missing,
+    late,
+    submitted,
+    incomplete,
+    complete,
+  })
+  const [grading, setGrading] = useState<Record<string, boolean>>({})
+
+  const grade = async (assignment: CategorizedAssignment, result: 'complete' | 'incomplete') => {
+    if (!assignment.submissionId || grading[assignment.id]) return
+    setGrading(prev => ({ ...prev, [assignment.id]: true }))
+
+    const { error } = await saveGrade(assignment.submissionId, result, student.id)
+    if (error) { setGrading(prev => ({ ...prev, [assignment.id]: false })); return }
+
+    // Move assignment across lists optimistically
+    setLists(prev => {
+      const removeFrom = (list: CategorizedAssignment[]) => list.filter(a => a.id !== assignment.id)
+      const newComplete = result === 'complete'
+        ? [...prev.complete, assignment]
+        : prev.complete
+      const newIncomplete = result === 'incomplete'
+        ? [...prev.incomplete, assignment]
+        : removeFrom(prev.incomplete)
+      return {
+        ...prev,
+        submitted: removeFrom(prev.submitted),
+        incomplete: newIncomplete,
+        complete: newComplete,
+        // Keep late list in sync — update the entry if it was there
+        late: prev.late.map(a => a.id === assignment.id ? { ...a } : a),
+      }
+    })
+    setGrading(prev => ({ ...prev, [assignment.id]: false }))
+  }
+
   const categories: { key: StatCategory; items: CategorizedAssignment[] }[] = [
-    { key: 'missing',    items: missing },
-    { key: 'late',       items: late },
-    { key: 'submitted',  items: submitted },
-    { key: 'incomplete', items: incomplete },
-    { key: 'complete',   items: complete },
+    { key: 'missing',    items: lists.missing },
+    { key: 'late',       items: lists.late },
+    { key: 'submitted',  items: lists.submitted },
+    { key: 'incomplete', items: lists.incomplete },
+    { key: 'complete',   items: lists.complete },
   ]
 
   const activeItems = activeCategory ? (categories.find(c => c.key === activeCategory)?.items ?? []) : []
@@ -129,7 +169,7 @@ export default function StudentDetailView({
           <div className="flex items-start gap-3">
             <span className="text-muted-text shrink-0 w-28">Progress</span>
             <span className="text-dark-text">
-              {complete.length} / {totalPublished} assignments complete
+              {lists.complete.length} / {totalPublished} assignments complete
             </span>
           </div>
         </div>
@@ -174,42 +214,74 @@ export default function StudentDetailView({
           <div className="mt-3 border border-border rounded-xl overflow-hidden">
             <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border ${STAT_CONFIG[activeCategory].cardBg} ${STAT_CONFIG[activeCategory].countColor}`}>
               {STAT_CONFIG[activeCategory].label} — {activeItems.length} assignment{activeItems.length !== 1 ? 's' : ''}
+              {(activeCategory === 'submitted' || activeCategory === 'incomplete') && activeItems.length > 0 && (
+                <span className="ml-2 normal-case font-normal text-muted-text">— click to grade inline</span>
+              )}
             </div>
 
             {activeItems.length === 0 ? (
               <p className="px-4 py-5 text-sm text-muted-text text-center">None in this category.</p>
             ) : (
               <ul className="divide-y divide-border">
-                {activeItems.map(a => (
-                  <li key={a.id} className="flex items-start justify-between gap-4 px-4 py-3 bg-background hover:bg-surface transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-xs text-muted-text">
-                          {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
-                        </span>
-                        {a.due_date && (
-                          <span className="text-xs text-muted-text">· Due {formatDate(a.due_date)}</span>
-                        )}
-                        {a.isLate && (
-                          <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            Late
+                {activeItems.map(a => {
+                  const isGrading = grading[a.id]
+                  const canSpeedGrade = (activeCategory === 'submitted' || activeCategory === 'incomplete') && a.submissionId
+                  return (
+                    <li key={a.id} className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-surface transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-muted-text">
+                            {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
                           </span>
-                        )}
+                          {a.due_date && (
+                            <span className="text-xs text-muted-text">· Due {formatDate(a.due_date)}</span>
+                          )}
+                          {a.isLate && (
+                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                              Late
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <Link
-                      href={
-                        activeCategory === 'missing'
-                          ? `/instructor/courses/${courseId}/assignments/${a.id}`
-                          : `/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`
-                      }
-                      className="text-xs font-medium text-teal-primary hover:underline shrink-0 mt-0.5"
-                    >
-                      View →
-                    </Link>
-                  </li>
-                ))}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {canSpeedGrade && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isGrading}
+                              onClick={() => grade(a, 'complete')}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-300 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                            >
+                              {isGrading ? '…' : '✓ Complete'}
+                            </button>
+                            {activeCategory === 'submitted' && (
+                              <button
+                                type="button"
+                                disabled={isGrading}
+                                onClick={() => grade(a, 'incomplete')}
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-500 border border-red-300 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                              >
+                                {isGrading ? '…' : '✗ Revision'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                        <Link
+                          href={
+                            activeCategory === 'missing'
+                              ? `/instructor/courses/${courseId}/assignments/${a.id}`
+                              : `/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`
+                          }
+                          className="text-xs font-medium text-teal-primary hover:underline"
+                        >
+                          {canSpeedGrade ? 'View' : activeCategory === 'missing' ? 'View →' : 'Grade →'}
+                        </Link>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

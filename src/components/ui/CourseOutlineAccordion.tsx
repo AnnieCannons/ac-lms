@@ -100,6 +100,8 @@ interface Assignment {
   title: string
   due_date: string | null
   published: boolean
+  skill_tags?: string[] | null
+  is_bonus?: boolean
   careerDev?: boolean
 }
 
@@ -152,6 +154,7 @@ interface Props {
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
   hideLevelUpBanner?: boolean
+  showBonusAssignments?: boolean
   quizzes?: Quiz[]
 }
 
@@ -180,9 +183,10 @@ function DayModal({
   onToggleStar: (id: string) => void
   onToggleComplete: (id: string) => void
   hideLevelUpBanner?: boolean
+  showBonusAssignments?: boolean
   quizzesForDay: Quiz[]
 }) {
-  const publishedAssignments = (day.assignments ?? []).filter(a => a.published)
+  const publishedAssignments = (day.assignments ?? []).filter(a => a.published && (showBonusAssignments || !a.is_bonus))
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
   const hasContent = publishedAssignments.length > 0 || resources.length > 0 || quizzesForDay.length > 0
 
@@ -272,10 +276,20 @@ function DayModal({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                        {a.is_bonus && (
+                          <span className="text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2 py-0.5">Bonus</span>
+                        )}
                         {a.careerDev && (
                           <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
                         )}
                       </div>
+                      {(a.skill_tags ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(a.skill_tags ?? []).map(tag => (
+                            <span key={tag} className="text-xs bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2 py-0.5">{tag}</span>
+                          ))}
+                        </div>
+                      )}
                       {a.due_date && (
                         <p className="text-xs text-muted-text mt-0.5">
                           Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -360,7 +374,7 @@ function DayModal({
 
 export default function CourseOutlineAccordion({
   modules, courseId, currentWeek, todayName, submissionMap,
-  initialStarredIds, initialCompletedIds, hideLevelUpBanner, quizzes,
+  initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes,
 }: Props) {
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
@@ -435,7 +449,7 @@ export default function CourseOutlineAccordion({
                 <div className="flex flex-col gap-2 px-6 pb-6">
                   {sortedDays.map(day => {
                     const isToday = isCurrentWeek && day.day_name === todayName
-                    const publishedAssignments = day.assignments?.filter(a => a.published) ?? []
+                    const publishedAssignments = day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? []
                     const resources = day.resources ?? []
                     const dayQuizzes = (quizzes ?? []).filter(q => {
                       if (q.linked_day_id === day.id) return true
@@ -500,6 +514,7 @@ export default function CourseOutlineAccordion({
           onToggleStar={toggleStar}
           onToggleComplete={toggleComplete}
           hideLevelUpBanner={hideLevelUpBanner}
+          showBonusAssignments={showBonusAssignments}
           quizzesForDay={(quizzes ?? []).filter(q => {
             if (q.linked_day_id === openDay.day.id) return true
             if (q.day_title?.trim() !== openDay.day.day_name?.trim()) return false

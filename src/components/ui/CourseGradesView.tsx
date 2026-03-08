@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { saveGrade } from '@/lib/grade-actions'
 
 interface Assignment {
   id: string
@@ -21,6 +22,7 @@ interface Student {
 }
 
 interface Sub {
+  id: string
   assignment_id: string
   student_id: string
   status: string
@@ -47,6 +49,7 @@ type ExpandKey = 'missing' | 'needsGrading' | 'complete' | 'incomplete'
 
 interface Props {
   courseId: string
+  instructorId: string
   modules: Module[]
   assignments: Assignment[]
   students: Student[]
@@ -58,6 +61,7 @@ interface Props {
 
 export default function CourseGradesView({
   courseId,
+  instructorId,
   modules,
   assignments,
   students,
@@ -68,6 +72,7 @@ export default function CourseGradesView({
 }: Props) {
   const [tab, setTab] = useState<'assignments' | 'students'>('assignments')
   const [filterUngraded, setFilterUngraded] = useState(false)
+  const [speedGraderOpen, setSpeedGraderOpen] = useState(false)
 
   const now = new Date()
   const subMap = new Map(submissions.map(s => [`${s.student_id}-${s.assignment_id}`, s]))
@@ -102,6 +107,18 @@ export default function CourseGradesView({
       return bAttn - aAttn || a.student.name.localeCompare(b.student.name)
     })
 
+  // Build speed grader queue: students with ungraded submissions
+  const ungradedQueue = students
+    .map(student => ({
+      student,
+      items: assignments.flatMap(a => {
+        const sub = subMap.get(`${student.id}-${a.id}`)
+        if (sub?.status === 'submitted') return [{ assignment: a, submissionId: sub.id }]
+        return []
+      }),
+    }))
+    .filter(s => s.items.length > 0)
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -125,7 +142,7 @@ export default function CourseGradesView({
         </div>
         {totalNeedsGrading > 0 && (
           <button
-            onClick={() => { setTab('assignments'); setFilterUngraded(true) }}
+            onClick={() => setSpeedGraderOpen(true)}
             className="text-sm font-semibold px-4 py-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
           >
             {totalNeedsGrading} need grading
@@ -150,9 +167,224 @@ export default function CourseGradesView({
           courseId={courseId}
         />
       )}
+
+      {speedGraderOpen && ungradedQueue.length > 0 && (
+        <SpeedGrader
+          courseId={courseId}
+          instructorId={instructorId}
+          queue={ungradedQueue}
+          onClose={() => setSpeedGraderOpen(false)}
+        />
+      )}
     </div>
   )
 }
+
+// ── Speed Grader Modal ──────────────────────────────────────────────────────
+
+type QueueItem = {
+  student: Student
+  items: { assignment: Assignment; submissionId: string }[]
+}
+
+function SpeedGrader({
+  courseId,
+  instructorId,
+  queue,
+  onClose,
+}: {
+  courseId: string
+  instructorId: string
+  queue: QueueItem[]
+  onClose: () => void
+}) {
+  const [index, setIndex] = useState(0)
+  const [gradedIds, setGradedIds] = useState<Set<string>>(new Set())
+  const [grading, setGrading] = useState<Record<string, boolean>>({})
+
+  const current = queue[index]
+  const pendingItems = current?.items.filter(item => !gradedIds.has(item.submissionId)) ?? []
+  const allGraded = current ? pendingItems.length === 0 : false
+  const isLast = index === queue.length - 1
+
+  const grade = async (submissionId: string, result: 'complete' | 'incomplete') => {
+    if (grading[submissionId]) return
+    setGrading(prev => ({ ...prev, [submissionId]: true }))
+    const { error } = await saveGrade(submissionId, result, instructorId)
+    if (error) {
+      setGrading(prev => ({ ...prev, [submissionId]: false }))
+      return
+    }
+    setGradedIds(prev => new Set([...prev, submissionId]))
+    setGrading(prev => ({ ...prev, [submissionId]: false }))
+  }
+
+  const goTo = (i: number) => setIndex(i)
+
+  // Keyboard shortcuts: C = complete first item, R = revision, ← / → = prev/next student
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const first = pendingItems[0]
+      if (!allGraded && first) {
+        if (e.key === 'c' || e.key === 'C') { e.preventDefault(); grade(first.submissionId, 'complete') }
+        if (e.key === 'r' || e.key === 'R') { e.preventDefault(); grade(first.submissionId, 'incomplete') }
+      }
+      if (e.key === 'ArrowRight' && !isLast) { e.preventDefault(); goTo(index + 1) }
+      if (e.key === 'ArrowLeft' && index > 0) { e.preventDefault(); goTo(index - 1) }
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [index, pendingItems, allGraded, isLast, grading])
+
+  if (!current) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-surface rounded-2xl border border-border shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div>
+            <h2 className="text-sm font-semibold text-dark-text">Speed Grader</h2>
+            <p className="text-xs text-muted-text">
+              Student {index + 1} of {queue.length}
+              {!allGraded && <span className="ml-2 text-muted-text/70">· <kbd className="font-mono bg-border/40 px-1 rounded text-[10px]">C</kbd> complete <kbd className="font-mono bg-border/40 px-1 rounded text-[10px]">R</kbd> revision <kbd className="font-mono bg-border/40 px-1 rounded text-[10px]">←→</kbd> navigate</span>}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-text hover:text-dark-text text-lg leading-none w-6 h-6 flex items-center justify-center"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Student info */}
+        <div className="px-5 py-3 border-b border-border bg-background shrink-0">
+          <p className="text-base font-semibold text-dark-text">{current.student.name}</p>
+          <p className="text-xs text-muted-text mt-0.5">
+            {allGraded
+              ? 'All assignments graded ✓'
+              : `${pendingItems.length} assignment${pendingItems.length !== 1 ? 's' : ''} need grading`}
+          </p>
+        </div>
+
+        {/* Assignments list */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {allGraded ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <p className="text-sm text-green-700 font-medium">All done for {current.student.name}!</p>
+              {!isLast && (
+                <button
+                  onClick={() => goTo(index + 1)}
+                  className="text-sm font-semibold px-4 py-2 rounded-lg bg-teal-light text-teal-primary border border-teal-primary/30 hover:bg-teal-primary/10 transition-colors"
+                >
+                  Next student →
+                </button>
+              )}
+              {isLast && (
+                <button
+                  onClick={onClose}
+                  className="text-sm font-semibold px-4 py-2 rounded-lg bg-green-50 text-green-700 border border-green-300 hover:bg-green-100 transition-colors"
+                >
+                  Done — close grader
+                </button>
+              )}
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingItems.map(({ assignment, submissionId }) => {
+                const isGrading = grading[submissionId]
+                return (
+                  <li key={submissionId} className="px-5 py-3.5 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-dark-text leading-snug">{assignment.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-text flex-wrap">
+                        <span>{assignment.moduleTitle}</span>
+                        {assignment.due_date && (
+                          <span>
+                            · Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
+                              month: 'short', day: 'numeric', year: 'numeric',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        disabled={isGrading}
+                        onClick={() => grade(submissionId, 'complete')}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-300 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                      >
+                        {isGrading ? '…' : '✓ Complete'}
+                      </button>
+                      <button
+                        disabled={isGrading}
+                        onClick={() => grade(submissionId, 'incomplete')}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-50 text-red-500 border border-red-300 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                      >
+                        {isGrading ? '…' : '✗ Revision'}
+                      </button>
+                      <Link
+                        href={`/instructor/courses/${courseId}/assignments/${assignment.id}/submissions/${current.student.id}`}
+                        className="text-xs font-medium text-teal-primary hover:underline"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Footer navigation */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+          <button
+            disabled={index === 0}
+            onClick={() => goTo(index - 1)}
+            className="text-xs font-medium text-muted-text hover:text-dark-text disabled:opacity-40 transition-colors"
+          >
+            ← Prev
+          </button>
+
+          {queue.length > 1 && (
+            <div className="flex gap-1.5 items-center">
+              {queue.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  className={`rounded-full transition-colors ${
+                    i === index
+                      ? 'w-2 h-2 bg-teal-primary'
+                      : 'w-1.5 h-1.5 bg-border hover:bg-muted-text'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          <button
+            disabled={isLast}
+            onClick={() => goTo(index + 1)}
+            className="text-xs font-medium text-muted-text hover:text-dark-text disabled:opacity-40 transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Assignments Tab ─────────────────────────────────────────────────────────
 
 function AssignmentsTab({
   courseId,
@@ -254,6 +486,8 @@ function AssignmentsTab({
     </div>
   )
 }
+
+// ── Students Tab ────────────────────────────────────────────────────────────
 
 function StudentsTab({
   studentStats,

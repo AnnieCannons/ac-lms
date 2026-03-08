@@ -57,7 +57,7 @@ export default async function MyWorkPage({
 
   const { data: modules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, assignments!module_day_id(id, title, due_date))')
+    .select('id, title, week_number, order, module_days(id, assignments!module_day_id(id, title, due_date, is_bonus))')
     .eq('course_id', id)
     .order('order', { ascending: true })
 
@@ -75,8 +75,15 @@ export default async function MyWorkPage({
 
   const assignments: WorkAssignment[] = (modules ?? []).flatMap(module =>
     (module.module_days ?? []).flatMap(
-      (day: { id: string; assignments?: { id: string; title: string; due_date: string | null }[] }) =>
-        (day.assignments ?? []).map(a => {
+      (day: { id: string; assignments?: { id: string; title: string; due_date: string | null; is_bonus?: boolean }[] }) =>
+        (day.assignments ?? [])
+          .filter(a => {
+            // Bonus assignments: only show if the student has completed them
+            if (!a.is_bonus) return true
+            const sub = submissionMap.get(a.id)
+            return sub?.grade === 'complete'
+          })
+          .map(a => {
           const sub = submissionMap.get(a.id) ?? null
           const isLate = !sub && !!a.due_date && new Date(a.due_date) < now
           return {

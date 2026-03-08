@@ -26,8 +26,11 @@ export default function GettingStarted() {
         <li><strong>Course Editor</strong> — manage modules, days, assignments, and resources</li>
         <li><strong>Assignments</strong> — view all assignments; access the grading queue</li>
         <li><strong>Quizzes</strong> — create and manage quizzes; view quiz submissions</li>
+        <li><strong>Career Development</strong> — manage career dev content separate from the coding curriculum</li>
+        <li><strong>Level Up Your Skills</strong> — optional bonus assignments with skill tags</li>
+        <li><strong>Grades</strong> — course-wide submission overview and speed grader; a yellow badge shows how many submissions need grading</li>
         <li><strong>People</strong> — manage student enrollment and roles</li>
-        <li><strong>Roster</strong> — accommodation roster with per-student progress breakdowns</li>
+        <li><strong>Roster</strong> — accommodation roster with per-student progress and inline grading</li>
         <li><strong>Student Preview</strong> — view the course exactly as a student sees it</li>
       </DocList>
 

@@ -9,6 +9,7 @@ import StudentViewButton from './StudentViewButton'
 interface Props {
   courseId: string
   courseName: string
+  needsGrading?: number
 }
 
 const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions']
@@ -23,7 +24,7 @@ const CATEGORY_ITEMS = [
   { label: 'Level Up Your Skills', slug: 'level-up' },
 ]
 
-export default function InstructorCourseNav({ courseId, courseName }: Props) {
+export default function InstructorCourseNav({ courseId, courseName, needsGrading = 0 }: Props) {
   const pathname = usePathname()
 
   const navLink = (label: string, slug: string) => {
@@ -80,7 +81,7 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Grades</p>
-        {navLink('Grades', 'submissions')}
+        <GradesNavLink courseId={courseId} needsGrading={needsGrading} pathname={pathname} />
       </div>
 
       <div className="mt-6 pt-4 border-t border-border">
@@ -92,5 +93,29 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
         <LaunchSetupButton courseId={courseId} />
       </div>
     </nav>
+  )
+}
+
+function GradesNavLink({ courseId, needsGrading, pathname }: { courseId: string; needsGrading: number; pathname: string }) {
+  const href = `/instructor/courses/${courseId}/submissions`
+  const isActive = pathname.startsWith(href)
+  return (
+    <Link
+      href={href}
+      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between gap-2 ${
+        isActive
+          ? 'bg-teal-light text-teal-primary'
+          : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+      }`}
+    >
+      <span>Grades</span>
+      {needsGrading > 0 && (
+        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+          isActive ? 'bg-yellow-100 text-yellow-700' : 'bg-yellow-50 text-yellow-600'
+        }`}>
+          {needsGrading}
+        </span>
+      )}
+    </Link>
   )
 }

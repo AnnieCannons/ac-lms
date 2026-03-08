@@ -61,6 +61,7 @@ export default function LevelUpFilter({ modules, courseId }: Props) {
           currentWeek={null}
           todayName=""
           hideLevelUpBanner
+          showBonusAssignments
         />
       ) : (
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">

@@ -46,7 +46,7 @@ export default async function StudentAssignmentPage({
 
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required')
+    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus')
     .eq('id', assignmentId)
     .eq('published', true)
     .single()
@@ -160,7 +160,19 @@ export default async function StudentAssignmentPage({
         </div>
 
         <div className="flex items-start justify-between gap-4 mb-1 flex-wrap">
-          <h1 className="text-xl sm:text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">{assignment.title}</h1>
+            {((assignment.skill_tags ?? []).length > 0 || assignment.is_bonus) && (
+              <div className="flex flex-wrap gap-1.5 mb-1">
+                {assignment.is_bonus && (
+                  <span className="text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2.5 py-1">Bonus</span>
+                )}
+                {(assignment.skill_tags ?? []).map(tag => (
+                  <span key={tag} className="text-xs font-medium bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2.5 py-1">{tag}</span>
+                ))}
+              </div>
+            )}
+          </div>
           {existingSubmission?.grade === 'complete' && (
             <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-600">
               Complete ✓

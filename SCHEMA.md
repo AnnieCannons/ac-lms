@@ -73,6 +73,7 @@ A module represents a week or unit within a course.
 | `order` | int | Display order within the course |
 | `category` | text | `syllabus`, `career`, `level_up`, etc. |
 | `published` | boolean | Default: true |
+| `skill_tags` | text[] | Default: `{}` — skill tags for Level Up modules (e.g. `['HTML','CSS']`) |
 
 ---
 
@@ -95,6 +96,7 @@ Learning materials attached to a module day.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `module_day_id` | uuid | FK → module_days |
+| `linked_day_id` | uuid | FK → module_days, nullable — cross-posts this resource to a coding day card |
 | `type` | resource_type | `video`, `reading`, `link`, `file` |
 | `title` | text | Required |
 | `content` | text | URL or content body |
@@ -110,6 +112,7 @@ An assignment attached to a module day.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `module_day_id` | uuid | FK → module_days |
+| `linked_day_id` | uuid | FK → module_days, nullable — cross-posts this assignment to a coding day card |
 | `title` | text | Required |
 | `description` | text | Rich HTML instructions |
 | `how_to_turn_in` | text | Rich HTML — how to submit |
@@ -118,6 +121,8 @@ An assignment attached to a module day.
 | `submission_required` | boolean | Default: true — false = instructor check-off only |
 | `answer_key_url` | text | Instructor-only answer key link |
 | `order` | int | Display order within the day |
+| `skill_tags` | text[] | Default: `{}` — skill tags shown to students (e.g. `['HTML','React']`) |
+| `is_bonus` | boolean | Default: false — bonus assignments appear only in Level Up, not in the main Assignments list or grades unless completed |
 
 ---
 
@@ -131,8 +136,11 @@ Quizzes for a course (synced from data folder). Students see only published quiz
 | `identifier` | text | Unique per course (from JSON) |
 | `title` | text | Required |
 | `due_at` | timestamptz | |
-| `module_title` | text | e.g. "Week 1: Intro" |
+| `module_title` | text | e.g. "Week 1: Intro" — used to match to a module in the Course Editor |
+| `day_title` | text | e.g. `Monday` — pins the quiz to a specific day within its module |
+| `linked_day_id` | uuid | FK → module_days, nullable — cross-posts this quiz to a coding day card |
 | `published` | boolean | Default: false |
+| `max_attempts` | int | Nullable — maximum retake attempts allowed (null = unlimited) |
 | `questions` | jsonb | Array of question objects with choices and correct_response_ident |
 | `created_at` | timestamptz | Default: now() |
 | `updated_at` | timestamptz | Default: now() |
@@ -152,6 +160,7 @@ A student's submitted quiz attempt (one per student per quiz).
 | `submitted_at` | timestamptz | Default: now() |
 | `answers` | jsonb | Array of `{ question_ident, choice_ident }` |
 | `score_percent` | numeric(5,2) | Optional 0–100 |
+| `attempt_count` | int | Default: 1 — tracks how many times the student has submitted |
 
 Unique on `(quiz_id, student_id)`.
 
@@ -185,6 +194,7 @@ A student's submission for an assignment.
 | `status` | submission_status | `draft`, `submitted`, `graded` |
 | `grade` | text | `complete` or `incomplete` |
 | `graded_at` | timestamptz | |
+| `graded_by` | uuid | FK → users (instructor who graded) |
 
 ---
 

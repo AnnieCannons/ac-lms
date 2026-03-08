@@ -86,6 +86,9 @@ export default async function InstructorSubmissionsPage({
   const gradedCount = students.filter(s => s.submission?.status === 'graded').length
   const needsGradingCount = students.filter(s => s.submission?.status === 'submitted').length
 
+  // First ungraded student for "Grade all ungraded →" CTA
+  const firstUngradedStudent = students.find(s => s.submission?.status === 'submitted') ?? null
+
   return (
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} />
@@ -153,6 +156,8 @@ export default async function InstructorSubmissionsPage({
             assignmentId={assignmentId}
             submissionRequired={assignment.submission_required}
             currentUserId={user.id}
+            initialFilter={needsGradingCount > 0 ? 'needs-grading' : 'all'}
+            firstUngradedStudentId={firstUngradedStudent?.id ?? null}
           />
         )}
         </main>

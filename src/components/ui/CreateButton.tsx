@@ -41,11 +41,17 @@ export default function CreateButton({ courseId }: Props) {
   const [moduleId, setModuleId] = useState('')
   const [dayId, setDayId] = useState('')
 
-  // Level Up skill tags
+  // Level Up module skill tags
   const [levelUpTags, setLevelUpTags] = useState<string[]>([])
   const [customTags, setCustomTags] = useState<string[]>([])
   const [showCustomTag, setShowCustomTag] = useState(false)
   const [customTagInput, setCustomTagInput] = useState('')
+
+  // Assignment skill tags (all sections)
+  const [assignmentTags, setAssignmentTags] = useState<string[]>([])
+  const [assignmentCustomTags, setAssignmentCustomTags] = useState<string[]>([])
+  const [showAssignmentCustomTag, setShowAssignmentCustomTag] = useState(false)
+  const [assignmentCustomTagInput, setAssignmentCustomTagInput] = useState('')
 
   // New module
   const [showNewModule, setShowNewModule] = useState(false)
@@ -78,12 +84,6 @@ export default function CreateButton({ courseId }: Props) {
     : crossModuleAllDays
   ).slice().sort((a, b) => a.order - b.order)
 
-  const sectionModules = section === 'career'
-    ? modules.filter(m => m.category === 'career')
-    : section === 'level_up'
-      ? modules.filter(m => m.category === 'level_up')
-      : modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
-
   const toggleLevelUpTag = (tag: string) =>
     setLevelUpTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
 
@@ -96,13 +96,25 @@ export default function CreateButton({ courseId }: Props) {
     setShowCustomTag(false)
   }
 
+  const toggleAssignmentTag = (tag: string) =>
+    setAssignmentTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+
+  const addAssignmentCustomTag = () => {
+    const tag = assignmentCustomTagInput.trim()
+    if (!tag) return
+    if (!assignmentCustomTags.includes(tag)) setAssignmentCustomTags(prev => [...prev, tag])
+    setAssignmentTags(prev => prev.includes(tag) ? prev : [...prev, tag])
+    setAssignmentCustomTagInput('')
+    setShowAssignmentCustomTag(false)
+  }
+
   const loadModuleTags = (mod: Module | undefined) => {
     const tags = mod?.skill_tags ?? []
     setLevelUpTags(tags)
     setCustomTags(tags.filter(t => !PRESET_SKILL_TAGS.includes(t)))
   }
 
-  const allDaysForModule = sectionModules.find(m => m.id === moduleId)?.module_days ?? []
+  const allDaysForModule = modules.find(m => m.id === moduleId)?.module_days ?? []
 
   const days = (createType === 'assignment'
     ? allDaysForModule.filter(d => !SKIP_DAYS.has(d.day_name))
@@ -110,21 +122,53 @@ export default function CreateButton({ courseId }: Props) {
   ).slice().sort((a, b) => a.order - b.order)
 
   const handleOpen = async () => {
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('modules')
       .select('id, title, order, week_number, category, skill_tags, module_days(id, day_name, order)')
       .eq('course_id', courseId)
       .order('order', { ascending: true })
+    if (fetchError) {
+      // Fallback: try without skill_tags (migration may not have run yet)
+      const { data: data2 } = await supabase
+        .from('modules')
+        .select('id, title, order, week_number, category, module_days(id, day_name, order)')
+        .eq('course_id', courseId)
+        .order('order', { ascending: true })
+      const mods2 = ((data2 ?? []) as Module[]).filter(m => m.title && !m.title.includes('DO NOT PUBLISH'))
+      setModules(mods2)
+      setSection('coding')
+      setModuleId(mods2[0]?.id ?? '')
+      setDayId('')
+      setCreateType('assignment')
+      setResType('link')
+      setResTitle('')
+      setResUrl('')
+      setQuizTitle('')
+      setQuizText('')
+      setCrossPost(false)
+      setCrossModuleId('')
+      setCrossDayId('')
+      setError('Note: run the skill_tags migration to enable Level Up tags.')
+      setShowNewModule(false)
+      setNewModuleTitle('')
+      setModuleError(null)
+      setLevelUpTags([])
+      setCustomTags([])
+      setShowCustomTag(false)
+      setCustomTagInput('')
+      setAssignmentTags([])
+      setAssignmentCustomTags([])
+      setShowAssignmentCustomTag(false)
+      setAssignmentCustomTagInput('')
+      setOpen(true)
+      return
+    }
     const mods = (data ?? []).filter((m: Module) => m.title && !m.title.includes('DO NOT PUBLISH'))
-    const resolvedSection: SectionType = mods.some(m => m.category !== 'career' && m.category !== 'level_up') ? 'coding'
-      : mods.some(m => m.category === 'career') ? 'career'
-      : 'level_up'
-    const firstMods = resolvedSection === 'career' ? mods.filter(m => m.category === 'career')
-      : resolvedSection === 'level_up' ? mods.filter(m => m.category === 'level_up')
-      : mods.filter(m => m.category !== 'career' && m.category !== 'level_up')
+    // Default module: first coding module, falling back to any module
+    const firstCodingMod = mods.find(m => m.category !== 'career' && m.category !== 'level_up')
     setModules(mods)
-    setSection(resolvedSection)
-    setModuleId(firstMods[0]?.id ?? '')
+    setSection('coding')
+    setModuleId((firstCodingMod ?? mods[0])?.id ?? '')
     setDayId('')
     setCreateType('assignment')
     setResType('link')
@@ -143,7 +187,10 @@ export default function CreateButton({ courseId }: Props) {
     setCustomTags([])
     setShowCustomTag(false)
     setCustomTagInput('')
-    if (resolvedSection === 'level_up') loadModuleTags(firstMods[0])
+    setAssignmentTags([])
+    setAssignmentCustomTags([])
+    setShowAssignmentCustomTag(false)
+    setAssignmentCustomTagInput('')
     setOpen(true)
   }
 
@@ -208,7 +255,7 @@ export default function CreateButton({ courseId }: Props) {
       if (!targetDayId) { setCreating(false); return }
       const { data, error } = await supabase
         .from('assignments')
-        .insert({ module_day_id: targetDayId, title: 'New Assignment', published: false, order: 0, linked_day_id: linkedDayId })
+        .insert({ module_day_id: targetDayId, title: 'New Assignment', published: false, order: 0, linked_day_id: linkedDayId, skill_tags: assignmentTags, is_bonus: section === 'level_up' })
         .select('id')
         .single()
       setCreating(false)
@@ -290,15 +337,18 @@ export default function CreateButton({ courseId }: Props) {
                   value={section}
                   onChange={e => {
                     const s = e.target.value as SectionType
-                    const nextMods = s === 'career' ? modules.filter(m => m.category === 'career')
-                      : s === 'level_up' ? modules.filter(m => m.category === 'level_up')
-                      : modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
+                    // Default to first module of the new section
+                    const firstForSection = s === 'career'
+                      ? modules.find(m => m.category === 'career')
+                      : s === 'level_up'
+                        ? modules.find(m => m.category === 'level_up')
+                        : modules.find(m => m.category !== 'career' && m.category !== 'level_up')
                     setSection(s)
-                    setModuleId(nextMods[0]?.id ?? '')
+                    setModuleId((firstForSection ?? modules[0])?.id ?? '')
                     setDayId('')
                     setShowNewModule(false)
                     setNewModuleTitle('')
-                    if (s === 'level_up') loadModuleTags(nextMods[0])
+                    if (s === 'level_up') loadModuleTags(firstForSection)
                     else { setLevelUpTags([]); setCustomTags([]) }
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
@@ -313,39 +363,61 @@ export default function CreateButton({ courseId }: Props) {
             {/* Module */}
             <div>
               <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Module</label>
-              {sectionModules.length > 0 && (
+              {modules.length > 0 && (
                 <select
                   value={moduleId}
                   onChange={e => {
                     setModuleId(e.target.value)
                     setDayId('')
-                    if (section === 'level_up') loadModuleTags(sectionModules.find(m => m.id === e.target.value))
+                    if (section === 'level_up') loadModuleTags(modules.find(m => m.id === e.target.value))
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
-                  {sectionModules.map(m => (
-                    <option key={m.id} value={m.id}>{m.title}</option>
-                  ))}
+                  {/* Group modules by section so it's clear where each lives */}
+                  {(() => {
+                    const sectionLabel = { 'coding': 'Coding Class', 'career': 'Career Dev', 'level_up': 'Level Up' }
+                    const groups: Record<string, Module[]> = { coding: [], career: [], level_up: [] }
+                    modules.forEach(m => {
+                      if (m.category === 'career') groups.career.push(m)
+                      else if (m.category === 'level_up') groups.level_up.push(m)
+                      else groups.coding.push(m)
+                    })
+                    // Put the current section's group first
+                    const order: Array<'coding' | 'career' | 'level_up'> = section === 'career'
+                      ? ['career', 'coding', 'level_up']
+                      : section === 'level_up'
+                        ? ['level_up', 'coding', 'career']
+                        : ['coding', 'career', 'level_up']
+                    return order.map(key =>
+                      groups[key].length > 0 ? (
+                        <optgroup key={key} label={sectionLabel[key]}>
+                          {groups[key].map(m => (
+                            <option key={m.id} value={m.id}>{m.title}</option>
+                          ))}
+                        </optgroup>
+                      ) : null
+                    )
+                  })()}
                 </select>
               )}
 
               {/* New module — required when no modules exist, optional when they do */}
-              {(sectionModules.length === 0 || showNewModule) ? (
-                <div className={`flex flex-col gap-1.5 ${sectionModules.length > 0 ? 'mt-2' : ''}`}>
+              {(modules.length === 0 || showNewModule) ? (
+                <div className={`flex flex-col gap-1.5 ${modules.length > 0 ? 'mt-2' : ''}`}>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={newModuleTitle}
                       onChange={e => setNewModuleTitle(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleCreateModule(); if (e.key === 'Escape' && sectionModules.length > 0) { setShowNewModule(false); setNewModuleTitle('') } }}
-                      placeholder={sectionModules.length === 0 ? 'Module title (required)' : 'New module title'}
+                      onKeyDown={e => { if (e.key === 'Enter') handleCreateModule(); if (e.key === 'Escape' && modules.length > 0) { setShowNewModule(false); setNewModuleTitle('') } }}
+                      placeholder={modules.length === 0 ? 'Module title (required)' : 'New module title'}
                       className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                     />
                     <button type="button" onClick={handleCreateModule} disabled={!newModuleTitle.trim()}
                       className="text-sm font-semibold bg-teal-primary text-white px-3 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity">
                       Save
                     </button>
-                    {sectionModules.length > 0 && (
+                    {modules.length > 0 && (
                       <button type="button" onClick={() => { setShowNewModule(false); setNewModuleTitle('') }}
                         className="text-sm text-muted-text hover:text-dark-text px-2">✕</button>
                     )}
@@ -379,50 +451,74 @@ export default function CreateButton({ courseId }: Props) {
               </div>
             )}
 
-            {/* Skill tags (level up only) */}
-            {section === 'level_up' && (
+            {/* Skill tags for assignment (all sections) */}
+            {createType === 'assignment' && (
               <div>
                 <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">
                   Skills <span className="normal-case font-normal text-muted-text">(optional)</span>
                 </label>
                 <div className="flex flex-wrap gap-1.5">
-                  {[...PRESET_SKILL_TAGS, ...customTags].map(tag => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleLevelUpTag(tag)}
+                  {[...PRESET_SKILL_TAGS, ...assignmentCustomTags].map(tag => (
+                    <button key={tag} type="button" onClick={() => toggleAssignmentTag(tag)}
                       className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                        levelUpTags.includes(tag)
+                        assignmentTags.includes(tag)
                           ? 'bg-teal-primary text-white border-teal-primary'
                           : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
-                      }`}
-                    >
-                      {tag}
-                    </button>
+                      }`}>{tag}</button>
                   ))}
-                  {!showCustomTag ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomTag(true)}
-                      className="text-xs px-2.5 py-1 rounded-full border border-dashed border-border text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors"
-                    >
+                  {!showAssignmentCustomTag ? (
+                    <button type="button" onClick={() => setShowAssignmentCustomTag(true)}
+                      className="text-xs px-2.5 py-1 rounded-full border border-dashed border-border text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors">
                       + Add
                     </button>
                   ) : (
                     <div className="flex gap-1.5 items-center w-full mt-1">
-                      <input
-                        type="text"
-                        value={customTagInput}
+                      <input type="text" value={assignmentCustomTagInput}
+                        onChange={e => setAssignmentCustomTagInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addAssignmentCustomTag(); if (e.key === 'Escape') { setShowAssignmentCustomTag(false); setAssignmentCustomTagInput('') } }}
+                        placeholder="Tag name…" autoFocus
+                        className="flex-1 border border-border rounded-lg px-2 py-1 text-xs bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                      />
+                      <button type="button" onClick={addAssignmentCustomTag} disabled={!assignmentCustomTagInput.trim()}
+                        className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">Add</button>
+                      <button type="button" onClick={() => { setShowAssignmentCustomTag(false); setAssignmentCustomTagInput('') }}
+                        className="text-xs text-muted-text hover:text-dark-text">✕</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Skill tags for Level Up module (non-assignment only) */}
+            {section === 'level_up' && createType !== 'assignment' && (
+              <div>
+                <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">
+                  Module Skills <span className="normal-case font-normal text-muted-text">(optional — for filtering)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...PRESET_SKILL_TAGS, ...customTags].map(tag => (
+                    <button key={tag} type="button" onClick={() => toggleLevelUpTag(tag)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        levelUpTags.includes(tag)
+                          ? 'bg-teal-primary text-white border-teal-primary'
+                          : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+                      }`}>{tag}</button>
+                  ))}
+                  {!showCustomTag ? (
+                    <button type="button" onClick={() => setShowCustomTag(true)}
+                      className="text-xs px-2.5 py-1 rounded-full border border-dashed border-border text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors">
+                      + Add
+                    </button>
+                  ) : (
+                    <div className="flex gap-1.5 items-center w-full mt-1">
+                      <input type="text" value={customTagInput}
                         onChange={e => setCustomTagInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addCustomTag(); if (e.key === 'Escape') { setShowCustomTag(false); setCustomTagInput('') } }}
-                        placeholder="Tag name…"
-                        autoFocus
+                        placeholder="Tag name…" autoFocus
                         className="flex-1 border border-border rounded-lg px-2 py-1 text-xs bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                       />
                       <button type="button" onClick={addCustomTag} disabled={!customTagInput.trim()}
-                        className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">
-                        Add
-                      </button>
+                        className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">Add</button>
                       <button type="button" onClick={() => { setShowCustomTag(false); setCustomTagInput('') }}
                         className="text-xs text-muted-text hover:text-dark-text">✕</button>
                     </div>

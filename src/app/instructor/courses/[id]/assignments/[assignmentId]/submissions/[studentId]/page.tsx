@@ -70,17 +70,34 @@ export default async function GradingPage({
     .eq('id', studentId)
     .single()
 
-  // Fetch all enrolled students to build prev/next navigation
-  const { data: enrollments } = await admin
-    .from('course_enrollments')
-    .select('user_id, users(id, name)')
-    .eq('course_id', id)
-    .eq('role', 'student')
+  // Fetch all enrolled students + all submissions to build navigation
+  const [{ data: enrollments }, { data: allSubmissions }] = await Promise.all([
+    admin
+      .from('course_enrollments')
+      .select('user_id, users(id, name)')
+      .eq('course_id', id)
+      .eq('role', 'student'),
+    admin
+      .from('submissions')
+      .select('student_id, status')
+      .eq('assignment_id', assignmentId),
+  ])
 
   const allStudents = (enrollments ?? [])
     .map(e => { const u = Array.isArray(e.users) ? e.users[0] : e.users; return { id: e.user_id, name: (u as { name: string } | null)?.name ?? 'Unknown' } })
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const submissionStatusMap = new Map((allSubmissions ?? []).map(s => [s.student_id, s.status]))
+
+  // Ungraded queue: students with status = 'submitted' (needs grading)
+  const ungradedStudents = allStudents.filter(s => submissionStatusMap.get(s.id) === 'submitted')
+  const needsGradingTotal = ungradedStudents.length
+  const currentUngradedIndex = ungradedStudents.findIndex(s => s.id === studentId)
+  const nextUngradedStudent = currentUngradedIndex >= 0 && currentUngradedIndex < ungradedStudents.length - 1
+    ? ungradedStudents[currentUngradedIndex + 1]
+    : null
+
+  // All-students prev/next for general browsing
   const currentIndex = allStudents.findIndex(s => s.id === studentId)
   const prevStudent = currentIndex > 0 ? allStudents[currentIndex - 1] : null
   const nextStudent = currentIndex < allStudents.length - 1 ? allStudents[currentIndex + 1] : null
@@ -191,8 +208,11 @@ export default async function GradingPage({
               <span className="text-sm text-border">← First</span>
             )}
           </div>
-          <div className="text-center shrink-0">
+          <div className="text-center shrink-0 flex flex-col gap-0.5">
             <p className="text-xs font-semibold text-dark-text">{studentPosition} / {studentTotal}</p>
+            {needsGradingTotal > 0 && (
+              <p className="text-xs text-yellow-600 font-medium">{needsGradingTotal} need grading</p>
+            )}
             <Link href={subBase} className="text-xs text-teal-primary hover:underline">Back to list</Link>
           </div>
           <div className="w-1/3 text-right">
@@ -219,6 +239,7 @@ export default async function GradingPage({
               initialGrade={currentGrade}
               initialGradedAt={submission.graded_at ?? null}
               gradedById={user.id}
+              nextUrl={nextUngradedStudent ? `${subBase}/${nextUngradedStudent.id}` : null}
             />
           )}
         </div>

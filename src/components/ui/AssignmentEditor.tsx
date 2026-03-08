@@ -8,6 +8,8 @@ import { RUBRIC_TEMPLATES } from '@/data/rubric-templates'
 import DatePicker from './DatePicker'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
+const PRESET_SKILL_TAGS = ['HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Other']
+
 interface ChecklistItem {
   id: string
   text: string
@@ -27,6 +29,8 @@ interface Props {
     published: boolean
     answer_key_url: string | null
     submission_required: boolean
+    skill_tags: string[] | null
+    is_bonus: boolean
   }
   initialChecklist: ChecklistItem[]
 }
@@ -46,6 +50,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   })
   const [published, setPublished] = useState(assignment.published)
   const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
+  const [isBonus, setIsBonus] = useState(assignment.is_bonus)
+  const [skillTags, setSkillTags] = useState<string[]>(assignment.skill_tags ?? [])
+  const [customSkillTags, setCustomSkillTags] = useState<string[]>(
+    (assignment.skill_tags ?? []).filter(t => !PRESET_SKILL_TAGS.includes(t))
+  )
+  const [showCustomTag, setShowCustomTag] = useState(false)
+  const [customTagInput, setCustomTagInput] = useState('')
   const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
   const [newItemText, setNewItemText] = useState('')
@@ -55,6 +66,21 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   useUnsavedChanges(isDirty)
+
+  const toggleSkillTag = (tag: string) => {
+    setSkillTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+    setIsDirty(true)
+  }
+
+  const addCustomSkillTag = () => {
+    const tag = customTagInput.trim()
+    if (!tag) return
+    if (!customSkillTags.includes(tag)) setCustomSkillTags(prev => [...prev, tag])
+    setSkillTags(prev => prev.includes(tag) ? prev : [...prev, tag])
+    setCustomTagInput('')
+    setShowCustomTag(false)
+    setIsDirty(true)
+  }
 
   const save = async () => {
     setSaving(true)
@@ -67,6 +93,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null,
         published,
         submission_required: submissionRequired,
+        is_bonus: isBonus,
+        skill_tags: skillTags,
         answer_key_url: answerKeyUrl.trim() || null,
       })
       .eq('id', assignment.id)
@@ -190,7 +218,54 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           >
             {submissionRequired ? 'Submission required' : 'No submission'}
           </button>
+          <button
+            type="button"
+            onClick={() => { setIsBonus(b => !b); setIsDirty(true) }}
+            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+              isBonus
+                ? 'bg-purple-light text-purple-primary border-purple-primary/40'
+                : 'bg-background text-muted-text border-border'
+            }`}
+          >
+            {isBonus ? 'Bonus (Level Up)' : 'Bonus?'}
+          </button>
         </div>
+      </div>
+
+      {/* Skill tags */}
+      <div>
+        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Skills</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[...PRESET_SKILL_TAGS, ...customSkillTags].map(tag => (
+            <button key={tag} type="button" onClick={() => toggleSkillTag(tag)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                skillTags.includes(tag)
+                  ? 'bg-teal-primary text-white border-teal-primary'
+                  : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+              }`}>{tag}</button>
+          ))}
+          {!showCustomTag ? (
+            <button type="button" onClick={() => setShowCustomTag(true)}
+              className="text-xs px-2.5 py-1 rounded-full border border-dashed border-border text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors">
+              + Add
+            </button>
+          ) : (
+            <div className="flex gap-1.5 items-center w-full mt-1">
+              <input type="text" value={customTagInput} onChange={e => setCustomTagInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addCustomSkillTag(); if (e.key === 'Escape') { setShowCustomTag(false); setCustomTagInput('') } }}
+                placeholder="Tag name…" autoFocus
+                className="flex-1 border border-border rounded-lg px-2 py-1 text-xs bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+              <button type="button" onClick={addCustomSkillTag} disabled={!customTagInput.trim()}
+                className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">Add</button>
+              <button type="button" onClick={() => { setShowCustomTag(false); setCustomTagInput('') }}
+                className="text-xs text-muted-text hover:text-dark-text">✕</button>
+            </div>
+          )}
+        </div>
+        {isBonus && (
+          <p className="text-xs text-purple-primary mt-2">This assignment is marked as bonus — it will appear in Level Up Your Skills.</p>
+        )}
       </div>
 
       {/* Due date */}
