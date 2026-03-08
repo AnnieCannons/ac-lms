@@ -1,10 +1,11 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsList'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
+import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -17,17 +18,8 @@ export default async function InstructorSubmissionsPage({
   const { grader } = await searchParams
   const isGraderMode = grader === 'all' || grader === 'me'
   const graderParam = isGraderMode ? grader as 'all' | 'me' : undefined
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role === 'student') redirect('/student/courses')
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
 
   // Use service role for cross-user queries (bypasses RLS)
   let admin: ReturnType<typeof createServiceSupabaseClient>
@@ -165,7 +157,7 @@ export default async function InstructorSubmissionsPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
