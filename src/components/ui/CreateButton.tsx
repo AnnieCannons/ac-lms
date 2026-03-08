@@ -7,9 +7,12 @@ import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { parseQuizText } from '@/lib/quiz-parser'
 
 type CreateType = 'assignment' | 'resource' | 'quiz'
+type SectionType = 'coding' | 'career' | 'level_up'
 type ResourceType = 'video' | 'reading' | 'link' | 'file'
 type Day = { id: string; day_name: string; order: number }
-type Module = { id: string; title: string; order: number; week_number: number | null; category: string | null; module_days: Day[] }
+type Module = { id: string; title: string; order: number; week_number: number | null; category: string | null; module_days: Day[]; skill_tags?: string[] | null }
+
+const PRESET_SKILL_TAGS = ['HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Other']
 
 const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 
@@ -34,9 +37,15 @@ export default function CreateButton({ courseId }: Props) {
   const [createType, setCreateType] = useState<CreateType>('assignment')
 
   // Common
-  const [section, setSection] = useState<'coding' | 'career'>('coding')
+  const [section, setSection] = useState<SectionType>('coding')
   const [moduleId, setModuleId] = useState('')
   const [dayId, setDayId] = useState('')
+
+  // Level Up skill tags
+  const [levelUpTags, setLevelUpTags] = useState<string[]>([])
+  const [customTags, setCustomTags] = useState<string[]>([])
+  const [showCustomTag, setShowCustomTag] = useState(false)
+  const [customTagInput, setCustomTagInput] = useState('')
 
   // New module
   const [showNewModule, setShowNewModule] = useState(false)
@@ -60,10 +69,10 @@ export default function CreateButton({ courseId }: Props) {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hasCoding = modules.some(m => m.category !== 'career')
+  const hasCoding = modules.some(m => m.category !== 'career' && m.category !== 'level_up')
   const showSectionFilter = hasCoding
 
-  const codingModules = modules.filter(m => m.category !== 'career')
+  const codingModules = modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
   const crossModuleAllDays = codingModules.find(m => m.id === crossModuleId)?.module_days ?? []
   const crossModuleDays = (createType === 'assignment'
     ? crossModuleAllDays.filter(d => !SKIP_DAYS.has(d.day_name))
@@ -72,7 +81,27 @@ export default function CreateButton({ courseId }: Props) {
 
   const sectionModules = section === 'career'
     ? modules.filter(m => m.category === 'career')
-    : modules.filter(m => m.category !== 'career')
+    : section === 'level_up'
+      ? modules.filter(m => m.category === 'level_up')
+      : modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
+
+  const toggleLevelUpTag = (tag: string) =>
+    setLevelUpTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+
+  const addCustomTag = () => {
+    const tag = customTagInput.trim()
+    if (!tag) return
+    if (!customTags.includes(tag)) setCustomTags(prev => [...prev, tag])
+    setLevelUpTags(prev => prev.includes(tag) ? prev : [...prev, tag])
+    setCustomTagInput('')
+    setShowCustomTag(false)
+  }
+
+  const loadModuleTags = (mod: Module | undefined) => {
+    const tags = mod?.skill_tags ?? []
+    setLevelUpTags(tags)
+    setCustomTags(tags.filter(t => !PRESET_SKILL_TAGS.includes(t)))
+  }
 
   const allDaysForModule = sectionModules.find(m => m.id === moduleId)?.module_days ?? []
 
@@ -84,12 +113,16 @@ export default function CreateButton({ courseId }: Props) {
   const handleOpen = async () => {
     const { data } = await supabase
       .from('modules')
-      .select('id, title, order, week_number, category, module_days(id, day_name, order)')
+      .select('id, title, order, week_number, category, skill_tags, module_days(id, day_name, order)')
       .eq('course_id', courseId)
       .order('order', { ascending: true })
     const mods = (data ?? []).filter((m: Module) => m.title && !m.title.includes('DO NOT PUBLISH'))
-    const resolvedSection = mods.some(m => m.category !== 'career') ? 'coding' : 'career'
-    const firstMods = resolvedSection === 'career' ? mods.filter(m => m.category === 'career') : mods.filter(m => m.category !== 'career')
+    const resolvedSection: SectionType = mods.some(m => m.category !== 'career' && m.category !== 'level_up') ? 'coding'
+      : mods.some(m => m.category === 'career') ? 'career'
+      : 'level_up'
+    const firstMods = resolvedSection === 'career' ? mods.filter(m => m.category === 'career')
+      : resolvedSection === 'level_up' ? mods.filter(m => m.category === 'level_up')
+      : mods.filter(m => m.category !== 'career' && m.category !== 'level_up')
     setModules(mods)
     setSection(resolvedSection)
     setModuleId(firstMods[0]?.id ?? '')
@@ -107,17 +140,22 @@ export default function CreateButton({ courseId }: Props) {
     setShowNewModule(firstMods.length === 0)
     setNewModuleTitle('')
     setModuleError(null)
+    setLevelUpTags([])
+    setCustomTags([])
+    setShowCustomTag(false)
+    setCustomTagInput('')
+    if (resolvedSection === 'level_up') loadModuleTags(firstMods[0])
     setOpen(true)
   }
 
   const handleCreateModule = async () => {
     if (!newModuleTitle.trim()) return
     setModuleError(null)
-    const category = section === 'career' ? 'career' : null
+    const category = section === 'career' ? 'career' : section === 'level_up' ? 'level_up' : null
     const { data, error } = await supabase
       .from('modules')
-      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length })
-      .select('id, title, order, week_number, category')
+      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length, skill_tags: section === 'level_up' ? levelUpTags : [] })
+      .select('id, title, order, week_number, category, skill_tags')
       .single()
     if (error || !data) { setModuleError(error?.message ?? 'Failed to create module'); return }
     setModules(prev => [...prev, { ...data, module_days: [] }])
@@ -143,10 +181,11 @@ export default function CreateButton({ courseId }: Props) {
     // If no module yet but a new module name was entered, create it first
     let resolvedModuleId = moduleId
     if (!moduleId && showNewModule && newModuleTitle.trim()) {
+      const category = section === 'career' ? 'career' : section === 'level_up' ? 'level_up' : null
       const { data, error } = await supabase
         .from('modules')
-        .insert({ course_id: courseId, title: newModuleTitle.trim(), category: section === 'career' ? 'career' : null, order: modules.length })
-        .select('id, title, order, week_number, category')
+        .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length, skill_tags: section === 'level_up' ? levelUpTags : [] })
+        .select('id, title, order, week_number, category, skill_tags')
         .single()
       if (error || !data) { setError(error?.message ?? 'Failed to create module'); setCreating(false); return }
       const newMod = { ...data, module_days: [] }
@@ -157,6 +196,11 @@ export default function CreateButton({ courseId }: Props) {
       resolvedModuleId = data.id
     }
     if (!resolvedModuleId) { setCreating(false); return }
+
+    // Update skill_tags on existing level_up modules (auto-created ones already have tags set)
+    if (section === 'level_up' && resolvedModuleId === moduleId && moduleId) {
+      await supabase.from('modules').update({ skill_tags: levelUpTags }).eq('id', resolvedModuleId)
+    }
 
     const linkedDayId = section === 'career' && crossPost && crossDayId ? crossDayId : null
 
@@ -246,18 +290,23 @@ export default function CreateButton({ courseId }: Props) {
                 <select
                   value={section}
                   onChange={e => {
-                    const s = e.target.value as typeof section
-                    const nextMods = s === 'career' ? modules.filter(m => m.category === 'career') : modules.filter(m => m.category !== 'career')
+                    const s = e.target.value as SectionType
+                    const nextMods = s === 'career' ? modules.filter(m => m.category === 'career')
+                      : s === 'level_up' ? modules.filter(m => m.category === 'level_up')
+                      : modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
                     setSection(s)
                     setModuleId(nextMods[0]?.id ?? '')
                     setDayId('')
                     setShowNewModule(nextMods.length === 0)
                     setNewModuleTitle('')
+                    if (s === 'level_up') loadModuleTags(nextMods[0])
+                    else { setLevelUpTags([]); setCustomTags([]) }
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
                   <option value="coding">Coding Class</option>
                   <option value="career">Career Development</option>
+                  <option value="level_up">Level Up Your Skills</option>
                 </select>
               </div>
             )}
@@ -268,7 +317,11 @@ export default function CreateButton({ courseId }: Props) {
                 <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Module</label>
                 <select
                   value={moduleId}
-                  onChange={e => { setModuleId(e.target.value); setDayId('') }}
+                  onChange={e => {
+                    setModuleId(e.target.value)
+                    setDayId('')
+                    if (section === 'level_up') loadModuleTags(sectionModules.find(m => m.id === e.target.value))
+                  }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
                   {sectionModules.map(m => (
@@ -323,6 +376,58 @@ export default function CreateButton({ courseId }: Props) {
                     <option key={d.id} value={d.id}>{d.day_name}</option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {/* Skill tags (level up only) */}
+            {section === 'level_up' && (
+              <div>
+                <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">
+                  Skills <span className="normal-case font-normal text-muted-text">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...PRESET_SKILL_TAGS, ...customTags].map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleLevelUpTag(tag)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        levelUpTags.includes(tag)
+                          ? 'bg-teal-primary text-white border-teal-primary'
+                          : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  {!showCustomTag ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomTag(true)}
+                      className="text-xs px-2.5 py-1 rounded-full border border-dashed border-border text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors"
+                    >
+                      + Add
+                    </button>
+                  ) : (
+                    <div className="flex gap-1.5 items-center w-full mt-1">
+                      <input
+                        type="text"
+                        value={customTagInput}
+                        onChange={e => setCustomTagInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addCustomTag(); if (e.key === 'Escape') { setShowCustomTag(false); setCustomTagInput('') } }}
+                        placeholder="Tag name…"
+                        autoFocus
+                        className="flex-1 border border-border rounded-lg px-2 py-1 text-xs bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                      />
+                      <button type="button" onClick={addCustomTag} disabled={!customTagInput.trim()}
+                        className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">
+                        Add
+                      </button>
+                      <button type="button" onClick={() => { setShowCustomTag(false); setCustomTagInput('') }}
+                        className="text-xs text-muted-text hover:text-dark-text">✕</button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
-import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
+import LevelUpFilter from '@/components/ui/LevelUpFilter'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
@@ -50,7 +50,7 @@ export default async function StudentLevelUpPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published), resources!module_day_id(id, type, title, content, description, order))')
+    .select('*, skill_tags, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published), resources!module_day_id(id, type, title, content, description, order))')
     .eq('course_id', id)
     .eq('category', 'level_up')
     .eq('published', true)
@@ -82,12 +82,9 @@ export default async function StudentLevelUpPage({
             </div>
 
             {modules.length > 0 ? (
-              <CourseOutlineAccordion
-                modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
+              <LevelUpFilter
+                modules={modules as Parameters<typeof LevelUpFilter>[0]['modules']}
                 courseId={id}
-                currentWeek={null}
-                todayName=""
-                hideLevelUpBanner
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
