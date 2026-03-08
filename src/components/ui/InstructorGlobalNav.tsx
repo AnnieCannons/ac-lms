@@ -16,6 +16,11 @@ const STATIC_SLUGS = ['computer-wifi', 'policies', 'launch-tasks', 'benefits-hea
 
 export default function InstructorGlobalNav({ courseId }: { courseId?: string } = {}) {
   const pathname = usePathname()
+  const [open, setOpen] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('nav_section_global_templates')
+    return stored === null ? true : stored === 'true'
+  })
   const [dynamicItems, setDynamicItems] = useState<{ label: string; slug: string }[]>([])
 
   useEffect(() => {
@@ -41,10 +46,19 @@ export default function InstructorGlobalNav({ courseId }: { courseId?: string } 
 
   return (
     <nav aria-label="Global navigation" className="flex flex-col">
-      <p className="text-xs font-bold text-muted-text uppercase tracking-widest mb-4 px-3">
-        Global Templates
-      </p>
-      <div className="flex flex-col gap-0.5">
+      <button
+        type="button"
+        onClick={() => setOpen(v => {
+          const next = !v
+          localStorage.setItem('nav_section_global_templates', String(next))
+          return next
+        })}
+        className="flex items-center gap-1.5 w-full px-3 mb-1 group"
+      >
+        <span className="text-muted-text text-[8px] group-hover:text-dark-text transition-colors">{open ? '▲' : '▼'}</span>
+        <p className="text-xs font-bold text-muted-text uppercase tracking-widest group-hover:text-dark-text transition-colors">Global Templates</p>
+      </button>
+      {open && <div className="flex flex-col gap-0.5 mt-1">
         {items.map(({ label, href, base }) => (
           <Link
             key={label}
@@ -75,7 +89,7 @@ export default function InstructorGlobalNav({ courseId }: { courseId?: string } 
             </Link>
           )
         })}
-      </div>
+      </div>}
     </nav>
   )
 }

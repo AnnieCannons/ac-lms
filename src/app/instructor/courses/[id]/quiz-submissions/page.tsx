@@ -1,8 +1,9 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
+import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export default async function QuizSubmissionsPage({
   params,
@@ -10,17 +11,7 @@ export default async function QuizSubmissionsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role === "student") redirect("/student/courses");
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
 
   let admin: ReturnType<typeof createServiceSupabaseClient>;
   try {

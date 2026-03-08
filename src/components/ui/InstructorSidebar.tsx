@@ -1,12 +1,29 @@
 import ResizableSidebar from './ResizableSidebar'
 import InstructorCourseNav from './InstructorCourseNav'
-import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
 export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName: string }) {
   let needsGrading = 0
   let firstUngradedAssignmentId: string | null = null
+  let isTa = false
 
   try {
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user) {
+      const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+      if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+        const { data: enrollment } = await supabase
+          .from('course_enrollments')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .maybeSingle()
+        isTa = enrollment?.role === 'ta'
+      }
+    }
+
     const admin = createServiceSupabaseClient()
 
     // Fetch modules with ordering so we can find the first ungraded assignment in order
@@ -52,6 +69,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
         courseName={courseName}
         needsGrading={needsGrading}
         firstUngradedAssignmentId={firstUngradedAssignmentId}
+        isTa={isTa}
       />
     </ResizableSidebar>
   )

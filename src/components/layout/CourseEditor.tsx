@@ -182,6 +182,7 @@ type RelocateCtx = {
   relocateResource: (resourceId: string, targetWeek: number, targetDay: string, onRemoved: () => void) => Promise<void>;
 };
 const RelocateContext = createContext<RelocateCtx | null>(null);
+const ReadOnlyContext = createContext(false);
 
 // ─── AssignmentCard ───────────────────────────────────────────────────────────
 
@@ -208,6 +209,7 @@ function AssignmentCard({
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const ctx = useContext(RelocateContext);
+  const readOnly = useContext(ReadOnlyContext);
 
   return (
     <div
@@ -216,15 +218,17 @@ function AssignmentCard({
       className={`bg-surface rounded-lg border border-border ${isDragging ? "opacity-50 z-50" : ""}`}
     >
       <div className="px-3 py-2 flex items-center gap-2">
-        <button
-          {...attributes}
-          {...listeners}
-          className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
-          type="button"
-          aria-label="Drag assignment"
-        >
-          ⠿
-        </button>
+        {!readOnly && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+            type="button"
+            aria-label="Drag assignment"
+          >
+            ⠿
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onOpen(assignment, dayId)}
@@ -238,7 +242,7 @@ function AssignmentCard({
             {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
           </p>
         </button>
-        {ctx && (() => {
+        {!readOnly && ctx && (() => {
           const isRealDay = DAY_OPTIONS.includes(dayName);
           return (
             <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
@@ -269,26 +273,30 @@ function AssignmentCard({
             </div>
           );
         })()}
-        <button
-          onClick={() => onTogglePublished(assignment.id, assignment.published)}
-          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
-            assignment.published
-              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
-              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
-          }`}
-          type="button"
-          aria-label={assignment.published ? "Published — click to unpublish" : "Draft — click to publish"}
-        >
-          {assignment.published ? "Published" : "Draft"}
-        </button>
-        <button
-          onClick={() => onDelete(assignment.id)}
-          className="text-muted-text hover:text-red-400 shrink-0"
-          type="button"
-          aria-label="Delete assignment"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-        </button>
+        {!readOnly && (
+          <>
+            <button
+              onClick={() => onTogglePublished(assignment.id, assignment.published)}
+              className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                assignment.published
+                  ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                  : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+              }`}
+              type="button"
+              aria-label={assignment.published ? "Published — click to unpublish" : "Draft — click to publish"}
+            >
+              {assignment.published ? "Published" : "Draft"}
+            </button>
+            <button
+              onClick={() => onDelete(assignment.id)}
+              className="text-muted-text hover:text-red-400 shrink-0"
+              type="button"
+              aria-label="Delete assignment"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -775,6 +783,7 @@ function AssignmentDropZone({
   onDeleteAssignment: (assignmentId: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
 }) {
+  const readOnly = useContext(ReadOnlyContext);
   const { setNodeRef, isOver } = useDroppable({
     id: `drop-${day.id}`,
     data: { type: "day-drop", dayId: day.id },
@@ -820,13 +829,15 @@ function AssignmentDropZone({
           </SortableContext>
         );
       })()}
-      <button
-        onClick={() => onOpenAdd(day.id)}
-        className="mt-3 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity"
-        type="button"
-      >
-        + Add Assignment
-      </button>
+      {!readOnly && (
+        <button
+          onClick={() => onOpenAdd(day.id)}
+          className="mt-3 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity"
+          type="button"
+        >
+          + Add Assignment
+        </button>
+      )}
     </div>
   );
 }
@@ -859,6 +870,7 @@ function SortableResource({
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const ctx = useContext(RelocateContext);
+  const readOnly = useContext(ReadOnlyContext);
   const [relocWeek, setRelocWeek] = useState<string>(weekNumber ? String(weekNumber) : "");
   const [relocDay, setRelocDay] = useState<string>("");
   const [editing, setEditing] = useState(false);
@@ -955,27 +967,33 @@ function SortableResource({
       style={style}
       className="bg-surface rounded-lg border border-border px-3 py-2 flex items-center gap-2"
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
-        type="button"
-        aria-label="Drag resource"
-      >
-        ⠿
-      </button>
+      {!readOnly && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+          type="button"
+          aria-label="Drag resource"
+        >
+          ⠿
+        </button>
+      )}
       <span className="text-xs bg-teal-light text-teal-primary rounded px-1.5 py-0.5 shrink-0">
         {RESOURCE_TYPE_LABELS[resource.type]}
       </span>
       <div className="flex-1 min-w-0 group">
-        <button
-          onClick={() => setEditing(true)}
-          className="text-xs font-medium text-dark-text truncate hover:text-teal-primary transition-colors w-full text-left flex items-center gap-1"
-          type="button"
-        >
-          {resource.title}
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-teal-primary shrink-0">✎</span>
-        </button>
+        {readOnly ? (
+          <p className="text-xs font-medium text-dark-text truncate">{resource.title}</p>
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs font-medium text-dark-text truncate hover:text-teal-primary transition-colors w-full text-left flex items-center gap-1"
+            type="button"
+          >
+            {resource.title}
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-teal-primary shrink-0">✎</span>
+          </button>
+        )}
         {resource.description && (
           <p className="text-xs text-muted-text truncate">{resource.description}</p>
         )}
@@ -999,7 +1017,7 @@ function SortableResource({
           );
         })()}
       </div>
-      {ctx && (
+      {!readOnly && ctx && (
         <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
           <select
             value={relocWeek}
@@ -1033,14 +1051,16 @@ function SortableResource({
           </select>
         </div>
       )}
-      <button
-        onClick={() => onDelete(resource.id)}
-        className="text-muted-text hover:text-red-400 shrink-0"
-        type="button"
-        aria-label="Delete resource"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-      </button>
+      {!readOnly && (
+        <button
+          onClick={() => onDelete(resource.id)}
+          className="text-muted-text hover:text-red-400 shrink-0"
+          type="button"
+          aria-label="Delete resource"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -1077,6 +1097,7 @@ function SortableDay({
     });
 
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const readOnly = useContext(ReadOnlyContext);
   const [open, setOpen] = useState(false);
   const assignments = day.assignments ?? [];
   const supabase = createClient();
@@ -1193,15 +1214,17 @@ function SortableDay({
   return (
     <div ref={setNodeRef} style={style} className="bg-background rounded-lg">
       <div className="flex items-center gap-2 sm:gap-3 px-4 py-2">
-        <button
-          {...attributes}
-          {...listeners}
-          className="hidden sm:block text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
-          aria-label={`Drag day ${day.day_name}`}
-          type="button"
-        >
-          ⠿
-        </button>
+        {!readOnly && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="hidden sm:block text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+            aria-label={`Drag day ${day.day_name}`}
+            type="button"
+          >
+            ⠿
+          </button>
+        )}
 
         <button
           type="button"
@@ -1216,14 +1239,16 @@ function SortableDay({
           </span>
         </button>
 
-        <button
-          onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
-          className="text-muted-text hover:text-red-400"
-          aria-label={`Delete day ${day.day_name}`}
-          type="button"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
+            className="text-muted-text hover:text-red-400"
+            aria-label={`Delete day ${day.day_name}`}
+            type="button"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        )}
       </div>
 
       {open && (
@@ -1289,57 +1314,59 @@ function SortableDay({
               );
             })()}
 
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <select
-                  value={newResType}
-                  onChange={(e) => { setNewResType(e.target.value as Resource["type"]); setNewResContent(""); }}
-                  className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                >
-                  <option value="link">Link</option>
-                  <option value="video">Video</option>
-                  <option value="reading">Reading</option>
-                  <option value="file">File</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Title"
-                  value={newResTitle}
-                  onChange={(e) => setNewResTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
-                  className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
-              </div>
-              <div className="flex gap-2 items-start">
-                {newResType === "file" ? (
-                  <FileUpload
-                    key={fileUploadKey}
-                    bucket="lms-resources"
-                    path={`module-day-${day.id}/`}
-                    onUpload={(url, fileName) => {
-                      setNewResContent(url);
-                      if (!newResTitle.trim()) setNewResTitle(fileName);
-                    }}
-                  />
-                ) : (
+            {!readOnly && (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <select
+                    value={newResType}
+                    onChange={(e) => { setNewResType(e.target.value as Resource["type"]); setNewResContent(""); }}
+                    className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  >
+                    <option value="link">Link</option>
+                    <option value="video">Video</option>
+                    <option value="reading">Reading</option>
+                    <option value="file">File</option>
+                  </select>
                   <input
                     type="text"
-                    placeholder="URL or content"
-                    value={newResContent}
-                    onChange={(e) => setNewResContent(e.target.value)}
+                    placeholder="Title"
+                    value={newResTitle}
+                    onChange={(e) => setNewResTitle(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
                     className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   />
-                )}
-                <button
-                  onClick={submitNewResource}
-                  className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:text-white transition-colors"
-                  type="button"
-                >
-                  Add
-                </button>
+                </div>
+                <div className="flex gap-2 items-start">
+                  {newResType === "file" ? (
+                    <FileUpload
+                      key={fileUploadKey}
+                      bucket="lms-resources"
+                      path={`module-day-${day.id}/`}
+                      onUpload={(url, fileName) => {
+                        setNewResContent(url);
+                        if (!newResTitle.trim()) setNewResTitle(fileName);
+                      }}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="URL or content"
+                      value={newResContent}
+                      onChange={(e) => setNewResContent(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
+                      className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    />
+                  )}
+                  <button
+                    onClick={submitNewResource}
+                    className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:text-white transition-colors"
+                    type="button"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Assignments */}
@@ -1397,25 +1424,27 @@ function SortableDay({
                       {isCrossPosted && (
                         <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
                       )}
-                      <button
-                        onClick={async () => {
-                          const newPublished = !quiz.published;
-                          setQuizzes(prev => prev.map(q => q.id === quiz.id ? { ...q, published: newPublished } : q));
-                          try {
-                            await toggleQuizPublished(quiz.id, newPublished);
-                          } catch {
-                            setQuizzes(prev => prev.map(q => q.id === quiz.id ? quiz : q));
-                          }
-                        }}
-                        className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                          quiz.published
-                            ? 'border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white'
-                            : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
-                        }`}
-                        type="button"
-                      >
-                        {quiz.published ? 'Published' : 'Unpublished'}
-                      </button>
+                      {!readOnly && (
+                        <button
+                          onClick={async () => {
+                            const newPublished = !quiz.published;
+                            setQuizzes(prev => prev.map(q => q.id === quiz.id ? { ...q, published: newPublished } : q));
+                            try {
+                              await toggleQuizPublished(quiz.id, newPublished);
+                            } catch {
+                              setQuizzes(prev => prev.map(q => q.id === quiz.id ? quiz : q));
+                            }
+                          }}
+                          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                            quiz.published
+                              ? 'border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white'
+                              : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+                          }`}
+                          type="button"
+                        >
+                          {quiz.published ? 'Published' : 'Unpublished'}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -1482,6 +1511,7 @@ function SortableModule({
     });
 
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const readOnly = useContext(ReadOnlyContext);
   const [newDayName, setNewDayName] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(module.title);
@@ -1500,17 +1530,19 @@ function SortableModule({
       className={`bg-surface rounded-2xl border border-border overflow-hidden transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
     >
       <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4">
-        <button
-          {...attributes}
-          {...listeners}
-          className="hidden sm:block text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
-          aria-label={`Drag module ${module.title}`}
-          type="button"
-        >
-          ⠿
-        </button>
+        {!readOnly && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="hidden sm:block text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+            aria-label={`Drag module ${module.title}`}
+            type="button"
+          >
+            ⠿
+          </button>
+        )}
         <div className="flex-1 min-w-0">
-          {editingTitle ? (
+          {!readOnly && editingTitle ? (
             <input
               autoFocus
               value={titleDraft}
@@ -1521,37 +1553,41 @@ function SortableModule({
             />
           ) : (
             <h3
-              className="font-semibold text-dark-text truncate cursor-pointer hover:text-teal-primary transition-colors"
-              onClick={() => { setTitleDraft(module.title); setEditingTitle(true); }}
-              title="Click to edit title"
+              className={`font-semibold text-dark-text truncate ${readOnly ? '' : 'cursor-pointer hover:text-teal-primary transition-colors'}`}
+              onClick={readOnly ? undefined : () => { setTitleDraft(module.title); setEditingTitle(true); }}
+              title={readOnly ? undefined : "Click to edit title"}
             >
               {module.title}
             </h3>
           )}
           {module.week_number != null && <p className="text-xs text-muted-text">Week {module.week_number}</p>}
         </div>
-        <select
-          value={module.category ?? ''}
-          onChange={(e) => onUpdateCategory(module.id, e.target.value || null)}
-          className="hidden sm:block text-xs bg-background border border-border rounded-md px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {CATEGORY_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleModulePublished(module.id, module.published); }}
-          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
-            module.published
-              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
-              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
-          }`}
-          type="button"
-          aria-label={module.published ? "Published — click to unpublish" : "Draft — click to publish"}
-        >
-          {module.published ? "Published" : "Draft"}
-        </button>
+        {!readOnly && (
+          <select
+            value={module.category ?? ''}
+            onChange={(e) => onUpdateCategory(module.id, e.target.value || null)}
+            className="hidden sm:block text-xs bg-background border border-border rounded-md px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {CATEGORY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
+        {!readOnly && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleModulePublished(module.id, module.published); }}
+            className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+              module.published
+                ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+            }`}
+            type="button"
+            aria-label={module.published ? "Published — click to unpublish" : "Draft — click to publish"}
+          >
+            {module.published ? "Published" : "Draft"}
+          </button>
+        )}
         <button
           onClick={onToggleExpand}
           className="text-muted-text hover:text-teal-primary text-sm px-3"
@@ -1560,14 +1596,16 @@ function SortableModule({
         >
           {expanded ? "▲" : "▼"}
         </button>
-        <button
-          onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
-          className="text-muted-text hover:text-red-400"
-          aria-label={`Delete module ${module.title}`}
-          type="button"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
+            className="text-muted-text hover:text-red-400"
+            aria-label={`Delete module ${module.title}`}
+            type="button"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        )}
       </div>
 
       {expanded && (
@@ -1603,34 +1641,36 @@ function SortableModule({
               ))}
           </SortableContext>
 
-          <div className="flex gap-2 mt-2">
-            <input
-              type="text"
-              placeholder="Add a day (e.g. Monday)"
-              value={newDayName}
-              onChange={(e) => setNewDayName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newDayName.trim()) {
-                  onAddDay(module.id, newDayName.trim());
-                  setNewDayName("");
-                }
-              }}
-              className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              aria-label="New day name"
-            />
-            <button
-              onClick={() => {
-                if (newDayName.trim()) {
-                  onAddDay(module.id, newDayName.trim());
-                  setNewDayName("");
-                }
-              }}
-              className="bg-teal-light text-teal-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-primary hover:text-white transition-colors"
-              type="button"
-            >
-              Add
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                placeholder="Add a day (e.g. Monday)"
+                value={newDayName}
+                onChange={(e) => setNewDayName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newDayName.trim()) {
+                    onAddDay(module.id, newDayName.trim());
+                    setNewDayName("");
+                  }
+                }}
+                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                aria-label="New day name"
+              />
+              <button
+                onClick={() => {
+                  if (newDayName.trim()) {
+                    onAddDay(module.id, newDayName.trim());
+                    setNewDayName("");
+                  }
+                }}
+                className="bg-teal-light text-teal-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-primary hover:text-white transition-colors"
+                type="button"
+              >
+                Add
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1644,11 +1684,13 @@ export default function CourseEditor({
   initialModules,
   filterCategory,
   courseQuizzes = [],
+  readOnly = false,
 }: {
   course: any;
   initialModules: Module[];
   filterCategory?: string;
   courseQuizzes?: QuizEntry[];
+  readOnly?: boolean;
 }) {
   const [modules, setModules] = useState<Module[]>(initialModules);
   const [newModuleTitle, setNewModuleTitle] = useState("");
@@ -2127,6 +2169,7 @@ export default function CourseEditor({
   const weekOptions = [...new Set(modules.map((m) => m.week_number).filter(Boolean))].sort((a, b) => a - b) as number[];
 
   return (
+    <ReadOnlyContext.Provider value={readOnly}>
     <RelocateContext.Provider value={{ weekOptions, relocateAssignment, relocateResource }}>
     <>
       {activeView && (
@@ -2207,39 +2250,41 @@ export default function CourseEditor({
               ))}
             </SortableContext>
 
-            <div className="bg-surface rounded-2xl border border-dashed border-border p-6">
-              <h4 className="text-sm font-medium text-dark-text mb-3">
-                Add Module
-              </h4>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Module title (e.g. Week 1: Intro)"
-                  value={newModuleTitle}
-                  onChange={(e) => setNewModuleTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addModule();
-                  }}
-                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  aria-label="Module title"
-                />
-                <input
-                  type="number"
-                  placeholder="Week #"
-                  value={newModuleWeek}
-                  onChange={(e) => setNewModuleWeek(e.target.value)}
-                  className="w-24 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  aria-label="Week number"
-                />
-                <button
-                  onClick={addModule}
-                  className="bg-teal-primary text-white px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
-                  type="button"
-                >
-                  Add
-                </button>
+            {!readOnly && (
+              <div className="bg-surface rounded-2xl border border-dashed border-border p-6">
+                <h4 className="text-sm font-medium text-dark-text mb-3">
+                  Add Module
+                </h4>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="Module title (e.g. Week 1: Intro)"
+                    value={newModuleTitle}
+                    onChange={(e) => setNewModuleTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addModule();
+                    }}
+                    className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    aria-label="Module title"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Week #"
+                    value={newModuleWeek}
+                    onChange={(e) => setNewModuleWeek(e.target.value)}
+                    className="w-24 bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    aria-label="Week number"
+                  />
+                  <button
+                    onClick={addModule}
+                    className="bg-teal-primary text-white px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+                    type="button"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <DragOverlay>
@@ -2258,5 +2303,6 @@ export default function CourseEditor({
       )}
     </>
     </RelocateContext.Provider>
+    </ReadOnlyContext.Provider>
   );
 }

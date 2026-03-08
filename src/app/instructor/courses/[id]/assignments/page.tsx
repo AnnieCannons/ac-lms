@@ -5,6 +5,7 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import ResourceOutline from "@/components/ui/ResourceOutline";
 import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
+import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export default async function InstructorAssignmentsPage({
   params,
@@ -12,19 +13,8 @@ export default async function InstructorAssignmentsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "instructor" && profile?.role !== "admin") {
-    redirect("/unauthorized");
-  }
 
   const { data: course } = await supabase
     .from("courses")

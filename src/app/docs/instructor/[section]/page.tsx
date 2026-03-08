@@ -46,8 +46,18 @@ export default async function InstructorDocSectionPage({
   const role = profile?.role
   if (!role) redirect('/login')
 
-  // Students cannot access instructor docs — redirect to student docs
-  if (role === 'student') redirect('/docs/student/getting-started')
+  // Students cannot access instructor docs unless they are a TA
+  if (role === 'student') {
+    // Check if they have a TA enrollment in any course
+    const { data: taEnrollment } = await supabase
+      .from('course_enrollments')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('role', 'ta')
+      .limit(1)
+      .maybeSingle()
+    if (!taEnrollment) redirect('/docs/student/getting-started')
+  }
 
   const SectionComponent = SECTIONS[section]
   if (!SectionComponent) notFound()

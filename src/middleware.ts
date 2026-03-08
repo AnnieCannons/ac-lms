@@ -39,7 +39,18 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/unauthorized', request.url))
+      // Allow TAs — they have role='ta' in course_enrollments for at least one course
+      const { data: taEnrollment } = await supabase
+        .from('course_enrollments')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('role', 'ta')
+        .limit(1)
+        .maybeSingle()
+
+      if (!taEnrollment) {
+        return NextResponse.redirect(new URL('/unauthorized', request.url))
+      }
     }
   }
 

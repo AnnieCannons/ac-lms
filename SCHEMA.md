@@ -55,7 +55,7 @@ Links users to courses with a role.
 | `id` | uuid | Primary key |
 | `course_id` | uuid | FK → courses |
 | `user_id` | uuid | FK → users |
-| `role` | user_role | `student` or `instructor` |
+| `role` | text | `student`, `instructor`, `observer`, or `ta` (TA = course-scoped read-only instructor access with grading) |
 
 Unique constraint on `(course_id, user_id)`.
 
@@ -123,6 +123,7 @@ An assignment attached to a module day.
 | `order` | int | Display order within the day |
 | `skill_tags` | text[] | Default: `{}` — skill tags shown to students (e.g. `['HTML','React']`) |
 | `is_bonus` | boolean | Default: false — bonus assignments appear only in Level Up, not in the main Assignments list or grades unless completed |
+| `grader_id` | uuid | FK → users, nullable — overrides the grader for this assignment; if null, falls back to the student's grading group assignment |
 
 ---
 
@@ -430,6 +431,27 @@ Pending email invitations to join a course.
 | `status` | text | `pending` or `accepted` |
 
 RLS: Instructors/admins can manage invitations for their own courses.
+
+---
+
+### grading_groups
+Maps each student to a grader (instructor or TA) for a course. Used by the Grading Groups page.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `course_id` | uuid | FK → courses, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `grader_id` | uuid | FK → users, nullable — SET NULL on delete |
+| `created_at` | timestamptz | Default: now() |
+
+Unique constraint on `(course_id, student_id)`.
+
+RLS: Instructors/admins can manage. Per-assignment overrides use `assignments.grader_id` — if set, that grader grades the assignment for all students regardless of their group.
+
+**`course_enrollments.role` values for grading:**
+- `instructor` — globally has access to all courses; must be explicitly enrolled per course (via Users → Instructors) to appear in grading groups
+- `ta` — course-scoped; enrolled via Users → Add People
 
 ## Indexes
 

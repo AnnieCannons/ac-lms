@@ -1,9 +1,9 @@
 'use client'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { bulkAddPeopleToCourse, updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse } from '@/lib/people-actions'
+import { bulkAddPeopleToCourse, updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse } from '@/lib/people-actions'
 
-type Role = 'student' | 'instructor' | 'admin' | 'observer'
+type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
 interface Member {
   userId: string
@@ -32,6 +32,9 @@ interface Props {
   members: Member[]
   invitations: Invitation[]
   currentUserRole: 'instructor' | 'admin'
+  instructors: { id: string; name: string; email: string }[]
+  allCourses: { id: string; name: string }[]
+  instructorCourseMap: Record<string, string[]>
 }
 
 function RolePill({ role }: { role: string }) {
@@ -40,10 +43,12 @@ function RolePill({ role }: { role: string }) {
     instructor: 'bg-purple-100 text-purple-700',
     admin: 'bg-orange-100 text-orange-700',
     observer: 'bg-gray-100 text-gray-500',
+    ta: 'badge-ta',
   }
+  const labels: Record<string, string> = { ta: 'TA' }
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${styles[role] ?? 'bg-border text-muted-text'}`}>
-      {role}
+      {labels[role] ?? role}
     </span>
   )
 }
@@ -71,13 +76,138 @@ function parseEmails(raw: string): string[] {
     .filter(e => e.includes('@'))
 }
 
-export default function PeopleManager({ courseId, members, invitations, currentUserRole }: Props) {
+function InstructorSection({
+  instructors,
+  allCourses,
+  instructorCourseMap,
+}: {
+  instructors: { id: string; name: string; email: string }[]
+  allCourses: { id: string; name: string }[]
+  instructorCourseMap: Record<string, string[]>
+}) {
+  const [assignments, setAssignments] = useState<Record<string, string[]>>(
+    Object.fromEntries(instructors.map(i => [i.id, instructorCourseMap[i.id] ?? []]))
+  )
+  const [addingFor, setAddingFor] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  const courseNameMap = Object.fromEntries(allCourses.map(c => [c.id, c.name]))
+
+  function addCourse(instructorId: string, courseId: string) {
+    if (!courseId) return
+    setAssignments(prev => ({ ...prev, [instructorId]: [...(prev[instructorId] ?? []), courseId] }))
+    setAddingFor(null)
+    startTransition(async () => { await toggleInstructorCourse(instructorId, courseId, true) })
+  }
+
+  function removeCourse(instructorId: string, courseId: string) {
+    setAssignments(prev => ({ ...prev, [instructorId]: (prev[instructorId] ?? []).filter(id => id !== courseId) }))
+    startTransition(async () => { await toggleInstructorCourse(instructorId, courseId, false) })
+  }
+
+  if (instructors.length === 0) return null
+
+  return (
+    <section>
+      <h2 className="text-base font-semibold text-dark-text mb-4">Instructors</h2>
+      <div className="border border-border rounded-lg overflow-hidden">
+        {/* Desktop table */}
+        <div className="hidden sm:block">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface border-b border-border">
+                <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-text">Teaching</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {instructors.map(instructor => {
+                const assignedIds = assignments[instructor.id] ?? []
+                const unassigned = allCourses.filter(c => !assignedIds.includes(c.id))
+                return (
+                  <tr key={instructor.id} className="bg-background">
+                    <td className="px-4 py-3 text-dark-text">{instructor.name || '—'}</td>
+                    <td className="px-4 py-3 text-muted-text">{instructor.email}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {assignedIds.map(courseId => (
+                          <span key={courseId} className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-teal-light text-teal-primary">
+                            {courseNameMap[courseId] ?? '…'}
+                            <button type="button" onClick={() => removeCourse(instructor.id, courseId)} className="hover:opacity-60 leading-none" aria-label={`Remove ${courseNameMap[courseId]}`}>×</button>
+                          </span>
+                        ))}
+                        {unassigned.length > 0 && (
+                          addingFor === instructor.id ? (
+                            <select
+                              autoFocus
+                              defaultValue=""
+                              onChange={e => addCourse(instructor.id, e.target.value)}
+                              onBlur={() => setAddingFor(null)}
+                              className="text-xs bg-background border border-border rounded-lg px-2 py-0.5 text-dark-text focus:outline-none focus:border-teal-primary"
+                            >
+                              <option value="" disabled>Pick a course…</option>
+                              {unassigned.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                          ) : (
+                            <button type="button" onClick={() => setAddingFor(instructor.id)} className="text-xs text-muted-text hover:text-teal-primary border border-dashed border-border hover:border-teal-primary/50 rounded-full px-2 py-0.5 transition-colors">
+                              + course
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Mobile cards */}
+        <div className="sm:hidden flex flex-col divide-y divide-border">
+          {instructors.map(instructor => {
+            const assignedIds = assignments[instructor.id] ?? []
+            const unassigned = allCourses.filter(c => !assignedIds.includes(c.id))
+            return (
+              <div key={instructor.id} className="bg-background px-4 py-3">
+                <p className="text-sm font-medium text-dark-text">{instructor.name || '—'}</p>
+                <p className="text-xs text-muted-text mt-0.5">{instructor.email}</p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {assignedIds.map(courseId => (
+                    <span key={courseId} className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-teal-light text-teal-primary">
+                      {courseNameMap[courseId] ?? '…'}
+                      <button type="button" onClick={() => removeCourse(instructor.id, courseId)} className="hover:opacity-60">×</button>
+                    </span>
+                  ))}
+                  {unassigned.length > 0 && (
+                    addingFor === instructor.id ? (
+                      <select autoFocus defaultValue="" onChange={e => addCourse(instructor.id, e.target.value)} onBlur={() => setAddingFor(null)} className="text-xs bg-background border border-border rounded-lg px-2 py-0.5 text-dark-text">
+                        <option value="" disabled>Pick a course…</option>
+                        {unassigned.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    ) : (
+                      <button type="button" onClick={() => setAddingFor(instructor.id)} className="text-xs text-muted-text hover:text-teal-primary border border-dashed border-border rounded-full px-2 py-0.5 transition-colors">
+                        + course
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export default function PeopleManager({ courseId, members, invitations, currentUserRole, instructors, allCourses, instructorCourseMap }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   // Add form
   const [emailsRaw, setEmailsRaw] = useState('')
-  const [role, setRole] = useState<'student' | 'instructor'>('student')
+  const [role, setRole] = useState<'student' | 'instructor' | 'ta'>('student')
   const [adding, setAdding] = useState(false)
   const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null)
 
@@ -109,6 +239,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
                 aria-label={`Change role for ${member.name || member.email}`}
               >
                 <option value="student">Student</option>
+                <option value="ta">TA</option>
                 <option value="observer">Observer</option>
                 <option value="instructor">Instructor</option>
                 {currentUserRole === 'admin' && <option value="admin">Admin</option>}
@@ -228,6 +359,8 @@ export default function PeopleManager({ courseId, members, invitations, currentU
 
   return (
     <div className="space-y-10">
+      <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} />
+
       {/* Add People Form */}
       <section>
         <h2 className="text-base font-semibold text-dark-text mb-4">Add People</h2>
@@ -243,11 +376,12 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           <div className="flex items-center gap-3">
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'student' | 'instructor')}
+              onChange={(e) => setRole(e.target.value as 'student' | 'instructor' | 'ta')}
               className="border border-border rounded-lg px-3 py-2 text-sm bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
               aria-label="Role"
             >
               <option value="student">Student</option>
+              <option value="ta">TA</option>
               <option value="instructor">Instructor</option>
             </select>
             <button

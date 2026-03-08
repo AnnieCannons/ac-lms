@@ -6,12 +6,18 @@ export async function markCompleteNoSubmission(
   studentId: string,
   grade: 'complete' | null,
   gradedById: string,
+  courseId?: string,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+    if (!courseId) return { error: 'Not authorized' }
+    const { data: enr } = await supabase.from('course_enrollments')
+      .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+    if (enr?.role !== 'ta') return { error: 'Not authorized' }
+  }
 
   const admin = createServiceSupabaseClient()
 
@@ -49,13 +55,19 @@ export async function markCompleteNoSubmission(
 export async function saveGrade(
   submissionId: string,
   grade: 'complete' | 'incomplete' | null,
-  gradedById: string
+  gradedById: string,
+  courseId?: string,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+    if (!courseId) return { error: 'Not authorized' }
+    const { data: enr } = await supabase.from('course_enrollments')
+      .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+    if (enr?.role !== 'ta') return { error: 'Not authorized' }
+  }
 
   const admin = createServiceSupabaseClient()
   const now = grade ? new Date().toISOString() : null

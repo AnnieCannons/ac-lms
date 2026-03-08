@@ -12,6 +12,7 @@ export default function GradeButtons({
   initialGradedAt,
   gradedById,
   nextUrl,
+  courseId,
 }: {
   submissionId: string;
   initialGrade: Grade;
@@ -19,6 +20,7 @@ export default function GradeButtons({
   gradedById: string;
   /** When set, navigates here after the first grade is saved (null→complete or null→incomplete). */
   nextUrl?: string | null;
+  courseId?: string;
 }) {
   const router = useRouter();
   const [grade, setGrade] = useState<Grade>(initialGrade);
@@ -32,7 +34,7 @@ export default function GradeButtons({
     setSaving(true);
     setGrade(newGrade);
     setGradedAt(now);
-    const result = await saveGrade(submissionId, newGrade, gradedById);
+    const result = await saveGrade(submissionId, newGrade, gradedById, courseId);
     if (result.error) {
       console.error("Failed to save grade:", result.error);
       setGrade(grade);

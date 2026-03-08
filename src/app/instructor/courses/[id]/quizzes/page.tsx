@@ -5,6 +5,7 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import QuizzesSection from "@/components/instructor/QuizzesSection";
 import { getQuizzesForCourse, type QuizRow } from "@/data/quizzes";
+import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export default async function InstructorQuizzesPage({
   params,
@@ -15,21 +16,8 @@ export default async function InstructorQuizzesPage({
 }) {
   const { id } = await params;
   const { open: initialOpenQuizId } = await searchParams;
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "instructor" && profile?.role !== "admin") {
-    redirect("/unauthorized");
-  }
 
   const { data: course } = await supabase
     .from("courses")

@@ -4,6 +4,7 @@ import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
+import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export const dynamic = 'force-dynamic';
 
@@ -13,19 +14,8 @@ export default async function InstructorSyllabusPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "instructor" && profile?.role !== "admin") {
-    redirect("/unauthorized");
-  }
 
   const { data: course } = await supabase
     .from("courses")
@@ -66,7 +56,7 @@ export default async function InstructorSyllabusPage({
             </Link>
             <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Course Outline</h2>
 
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="syllabus" courseQuizzes={courseQuizzes} />
+            <CourseEditor course={course} initialModules={modules || []} filterCategory="syllabus" courseQuizzes={courseQuizzes} readOnly={isTa} />
           </main>
         </div>
       </div>

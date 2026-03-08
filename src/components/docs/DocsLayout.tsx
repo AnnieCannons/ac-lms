@@ -64,7 +64,7 @@ export default function DocsLayout({ children, guide, section, isInstructor, bac
             <span className="ml-3 text-base font-semibold text-muted-text">Documentation</span>
           </span>
           <Link href={backUrl} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Back to App
+            ← Back to Course
           </Link>
         </div>
 

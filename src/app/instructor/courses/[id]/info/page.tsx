@@ -5,6 +5,7 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import GeneralInfoEditor from '@/components/ui/GeneralInfoEditor'
 import PaidLearnersToggle from '@/components/ui/PaidLearnersToggle'
+import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
 const DEFAULT_SECTIONS = [
   { title: 'General Class Info',    type: 'text',             content: null,                                                         order: 0 },
@@ -45,19 +46,8 @@ export default async function InstructorGeneralInfoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
-    redirect('/unauthorized')
-  }
 
   const { data: course } = await supabase
     .from('courses')

@@ -5,6 +5,7 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import BonusAssignmentList from "@/components/ui/BonusAssignmentList";
+import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export default async function InstructorLevelUpPage({
   params,
@@ -12,19 +13,8 @@ export default async function InstructorLevelUpPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "instructor" && profile?.role !== "admin") {
-    redirect("/unauthorized");
-  }
 
   const { data: course } = await supabase
     .from("courses")
@@ -76,7 +66,7 @@ export default async function InstructorLevelUpPage({
             </Link>
             <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Level Up Your Skills</h2>
 
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" />
+            <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" readOnly={isTa} />
 
             {bonusAssignments.length > 0 && (
               <BonusAssignmentList assignments={bonusAssignments} courseId={id} />

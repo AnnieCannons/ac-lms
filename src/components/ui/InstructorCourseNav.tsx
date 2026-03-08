@@ -12,9 +12,24 @@ interface Props {
   courseName: string
   needsGrading?: number
   firstUngradedAssignmentId?: string | null
+  isTa?: boolean
 }
 
 const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions']
+
+function useNavSection(key: string, defaultOpen = true): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    if (typeof window === 'undefined') return defaultOpen
+    const stored = localStorage.getItem(key)
+    return stored === null ? defaultOpen : stored === 'true'
+  })
+  const toggle = () => setOpen(v => {
+    const next = !v
+    localStorage.setItem(key, String(next))
+    return next
+  })
+  return [open, toggle]
+}
 
 const CATEGORY_ITEMS = [
   { label: 'All Modules', slug: '' },
@@ -26,14 +41,31 @@ const CATEGORY_ITEMS = [
   { label: 'Level Up Your Skills', slug: 'level-up' },
 ]
 
+function SectionHeader({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-1.5 w-full px-3 mt-6 mb-1 group"
+    >
+      <span className="text-muted-text text-[8px] group-hover:text-dark-text transition-colors">{open ? '▲' : '▼'}</span>
+      <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest">{label}</p>
+    </button>
+  )
+}
+
 export default function InstructorCourseNav({
   courseId,
   courseName,
   needsGrading = 0,
   firstUngradedAssignmentId = null,
+  isTa = false,
 }: Props) {
   const pathname = usePathname()
   const [graderOpen, setGraderOpen] = useState(false)
+  const [courseOpen, toggleCourseOpen] = useNavSection('nav_section_course')
+  const [gradesOpen, toggleGradesOpen] = useNavSection('nav_section_grades')
+  const [employmentOpen, toggleEmploymentOpen] = useNavSection('nav_section_employment')
 
   const navLink = (label: string, slug: string) => {
     const href = `/instructor/courses/${courseId}${slug ? `/${slug}` : ''}`
@@ -78,35 +110,69 @@ export default function InstructorCourseNav({
         {courseName}
       </p>
 
-      <div className="mb-6 px-3">
-        <CreateButton courseId={courseId} />
-      </div>
+      {!isTa && (
+        <div className="mb-6 px-3">
+          <CreateButton courseId={courseId} />
+        </div>
+      )}
 
       <div className="flex flex-col gap-0.5">
         {navLink('General Info', 'info')}
-        {navLink('Users', 'users')}
+        {!isTa && navLink('Users', 'users')}
         {navLink('Roster', 'roster')}
-        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
-        {CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
 
-        <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Grades</p>
-        <GradesNavLink courseId={courseId} needsGrading={needsGrading} pathname={pathname} />
-        <button
-          onClick={() => setGraderOpen(true)}
-          className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20"
-        >
-          Launch Grader →
-        </button>
+        <SectionHeader label="Course" open={courseOpen} onToggle={toggleCourseOpen} />
+        {courseOpen && CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+
+        <SectionHeader label="Grades" open={gradesOpen} onToggle={toggleGradesOpen} />
+        {gradesOpen && (
+          <>
+            <GradesNavLink courseId={courseId} needsGrading={needsGrading} pathname={pathname} />
+            <button
+              onClick={() => setGraderOpen(true)}
+              className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20"
+            >
+              Launch Grader →
+            </button>
+            {!isTa && navLink('Grading Groups', 'grading-groups')}
+          </>
+        )}
+
+        {isTa && (
+          <>
+            <SectionHeader label="Employment" open={employmentOpen} onToggle={toggleEmploymentOpen} />
+            {employmentOpen && (
+              <>
+                <Link
+                  href={`/student/courses/${courseId}/benefits`}
+                  className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-muted-text hover:text-dark-text hover:bg-border/20"
+                >
+                  Benefits
+                </Link>
+                <Link
+                  href={`/student/courses/${courseId}/pto`}
+                  className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-muted-text hover:text-dark-text hover:bg-border/20"
+                >
+                  Paid Time Off
+                </Link>
+              </>
+            )}
+          </>
+        )}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-border">
-        <InstructorGlobalNav courseId={courseId} />
-      </div>
+      {!isTa && (
+        <>
+          <div className="mt-6 pt-4 border-t border-border">
+            <InstructorGlobalNav courseId={courseId} />
+          </div>
 
-      <div className="mt-auto pt-6 px-3 flex flex-col gap-2">
-        <StudentViewButton courseId={courseId} />
-        <LaunchSetupButton courseId={courseId} />
-      </div>
+          <div className="mt-auto pt-6 px-3 flex flex-col gap-2">
+            <StudentViewButton courseId={courseId} />
+            <LaunchSetupButton courseId={courseId} />
+          </div>
+        </>
+      )}
 
       {graderOpen && (
         <LaunchGraderModal
@@ -134,9 +200,7 @@ function GradesNavLink({ courseId, needsGrading, pathname }: { courseId: string;
     >
       <span>Grades</span>
       {needsGrading > 0 && (
-        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
-          isActive ? 'bg-yellow-100 text-yellow-700' : 'bg-yellow-50 text-yellow-600'
-        }`}>
+        <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count">
           {needsGrading}
         </span>
       )}
@@ -185,7 +249,6 @@ function LaunchGraderModal({
         </div>
 
         <div className="p-3 flex flex-col gap-2">
-          {/* By Student */}
           <button
             onClick={() => choose('students')}
             className="w-full text-left px-4 py-3.5 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/30 transition-colors group"
@@ -194,7 +257,6 @@ function LaunchGraderModal({
             <p className="text-xs text-muted-text mt-0.5">See each student with their assignment statuses</p>
           </button>
 
-          {/* By Assignment */}
           <button
             onClick={() => choose('assignments')}
             className="w-full text-left px-4 py-3.5 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/30 transition-colors group"
@@ -203,22 +265,21 @@ function LaunchGraderModal({
             <p className="text-xs text-muted-text mt-0.5">See each assignment with submission counts and ungraded work</p>
           </button>
 
-          {/* All — jump straight in */}
           <button
             onClick={() => choose('all')}
             disabled={!firstUngradedAssignmentId}
             className={`w-full text-left px-4 py-3.5 rounded-xl border transition-colors group ${
               firstUngradedAssignmentId
-                ? 'border-yellow-300 bg-yellow-50 hover:bg-yellow-100'
+                ? 'card-yellow'
                 : 'border-border opacity-40 cursor-not-allowed'
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <p className={`text-sm font-semibold ${firstUngradedAssignmentId ? 'text-yellow-700' : 'text-muted-text'}`}>
+              <p className={`text-sm font-semibold ${firstUngradedAssignmentId ? 'badge-count' : 'text-muted-text'}`}>
                 Grade All Ungraded
               </p>
               {needsGrading > 0 && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 shrink-0">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-count shrink-0">
                   {needsGrading} waiting
                 </span>
               )}

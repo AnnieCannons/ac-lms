@@ -40,7 +40,16 @@ export default async function StudentBenefitsPage({
   const preview = await isStudentPreview(id)
 
   if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
+    // Check if they are a TA for this course — if so, allow access to benefits
+    const { data: taEnrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', id)
+      .maybeSingle()
+    if (taEnrollment?.role !== 'ta') {
+      redirect(`/instructor/courses/${id}`)
+    }
   }
 
   const { data: enrollment } = await supabase
@@ -48,7 +57,7 @@ export default async function StudentBenefitsPage({
     .select('id')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'observer', 'ta'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')

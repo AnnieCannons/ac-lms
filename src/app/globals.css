@@ -156,6 +156,40 @@ html.theme-dark .doc-note-label {
   color: #fbbf24; /* amber-400 — brighter on dark bg */
 }
 
+/* Dark-mode-aware yellow card (Grade All Ungraded) */
+.card-yellow {
+  border-color: #fde68a;
+  background-color: #fefce8;
+}
+.card-yellow:hover {
+  background-color: #fef9c3;
+}
+html.theme-dark .card-yellow {
+  border-color: #2a1f05;
+  background-color: #1a1100;
+}
+html.theme-dark .card-yellow:hover {
+  background-color: #221600;
+}
+
+/* Dark-mode-aware badge colors */
+.badge-ta {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+html.theme-dark .badge-ta {
+  background-color: #0d1929;
+  color: #93bbf8;
+}
+.badge-count {
+  background-color: #fefce8;
+  color: #854d0e;
+}
+html.theme-dark .badge-count {
+  background-color: #1a1100;
+  color: #d4a017;
+}
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

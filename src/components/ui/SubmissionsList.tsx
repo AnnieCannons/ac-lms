@@ -120,7 +120,7 @@ export default function SubmissionsList({
     const newGrade: 'complete' | null = currentGrade === 'complete' ? null : 'complete';
     setGradeOverrides(prev => ({ ...prev, [studentId]: newGrade }));
     startTransition(async () => {
-      const result = await markCompleteNoSubmission(assignmentId, studentId, newGrade, currentUserId);
+      const result = await markCompleteNoSubmission(assignmentId, studentId, newGrade, currentUserId, courseId);
       if (result.error) {
         setGradeOverrides(prev => ({ ...prev, [studentId]: currentGrade === 'complete' ? 'complete' : null }));
       } else {

@@ -5,6 +5,7 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
+import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export default async function CoursePage({
   params,
@@ -12,21 +13,8 @@ export default async function CoursePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "instructor" && profile?.role !== "admin") {
-    redirect("/unauthorized");
-  }
 
   const { data: course } = await supabase
     .from("courses")
@@ -77,7 +65,7 @@ export default async function CoursePage({
               initialCode={course.code}
             />
 
-            <CourseEditor course={course} initialModules={modules || []} courseQuizzes={courseQuizzes} />
+            <CourseEditor course={course} initialModules={modules || []} courseQuizzes={courseQuizzes} readOnly={isTa} />
           </main>
         </div>
       </div>

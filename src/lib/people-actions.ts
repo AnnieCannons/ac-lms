@@ -1,7 +1,7 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
-type Role = 'student' | 'instructor' | 'admin' | 'observer'
+type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
 async function getAuthedInstructorOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -237,6 +237,36 @@ export async function removePersonFromCourse(
     .eq('user_id', userId)
 
   if (error) return { error: error.message }
+  return {}
+}
+
+export async function toggleInstructorCourse(
+  instructorId: string,
+  courseId: string,
+  assign: boolean
+): Promise<{ error?: string }> {
+  const auth = await getAuthedInstructorOrAdmin()
+  if ('error' in auth) return { error: auth.error }
+
+  const admin = createServiceSupabaseClient()
+
+  if (assign) {
+    const { error } = await admin
+      .from('course_enrollments')
+      .upsert(
+        { course_id: courseId, user_id: instructorId, role: 'instructor' },
+        { onConflict: 'course_id,user_id' }
+      )
+    if (error) return { error: error.message }
+  } else {
+    const { error } = await admin
+      .from('course_enrollments')
+      .delete()
+      .eq('course_id', courseId)
+      .eq('user_id', instructorId)
+    if (error) return { error: error.message }
+  }
+
   return {}
 }
 
