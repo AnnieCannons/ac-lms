@@ -50,6 +50,7 @@ type ExpandKey = 'missing' | 'needsGrading' | 'complete' | 'incomplete'
 interface Props {
   courseId: string
   instructorId: string
+  initialTab?: 'assignments' | 'students'
   modules: Module[]
   assignments: Assignment[]
   students: Student[]
@@ -62,6 +63,7 @@ interface Props {
 export default function CourseGradesView({
   courseId,
   instructorId,
+  initialTab = 'assignments',
   modules,
   assignments,
   students,
@@ -70,7 +72,7 @@ export default function CourseGradesView({
   totalStudents,
   totalNeedsGrading,
 }: Props) {
-  const [tab, setTab] = useState<'assignments' | 'students'>('assignments')
+  const [tab, setTab] = useState<'assignments' | 'students'>(initialTab)
   const [filterUngraded, setFilterUngraded] = useState(false)
   const [speedGraderOpen, setSpeedGraderOpen] = useState(false)
 

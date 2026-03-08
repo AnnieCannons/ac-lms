@@ -7,10 +7,13 @@ import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 export default async function CourseSubmissionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
   const { id } = await params
+  const { tab } = await searchParams
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -150,6 +153,7 @@ export default async function CourseSubmissionsPage({
             <CourseGradesView
               courseId={id}
               instructorId={user.id}
+              initialTab={tab === 'students' ? 'students' : 'assignments'}
               modules={modulesForClient}
               assignments={assignments}
               students={students}

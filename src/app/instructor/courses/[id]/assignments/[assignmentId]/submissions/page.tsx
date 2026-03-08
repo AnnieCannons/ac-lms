@@ -8,10 +8,14 @@ import InstructorSidebar from '@/components/ui/InstructorSidebar'
 
 export default async function InstructorSubmissionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; assignmentId: string }>
+  searchParams: Promise<{ grader?: string }>
 }) {
   const { id, assignmentId } = await params
+  const { grader } = await searchParams
+  const isGraderMode = grader === 'all'
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -89,6 +93,51 @@ export default async function InstructorSubmissionsPage({
   // First ungraded student for "Grade all ungraded →" CTA
   const firstUngradedStudent = students.find(s => s.submission?.status === 'submitted') ?? null
 
+  // Grader mode: build ordered list of assignments with ungraded submissions for assignment navigation
+  let graderPrev: { id: string; title: string } | null = null
+  let graderNext: { id: string; title: string } | null = null
+  let graderPosition = 0
+  let graderTotal = 0
+
+  if (isGraderMode) {
+    const { data: allModules } = await admin
+      .from('modules')
+      .select('order, module_days(order, assignments!module_day_id(id, title, order))')
+      .eq('course_id', id)
+
+    type GraderDay = { order: number; assignments: { id: string; title: string; order: number }[] }
+    type GraderModule = { order: number; module_days: GraderDay[] }
+
+    const orderedAssignments = (allModules as GraderModule[] ?? [])
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .flatMap(m =>
+        (m.module_days ?? [])
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .flatMap(d =>
+            (d.assignments ?? [])
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map(a => ({ id: a.id, title: a.title }))
+          )
+      )
+
+    const allAssignmentIds = orderedAssignments.map(a => a.id)
+    if (allAssignmentIds.length > 0) {
+      const { data: ungradedSubData } = await admin
+        .from('submissions')
+        .select('assignment_id')
+        .in('assignment_id', allAssignmentIds)
+        .eq('status', 'submitted')
+
+      const ungradedSet = new Set(ungradedSubData?.map(s => s.assignment_id) ?? [])
+      const ungradedAssignments = orderedAssignments.filter(a => ungradedSet.has(a.id))
+      const currentIdx = ungradedAssignments.findIndex(a => a.id === assignmentId)
+      graderTotal = ungradedAssignments.length
+      graderPosition = currentIdx + 1
+      graderPrev = currentIdx > 0 ? ungradedAssignments[currentIdx - 1] : null
+      graderNext = currentIdx < ungradedAssignments.length - 1 ? ungradedAssignments[currentIdx + 1] : null
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} />
@@ -97,6 +146,44 @@ export default async function InstructorSubmissionsPage({
         <InstructorSidebar courseId={id} courseName={course?.name ?? ''} />
 
         <main className="flex-1 min-w-0 px-10 py-12 max-w-5xl">
+        {/* Grader mode assignment nav strip */}
+        {isGraderMode && (
+          <div className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-3 mb-6 gap-4">
+            <div className="w-1/3">
+              {graderPrev ? (
+                <Link
+                  href={`/instructor/courses/${id}/assignments/${graderPrev.id}/submissions?grader=all`}
+                  className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 truncate"
+                >
+                  <span className="shrink-0">←</span>
+                  <span className="truncate">{graderPrev.title}</span>
+                </Link>
+              ) : (
+                <span className="text-sm text-border">← First</span>
+              )}
+            </div>
+            <div className="text-center shrink-0">
+              <p className="text-xs font-semibold text-dark-text">{graderPosition} / {graderTotal} assignments</p>
+              <Link href={`/instructor/courses/${id}/submissions`} className="text-xs text-teal-primary hover:underline">
+                Back to grades
+              </Link>
+            </div>
+            <div className="w-1/3 text-right">
+              {graderNext ? (
+                <Link
+                  href={`/instructor/courses/${id}/assignments/${graderNext.id}/submissions?grader=all`}
+                  className="text-sm text-muted-text hover:text-teal-primary transition-colors flex items-center gap-1 justify-end truncate"
+                >
+                  <span className="truncate">{graderNext.title}</span>
+                  <span className="shrink-0">→</span>
+                </Link>
+              ) : (
+                <span className="text-sm text-border">Last →</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
@@ -158,6 +245,7 @@ export default async function InstructorSubmissionsPage({
             currentUserId={user.id}
             initialFilter={needsGradingCount > 0 ? 'needs-grading' : 'all'}
             firstUngradedStudentId={firstUngradedStudent?.id ?? null}
+            graderMode={isGraderMode}
           />
         )}
         </main>
