@@ -28,6 +28,9 @@ export default function InstructorTopNav({ name, role }: { name?: string | null;
         >
           Attendance Portal
         </a>
+        <Link href="/docs" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
+          Help
+        </Link>
         <Link href="/account" className="text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">
           {name}
         </Link>

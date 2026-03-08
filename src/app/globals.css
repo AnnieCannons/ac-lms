@@ -131,6 +131,26 @@ html.theme-dark.high-contrast .status-badge {
   color: #ffffff !important;
 }
 
+/* Doc note callout - amber, dark-mode aware */
+.doc-note-callout {
+  background-color: #fffbeb; /* amber-50 */
+}
+html.theme-dark .doc-note-callout {
+  background-color: #1c1500;
+}
+html.high-contrast .doc-note-callout {
+  background-color: #fff8e1;
+}
+html.theme-dark.high-contrast .doc-note-callout {
+  background-color: #0d0900;
+}
+.doc-note-label {
+  color: #d97706; /* amber-600 */
+}
+html.theme-dark .doc-note-label {
+  color: #fbbf24; /* amber-400 — brighter on dark bg */
+}
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
