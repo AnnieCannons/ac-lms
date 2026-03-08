@@ -70,7 +70,7 @@ export default async function StudentDayDetailPage({
   if (!day) redirect(`/student/courses/${id}`)
 
   const [{ data: resources }, { data: stars }, { data: completions }] = await Promise.all([
-    supabase.from('resources').select('id, type, title, content, description, order').eq('module_day_id', dayId).order('order', { ascending: true }),
+    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).order('order', { ascending: true }),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
   ])
@@ -78,45 +78,56 @@ export default async function StudentDayDetailPage({
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)
 
-  const { data: assignments } = await supabase
-    .from('assignments')
-    .select('id, title, description, due_date')
-    .eq('module_day_id', dayId)
-    .eq('published', true)
-    .order('due_date', { ascending: true })
+  type DayAssignment = { id: string; title: string; description: string | null; due_date: string | null; careerDev?: boolean }
+
+  const [{ data: nativeAssignments }, { data: crossAssignments }] = await Promise.all([
+    supabase.from('assignments').select('id, title, description, due_date').eq('module_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
+    supabase.from('assignments').select('id, title, description, due_date').eq('linked_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
+  ])
+
+  const assignments: DayAssignment[] = [
+    ...((nativeAssignments ?? []) as DayAssignment[]),
+    ...((crossAssignments ?? []).map(a => ({ ...a, careerDev: true })) as DayAssignment[]),
+  ]
 
   const module = Array.isArray(day.modules) ? day.modules[0] : day.modules
 
-  let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null }> = []
+  let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; careerDev?: boolean }> = []
   let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
 
+  const admin = createServiceSupabaseClient()
+  const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
+  const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
+
+  const [{ data: dayQuizData }, { data: crossQuizData }] = await Promise.all([
+    day.day_name
+      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true)
+      : Promise.resolve({ data: [] }),
+    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true),
+  ])
+
   if (day.day_name) {
-    const admin = createServiceSupabaseClient()
-    const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
-    const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
-    const { data: quizData } = await admin
-      .from('quizzes')
-      .select('id, title, questions, max_attempts, due_at, module_title')
-      .eq('course_id', id)
-      .eq('day_title', day.day_name)
-      .eq('published', true)
-    // Filter: exact module title match, or week-number match
-    const allDayQuizzes = (quizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>
+    const allDayQuizzes = (dayQuizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>
     quizzes = allDayQuizzes.filter(q => {
       if (q.module_title?.trim() === module?.title?.trim()) return true
       const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
       return !!(quizWeek && weekNumber !== null && parseInt(quizWeek, 10) === weekNumber)
     })
+  }
 
-    if (quizzes.length > 0) {
-      const quizIds = quizzes.map(q => q.id)
-      const { data: subData } = await supabase
-        .from('quiz_submissions')
-        .select('quiz_id, score_percent, attempt_count')
-        .eq('student_id', user.id)
-        .in('quiz_id', quizIds)
-      quizSubmissions = (subData ?? []) as typeof quizSubmissions
-    }
+  const crossQuizzes = ((crossQuizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>)
+    .filter(q => !quizzes.some(existing => existing.id === q.id))
+    .map(q => ({ ...q, careerDev: true as const }))
+  quizzes = [...quizzes, ...crossQuizzes]
+
+  if (quizzes.length > 0) {
+    const quizIds = quizzes.map(q => q.id)
+    const { data: subData } = await supabase
+      .from('quiz_submissions')
+      .select('quiz_id, score_percent, attempt_count')
+      .eq('student_id', user.id)
+      .in('quiz_id', quizIds)
+    quizSubmissions = (subData ?? []) as typeof quizSubmissions
   }
 
   return (
@@ -149,7 +160,7 @@ export default async function StudentDayDetailPage({
             <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Resources</h3>
             {resources && resources.length > 0 ? (
               <DayResourceList
-                resources={resources}
+                resources={resources.map(r => ({ ...r, careerDev: r.linked_day_id === dayId }))}
                 courseId={id}
                 initialStarredIds={starredIds}
                 initialCompletedIds={completedIds}
@@ -171,7 +182,12 @@ export default async function StudentDayDetailPage({
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-dark-text">{assignment.title}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-dark-text">{assignment.title}</p>
+                          {'careerDev' in assignment && assignment.careerDev && (
+                            <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
+                          )}
+                        </div>
                         {assignment.description && (
                           <p className="text-sm text-muted-text mt-1 line-clamp-2">{stripHtml(assignment.description)}</p>
                         )}
@@ -214,7 +230,12 @@ export default async function StudentDayDetailPage({
                     <div key={quiz.id} className="bg-surface rounded-xl border border-border px-4 py-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-dark-text">{displayTitle}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-dark-text">{displayTitle}</p>
+                            {quiz.careerDev && (
+                              <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-text mt-1">
                             {questionCount} question{questionCount !== 1 ? 's' : ''}
                             {sub && sub.score_percent != null && (

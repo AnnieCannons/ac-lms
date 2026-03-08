@@ -7,10 +7,14 @@ export default function Assignments() {
       <p className="text-sm text-muted-text mb-8">Create assignments, review submissions, and leave feedback.</p>
 
       <DocH2>Creating an Assignment</DocH2>
-      <DocStep number={1}>In the Course Editor, expand the module and find the target day.</DocStep>
-      <DocStep number={2}>Click <strong>+ Add Assignment</strong>.</DocStep>
-      <DocStep number={3}>Enter a title and click Save.</DocStep>
-      <DocStep number={4}>Click the assignment title to open the full assignment editor.</DocStep>
+      <DocP>Use the <strong>+ Create</strong> button in the course sidebar:</DocP>
+      <DocStep number={1}>Click <strong>+ Create</strong> and select <strong>Assignment</strong>.</DocStep>
+      <DocStep number={2}>Choose a <strong>Section</strong> (Coding Class or Career Development), a <strong>Module</strong>, and optionally a <strong>Day</strong>.</DocStep>
+      <DocStep number={3}>Click <strong>Create & Edit →</strong> to open the assignment editor.</DocStep>
+      <DocTip>
+        If the module you need doesn&apos;t exist yet, click <strong>+ New module</strong> in the Create modal to add one
+        without leaving the flow.
+      </DocTip>
 
       <DocH2>Assignment Editor</DocH2>
       <DocP>The assignment editor has several sections:</DocP>

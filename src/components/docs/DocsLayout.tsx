@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ReactNode } from 'react'
+import { ReactNode, useState, useEffect } from 'react'
 
 const STUDENT_SECTIONS = [
   { slug: 'getting-started', label: 'Getting Started' },
@@ -11,6 +11,7 @@ const STUDENT_SECTIONS = [
   { slug: 'quizzes', label: 'Quizzes' },
   { slug: 'resources', label: 'Resources' },
   { slug: 'observer', label: 'Observer Mode' },
+  { slug: 'accessibility', label: 'Accessibility' },
 ]
 
 const INSTRUCTOR_SECTIONS = [
@@ -19,9 +20,11 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'resources', label: 'Managing Resources' },
   { slug: 'assignments', label: 'Assignments & Grading' },
   { slug: 'quizzes', label: 'Quizzes' },
+  { slug: 'career-dev', label: 'Career Development' },
   { slug: 'people', label: 'People & Enrollment' },
   { slug: 'roster', label: 'Roster & Progress' },
   { slug: 'student-preview', label: 'Student Preview' },
+  { slug: 'accessibility', label: 'Accessibility' },
 ]
 
 interface DocsLayoutProps {
@@ -35,15 +38,35 @@ interface DocsLayoutProps {
 export default function DocsLayout({ children, guide, section, isInstructor, backHref }: DocsLayoutProps) {
   const pathname = usePathname()
   const sections = guide === 'student' ? STUDENT_SECTIONS : INSTRUCTOR_SECTIONS
+  const [backUrl, setBackUrl] = useState(backHref)
+
+  useEffect(() => {
+    const ref = document.referrer
+    if (ref) {
+      try {
+        const url = new URL(ref)
+        if (url.origin === window.location.origin && !url.pathname.startsWith('/docs')) {
+          sessionStorage.setItem('docs_back_url', url.pathname + url.search)
+        }
+      } catch {}
+    }
+    const stored = sessionStorage.getItem('docs_back_url')
+    if (stored) setBackUrl(stored)
+  }, [])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-surface border-b border-border px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <Link href={backHref} className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
-          <span className="ml-3 text-base font-semibold text-muted-text">Documentation</span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <span className="text-xl font-extrabold text-dark-text">
+            AC<span className="text-teal-primary">*</span>
+            <span className="ml-3 text-base font-semibold text-muted-text">Documentation</span>
+          </span>
+          <Link href={backUrl} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
+            ← Back to App
+          </Link>
+        </div>
 
         {isInstructor && (
           <div className="flex items-center gap-2">
@@ -96,14 +119,6 @@ export default function DocsLayout({ children, guide, section, isInstructor, bac
               )
             })}
           </nav>
-          <div className="px-2 mt-4 pt-4 border-t border-border">
-            <Link
-              href={backHref}
-              className="block px-3 py-2 text-sm rounded-lg text-muted-text hover:text-dark-text hover:bg-border/20 transition-colors"
-            >
-              ← Back to App
-            </Link>
-          </div>
         </aside>
 
         {/* Content */}

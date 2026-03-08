@@ -15,11 +15,11 @@ export default function Resources() {
       </DocList>
 
       <DocH2>Adding a Resource</DocH2>
-      <DocStep number={1}>Expand the module and open the target day in the Course Editor.</DocStep>
-      <DocStep number={2}>Click <strong>+ Add Resource</strong> in the day&apos;s resource panel.</DocStep>
-      <DocStep number={3}>Choose the resource type from the dropdown.</DocStep>
-      <DocStep number={4}>Fill in the title and the URL or content.</DocStep>
-      <DocStep number={5}>Click <strong>Save</strong>. The resource appears immediately in the list.</DocStep>
+      <DocP>Use the <strong>+ Create</strong> button in the course sidebar:</DocP>
+      <DocStep number={1}>Click <strong>+ Create</strong> and select <strong>Resource</strong>.</DocStep>
+      <DocStep number={2}>Choose a <strong>Section</strong>, <strong>Module</strong>, and optional <strong>Day</strong>.</DocStep>
+      <DocStep number={3}>Select the resource type, enter a title, and paste the URL.</DocStep>
+      <DocStep number={4}>Click <strong>Create →</strong>. The resource appears in the day&apos;s panel immediately.</DocStep>
 
       <DocTip>
         Add a clear, descriptive title so students know what they&apos;re opening before they click.

@@ -1,8 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import AddAssignmentButton from './AddAssignmentButton'
-import AddResourceButton from './AddResourceButton'
+import CreateButton from './CreateButton'
 import InstructorGlobalNav from './InstructorGlobalNav'
 import LaunchSetupButton from './LaunchSetupButton'
 import StudentViewButton from './StudentViewButton'
@@ -64,15 +63,14 @@ export default function InstructorCourseNav({ courseId, courseName }: Props) {
   return (
     <nav aria-label="Course navigation" className="flex flex-col">
       <p
-        className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-1 px-3 truncate"
+        className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-4 px-3 truncate"
         title={courseName}
       >
         {courseName}
       </p>
 
-      <div className="flex flex-col gap-2 mb-5 px-3">
-        <AddAssignmentButton courseId={courseId} />
-        <AddResourceButton courseId={courseId} />
+      <div className="mb-6 px-3">
+        <CreateButton courseId={courseId} />
       </div>
 
       <div className="flex flex-col gap-0.5">

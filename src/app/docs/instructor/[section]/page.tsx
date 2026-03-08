@@ -9,6 +9,8 @@ import Quizzes from '@/components/docs/instructor/Quizzes'
 import People from '@/components/docs/instructor/People'
 import Roster from '@/components/docs/instructor/Roster'
 import StudentPreview from '@/components/docs/instructor/StudentPreview'
+import Accessibility from '@/components/docs/instructor/Accessibility'
+import CareerDev from '@/components/docs/instructor/CareerDev'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,9 +20,11 @@ const SECTIONS: Record<string, React.ComponentType> = {
   'resources': Resources,
   'assignments': Assignments,
   'quizzes': Quizzes,
+  'career-dev': CareerDev,
   'people': People,
   'roster': Roster,
   'student-preview': StudentPreview,
+  'accessibility': Accessibility,
 }
 
 export default async function InstructorDocSectionPage({

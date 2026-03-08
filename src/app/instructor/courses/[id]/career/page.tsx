@@ -35,7 +35,7 @@ export default async function InstructorCareerPage({
 
   const { data: modules } = await supabase
     .from("modules")
-    .select("*, module_days(*, assignments(*))")
+    .select("*, module_days(*, assignments!module_day_id(*))")
     .eq("course_id", id)
     .order("order", { ascending: true });
 

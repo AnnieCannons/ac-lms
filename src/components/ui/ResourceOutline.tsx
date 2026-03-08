@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
-import AddAssignmentButton from './AddAssignmentButton'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -592,14 +591,6 @@ export default function ResourceOutline({
                   <h2 className="text-base font-bold text-dark-text">{module.title}</h2>
                   <span className={`text-xs text-muted-text transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
                 </button>
-                {instructorView && mode === 'assignments' && (
-                  <AddAssignmentButton
-                    courseId={courseId}
-                    variant="link"
-                    defaultModuleId={module.id}
-                    defaultSection={module.category === 'career' ? 'career' : 'coding'}
-                  />
-                )}
               </div>
 
               {!moduleCollapsed && (

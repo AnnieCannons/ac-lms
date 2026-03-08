@@ -57,7 +57,7 @@ export default async function MyWorkPage({
 
   const { data: modules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, assignments(id, title, due_date))')
+    .select('id, title, week_number, order, module_days(id, assignments!module_day_id(id, title, due_date))')
     .eq('course_id', id)
     .order('order', { ascending: true })
 

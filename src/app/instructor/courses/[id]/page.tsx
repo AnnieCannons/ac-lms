@@ -38,19 +38,19 @@ export default async function CoursePage({
 
   const { data: modules } = await supabase
     .from("modules")
-    .select("*, module_days(*, assignments(*))")
+    .select("*, module_days(*, assignments!module_day_id(*))")
     .eq("course_id", id)
     .order("order", { ascending: true });
 
   const admin = createServiceSupabaseClient();
   const { data: quizzesData } = await admin
     .from("quizzes")
-    .select("id, title, questions, published, module_title, day_title")
+    .select("id, title, questions, published, module_title, day_title, linked_day_id")
     .eq("course_id", id)
-    .not("day_title", "is", null);
+    .or("day_title.not.is.null,linked_day_id.not.is.null");
 
   const courseQuizzes = (quizzesData ?? []) as Array<{
-    id: string; title: string; questions: unknown[]; published: boolean; module_title: string; day_title: string;
+    id: string; title: string; questions: unknown[]; published: boolean; module_title: string; day_title: string; linked_day_id: string | null;
   }>;
 
   return (

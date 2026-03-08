@@ -27,8 +27,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import AddAssignmentButton from "@/components/ui/AddAssignmentButton";
-import AddResourceButton from "@/components/ui/AddResourceButton";
 import Link from "next/link";
 import { toggleQuizPublished } from "@/lib/quiz-actions";
 
@@ -137,6 +135,7 @@ type ChecklistItem = {
 type Resource = {
   id: string;
   module_day_id: string;
+  linked_day_id?: string | null;
   type: "video" | "reading" | "link" | "file";
   title: string;
   content: string | null;
@@ -151,6 +150,7 @@ type QuizEntry = {
   published: boolean;
   module_title: string;
   day_title: string | null;
+  linked_day_id?: string | null;
 };
 
 type Day = {
@@ -1090,10 +1090,21 @@ function SortableDay({
     supabase
       .from("resources")
       .select("*")
-      .eq("module_day_id", day.id)
+      .or(`module_day_id.eq.${day.id},linked_day_id.eq.${day.id}`)
       .order("order")
       .then(({ data }) => {
         if (data) setResources(data);
+      });
+  }, [day.id, refreshTrigger]);
+
+  const [crossPostedAssignments, setCrossPostedAssignments] = useState<Array<Assignment & { crossPosted: true }>>([]);
+  useEffect(() => {
+    supabase
+      .from("assignments")
+      .select("*")
+      .eq("linked_day_id", day.id)
+      .then(({ data }) => {
+        if (data) setCrossPostedAssignments(data.map(a => ({ ...a, crossPosted: true as const })));
       });
   }, [day.id, refreshTrigger]);
 
@@ -1200,26 +1211,10 @@ function SortableDay({
         >
           <span>{day.day_name}</span>
           <span className="text-xs text-muted-text">
-            ({assignments.length + resources.length + quizzes.length})
+            ({assignments.length + crossPostedAssignments.length + resources.length + quizzes.length})
           </span>
         </button>
 
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onOpenAdd(day.id); }}
-          className="text-xs font-semibold text-purple-primary hover:opacity-70 shrink-0 px-1"
-          title="Add assignment to this day"
-        >
-          +A
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-          className="text-xs font-semibold text-teal-primary hover:opacity-70 shrink-0 px-1"
-          title="Add resource to this day"
-        >
-          +R
-        </button>
         <button
           onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
           className="text-muted-text hover:text-red-400"
@@ -1240,40 +1235,58 @@ function SortableDay({
             <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
               Resources
             </p>
-            <DndContext
-              sensors={resourceSensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleResourceDragEnd}
-              accessibility={{
-                screenReaderInstructions: {
-                  draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
-                },
-                announcements: {
-                  onDragStart: ({ active }) => `Picked up: ${active.id}.`,
-                  onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
-                  onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
-                  onDragCancel: () => 'Drag cancelled.',
-                },
-              }}
-            >
-              <SortableContext
-                items={resources.map((r) => `resource-${r.id}`)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="flex flex-col gap-1.5 mb-2">
-                  {resources.map((r) => (
-                    <SortableResource
-                      key={r.id}
-                      resource={r}
-                      weekNumber={weekNumber}
-                      onEdit={editResource}
-                      onDelete={deleteResource}
-                      onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+            {(() => {
+              const nativeResources = resources.filter(r => r.module_day_id === day.id);
+              const crossPostedResources = resources.filter(r => r.linked_day_id === day.id);
+              return (
+                <>
+                  <DndContext
+                    sensors={resourceSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleResourceDragEnd}
+                    accessibility={{
+                      screenReaderInstructions: {
+                        draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
+                      },
+                      announcements: {
+                        onDragStart: ({ active }) => `Picked up: ${active.id}.`,
+                        onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
+                        onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
+                        onDragCancel: () => 'Drag cancelled.',
+                      },
+                    }}
+                  >
+                    <SortableContext
+                      items={nativeResources.map((r) => `resource-${r.id}`)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="flex flex-col gap-1.5 mb-2">
+                        {nativeResources.map((r) => (
+                          <SortableResource
+                            key={r.id}
+                            resource={r}
+                            weekNumber={weekNumber}
+                            onEdit={editResource}
+                            onDelete={deleteResource}
+                            onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                  {crossPostedResources.length > 0 && (
+                    <div className="flex flex-col gap-1.5 mb-2">
+                      {crossPostedResources.map(r => (
+                        <div key={r.id} className="bg-surface rounded-lg border border-purple-primary/30 px-3 py-2 flex items-center gap-2">
+                          <span className="flex-1 min-w-0 text-sm text-dark-text truncate">{r.title}</span>
+                          <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
@@ -1339,6 +1352,23 @@ function SortableDay({
             onTogglePublished={onTogglePublished}
           />
 
+          {/* Cross-posted assignments from Career Dev */}
+          {crossPostedAssignments.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {crossPostedAssignments.map(a => (
+                <div key={a.id} className="bg-surface rounded-lg border border-purple-primary/30 px-3 py-2 flex items-center gap-2">
+                  <Link
+                    href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                    className="flex-1 min-w-0 text-sm text-dark-text truncate hover:text-teal-primary transition-colors"
+                  >
+                    {a.title}
+                  </Link>
+                  <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Quizzes */}
           {quizzes.length > 0 && (
             <div className="bg-surface/60 rounded-xl p-3">
@@ -1349,8 +1379,9 @@ function SortableDay({
                 {quizzes.map(quiz => {
                   const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title;
                   const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
+                  const isCrossPosted = !!quiz.linked_day_id && quiz.linked_day_id === day.id;
                   return (
-                    <div key={quiz.id} className="bg-surface rounded-lg border border-border px-3 py-2 flex items-center gap-2">
+                    <div key={quiz.id} className={`bg-surface rounded-lg border px-3 py-2 flex items-center gap-2 ${isCrossPosted ? 'border-purple-primary/30' : 'border-border'}`}>
                       <Link
                         href={`/instructor/courses/${courseId}/quizzes?open=${quiz.id}`}
                         className="flex-1 min-w-0"
@@ -1362,6 +1393,9 @@ function SortableDay({
                           {questionCount} question{questionCount !== 1 ? 's' : ''}
                         </p>
                       </Link>
+                      {isCrossPosted && (
+                        <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+                      )}
                       <button
                         onClick={async () => {
                           const newPublished = !quiz.published;
@@ -1558,6 +1592,7 @@ function SortableModule({
                   onTogglePublished={onTogglePublished}
                   courseId={courseId}
                   quizzesForDay={allQuizzes.filter(q => {
+                    if (q.linked_day_id === day.id) return true;
                     if (q.day_title?.trim() !== day.day_name?.trim()) return false;
                     if (q.module_title?.trim() === module.title?.trim()) return true;
                     const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1];
@@ -1566,17 +1601,6 @@ function SortableModule({
                 />
               ))}
           </SortableContext>
-
-          <div className="flex gap-3 mt-1">
-            <AddAssignmentButton courseId={courseId} variant="link"
-              defaultModuleId={module.id}
-              defaultSection={module.category === 'career' ? 'career' : 'coding'}
-            />
-            <AddResourceButton courseId={courseId} variant="link"
-              defaultModuleId={module.id}
-              defaultSection={module.category === 'career' ? 'career' : 'coding'}
-            />
-          </div>
 
           <div className="flex gap-2 mt-2">
             <input

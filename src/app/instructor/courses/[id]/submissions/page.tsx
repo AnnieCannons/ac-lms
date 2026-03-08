@@ -37,7 +37,7 @@ export default async function CourseSubmissionsPage({
   // All modules → days → assignments for this course
   const { data: modules } = await admin
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments(id, title, due_date))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date))')
     .eq('course_id', id)
     .order('order', { ascending: true })
 

@@ -45,13 +45,23 @@ export default async function InstructorQuizzesPage({
   try { adminClient = createServiceSupabaseClient(); } catch { /* no service key */ }
   const readClient = adminClient ?? supabase;
 
-  const { data: dbQuizzesRaw } = await readClient
-    .from("quizzes")
-    .select("*")
-    .eq("course_id", id)
-    .order("module_title", { ascending: true })
-    .order("title", { ascending: true });
+  const [{ data: dbQuizzesRaw }, { data: modulesRaw }] = await Promise.all([
+    readClient
+      .from("quizzes")
+      .select("*")
+      .eq("course_id", id)
+      .order("module_title", { ascending: true })
+      .order("title", { ascending: true }),
+    supabase
+      .from("modules")
+      .select("title, order")
+      .eq("course_id", id)
+      .order("order", { ascending: true }),
+  ]);
   let dbQuizzes = dbQuizzesRaw as QuizRow[] | null;
+  const moduleTitles = (modulesRaw ?? [])
+    .map((m) => m.title as string)
+    .filter((t) => t && t.trim() !== '');
 
   // Auto-sync from JSON if DB is empty
   if ((!dbQuizzes || dbQuizzes.length === 0) && jsonQuizzes.length > 0) {
@@ -118,7 +128,7 @@ export default async function InstructorQuizzesPage({
               </Link>
             </div>
 
-            <QuizzesSection courseId={id} quizzes={quizzes} initialOpenQuizId={initialOpenQuizId} />
+            <QuizzesSection courseId={id} quizzes={quizzes} initialOpenQuizId={initialOpenQuizId} moduleTitles={moduleTitles} />
           </main>
         </div>
       </div>

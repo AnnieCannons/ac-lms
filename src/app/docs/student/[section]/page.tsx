@@ -7,6 +7,7 @@ import Assignments from '@/components/docs/student/Assignments'
 import Quizzes from '@/components/docs/student/Quizzes'
 import Resources from '@/components/docs/student/Resources'
 import Observer from '@/components/docs/student/Observer'
+import Accessibility from '@/components/docs/student/Accessibility'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,7 @@ const SECTIONS: Record<string, React.ComponentType> = {
   'quizzes': Quizzes,
   'resources': Resources,
   'observer': Observer,
+  'accessibility': Accessibility,
 }
 
 export default async function StudentDocSectionPage({

@@ -51,7 +51,7 @@ export default async function StudentClassResourcesPage({
   const [{ data: rawModules }, { data: stars }, { data: completions }] = await Promise.all([
     supabase
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, day_name, order, resources(id, type, title, content, description, order))')
+      .select('id, title, week_number, order, module_days(id, day_name, order, resources!module_day_id(id, type, title, content, description, order))')
       .eq('course_id', id)
       .eq('published', true)
       .order('order', { ascending: true }),

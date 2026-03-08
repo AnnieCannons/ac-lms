@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
-import { createQuiz, createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
+import { createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
 import { parseQuizText } from "@/lib/quiz-parser";
 import QuizFullView from "./QuizFullView";
 import {
@@ -27,6 +27,7 @@ type QuizzesSectionProps = {
   courseId: string;
   quizzes: QuizRow[];
   initialOpenQuizId?: string;
+  moduleTitles?: string[];
 };
 
 function sortByWeekNumber(a: string, b: string): number {
@@ -117,7 +118,7 @@ function SortableQuizRow({
   );
 }
 
-export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuizId }: QuizzesSectionProps) {
+export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuizId, moduleTitles = [] }: QuizzesSectionProps) {
   const router = useRouter();
   const [localQuizzes, setLocalQuizzes] = useState<QuizRow[]>(Array.isArray(quizzes) ? quizzes : []);
   const [selectedQuiz, setSelectedQuiz] = useState<QuizRow | null>(() => {
@@ -131,6 +132,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
 
   const [showImport, setShowImport] = useState(false);
   const [importTitle, setImportTitle] = useState("");
+  const [importModuleTitle, setImportModuleTitle] = useState("");
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -247,17 +249,17 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
 
   const handleCreate = async () => {
     const title = importTitle.trim() || "New Quiz";
+    const moduleTitle = importModuleTitle.trim();
     setImporting(true);
     setImportError(null);
     try {
-      const data = parsedQuestions.length > 0
-        ? await createQuizWithQuestions(courseId, title, parsedQuestions)
-        : await createQuiz(courseId);
+      const data = await createQuizWithQuestions(courseId, title, parsedQuestions, moduleTitle);
       if (data) {
         setLocalQuizzes((prev) => [...prev, data as QuizRow]);
         setSelectedQuiz(data as QuizRow);
         setShowImport(false);
         setImportTitle("");
+        setImportModuleTitle("");
         setImportText("");
         router.refresh();
       }
@@ -274,6 +276,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
         <QuizFullView
           quiz={selectedQuiz}
           courseId={courseId}
+          moduleTitles={moduleTitles}
           onClose={() => setSelectedQuiz(null)}
           onSaved={(updatedQuiz) => {
             setSelectedQuiz(updatedQuiz);
@@ -334,6 +337,18 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
               placeholder="Quiz title"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary/50"
             />
+            {moduleTitles.length > 0 && (
+              <select
+                value={importModuleTitle}
+                onChange={(e) => setImportModuleTitle(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary/50"
+              >
+                <option value="">— Week (optional) —</option>
+                {moduleTitles.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            )}
 
             <textarea
               value={importText}

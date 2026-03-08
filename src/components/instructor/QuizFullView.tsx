@@ -43,6 +43,7 @@ function newIdent(prefix: string) {
 type QuizFullViewProps = {
   quiz: QuizRow;
   courseId: string;
+  moduleTitles?: string[];
   onClose: () => void;
   onSaved?: (updatedQuiz: QuizRow) => void;
   onDeleted?: (quizId: string) => void;
@@ -102,7 +103,7 @@ const LANG_LABELS: Record<CodeLanguage, string> = {
   sql: "SQL",
 };
 
-export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDeleted }: QuizFullViewProps) {
+export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClose, onSaved, onDeleted }: QuizFullViewProps) {
   const router = useRouter();
   const fromJsonOnly = isJsonOnlyQuiz(quiz.id);
   const [editing, setEditing] = useState(false);
@@ -112,6 +113,7 @@ export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDelet
     quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : ""
   );
   const [editMaxAttempts, setEditMaxAttempts] = useState<number | null>(quiz.max_attempts ?? null);
+  const [editModuleTitle, setEditModuleTitle] = useState(quiz.module_title ?? "");
   const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
   const dueDateRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
@@ -121,7 +123,8 @@ export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDelet
     setEditTitle(quiz.title);
     setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
     setEditMaxAttempts(quiz.max_attempts ?? null);
-  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts]);
+    setEditModuleTitle(quiz.module_title ?? "");
+  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts, quiz.module_title]);
 
   useEffect(() => {
     setEditQuestions(JSON.parse(JSON.stringify(quiz.questions ?? [])));
@@ -177,7 +180,7 @@ export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDelet
         const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
           title: editTitle.trim(),
           due_at: editDueDate || null,
-          module_title: quiz.module_title ?? "",
+          module_title: editModuleTitle,
           published: false,
           questions: quiz.questions ?? [],
           max_attempts: editMaxAttempts,
@@ -189,8 +192,9 @@ export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDelet
           title: editTitle.trim(),
           due_at: editDueDate || null,
           max_attempts: editMaxAttempts,
+          module_title: editModuleTitle,
         });
-        onSaved?.({ ...quiz, title: editTitle.trim(), due_at: editDueDate || null, max_attempts: editMaxAttempts });
+        onSaved?.({ ...quiz, title: editTitle.trim(), due_at: editDueDate || null, max_attempts: editMaxAttempts, module_title: editModuleTitle });
         setEditing(false);
       }
       router.refresh();
@@ -452,6 +456,21 @@ export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDelet
                 </button>
               </div>
             </div>
+            {moduleTitles.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-text shrink-0">Week:</label>
+                <select
+                  value={editModuleTitle}
+                  onChange={(e) => setEditModuleTitle(e.target.value)}
+                  className="flex-1 bg-surface border border-border text-dark-text rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                >
+                  <option value="">— Unassigned —</option>
+                  {moduleTitles.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {/* Max attempts */}
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
@@ -495,6 +514,7 @@ export default function QuizFullView({ quiz, courseId, onClose, onSaved, onDelet
                   setEditTitle(quiz.title);
                   setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
                   setEditMaxAttempts(quiz.max_attempts ?? null);
+                  setEditModuleTitle(quiz.module_title ?? "");
                 }}
                 className="text-sm text-muted-text hover:text-dark-text px-4 py-2"
                 type="button"

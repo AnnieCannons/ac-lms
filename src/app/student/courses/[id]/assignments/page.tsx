@@ -53,7 +53,7 @@ export default async function StudentAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments(id, title, due_date, published))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published))')
     .eq('course_id', id)
     .eq('published', true)
     .order('order', { ascending: true })

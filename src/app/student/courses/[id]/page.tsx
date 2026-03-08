@@ -66,7 +66,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, assignments(id, title, due_date, published), resources(id, type, title, content, description, order))')
+    .select('*, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published), resources!module_day_id(id, type, title, content, description, order))')
     .eq('course_id', id)
     .order('order', { ascending: true })
 
@@ -74,15 +74,46 @@ export default async function StudentCourseDetailPage({
     !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
   )
 
-  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }] = await Promise.all([
+  const dayIds = modules.flatMap(m => (m.module_days ?? []).map((d: { id: string }) => d.id))
+
+  const admin = createServiceSupabaseClient()
+  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }] = await Promise.all([
     supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
-    createServiceSupabaseClient().from('quizzes').select('id, title, module_title, day_title, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).not('day_title', 'is', null),
+    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).or('day_title.not.is.null,linked_day_id.not.is.null'),
+    dayIds.length > 0
+      ? supabase.from('assignments').select('id, title, due_date, published, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true)
+      : Promise.resolve({ data: [] }),
+    dayIds.length > 0
+      ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds)
+      : Promise.resolve({ data: [] }),
   ])
 
-  type CourseQuiz = { id: string; title: string; module_title: string; day_title: string | null; max_attempts: number | null; due_at: string | null; questions: unknown[] }
+  type CourseQuiz = { id: string; title: string; module_title: string; day_title: string | null; linked_day_id: string | null; max_attempts: number | null; due_at: string | null; questions: unknown[] }
   const quizzes = (quizData ?? []) as CourseQuiz[]
+
+  // Inject cross-posted assignments and resources into the module day structure
+  const crossAssignmentsArr = (crossAssignments ?? []) as Array<{ id: string; title: string; due_date: string | null; published: boolean; module_day_id: string; linked_day_id: string | null }>
+  const crossResourcesArr = (crossResources ?? []) as Array<{ id: string; type: string; title: string; content: string | null; description: string | null; order: number; linked_day_id: string | null }>
+
+  // Build a mutable copy of modules to inject cross-posted data
+  const modulesWithCross = modules.map(m => ({
+    ...m,
+    module_days: (m.module_days ?? []).map((d: { id: string; day_name: string; order: number; assignments?: unknown[]; resources?: unknown[] }) => {
+      const extraAssignments = crossAssignmentsArr
+        .filter(a => a.linked_day_id === d.id)
+        .map(a => ({ ...a, careerDev: true }))
+      const extraResources = crossResourcesArr
+        .filter(r => r.linked_day_id === d.id)
+        .map(r => ({ ...r, careerDev: true }))
+      return {
+        ...d,
+        assignments: [...(d.assignments ?? []), ...extraAssignments],
+        resources: [...(d.resources ?? []), ...extraResources],
+      }
+    }),
+  }))
 
   const submissionMap = Object.fromEntries(
     (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
@@ -142,7 +173,7 @@ export default async function StudentCourseDetailPage({
             <PageRefresher />
             {modules.length > 0 ? (
               <CourseOutlineAccordion
-                modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
+                modules={modulesWithCross as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
                 courseId={id}
                 currentWeek={currentWeek}
                 todayName={todayName}

@@ -50,7 +50,7 @@ export default async function StudentLevelUpPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, assignments(id, title, due_date, published), resources(id, type, title, content, description, order))')
+    .select('*, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published), resources!module_day_id(id, type, title, content, description, order))')
     .eq('course_id', id)
     .eq('category', 'level_up')
     .eq('published', true)

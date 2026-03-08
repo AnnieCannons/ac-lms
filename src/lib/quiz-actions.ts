@@ -16,7 +16,10 @@ async function getInstructorSession() {
 export async function createQuizWithQuestions(
   courseId: string,
   title: string,
-  questions: QuizQuestion[]
+  questions: QuizQuestion[],
+  moduleTitle = '',
+  dayTitle: string | null = null,
+  linkedDayId: string | null = null
 ) {
   await getInstructorSession()
   const admin = createServiceSupabaseClient()
@@ -28,7 +31,9 @@ export async function createQuizWithQuestions(
       identifier,
       title,
       due_at: null,
-      module_title: '',
+      module_title: moduleTitle,
+      day_title: dayTitle || null,
+      linked_day_id: linkedDayId || null,
       published: false,
       questions,
       max_attempts: null,
@@ -63,7 +68,7 @@ export async function createQuiz(courseId: string) {
 
 export async function updateQuizMeta(
   quizId: string,
-  updates: { title?: string; due_at?: string | null; max_attempts?: number | null }
+  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string }
 ) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();

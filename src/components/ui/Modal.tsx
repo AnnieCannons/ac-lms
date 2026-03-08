@@ -17,13 +17,14 @@ export default function Modal({ title, onClose, children, maxWidth = 'max-w-sm' 
   }, [])
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} aria-hidden="true" />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
         <div
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
+          onClick={e => e.stopPropagation()}
           className={`bg-surface rounded-2xl border border-border shadow-2xl w-full ${maxWidth} p-6 flex flex-col gap-4`}
         >
           <div className="flex items-center justify-between">

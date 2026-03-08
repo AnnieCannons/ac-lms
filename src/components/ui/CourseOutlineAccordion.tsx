@@ -50,7 +50,7 @@ function ReadingResource({
   onToggleStar,
   onToggleComplete,
 }: {
-  resource: { id: string; title: string; content: string | null; description: string | null }
+  resource: { id: string; title: string; content: string | null; description: string | null; careerDev?: boolean }
   starred: boolean
   completed: boolean
   onToggleStar: () => void
@@ -67,6 +67,9 @@ function ReadingResource({
         >
           <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
           <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
+          {resource.careerDev && (
+            <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+          )}
           <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
         </button>
         <CheckButton completed={completed} onToggle={onToggleComplete} />
@@ -89,6 +92,7 @@ interface Resource {
   content: string | null
   description: string | null
   order: number
+  careerDev?: boolean
 }
 
 interface Assignment {
@@ -96,6 +100,7 @@ interface Assignment {
   title: string
   due_date: string | null
   published: boolean
+  careerDev?: boolean
 }
 
 interface Quiz {
@@ -103,6 +108,7 @@ interface Quiz {
   title: string
   module_title: string
   day_title: string | null
+  linked_day_id?: string | null
   max_attempts: number | null
   due_at: string | null
   questions: unknown[]
@@ -239,6 +245,9 @@ function DayModal({
                           <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">{r.title}</p>
                           {r.description && <p className="text-xs text-muted-text mt-0.5">{r.description}</p>}
                         </div>
+                        {r.careerDev && (
+                          <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+                        )}
                         <span className="text-xs text-muted-text shrink-0 group-hover:text-teal-primary">↗</span>
                       </a>
                       <CheckButton completed={completedIds.has(r.id)} onToggle={() => onToggleComplete(r.id)} />
@@ -261,7 +270,12 @@ function DayModal({
                     className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                        {a.careerDev && (
+                          <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
+                        )}
+                      </div>
                       {a.due_date && (
                         <p className="text-xs text-muted-text mt-0.5">
                           Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -290,10 +304,16 @@ function DayModal({
                 {quizzesForDay.map(quiz => {
                   const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title
                   const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0
+                  const isCrossPosted = !!quiz.linked_day_id && quiz.linked_day_id === day.id
                   return (
                     <div key={quiz.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-dark-text">{displayTitle}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-dark-text">{displayTitle}</p>
+                          {isCrossPosted && (
+                            <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-text mt-0.5">{questionCount} question{questionCount !== 1 ? 's' : ''}</p>
                       </div>
                       <Link
@@ -418,6 +438,7 @@ export default function CourseOutlineAccordion({
                     const publishedAssignments = day.assignments?.filter(a => a.published) ?? []
                     const resources = day.resources ?? []
                     const dayQuizzes = (quizzes ?? []).filter(q => {
+                      if (q.linked_day_id === day.id) return true
                       if (q.day_title?.trim() !== day.day_name?.trim()) return false
                       if (q.module_title?.trim() === module.title?.trim()) return true
                       const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
@@ -480,6 +501,7 @@ export default function CourseOutlineAccordion({
           onToggleComplete={toggleComplete}
           hideLevelUpBanner={hideLevelUpBanner}
           quizzesForDay={(quizzes ?? []).filter(q => {
+            if (q.linked_day_id === openDay.day.id) return true
             if (q.day_title?.trim() !== openDay.day.day_name?.trim()) return false
             if (q.module_title?.trim() === openDay.module.title?.trim()) return true
             const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]

@@ -62,7 +62,7 @@ export default async function StudentDetailPage({
     admin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null }, error: null })),
     admin
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, order, assignments(id, title, due_date, published))')
+      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published))')
       .eq('course_id', courseId)
       .order('order', { ascending: true }),
   ])

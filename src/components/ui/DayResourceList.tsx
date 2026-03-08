@@ -8,6 +8,7 @@ interface Resource {
   title: string
   content: string | null
   description: string | null
+  careerDev?: boolean
 }
 
 const RESOURCE_ICONS: Record<string, string> = {
@@ -102,6 +103,9 @@ export default function DayResourceList({
                 >
                   <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
                   <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
+                  {resource.careerDev && (
+                    <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+                  )}
                   <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
                 </button>
                 <CheckButton completed={completed} onToggle={() => toggleComplete(resource.id)} />
@@ -130,6 +134,9 @@ export default function DayResourceList({
                 <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">{resource.title}</p>
                 {resource.description && <p className="text-xs text-muted-text mt-0.5">{resource.description}</p>}
               </div>
+              {resource.careerDev && (
+                <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+              )}
               <span className="text-xs text-muted-text shrink-0 group-hover:text-teal-primary">↗</span>
             </a>
             <CheckButton completed={completed} onToggle={() => toggleComplete(resource.id)} />

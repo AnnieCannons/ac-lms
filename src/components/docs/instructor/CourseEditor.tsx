@@ -8,7 +8,7 @@ export default function CourseEditor() {
 
       <DocH2>Module and Day Structure</DocH2>
       <DocP>
-        Your course is organized into <strong>modules</strong> (weeks) containing <strong>days</strong> (Monday–Thursday).
+        Your course is organized into <strong>modules</strong> containing <strong>days</strong> (typically Monday–Thursday).
         Each day can hold assignments and resources. The Course Editor displays all modules in a collapsible list.
       </DocP>
       <DocList>
@@ -48,11 +48,13 @@ export default function CourseEditor() {
         the rest of the day or module.
       </DocP>
 
-      <DocH2>Adding Assignments</DocH2>
-      <DocStep number={1}>Expand the module and find the target day.</DocStep>
-      <DocStep number={2}>Click <strong>+ Add Assignment</strong> at the bottom of the day panel.</DocStep>
-      <DocStep number={3}>Enter the assignment title and save.</DocStep>
-      <DocStep number={4}>Click the assignment to open the full editor and add instructions, checklist items, and settings.</DocStep>
+      <DocH2>Adding Content via the Create Button</DocH2>
+      <DocP>
+        The <strong>+ Create</strong> button in the course sidebar is the fastest way to add assignments, resources, or
+        quizzes. It lets you pick the type, choose a module and day, and — if needed — create a new module on the spot.
+        When your course has both coding and Career Dev modules, a <strong>Section</strong> dropdown lets you direct the
+        item to the right place. See <strong>Career Development</strong> in the docs for cross-posting options.
+      </DocP>
 
       <DocH2>Collapsing All Modules</DocH2>
       <DocP>
