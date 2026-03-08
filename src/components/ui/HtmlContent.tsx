@@ -24,7 +24,7 @@ export default function HtmlContent({
   return (
     <div
       ref={ref}
-      className={className}
+      className={`wiki-content${className ? ` ${className}` : ''}`}
       dangerouslySetInnerHTML={{ __html: clean }}
     />
   );

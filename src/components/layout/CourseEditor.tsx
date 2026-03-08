@@ -874,6 +874,7 @@ function SortableResource({
   const [relocWeek, setRelocWeek] = useState<string>(weekNumber ? String(weekNumber) : "");
   const [relocDay, setRelocDay] = useState<string>("");
   const [editing, setEditing] = useState(false);
+  const [readingOpen, setReadingOpen] = useState(false);
   const [editType, setEditType] = useState<Resource["type"]>(resource.type);
   const [editTitle, setEditTitle] = useState(resource.title);
   const [editContent, setEditContent] = useState(resource.content ?? "");
@@ -925,6 +926,8 @@ function SortableResource({
               if (!editTitle.trim()) setEditTitle(fileName);
             }}
           />
+        ) : editType === "reading" ? (
+          <RichTextEditor content={editContent} onChange={setEditContent} placeholder="Reading content" />
         ) : (
           <input
             type="text"
@@ -965,7 +968,7 @@ function SortableResource({
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-surface rounded-lg border border-border px-3 py-2 flex items-center gap-2"
+      className={`bg-surface rounded-lg border border-border px-3 py-2 flex gap-2 ${readingOpen ? 'items-start' : 'items-center'}`}
     >
       {!readOnly && (
         <button
@@ -978,12 +981,52 @@ function SortableResource({
           ⠿
         </button>
       )}
-      <span className="text-xs bg-teal-light text-teal-primary rounded px-1.5 py-0.5 shrink-0">
+      <span className={`text-xs bg-teal-light text-teal-primary rounded px-1.5 py-0.5 shrink-0${readingOpen ? ' mt-0.5' : ''}`}>
         {RESOURCE_TYPE_LABELS[resource.type]}
       </span>
       <div className="flex-1 min-w-0 group">
         {readOnly ? (
-          <p className="text-xs font-medium text-dark-text truncate">{resource.title}</p>
+          resource.type === 'link' && resource.content ? (
+            <a
+              href={resource.content.startsWith("http") ? resource.content : `https://${resource.content}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-dark-text truncate hover:text-teal-primary transition-colors block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {resource.title}
+            </a>
+          ) : resource.type === 'reading' && resource.content ? (
+            <button
+              type="button"
+              onClick={() => setReadingOpen(v => !v)}
+              className="text-xs font-medium text-dark-text hover:text-teal-primary transition-colors w-full text-left flex items-center justify-between gap-2"
+            >
+              <span className="truncate">{resource.title}</span>
+              <span className="text-muted-text shrink-0 text-[10px]">{readingOpen ? '▲' : '▼'}</span>
+            </button>
+          ) : (
+            <p className="text-xs font-medium text-dark-text truncate">{resource.title}</p>
+          )
+        ) : resource.type === 'link' && resource.content ? (
+          <div className="flex items-center gap-1">
+            <a
+              href={resource.content.startsWith("http") ? resource.content : `https://${resource.content}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-dark-text truncate hover:text-teal-primary transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {resource.title}
+            </a>
+            <button
+              onClick={() => setEditing(true)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-teal-primary shrink-0 text-xs"
+              type="button"
+            >
+              ✎
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => setEditing(true)}
@@ -997,7 +1040,12 @@ function SortableResource({
         {resource.description && (
           <p className="text-xs text-muted-text truncate">{resource.description}</p>
         )}
-        {resource.content && resource.type !== "reading" && (() => {
+        {readOnly && resource.type === 'reading' && resource.content && readingOpen && (
+          <div className="mt-2 p-4 bg-background rounded-lg border border-border prose prose-sm max-w-none text-dark-text">
+            <HtmlContent html={resource.content} />
+          </div>
+        )}
+        {resource.content && resource.type !== "reading" && resource.type !== "link" && (() => {
           const href = resource.content.startsWith("http") ? resource.content : `https://${resource.content}`;
           const isImg = resource.type === "file" && /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(resource.content);
           return isImg ? (

@@ -25,7 +25,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
     editorProps: {
       attributes: {
         class:
-          "min-h-[180px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-gray-700 leading-relaxed px-3 py-2",
+          "min-h-[180px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2",
       },
     },
   });
@@ -42,8 +42,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
   const btn = (active: boolean) =>
     `px-2 py-1 rounded text-xs font-medium transition-colors ${
       active
-        ? "bg-teal-primary text-white"
-        : "text-gray-600 hover:bg-gray-100"
+        ? "bg-purple-primary text-white"
+        : "text-muted-text hover:bg-border/40 hover:text-dark-text"
     }`;
 
   // Run command on mousedown (before blur) instead of onClick
@@ -53,9 +53,9 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-teal-primary">
+    <div className="border border-border rounded-lg bg-background overflow-hidden focus-within:ring-2 focus-within:ring-teal-primary">
       {/* Toolbar */}
-      <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 flex-wrap">
+      <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-surface flex-wrap">
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleBold().run())}
@@ -74,7 +74,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
         >
           I
         </button>
-        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-gray-200 mx-1" />
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleHeading({ level: 2 }).run())}
@@ -93,7 +93,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
         >
           H3
         </button>
-        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-gray-200 mx-1" />
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleBulletList().run())}
@@ -112,7 +112,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
         >
           1. List
         </button>
-        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-gray-200 mx-1" />
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button
           type="button"
           onMouseDown={tool(() => editor.chain().focus().toggleBlockquote().run())}
