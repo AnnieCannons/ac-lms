@@ -118,6 +118,59 @@ export default function Assignments() {
         All submissions (including resubmissions) are stored. On the grading page you can see the full history of a
         student&apos;s submissions to track revisions.
       </DocP>
+
+      <DocH2>Grading Groups</DocH2>
+      <DocP>
+        Grading Groups let you divide students among instructors and TAs so each grader is responsible for a specific
+        subset of students. Go to <strong>Grading Groups</strong> in the course sidebar.
+      </DocP>
+
+      <DocH3>Assigning Students</DocH3>
+      <DocList>
+        <li><strong>Auto-distribute evenly</strong> — splits all students as evenly as possible across all available graders with one click</li>
+        <li><strong>Drag and drop</strong> — drag a student card from one grader&apos;s column to another, or to the Unassigned pile to remove their assignment</li>
+      </DocList>
+      <DocTip>
+        Each grader card shows a yellow <strong>N ungraded</strong> badge so you can see who has the most work waiting.
+      </DocTip>
+
+      <DocH3>Rotating Groups</DocH3>
+      <DocList>
+        <li><strong>Swap Groups ⇄</strong> (2 graders) — swaps the two groups so each grader takes the other&apos;s students</li>
+        <li><strong>Rotate Groups →</strong> (3+ graders) — shifts each grader to the next group in order (A→B→C→A)</li>
+      </DocList>
+      <DocNote>
+        Unassigned students stay unassigned during a swap or rotate.
+      </DocNote>
+
+      <DocH3>Assignment Overrides</DocH3>
+      <DocP>
+        Below the student columns, <strong>Assignment Overrides</strong> let you pin a specific grader to one assignment.
+        That person grades it for all students regardless of group. Leave it as <em>Follow student group</em> to use
+        the normal group assignment.
+      </DocP>
+
+      <DocH2>Launch Grader</DocH2>
+      <DocP>
+        The <strong>Launch Grader</strong> button in the sidebar (with a badge showing ungraded count) opens a modal
+        with four speed-grading modes:
+      </DocP>
+      <DocList>
+        <li><strong>By Student</strong> — work through all ungraded students one at a time across all assignments</li>
+        <li><strong>By Assignment</strong> — work through ungraded submissions one assignment at a time</li>
+        <li><strong>All Ungraded</strong> — grade everything in sequence</li>
+        <li><strong>Grade for My Group</strong> — grade only the students assigned to you in Grading Groups; respects assignment overrides</li>
+      </DocList>
+      <DocTip>
+        TAs see a <strong>Grade for My Group</strong> count badge showing only their own ungraded submissions.
+      </DocTip>
+
+      <DocH3>Grading Priority</DocH3>
+      <DocList>
+        <li><strong>Assignment override</strong> takes priority — if set, that grader handles the assignment for all students</li>
+        <li><strong>Student group</strong> — if no override, the student&apos;s assigned grader handles it</li>
+        <li><strong>Unassigned</strong> — appears in All Ungraded but not in anyone&apos;s Grade for My Group queue</li>
+      </DocList>
     </>
   )
 }

@@ -6,6 +6,18 @@ export default function Courses() {
       <h1 className="text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
       <p className="text-sm text-muted-text mb-8">Navigate your course week by week.</p>
 
+      <DocH2>Your Courses List</DocH2>
+      <DocP>
+        After logging in you see <strong>My Courses</strong> — all courses you are enrolled in. A green{' '}
+        <strong>Current</strong> badge appears next to courses that are actively running right now. Courses are sorted
+        so current ones appear first.
+      </DocP>
+      <DocP>
+        If you are a <strong>Teaching Assistant (TA)</strong> for a course, you will see a blue <strong>TA</strong>{' '}
+        badge and two links: <em>Instructor View</em> to grade and manage the course, and <em>Student View</em> to
+        see it as a student would.
+      </DocP>
+
       <DocH2>Modules and Weeks</DocH2>
       <DocP>
         Your course is organized into <strong>modules</strong>, each representing one week of content. Modules appear as

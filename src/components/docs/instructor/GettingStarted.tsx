@@ -8,13 +8,16 @@ export default function GettingStarted() {
 
       <DocH2>Instructor Dashboard</DocH2>
       <DocP>
-        After logging in you land on the <strong>Courses</strong> page, which lists every course you have access to. Each
-        card shows the course name, code, and enrollment dates.
+        After logging in you land on the <strong>Courses</strong> page, which lists every course you have access to.
+        Courses that are currently running show a green <strong>Current</strong> badge based on the start date and a
+        15-week window.
       </DocP>
-      <DocTip>
-        You can duplicate any course using the options menu on the course card — useful for reusing a course structure
-        each cohort.
-      </DocTip>
+      <DocList>
+        <li>Click <strong>Manage →</strong> to open a course</li>
+        <li>Click <strong>Edit Dates</strong> to set or update start and end dates using a calendar picker</li>
+        <li>Click <strong>Duplicate</strong> to copy a course with optional due-date shifting</li>
+        <li>Click <strong>+ New Course</strong> to create a new course from scratch</li>
+      </DocList>
 
       <DocH2>Entering a Course</DocH2>
       <DocStep number={1}>Click a course card to open the Course Editor.</DocStep>
@@ -29,7 +32,8 @@ export default function GettingStarted() {
         <li><strong>Career Development</strong> — manage career dev content separate from the coding curriculum</li>
         <li><strong>Level Up Your Skills</strong> — optional bonus assignments with skill tags</li>
         <li><strong>Grades</strong> — course-wide submission overview and speed grader; a yellow badge shows how many submissions need grading</li>
-        <li><strong>People</strong> — manage student enrollment and roles</li>
+        <li><strong>Grading Groups</strong> — assign students to specific graders; rotate groups weekly</li>
+        <li><strong>People</strong> — manage student enrollment and roles including TA</li>
         <li><strong>Roster</strong> — accommodation roster with per-student progress and inline grading</li>
         <li><strong>Student Preview</strong> — view the course exactly as a student sees it</li>
       </DocList>
@@ -44,6 +48,11 @@ export default function GettingStarted() {
       <DocP>
         Instructors have full access to all courses they&apos;re assigned to. Admins have access to all courses across the
         platform. Your role badge appears next to the AC* logo in the top nav.
+      </DocP>
+      <DocP>
+        <strong>Teaching Assistants (TAs)</strong> are students assigned a TA role for a specific course. TAs see the
+        full instructor view but cannot create or edit content — they can grade submissions and view the roster. TAs
+        see a blue <strong>TA</strong> badge in the top nav and a dedicated Employment section in the sidebar.
       </DocP>
     </>
   )

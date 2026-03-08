@@ -25,8 +25,20 @@ export default function People() {
       <DocList>
         <li><strong>Student</strong> — full access: can submit assignments, take quizzes, receive grades</li>
         <li><strong>Observer</strong> — read-only access: can view content but cannot submit or take quizzes</li>
+        <li><strong>TA</strong> — read-only instructor view with grading rights; cannot edit course content or manage users</li>
         <li><strong>Instructor</strong> — same access as you; can edit the course</li>
       </DocList>
+
+      <DocH3>When to Use TA</DocH3>
+      <DocP>
+        Assign the TA role to a student who will help grade submissions for this course. TAs see the full instructor
+        interface (course editor, assignments, roster, quizzes) but all create/edit/delete controls are hidden. TAs
+        can grade with Complete/Incomplete and leave comments. They also have access to Benefits and Paid Time Off
+        pages in their sidebar.
+      </DocP>
+      <DocTip>
+        After assigning the TA role, go to <strong>Grading Groups</strong> to assign the TA a set of students to grade.
+      </DocTip>
 
       <DocH3>When to Use Observer</DocH3>
       <DocP>
@@ -36,11 +48,11 @@ export default function People() {
 
       <DocH2>Changing a Student&apos;s Role</DocH2>
       <DocStep number={1}>Find the student in the Users list.</DocStep>
-      <DocStep number={2}>Click the role dropdown next to their name.</DocStep>
+      <DocStep number={2}>Click the role pill next to their name.</DocStep>
       <DocStep number={3}>Select the new role. The change takes effect immediately.</DocStep>
 
       <DocNote>
-        Only admins can assign the Admin role. Instructors can assign Student, Observer, and Instructor roles.
+        Only admins can assign the Admin role. Instructors can assign Student, Observer, TA, and Instructor roles.
       </DocNote>
 
       <DocH2>Removing a Student</DocH2>
