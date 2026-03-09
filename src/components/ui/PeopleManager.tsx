@@ -2,8 +2,10 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { bulkAddPeopleToCourse, updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse } from '@/lib/people-actions'
+import Modal from './Modal'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
+type InviteRole = 'student' | 'instructor' | 'admin'
 
 interface Member {
   userId: string
@@ -76,6 +78,28 @@ function parseEmails(raw: string): string[] {
     .filter(e => e.includes('@'))
 }
 
+const INVITE_TYPES: { role: InviteRole; label: string; description: string; color: string }[] = [
+  {
+    role: 'student',
+    label: 'Students',
+    description: 'Learners enrolled in this course',
+    color: 'border-teal-primary/40 hover:border-teal-primary hover:bg-teal-light/50',
+  },
+  {
+    role: 'instructor',
+    label: 'Staff',
+    description: 'Instructors and teaching staff',
+    color: 'border-purple-primary/40 hover:border-purple-primary hover:bg-purple-light/50',
+  },
+]
+
+const ADMIN_TYPE = {
+  role: 'admin' as InviteRole,
+  label: 'Admin',
+  description: 'Full administrative access',
+  color: 'border-orange-400/40 hover:border-orange-400 hover:bg-orange-50',
+}
+
 function InstructorSection({
   instructors,
   allCourses,
@@ -137,7 +161,7 @@ function InstructorSection({
                             <button type="button" onClick={() => removeCourse(instructor.id, courseId)} className="hover:opacity-60 leading-none" aria-label={`Remove ${courseNameMap[courseId]}`}>×</button>
                           </span>
                         ))}
-                        {unassigned.length > 0 && (
+                        {assignedIds.length === 0 && unassigned.length > 0 && (
                           addingFor === instructor.id ? (
                             <select
                               autoFocus
@@ -179,7 +203,7 @@ function InstructorSection({
                       <button type="button" onClick={() => removeCourse(instructor.id, courseId)} className="hover:opacity-60">×</button>
                     </span>
                   ))}
-                  {unassigned.length > 0 && (
+                  {assignedIds.length === 0 && unassigned.length > 0 && (
                     addingFor === instructor.id ? (
                       <select autoFocus defaultValue="" onChange={e => addCourse(instructor.id, e.target.value)} onBlur={() => setAddingFor(null)} className="text-xs bg-background border border-border rounded-lg px-2 py-0.5 text-dark-text">
                         <option value="" disabled>Pick a course…</option>
@@ -205,9 +229,11 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  // Add form
+  // Invite modal
+  const [modalOpen, setModalOpen] = useState(false)
+  const [inviteStep, setInviteStep] = useState<'choose' | 'emails'>('choose')
+  const [inviteRole, setInviteRole] = useState<InviteRole>('student')
   const [emailsRaw, setEmailsRaw] = useState('')
-  const [role, setRole] = useState<'student' | 'instructor' | 'ta'>('student')
   const [adding, setAdding] = useState(false)
   const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null)
 
@@ -220,6 +246,42 @@ export default function PeopleManager({ courseId, members, invitations, currentU
 
   const activeMembers = members.filter(m => m.role !== 'observer')
   const observerMembers = members.filter(m => m.role === 'observer')
+
+  const inviteTypes = currentUserRole === 'admin'
+    ? [...INVITE_TYPES, ADMIN_TYPE]
+    : INVITE_TYPES
+
+  function openModal() {
+    setInviteStep('choose')
+    setEmailsRaw('')
+    setBulkResults(null)
+    setModalOpen(true)
+  }
+
+  function closeModal() {
+    if (adding) return
+    setModalOpen(false)
+  }
+
+  function chooseType(role: InviteRole) {
+    setInviteRole(role)
+    setEmailsRaw('')
+    setBulkResults(null)
+    setInviteStep('emails')
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    setBulkResults(null)
+    const emails = parseEmails(emailsRaw)
+    if (emails.length === 0) return
+    setAdding(true)
+    const results = await bulkAddPeopleToCourse(courseId, emails, inviteRole)
+    setAdding(false)
+    setBulkResults(results)
+    setEmailsRaw('')
+    startTransition(() => router.refresh())
+  }
 
   function renderMemberDesktopRow(member: Member, muted = false) {
     return (
@@ -298,19 +360,6 @@ export default function PeopleManager({ courseId, members, invitations, currentU
     )
   }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    setBulkResults(null)
-    const emails = parseEmails(emailsRaw)
-    if (emails.length === 0) return
-    setAdding(true)
-    const results = await bulkAddPeopleToCourse(courseId, emails, role)
-    setAdding(false)
-    setBulkResults(results)
-    setEmailsRaw('')
-    startTransition(() => router.refresh())
-  }
-
   async function handleRoleChange(userId: string, newRole: Role) {
     setSavingRole(true)
     setActionStatus(null)
@@ -356,85 +405,34 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   }
 
   const parsedCount = parseEmails(emailsRaw).length
+  const selectedType = inviteTypes.find(t => t.role === inviteRole)
 
   return (
     <div className="space-y-10">
       <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} />
 
-      {/* Add People Form */}
+      {/* Members */}
       <section>
-        <h2 className="text-base font-semibold text-dark-text mb-4">Add People</h2>
-        <form onSubmit={handleAdd} className="space-y-3">
-          <textarea
-            placeholder={"Enter email addresses, one per line (or comma-separated)\njane@example.com\njohn@example.com"}
-            value={emailsRaw}
-            onChange={(e) => { setEmailsRaw(e.target.value); setBulkResults(null) }}
-            rows={4}
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-surface text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-            aria-label="Email addresses"
-          />
-          <div className="flex items-center gap-3">
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as 'student' | 'instructor' | 'ta')}
-              className="border border-border rounded-lg px-3 py-2 text-sm bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              aria-label="Role"
-            >
-              <option value="student">Student</option>
-              <option value="ta">TA</option>
-              <option value="instructor">Instructor</option>
-            </select>
-            <button
-              type="submit"
-              disabled={adding || isPending || parsedCount === 0}
-              className="bg-teal-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {adding
-                ? 'Processing…'
-                : parsedCount > 1
-                  ? `Add ${parsedCount} people`
-                  : 'Add'}
-            </button>
-          </div>
-        </form>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-dark-text">
+            Members <span className="text-muted-text font-normal">({activeMembers.length})</span>
+          </h2>
+          <button
+            type="button"
+            onClick={openModal}
+            className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
+          >
+            <span className="text-base leading-none">+</span> Add People
+          </button>
+        </div>
 
-        {/* Bulk results */}
-        {bulkResults && bulkResults.length > 0 && (
-          <div className="mt-4 border border-border rounded-lg overflow-hidden" role="status" aria-live="polite">
-            <div className="bg-surface border-b border-border px-4 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">
-              Results — {bulkResults.filter(r => !r.error).length} of {bulkResults.length} succeeded
-            </div>
-            <ul className="divide-y divide-border">
-              {bulkResults.map((r) => (
-                <li key={r.email} className="flex items-center gap-3 px-4 py-2.5 text-sm bg-background">
-                  <span className={`shrink-0 text-base ${r.error ? 'text-red-500' : 'text-teal-primary'}`}>
-                    {r.error ? '✗' : '✓'}
-                  </span>
-                  <span className="text-dark-text truncate">{r.email}</span>
-                  <span className="ml-auto text-xs text-muted-text shrink-0">
-                    {r.error ?? (r.added ? 'Added' : 'Invite sent')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
-
-      {/* Members Table */}
-      <section>
-        <h2 className="text-base font-semibold text-dark-text mb-4">
-          Members <span className="text-muted-text font-normal">({activeMembers.length})</span>
-        </h2>
         {activeMembers.length === 0 ? (
           <p className="text-sm text-muted-text">No members yet.</p>
         ) : (
           <>
-            {/* Mobile card list */}
             <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
               {activeMembers.map((member) => renderMemberMobileCard(member))}
             </div>
-            {/* Desktop table */}
             <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
@@ -454,16 +452,14 @@ export default function PeopleManager({ courseId, members, invitations, currentU
         )}
       </section>
 
-      {/* Observers Section */}
+      {/* Observers */}
       {observerMembers.length > 0 && (
         <section>
           <h2 className="text-base font-semibold text-dark-text mb-1">Observers</h2>
           <p className="text-xs text-muted-text mb-4">on leave / paused</p>
-          {/* Mobile card list */}
           <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
             {observerMembers.map((member) => renderMemberMobileCard(member, true))}
           </div>
-          {/* Desktop table */}
           <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -482,14 +478,13 @@ export default function PeopleManager({ courseId, members, invitations, currentU
         </section>
       )}
 
-      {/* Pending Invitations Table */}
+      {/* Pending Invitations */}
       {invitations.length > 0 && (
         <section>
           <h2 className="text-base font-semibold text-dark-text mb-4">
             Pending Invitations <span className="text-muted-text font-normal">({invitations.length})</span>
           </h2>
           <>
-            {/* Mobile card list */}
             <div className="sm:hidden flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
               {invitations.map((inv) => (
                 <div key={inv.id} className="bg-background px-4 py-3">
@@ -504,33 +499,16 @@ export default function PeopleManager({ courseId, members, invitations, currentU
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleResend(inv.id, inv.email)}
-                        disabled={isPending}
-                        className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50"
-                      >
-                        Resend
-                      </button>
-                      <button
-                        onClick={() => handleRevoke(inv.id)}
-                        disabled={isPending}
-                        aria-label={`Revoke invite for ${inv.email}`}
-                        className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-                      >
-                        <TrashIcon />
-                      </button>
+                      <button onClick={() => handleResend(inv.id, inv.email)} disabled={isPending} className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50">Resend</button>
+                      <button onClick={() => handleRevoke(inv.id)} disabled={isPending} aria-label={`Revoke invite for ${inv.email}`} className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"><TrashIcon /></button>
                     </div>
                   </div>
                   {actionStatus?.id === inv.id && (
-                    <p className={`text-xs mt-1 ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
-                      {actionStatus.message}
-                    </p>
+                    <p className={`text-xs mt-1 ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>{actionStatus.message}</p>
                   )}
                 </div>
               ))}
             </div>
-
-            {/* Desktop table */}
             <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
@@ -545,36 +523,17 @@ export default function PeopleManager({ courseId, members, invitations, currentU
                   {invitations.map((inv) => (
                     <tr key={inv.id} className="bg-background">
                       <td className="px-4 py-3 text-muted-text">{inv.email}</td>
-                      <td className="px-4 py-3">
-                        <RolePill role={inv.role} />
-                      </td>
+                      <td className="px-4 py-3"><RolePill role={inv.role} /></td>
                       <td className="px-4 py-3 text-muted-text text-xs">
-                        {inv.resent_at
-                          ? `Resent ${formatDate(inv.resent_at)}`
-                          : formatDate(inv.invited_at)}
+                        {inv.resent_at ? `Resent ${formatDate(inv.resent_at)}` : formatDate(inv.invited_at)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-3">
-                          <button
-                            onClick={() => handleResend(inv.id, inv.email)}
-                            disabled={isPending}
-                            className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50"
-                          >
-                            Resend
-                          </button>
-                          <button
-                            onClick={() => handleRevoke(inv.id)}
-                            disabled={isPending}
-                            aria-label={`Revoke invite for ${inv.email}`}
-                            className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-                          >
-                            <TrashIcon />
-                          </button>
+                          <button onClick={() => handleResend(inv.id, inv.email)} disabled={isPending} className="text-xs font-medium text-teal-primary hover:underline disabled:opacity-50">Resend</button>
+                          <button onClick={() => handleRevoke(inv.id)} disabled={isPending} aria-label={`Revoke invite for ${inv.email}`} className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"><TrashIcon /></button>
                         </div>
                         {actionStatus?.id === inv.id && (
-                          <p className={`text-xs mt-1 text-right ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
-                            {actionStatus.message}
-                          </p>
+                          <p className={`text-xs mt-1 text-right ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>{actionStatus.message}</p>
                         )}
                       </td>
                     </tr>
@@ -584,6 +543,78 @@ export default function PeopleManager({ courseId, members, invitations, currentU
             </div>
           </>
         </section>
+      )}
+
+      {/* Add People Modal */}
+      {modalOpen && (
+        <Modal
+          title={inviteStep === 'choose' ? 'Add People' : `Add ${selectedType?.label}`}
+          onClose={closeModal}
+          maxWidth="max-w-md"
+        >
+          {inviteStep === 'choose' ? (
+            <div className="flex flex-col gap-3 pt-1">
+              {inviteTypes.map(type => (
+                <button
+                  key={type.role}
+                  type="button"
+                  onClick={() => chooseType(type.role)}
+                  className={`w-full text-left border-2 rounded-xl px-5 py-4 transition-colors ${type.color}`}
+                >
+                  <p className="font-semibold text-dark-text">{type.label}</p>
+                  <p className="text-sm text-muted-text mt-0.5">{type.description}</p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <form onSubmit={handleAdd} className="flex flex-col gap-4 pt-1">
+              <textarea
+                placeholder={"Paste email addresses, one per line or comma-separated\njane@example.com\njohn@example.com"}
+                value={emailsRaw}
+                onChange={(e) => { setEmailsRaw(e.target.value); setBulkResults(null) }}
+                rows={5}
+                autoFocus
+                className="w-full border border-border rounded-lg px-3 py-2.5 text-sm bg-surface text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+                aria-label="Email addresses"
+              />
+
+              {bulkResults && bulkResults.length > 0 && (
+                <div className="border border-border rounded-lg overflow-hidden" role="status" aria-live="polite">
+                  <div className="bg-surface border-b border-border px-4 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">
+                    {bulkResults.filter(r => !r.error).length} of {bulkResults.length} succeeded
+                  </div>
+                  <ul className="divide-y divide-border max-h-40 overflow-y-auto">
+                    {bulkResults.map((r) => (
+                      <li key={r.email} className="flex items-center gap-3 px-4 py-2 text-sm bg-background">
+                        <span className={`shrink-0 ${r.error ? 'text-red-500' : 'text-teal-primary'}`}>{r.error ? '✗' : '✓'}</span>
+                        <span className="text-dark-text truncate">{r.email}</span>
+                        <span className="ml-auto text-xs text-muted-text shrink-0">{r.error ?? (r.added ? 'Added' : 'Invite sent')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setInviteStep('choose'); setBulkResults(null) }}
+                  disabled={adding}
+                  className="text-sm text-muted-text hover:text-dark-text transition-colors disabled:opacity-50"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={adding || parsedCount === 0}
+                  className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {adding ? 'Sending…' : parsedCount > 1 ? `Add ${parsedCount} people` : 'Add'}
+                </button>
+              </div>
+            </form>
+          )}
+        </Modal>
       )}
     </div>
   )

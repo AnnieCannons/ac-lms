@@ -103,7 +103,7 @@ export default function DayResourceList({
                   className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-border/10 transition-colors text-left min-w-0"
                 >
                   <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
-                  <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
+                  <p className="flex-1 font-medium text-dark-text">{resource.title}</p>
                   {resource.careerDev && (
                     <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
                   )}
@@ -115,7 +115,7 @@ export default function DayResourceList({
               {open && resource.content && (
                 <HtmlContent
                   html={resource.content}
-                  className="px-5 py-4 border-t border-border text-sm text-dark-text wiki-content"
+                  className="px-5 py-4 border-t border-border text-dark-text wiki-content"
                 />
               )}
             </div>
@@ -132,8 +132,8 @@ export default function DayResourceList({
             >
               <span className="text-base shrink-0">{RESOURCE_ICONS[resource.type] ?? '•'}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">{resource.title}</p>
-                {resource.description && <p className="text-xs text-muted-text mt-0.5">{resource.description}</p>}
+                <p className="font-medium text-dark-text group-hover:text-teal-primary transition-colors">{resource.title}</p>
+                {resource.description && <p className="text-sm text-muted-text mt-0.5">{resource.description}</p>}
               </div>
               {resource.careerDev && (
                 <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
