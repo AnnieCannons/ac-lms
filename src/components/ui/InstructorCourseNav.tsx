@@ -131,15 +131,18 @@ export default function InstructorCourseNav({
         <SectionHeader label="Grades" open={gradesOpen} onToggle={toggleGradesOpen} />
         {gradesOpen && (
           <>
-            <GradesNavLink courseId={courseId} pathname={pathname} />
+            <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
             <button
               onClick={() => setGraderOpen(true)}
               className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20 flex items-center justify-between gap-2"
             >
               <span>Launch Grader →</span>
-              {(isTa ? myGroupNeedsGrading : needsGrading) > 0 && (
-                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count">
-                  {isTa ? myGroupNeedsGrading : needsGrading}
+              {myGroupNeedsGrading > 0 && (
+                <span
+                  className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count"
+                  title="Ungraded in your grading group"
+                >
+                  {myGroupNeedsGrading}
                 </span>
               )}
             </button>
@@ -197,19 +200,27 @@ export default function InstructorCourseNav({
   )
 }
 
-function GradesNavLink({ courseId, pathname }: { courseId: string; pathname: string }) {
+function GradesNavLink({ courseId, needsGrading, pathname }: { courseId: string; needsGrading: number; pathname: string }) {
   const href = `/instructor/courses/${courseId}/submissions`
   const isActive = pathname.startsWith(href)
   return (
     <Link
       href={href}
-      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between gap-2 ${
         isActive
           ? 'bg-teal-light text-teal-primary'
           : 'text-muted-text hover:text-dark-text hover:bg-border/20'
       }`}
     >
-      Grades
+      <span>Grades</span>
+      {needsGrading > 0 && (
+        <span
+          className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count"
+          title="Total ungraded across all students"
+        >
+          {needsGrading}
+        </span>
+      )}
     </Link>
   )
 }
