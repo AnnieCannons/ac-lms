@@ -4,6 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import PeopleManager from '@/components/ui/PeopleManager'
+import AddPeopleButton from '@/components/ui/AddPeopleButton'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
 export default async function InstructorUsersPage({
@@ -93,7 +94,15 @@ export default async function InstructorUsersPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-dark-text">Users</h1>
+              <div className="flex items-center justify-between gap-4">
+                <h1 className="text-2xl font-bold text-dark-text">Users</h1>
+                {!isTa && (
+                  <AddPeopleButton
+                    courseId={id}
+                    currentUserRole={profile?.role as 'instructor' | 'admin'}
+                  />
+                )}
+              </div>
               <p className="text-sm text-muted-text mt-1">{course.name}</p>
             </div>
 
