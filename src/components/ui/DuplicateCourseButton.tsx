@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "./Modal";
+import DatePickerField from "./DatePickerField";
 
 type Stats = {
   modules: number;
@@ -141,27 +142,11 @@ export default function DuplicateCourseButton({
               <div className="flex flex-col gap-4 bg-background rounded-xl border border-border p-4">
                 <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Date Shifting <span className="normal-case font-normal">(optional)</span></p>
                 <div>
-                  <label className="block text-sm font-medium text-dark-text mb-1">
-                    Original Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={sourceStart}
-                    onChange={e => setSourceStart(e.target.value)}
-                    className="w-full border border-border rounded-lg px-3 py-2.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary bg-surface"
-                  />
+                  <DatePickerField label="Original Start Date" value={sourceStart} onChange={setSourceStart} />
                   <p className="text-xs text-muted-text mt-1">When did the original course start?</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-dark-text mb-1">
-                    New Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="w-full border border-border rounded-lg px-3 py-2.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary bg-surface"
-                  />
+                  <DatePickerField label="New Start Date" value={startDate} onChange={setStartDate} />
                   <p className="text-xs text-muted-text mt-1">
                     Due dates will shift by the difference between the two dates.
                   </p>

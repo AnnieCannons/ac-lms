@@ -33,26 +33,23 @@ interface DocsLayoutProps {
   section: string
   isInstructor: boolean
   backHref: string
+  fromPath?: string
 }
 
-export default function DocsLayout({ children, guide, section, isInstructor, backHref }: DocsLayoutProps) {
+export default function DocsLayout({ children, guide, section, isInstructor, backHref, fromPath }: DocsLayoutProps) {
   const pathname = usePathname()
   const sections = guide === 'student' ? STUDENT_SECTIONS : INSTRUCTOR_SECTIONS
   const [backUrl, setBackUrl] = useState(backHref)
 
   useEffect(() => {
-    const ref = document.referrer
-    if (ref) {
-      try {
-        const url = new URL(ref)
-        if (url.origin === window.location.origin && !url.pathname.startsWith('/docs')) {
-          sessionStorage.setItem('docs_back_url', url.pathname + url.search)
-        }
-      } catch {}
+    if (fromPath && !fromPath.startsWith('/docs')) {
+      sessionStorage.setItem('docs_back_url', fromPath)
+      setBackUrl(fromPath)
+      return
     }
     const stored = sessionStorage.getItem('docs_back_url')
     if (stored) setBackUrl(stored)
-  }, [])
+  }, [fromPath])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

@@ -33,27 +33,17 @@ export default async function InstructorSubmissionsPage({
 
   if (!assignment) redirect(`/instructor/courses/${id}`)
 
-  const { data: course } = await admin
-    .from('courses')
-    .select('id, name')
-    .eq('id', id)
-    .single()
-
-  const { data: enrollments } = await admin
-    .from('course_enrollments')
-    .select('user_id, users(id, name)')
-    .eq('course_id', id)
-    .eq('role', 'student')
-
-  const { data: submissions } = await admin
-    .from('submissions')
-    .select('id, student_id, submission_type, content, status, grade, submitted_at')
-    .eq('assignment_id', assignmentId)
-
-  const { data: history } = await admin
-    .from('submission_history')
-    .select('id, student_id, submitted_at')
-    .eq('assignment_id', assignmentId)
+  const [
+    { data: course },
+    { data: enrollments },
+    { data: submissions },
+    { data: history },
+  ] = await Promise.all([
+    admin.from('courses').select('id, name').eq('id', id).single(),
+    admin.from('course_enrollments').select('user_id, users(id, name)').eq('course_id', id).eq('role', 'student'),
+    admin.from('submissions').select('id, student_id, submission_type, content, status, grade, submitted_at').eq('assignment_id', assignmentId),
+    admin.from('submission_history').select('id, student_id, submitted_at').eq('assignment_id', assignmentId),
+  ])
 
   // Build history count per student
   const historyCountByStudent = new Map<string, number>()

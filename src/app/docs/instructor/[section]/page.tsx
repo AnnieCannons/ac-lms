@@ -29,10 +29,13 @@ const SECTIONS: Record<string, React.ComponentType> = {
 
 export default async function InstructorDocSectionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ section: string }>
+  searchParams: Promise<{ from?: string }>
 }) {
   const { section } = await params
+  const { from } = await searchParams
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -63,7 +66,7 @@ export default async function InstructorDocSectionPage({
   if (!SectionComponent) notFound()
 
   return (
-    <DocsLayout guide="instructor" section={section} isInstructor={true} backHref="/instructor/courses">
+    <DocsLayout guide="instructor" section={section} isInstructor={true} backHref="/instructor/courses" fromPath={from}>
       <SectionComponent />
     </DocsLayout>
   )

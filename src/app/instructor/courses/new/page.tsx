@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import DatePickerField from '@/components/ui/DatePickerField'
 
 export default function NewCoursePage() {
   const [name, setName] = useState('')
@@ -79,24 +80,8 @@ export default function NewCoursePage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-dark-text mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-dark-text mb-1">End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
-              </div>
+              <DatePickerField label="Start Date" value={startDate} onChange={setStartDate} />
+              <DatePickerField label="End Date" value={endDate} onChange={setEndDate} />
             </div>
             <div>
               <label className="block text-sm font-medium text-dark-text mb-1">Syllabus</label>

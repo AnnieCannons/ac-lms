@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { createClient } from "@/lib/supabase/client";
 import RichTextEditor from "@/components/ui/RichTextEditor";
+import DatePickerField from "@/components/ui/DatePickerField";
 import FileUpload from "@/components/ui/FileUpload";
 import { RUBRIC_TEMPLATES, type RubricItem } from "@/data/rubric-templates";
 import {
@@ -531,12 +532,9 @@ function AssignmentFullView({
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
-                  <input
-                    type="datetime-local"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="flex-1 bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  />
+                  <div className="flex-1">
+                    <DatePickerField withTime value={editDueDate} onChange={setEditDueDate} />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -718,12 +716,9 @@ function AssignmentFullView({
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
-                <input
-                  type="datetime-local"
-                  value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  className="flex-1 bg-[#12072a] border border-[#3d2260] text-[#ede0f5] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
+                <div className="flex-1">
+                  <DatePickerField withTime value={newDueDate} onChange={setNewDueDate} />
+                </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-3">

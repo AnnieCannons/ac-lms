@@ -23,10 +23,13 @@ const SECTIONS: Record<string, React.ComponentType> = {
 
 export default async function StudentDocSectionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ section: string }>
+  searchParams: Promise<{ from?: string }>
 }) {
   const { section } = await params
+  const { from } = await searchParams
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -62,7 +65,7 @@ export default async function StudentDocSectionPage({
   const backHref = isInstructor ? '/instructor/courses' : '/student/courses'
 
   return (
-    <DocsLayout guide="student" section={section} isInstructor={isInstructor} backHref={backHref}>
+    <DocsLayout guide="student" section={section} isInstructor={isInstructor} backHref={backHref} fromPath={from}>
       <SectionComponent />
     </DocsLayout>
   )

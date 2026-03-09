@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import DatePickerField from './DatePickerField'
 
 type BreakRow   = { id?: string; label: string; start_date: string; end_date: string }
 type HolidayRow = { id?: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
@@ -136,17 +137,13 @@ export default function PTOEditor() {
                 placeholder="e.g. Thanksgiving Week"
                 className={inputCls}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={b.start_date}
-                onChange={e => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r))}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={b.end_date}
-                onChange={e => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r))}
               />
               <button
                 onClick={() => removeBreak(i)}
@@ -223,17 +220,14 @@ export default function PTOEditor() {
                 placeholder="e.g. Mon, Sep 7"
                 className={inputCls}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={h.date}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: val } : r))}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={h.end_date ?? ''}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: e.target.value || null } : r))}
-                className={inputCls}
+                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: val || null } : r))}
+                placeholder="End date (opt.)"
               />
               <button
                 onClick={() => removeHoliday(i)}

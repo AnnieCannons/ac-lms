@@ -5,7 +5,8 @@ import StudentTopNav from '@/components/ui/StudentTopNav'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import DayResourceList from '@/components/ui/DayResourceList'
-import NavDrawer from '@/components/ui/NavDrawer'
+import ResizableSidebar from '@/components/ui/ResizableSidebar'
+import StudentCourseNav from '@/components/ui/StudentCourseNav'
 
 function stripHtml(html: string): string {
   return html
@@ -134,7 +135,11 @@ export default async function StudentDayDetailPage({
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
-      <NavDrawer courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false}>
+      <div className="flex">
+        <ResizableSidebar>
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+        </ResizableSidebar>
+        <div className="flex-1 min-w-0">
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 sm:py-12 focus:outline-none">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
@@ -280,7 +285,8 @@ export default async function StudentDayDetailPage({
           )}
         </div>
       </main>
-      </NavDrawer>
+        </div>
+      </div>
     </div>
   )
 }

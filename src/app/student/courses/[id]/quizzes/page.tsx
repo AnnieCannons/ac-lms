@@ -2,7 +2,8 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/s
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import StudentTopNav from "@/components/ui/StudentTopNav";
-import NavDrawer from "@/components/ui/NavDrawer";
+import ResizableSidebar from "@/components/ui/ResizableSidebar";
+import StudentCourseNav from "@/components/ui/StudentCourseNav";
 import { isStudentPreview } from "@/lib/student-preview";
 import StudentViewBanner from "@/components/ui/StudentViewBanner";
 
@@ -94,7 +95,11 @@ export default async function StudentQuizzesPage({
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
       {preview && <StudentViewBanner courseId={id} />}
-      <NavDrawer courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false}>
+      <div className="flex">
+        <ResizableSidebar>
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+        </ResizableSidebar>
+        <div className="flex-1 min-w-0">
         <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-dark-text">Quizzes</h1>
@@ -217,7 +222,8 @@ export default async function StudentQuizzesPage({
             </div>
           )}
         </main>
-      </NavDrawer>
+        </div>
+      </div>
     </div>
   );
 }

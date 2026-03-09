@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
+import DatePickerField from '@/components/ui/DatePickerField'
 
 type CohortRow   = { id?: string; name: string; start_date: string; end_date: string; order: number }
 type BreakRow    = { id?: string; label: string; start_date: string; end_date: string }
@@ -177,17 +178,13 @@ export default function CalendarEditor() {
                 <option value="Summer">Summer</option>
                 <option value="Fall">Fall</option>
               </select>
-              <input
-                type="date"
+              <DatePickerField
                 value={c.start_date}
-                onChange={e => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, start_date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r))}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={c.end_date}
-                onChange={e => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, end_date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r))}
               />
               <button
                 onClick={() => removeCohort(i)}
@@ -222,17 +219,13 @@ export default function CalendarEditor() {
                 placeholder="e.g. Spring Break"
                 className={inputCls}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={b.start_date}
-                onChange={e => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r))}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={b.end_date}
-                onChange={e => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r))}
               />
               <button
                 onClick={() => removeBreak(i)}
@@ -305,17 +298,14 @@ export default function CalendarEditor() {
                 placeholder="e.g. Mon, Sep 7"
                 className={inputCls}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={h.date}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: e.target.value } : r))}
-                className={inputCls}
+                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: val } : r))}
               />
-              <input
-                type="date"
+              <DatePickerField
                 value={h.end_date ?? ''}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: e.target.value || null } : r))}
-                className={inputCls}
+                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: val || null } : r))}
+                placeholder="End date (opt.)"
               />
               <button onClick={() => removeHoliday(i)} className="text-muted-text hover:text-red-500 transition-colors" aria-label="Remove holiday"><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
             </div>
