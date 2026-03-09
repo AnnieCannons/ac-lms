@@ -324,13 +324,12 @@ export default function PeopleManager({ courseId, members, invitations, currentU
 
   return (
     <div className="space-y-10">
-      <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} />
 
-      {/* Members */}
+      {/* Learners */}
       <section>
         <div className="mb-4">
           <h2 className="text-base font-semibold text-dark-text">
-            Members <span className="text-muted-text font-normal">({activeMembers.length})</span>
+            Learners <span className="text-muted-text font-normal">({activeMembers.length})</span>
           </h2>
         </div>
 
@@ -452,6 +451,8 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           </>
         </section>
       )}
+
+      <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} />
 
     </div>
   )
