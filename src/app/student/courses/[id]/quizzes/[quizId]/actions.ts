@@ -82,6 +82,11 @@ export async function submitQuiz(formData: FormData) {
   for (const a of previousAnswers) mergedMap.set(a.question_index, a.choice_ident);
   for (const a of newAnswers) mergedMap.set(a.question_index, a.choice_ident);
 
+  // Require every question to have an answer before accepting the submission
+  if (mergedMap.size < questions.length) {
+    redirect(`/student/courses/${courseId}/quizzes/${quizId}`);
+  }
+
   const mergedAnswers: AnswerEntry[] = Array.from(mergedMap.entries()).map(
     ([question_index, choice_ident]) => ({ question_index, choice_ident })
   );
@@ -106,6 +111,9 @@ export async function submitQuiz(formData: FormData) {
     },
     { onConflict: "quiz_id,student_id" }
   );
+
+  // Clear saved progress now that a real submission exists
+  await admin.from("quiz_progress").delete().eq("quiz_id", quizId).eq("student_id", user.id);
 
   redirect(`/student/courses/${courseId}/quizzes/${quizId}`);
 }
