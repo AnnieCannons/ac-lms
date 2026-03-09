@@ -23,7 +23,7 @@ const INVITE_TYPES: { role: InviteRole; label: string; description: string; colo
   {
     role: 'instructor',
     label: 'Staff',
-    description: 'Instructors and teaching staff',
+    description: 'Instructors and teaching staff — added globally, with access to all courses',
     color: 'border-purple-primary/40 hover:border-purple-primary hover:bg-purple-light/50',
   },
 ]
@@ -129,6 +129,12 @@ export default function AddPeopleButton({
             </div>
           ) : (
             <form onSubmit={handleAdd} className="flex flex-col gap-4 pt-1">
+              {inviteRole === 'instructor' && (
+                <div className="bg-purple-light/60 border border-purple-primary/30 rounded-xl px-4 py-3 text-sm text-dark-text">
+                  <p className="font-semibold text-purple-primary mb-0.5">Global access</p>
+                  <p className="text-muted-text">Staff members can see all courses. After adding, you can assign them to a specific course from the <strong>Instructors</strong> table on this page — or leave them unassigned if they don&apos;t have a dedicated class.</p>
+                </div>
+              )}
               <textarea
                 placeholder={"Paste email addresses, one per line or comma-separated\njane@example.com\njohn@example.com"}
                 value={emailsRaw}
