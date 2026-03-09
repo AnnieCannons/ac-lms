@@ -131,12 +131,17 @@ export default function InstructorCourseNav({
         <SectionHeader label="Grades" open={gradesOpen} onToggle={toggleGradesOpen} />
         {gradesOpen && (
           <>
-            <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
+            <GradesNavLink courseId={courseId} pathname={pathname} />
             <button
               onClick={() => setGraderOpen(true)}
-              className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20"
+              className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20 flex items-center justify-between gap-2"
             >
-              Launch Grader →
+              <span>Launch Grader →</span>
+              {(isTa ? myGroupNeedsGrading : needsGrading) > 0 && (
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count">
+                  {isTa ? myGroupNeedsGrading : needsGrading}
+                </span>
+              )}
             </button>
             {!isTa && navLink('Grading Groups', 'grading-groups')}
           </>
@@ -192,24 +197,19 @@ export default function InstructorCourseNav({
   )
 }
 
-function GradesNavLink({ courseId, needsGrading, pathname }: { courseId: string; needsGrading: number; pathname: string }) {
+function GradesNavLink({ courseId, pathname }: { courseId: string; pathname: string }) {
   const href = `/instructor/courses/${courseId}/submissions`
   const isActive = pathname.startsWith(href)
   return (
     <Link
       href={href}
-      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between gap-2 ${
+      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
         isActive
           ? 'bg-teal-light text-teal-primary'
           : 'text-muted-text hover:text-dark-text hover:bg-border/20'
       }`}
     >
-      <span>Grades</span>
-      {needsGrading > 0 && (
-        <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count">
-          {needsGrading}
-        </span>
-      )}
+      Grades
     </Link>
   )
 }
