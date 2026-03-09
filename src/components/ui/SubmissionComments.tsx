@@ -86,7 +86,7 @@ export default function SubmissionComments({
                   {c.author_name}
                 </span>
                 {isInstructor(c.author_role) && (
-                  <span className="text-xs text-teal-primary opacity-70">Instructor</span>
+                  <span className="text-xs text-teal-primary opacity-70">Staff</span>
                 )}
                 <span className="text-xs text-muted-text">
                   {new Date(c.created_at).toLocaleDateString("en-US", {

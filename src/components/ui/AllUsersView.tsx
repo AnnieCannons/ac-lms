@@ -100,7 +100,7 @@ export default function AllUsersView({ studentsByCourse, staff, currentUserRole 
                           className="border border-border rounded px-2 py-0.5 text-xs bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                           aria-label={`Change role for ${member.name || member.email}`}
                         >
-                          <option value="instructor">Instructor</option>
+                          <option value="instructor">Staff</option>
                           <option value="admin">Admin</option>
                         </select>
                       ) : (

@@ -26,7 +26,7 @@ export default function People() {
         <li><strong>Student</strong> — full access: can submit assignments, take quizzes, receive grades</li>
         <li><strong>Observer</strong> — read-only access: can view content but cannot submit or take quizzes</li>
         <li><strong>TA</strong> — read-only instructor view with grading rights; cannot edit course content or manage users</li>
-        <li><strong>Instructor</strong> — same access as you; can edit the course</li>
+        <li><strong>Staff</strong> — same access as you; can edit all courses</li>
       </DocList>
 
       <DocH3>When to Use TA</DocH3>

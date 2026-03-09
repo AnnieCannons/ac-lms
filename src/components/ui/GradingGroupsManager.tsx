@@ -168,7 +168,7 @@ export default function GradingGroupsManager({
                   <option value="">Follow student group</option>
                   {graders.map(g => (
                     <option key={g.id} value={g.id}>
-                      {g.name} ({g.type === 'ta' ? 'TA' : 'Instructor'})
+                      {g.name} ({g.type === 'ta' ? 'TA' : 'Staff'})
                     </option>
                   ))}
                 </select>
@@ -193,7 +193,7 @@ function GraderCard({ grader, students, ungradedCount }: { grader: Grader; stude
           <p className="font-semibold text-dark-text text-sm truncate">{grader.name}</p>
         </div>
         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${grader.type === 'ta' ? 'badge-ta' : 'bg-purple-light text-purple-primary'}`}>
-          {grader.type === 'ta' ? 'TA' : 'Instructor'}
+          {grader.type === 'ta' ? 'TA' : 'Staff'}
         </span>
         {ungradedCount > 0 && (
           <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full badge-count shrink-0">

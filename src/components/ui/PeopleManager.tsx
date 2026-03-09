@@ -38,7 +38,7 @@ function RolePill({ role }: { role: string }) {
     observer: 'bg-gray-100 text-gray-500',
     ta: 'badge-ta',
   }
-  const labels: Record<string, string> = { ta: 'TA' }
+  const labels: Record<string, string> = { ta: 'TA', instructor: 'Staff' }
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${styles[role] ?? 'bg-border text-muted-text'}`}>
       {labels[role] ?? role}
@@ -95,7 +95,7 @@ function InstructorSection({
 
   return (
     <section>
-      <h2 className="text-base font-semibold text-dark-text mb-4">Instructors</h2>
+      <h2 className="text-base font-semibold text-dark-text mb-4">Staff</h2>
       <div className="border border-border rounded-lg overflow-hidden">
         {/* Desktop table */}
         <div className="hidden sm:block">
@@ -221,7 +221,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
                 <option value="student">Student</option>
                 <option value="ta">TA</option>
                 <option value="observer">Observer</option>
-                <option value="instructor">Instructor</option>
+                <option value="instructor">Staff</option>
                 {currentUserRole === 'admin' && <option value="admin">Admin</option>}
               </select>
             </div>
