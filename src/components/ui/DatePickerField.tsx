@@ -11,6 +11,7 @@ export default function DatePickerField({
   withTime = false,
   placeholder = 'Pick a date',
   className,
+  dropUp = false,
 }: {
   label?: string
   value: string
@@ -18,6 +19,7 @@ export default function DatePickerField({
   withTime?: boolean
   placeholder?: string
   className?: string
+  dropUp?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -78,7 +80,7 @@ export default function DatePickerField({
         </div>
 
         {open && (
-          <div className="absolute z-50 mt-1 bg-surface border border-border rounded-2xl shadow-lg p-2">
+          <div className={`absolute z-50 bg-surface border border-border rounded-2xl shadow-lg p-2 ${dropUp ? 'bottom-full mb-1' : 'mt-1'}`}>
             <DayPicker
               mode="single"
               selected={selected}
@@ -91,8 +93,8 @@ export default function DatePickerField({
                 month_caption: 'flex items-center justify-center px-8 py-1',
                 caption_label: 'text-sm font-semibold text-dark-text',
                 nav: 'absolute top-0 left-0 right-0 flex items-center justify-between pointer-events-none',
-                button_previous: 'pointer-events-auto p-1 rounded-lg hover:bg-teal-light text-teal-primary hover:opacity-70 transition-colors',
-                button_next: 'pointer-events-auto p-1 rounded-lg hover:bg-teal-light text-teal-primary hover:opacity-70 transition-colors',
+                button_previous: 'pointer-events-auto p-2 rounded-lg hover:bg-teal-light text-teal-primary hover:opacity-70 transition-colors',
+                button_next: 'pointer-events-auto p-2 rounded-lg hover:bg-teal-light text-teal-primary hover:opacity-70 transition-colors',
                 month_grid: 'w-full',
                 weekdays: 'flex',
                 weekday: 'w-9 text-center text-xs text-muted-text py-1',

@@ -4,7 +4,9 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 export async function upsertAccommodation(
   userId: string,
   cameraOff: boolean,
-  notes: string
+  notes: string,
+  cameraOffStart: string | null,
+  cameraOffEnd: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,6 +22,8 @@ export async function upsertAccommodation(
       {
         user_id: userId,
         camera_off: cameraOff,
+        camera_off_start: cameraOff ? (cameraOffStart || null) : null,
+        camera_off_end: cameraOff ? (cameraOffEnd || null) : null,
         notes: notes.trim() || null,
         updated_at: new Date().toISOString(),
         updated_by: user.id,

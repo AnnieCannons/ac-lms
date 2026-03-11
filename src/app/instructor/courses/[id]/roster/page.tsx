@@ -42,12 +42,38 @@ export default async function RosterPage({
   const { data: accommodations } = studentIds.length > 0
     ? await admin
         .from('accommodations')
-        .select('user_id, camera_off, notes')
+        .select('user_id, camera_off, camera_off_start, camera_off_end, notes')
         .in('user_id', studentIds)
     : { data: [] }
 
+  // Auto-expire: if camera_off_end has passed, clear camera off
+  const today = new Date().toISOString().split('T')[0]
+  const expiredIds = (accommodations ?? [])
+    .filter(a => a.camera_off && a.camera_off_end && a.camera_off_end < today)
+    .map(a => a.user_id)
+
+  if (expiredIds.length > 0) {
+    await admin
+      .from('accommodations')
+      .update({ camera_off: false, camera_off_start: null, camera_off_end: null })
+      .in('user_id', expiredIds)
+    // Update local data to reflect expiry
+    for (const a of accommodations ?? []) {
+      if (expiredIds.includes(a.user_id)) {
+        a.camera_off = false
+        a.camera_off_start = null
+        a.camera_off_end = null
+      }
+    }
+  }
+
   const accommodationMap = Object.fromEntries(
-    (accommodations ?? []).map(a => [a.user_id, { cameraOff: a.camera_off, notes: a.notes ?? '' }])
+    (accommodations ?? []).map(a => [a.user_id, {
+      cameraOff: a.camera_off,
+      cameraOffStart: a.camera_off_start ?? null,
+      cameraOffEnd: a.camera_off_end ?? null,
+      notes: a.notes ?? '',
+    }])
   )
 
   const students = (enrollments ?? [])

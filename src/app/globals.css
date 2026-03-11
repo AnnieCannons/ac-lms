@@ -81,6 +81,16 @@ html.theme-dark body {
   background-color: #120d1e !important;
   color: #f0eaf8 !important;
 }
+/* Force native form elements to use dark color-scheme so browser UA styles don't override bg */
+html.theme-dark input,
+html.theme-dark textarea,
+html.theme-dark select {
+  color-scheme: dark;
+}
+/* Tiptap editor area */
+html.theme-dark .ProseMirror {
+  background-color: var(--color-background);
+}
 html.theme-dark button {
   color: #f0eaf8 !important;
 }

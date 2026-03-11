@@ -146,7 +146,7 @@ export default function DuplicateCourseButton({
                   <p className="text-xs text-muted-text mt-1">When did the original course start?</p>
                 </div>
                 <div>
-                  <DatePickerField label="New Start Date" value={startDate} onChange={setStartDate} />
+                  <DatePickerField label="New Start Date" value={startDate} onChange={setStartDate} dropUp />
                   <p className="text-xs text-muted-text mt-1">
                     Due dates will shift by the difference between the two dates.
                   </p>
