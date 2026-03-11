@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import FocusResetter from "@/components/ui/FocusResetter";
+import FocusResetter from "@/components/ui/FocusResetter"
+import ThemeSync from "@/components/ui/ThemeSync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         <FocusResetter />
+        <ThemeSync />
         {children}
       </body>
     </html>

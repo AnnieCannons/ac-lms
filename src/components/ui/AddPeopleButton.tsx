@@ -32,7 +32,7 @@ const ADMIN_TYPE = {
   role: 'admin' as InviteRole,
   label: 'Admin',
   description: 'Full administrative access',
-  color: 'border-orange-400/40 hover:border-orange-400 hover:bg-orange-50',
+  color: 'border-orange-400/40 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950',
 }
 
 function parseEmails(raw: string): string[] {
