@@ -35,12 +35,30 @@ export default async function InstructorUsersPage({
     .select('user_id, role, users(id, name, email)')
     .eq('course_id', id)
 
-  const { data: invitations } = await admin
+  const { data: rawInvitations } = await admin
     .from('invitations')
     .select('id, email, role, invited_at, resent_at')
     .eq('course_id', id)
     .eq('status', 'pending')
     .order('invited_at', { ascending: false })
+
+  // Auto-mark invitations as accepted if the user is already enrolled
+  // (handles cases where users were added directly, bypassing the invite flow)
+  const enrolledEmails = new Set(
+    (enrollments ?? []).map(e => {
+      const u = Array.isArray(e.users) ? e.users[0] : e.users
+      return u?.email?.toLowerCase()
+    }).filter(Boolean)
+  )
+  const staleInviteIds = (rawInvitations ?? [])
+    .filter(inv => enrolledEmails.has(inv.email.toLowerCase()))
+    .map(inv => inv.id)
+
+  if (staleInviteIds.length > 0) {
+    await admin.from('invitations').update({ status: 'accepted' }).in('id', staleInviteIds)
+  }
+
+  const invitations = (rawInvitations ?? []).filter(inv => !enrolledEmails.has(inv.email.toLowerCase()))
 
   // Members = non-instructor enrollments (instructors managed separately below)
   const members = (enrollments ?? [])
