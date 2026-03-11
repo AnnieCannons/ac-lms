@@ -78,6 +78,7 @@ export async function submitQuiz(formData: FormData) {
   }
 
   // Merge: previous answers + new answers (new overrides by question_index)
+  const questions = (quiz.questions ?? []) as Array<{ correct_response_ident: string }>;
   const mergedMap = new Map<number, string>();
   for (const a of previousAnswers) mergedMap.set(a.question_index, a.choice_ident);
   for (const a of newAnswers) mergedMap.set(a.question_index, a.choice_ident);
@@ -92,7 +93,6 @@ export async function submitQuiz(formData: FormData) {
   );
 
   // Compute score — lookup by position, not ident
-  const questions = (quiz.questions ?? []) as Array<{ correct_response_ident: string }>;
   let correct = 0;
   for (let qi = 0; qi < questions.length; qi++) {
     if (mergedMap.get(qi) === questions[qi].correct_response_ident) correct++;
