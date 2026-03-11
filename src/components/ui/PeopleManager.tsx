@@ -1,7 +1,7 @@
 'use client'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse } from '@/lib/people-actions'
+import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse, deleteStaffMember } from '@/lib/people-actions'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
@@ -66,15 +66,20 @@ function InstructorSection({
   instructors,
   allCourses,
   instructorCourseMap,
+  currentUserRole,
 }: {
   instructors: { id: string; name: string; email: string }[]
   allCourses: { id: string; name: string }[]
   instructorCourseMap: Record<string, string[]>
+  currentUserRole: 'instructor' | 'admin'
 }) {
+  const router = useRouter()
   const [assignments, setAssignments] = useState<Record<string, string[]>>(
     Object.fromEntries(instructors.map(i => [i.id, instructorCourseMap[i.id] ?? []]))
   )
   const [addingFor, setAddingFor] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   const courseNameMap = Object.fromEntries(allCourses.map(c => [c.id, c.name]))
@@ -91,6 +96,18 @@ function InstructorSection({
     startTransition(async () => { await toggleInstructorCourse(instructorId, courseId, false) })
   }
 
+  async function handleDelete(instructorId: string) {
+    setDeleteError(null)
+    setDeletingId(instructorId)
+    const result = await deleteStaffMember(instructorId)
+    setDeletingId(null)
+    if (result.error) {
+      setDeleteError(result.error)
+    } else {
+      startTransition(() => router.refresh())
+    }
+  }
+
   if (instructors.length === 0) return null
 
   return (
@@ -105,6 +122,7 @@ function InstructorSection({
                 <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-text">Teaching</th>
+                {currentUserRole === 'admin' && <th className="sr-only">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -143,6 +161,19 @@ function InstructorSection({
                         )}
                       </div>
                     </td>
+                    {currentUserRole === 'admin' && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(instructor.id)}
+                          disabled={deletingId === instructor.id}
+                          aria-label={`Remove ${instructor.name || instructor.email} from staff`}
+                          className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 )
               })}
@@ -156,8 +187,23 @@ function InstructorSection({
             const unassigned = allCourses.filter(c => !assignedIds.includes(c.id))
             return (
               <div key={instructor.id} className="bg-background px-4 py-3">
-                <p className="text-sm font-medium text-dark-text">{instructor.name || '—'}</p>
-                <p className="text-xs text-muted-text mt-0.5">{instructor.email}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-dark-text">{instructor.name || '—'}</p>
+                    <p className="text-xs text-muted-text mt-0.5">{instructor.email}</p>
+                  </div>
+                  {currentUserRole === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(instructor.id)}
+                      disabled={deletingId === instructor.id}
+                      aria-label={`Remove ${instructor.name || instructor.email} from staff`}
+                      className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors shrink-0 mt-0.5"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   {assignedIds.map(courseId => (
                     <span key={courseId} className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-teal-light text-teal-primary">
@@ -183,6 +229,7 @@ function InstructorSection({
           })}
         </div>
       </div>
+      {deleteError && <p className="text-xs text-red-600 mt-2">{deleteError}</p>}
     </section>
   )
 }
@@ -452,7 +499,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
         </section>
       )}
 
-      <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} />
+      <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} currentUserRole={currentUserRole} />
 
     </div>
   )

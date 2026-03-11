@@ -54,6 +54,12 @@ export async function bulkAddPeopleToCourse(
         .insert({ course_id: courseId, user_id: existingUser.id, role })
 
       if (error) return { email, error: error.message }
+
+      // Sync users.role for instructor/admin so they appear in the Staff section
+      if (role === 'instructor' || role === 'admin') {
+        await admin.from('users').update({ role }).eq('id', existingUser.id)
+      }
+
       return { email, added: true }
     }
 
@@ -108,6 +114,12 @@ export async function addPersonToCourse(
       .insert({ course_id: courseId, user_id: existingUser.id, role })
 
     if (error) return { error: error.message }
+
+    // Sync users.role for instructor/admin so they appear in the Staff section
+    if (role === 'instructor' || role === 'admin') {
+      await admin.from('users').update({ role }).eq('id', existingUser.id)
+    }
+
     return { added: true }
   }
 
@@ -237,6 +249,28 @@ export async function removePersonFromCourse(
     .eq('user_id', userId)
 
   if (error) return { error: error.message }
+  return {}
+}
+
+export async function deleteStaffMember(
+  targetUserId: string
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = createServiceSupabaseClient()
+  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+
+  if (profile?.role !== 'admin') return { error: 'Only admins can delete staff members.' }
+
+  // Delete all enrollments first
+  await admin.from('course_enrollments').delete().eq('user_id', targetUserId)
+
+  // Delete from users table
+  const { error } = await admin.from('users').delete().eq('id', targetUserId)
+  if (error) return { error: error.message }
+
   return {}
 }
 
