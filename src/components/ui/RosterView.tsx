@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition, Fragment } from 'react'
+import { useState, useTransition, Fragment, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { upsertAccommodation } from '@/lib/accommodation-actions'
@@ -69,6 +69,86 @@ function formatDateRange(start: string | null, end: string | null) {
   if (end) return `Until ${formatDate(end)}`
   if (start) return `From ${formatDate(start)}`
   return 'No dates set'
+}
+
+function CameraDatePopover({
+  start, end, onClose, onSave,
+}: {
+  start: string | null
+  end: string | null
+  onClose: () => void
+  onSave: (start: string, end: string) => Promise<void>
+}) {
+  const [editStart, setEditStart] = useState(start ?? todayStr())
+  const [editEnd, setEditEnd] = useState(end ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const handleOutsideClick = useCallback((e: MouseEvent) => {
+    if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+  }, [onClose])
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [handleOutsideClick])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave(editStart, editEnd)
+    } catch {
+      setError('Failed to save.')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="absolute z-30 top-full mt-1 left-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-60"
+    >
+      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
+        <CalendarIcon size={11} /> Camera Off Dates
+      </p>
+      <div className="flex flex-col gap-2">
+        <div>
+          <label className="text-xs text-muted-text block mb-1">Start date</label>
+          <input
+            type="date"
+            value={editStart}
+            onChange={e => setEditStart(e.target.value)}
+            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-red-400"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-text block mb-1">End date</label>
+          <input
+            type="date"
+            value={editEnd}
+            min={editStart || undefined}
+            onChange={e => setEditEnd(e.target.value)}
+            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-red-400"
+          />
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="text-xs font-semibold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          {saving ? 'Saving…' : 'Save dates'}
+        </button>
+        <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function RosterView({ courses, currentCourseId, students }: Props) {
@@ -151,43 +231,57 @@ export default function RosterView({ courses, currentCourseId, students }: Props
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 {student.accommodation?.cameraOff && (
-                  <button
-                    type="button"
-                    onClick={() => setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-red-500 px-2.5 py-1 rounded-full hover:bg-red-600 transition-colors"
-                  >
-                    <CameraOffIcon size={12} />
-                    Camera Off
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-red-500 px-2.5 py-1 rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <CameraOffIcon size={12} />
+                      Camera Off
+                    </button>
+                    {openPopover === `${student.userId}:camera` && (
+                      <CameraDatePopover
+                        start={student.accommodation?.cameraOffStart ?? null}
+                        end={student.accommodation?.cameraOffEnd ?? null}
+                        onClose={() => setOpenPopover(null)}
+                        onSave={async (start, end) => {
+                          const result = await upsertAccommodation(
+                            student.userId, true,
+                            student.accommodation?.notes ?? '',
+                            start || null, end || null,
+                          )
+                          if (!result.error) {
+                            setOpenPopover(null)
+                            startTransition(() => router.refresh())
+                          } else {
+                            throw new Error(result.error)
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
                 {student.accommodation?.notes && (
-                  <button
-                    type="button"
-                    onClick={() => setOpenPopover(p => p === `${student.userId}:notes` ? null : `${student.userId}:notes`)}
-                    className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full transition-colors"
-                  >
-                    Notes
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenPopover(p => p === `${student.userId}:notes` ? null : `${student.userId}:notes`)}
+                      className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-800/50 px-2 py-0.5 rounded-full transition-colors"
+                    >
+                      Notes
+                    </button>
+                    {openPopover === `${student.userId}:notes` && (
+                      <div className="absolute z-30 top-full mt-1 left-0 text-xs text-dark-text bg-surface border border-border rounded-xl shadow-xl px-3 py-2 w-56 whitespace-pre-wrap">
+                        {student.accommodation?.notes}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {!hasAnyAccommodation(student) && (
                   <span className="text-xs text-muted-text">—</span>
                 )}
               </div>
-
-              {/* Camera Off popover */}
-              {openPopover === `${student.userId}:camera` && (
-                <div className="flex items-center gap-2 text-xs text-dark-text bg-surface border border-border rounded-lg px-3 py-2 w-fit">
-                  <CalendarIcon size={12} />
-                  <span>{formatDateRange(student.accommodation?.cameraOffStart ?? null, student.accommodation?.cameraOffEnd ?? null)}</span>
-                </div>
-              )}
-
-              {/* Notes popover */}
-              {openPopover === `${student.userId}:notes` && (
-                <div className="text-xs text-dark-text bg-surface border border-border rounded-lg px-3 py-2 max-w-xs whitespace-pre-wrap">
-                  {student.accommodation?.notes}
-                </div>
-              )}
             </div>
           </td>
           <td className="px-4 py-3 text-right">
