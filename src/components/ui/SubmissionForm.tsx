@@ -86,7 +86,6 @@ export default function SubmissionForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useUnsavedChanges(mode === 'edit' && hasContent);
 
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
@@ -99,6 +98,7 @@ export default function SubmissionForm({
     : tab === "text"
       ? textContent.trim().length > 0
       : fileUrl.length > 0;
+  useUnsavedChanges(mode === 'edit' && hasContent);
 
   const clearForm = () => {
     setLinkContent("");
