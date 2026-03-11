@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
 import DatePickerField from '@/components/ui/DatePickerField'
 
@@ -21,6 +22,9 @@ export default function CalendarEditor() {
   const [saving,   setSaving]   = useState(false)
   const [error,    setError]    = useState('')
   const [previewKey, setPreviewKey] = useState(0)
+  const [cohortBreakDirty, setCohortBreakDirty] = useState(false)
+  const [holidayDirty, setHolidayDirty] = useState(false)
+  useUnsavedChanges(cohortBreakDirty || holidayDirty)
 
   // Holidays
   const [holidayYear,    setHolidayYear]    = useState(CURRENT_YEAR)
@@ -52,13 +56,16 @@ export default function CalendarEditor() {
       })
   }, [holidayYear])
 
-  const addHoliday = () =>
+  const addHoliday = () => {
     setHolidays(prev => [...prev, { label: '', date_display: '', date: '', end_date: null, year: holidayYear }])
+    setHolidayDirty(true)
+  }
 
   const removeHoliday = (i: number) => {
     const row = holidays[i]
     if (row.id) setDeletedHolidayIds(prev => [...prev, row.id!])
     setHolidays(prev => prev.filter((_, j) => j !== i))
+    setHolidayDirty(true)
   }
 
   const saveHolidays = async () => {
@@ -78,6 +85,7 @@ export default function CalendarEditor() {
     setHolidays(data ?? [])
     setDeletedHolidayIds([])
     setHolidaySaving(false)
+    setHolidayDirty(false)
     setPreviewKey(k => k + 1)
   }
 
@@ -92,22 +100,28 @@ export default function CalendarEditor() {
     setCopying(false)
   }
 
-  const addCohort = () =>
+  const addCohort = () => {
     setCohorts(prev => [...prev, { name: '', start_date: '', end_date: '', order: prev.length }])
+    setCohortBreakDirty(true)
+  }
 
-  const addBreak = () =>
+  const addBreak = () => {
     setBreaks(prev => [...prev, { label: '', start_date: '', end_date: '' }])
+    setCohortBreakDirty(true)
+  }
 
   const removeCohort = (i: number) => {
     const row = cohorts[i]
     if (row.id) setDeletedCohortIds(prev => [...prev, row.id!])
     setCohorts(prev => prev.filter((_, j) => j !== i))
+    setCohortBreakDirty(true)
   }
 
   const removeBreak = (i: number) => {
     const row = breaks[i]
     if (row.id) setDeletedBreakIds(prev => [...prev, row.id!])
     setBreaks(prev => prev.filter((_, j) => j !== i))
+    setCohortBreakDirty(true)
   }
 
   const handleSave = async () => {
@@ -149,6 +163,7 @@ export default function CalendarEditor() {
     setDeletedCohortIds([])
     setDeletedBreakIds([])
     setSaving(false)
+    setCohortBreakDirty(false)
     setPreviewKey(k => k + 1)
   }
 
@@ -170,7 +185,7 @@ export default function CalendarEditor() {
             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 items-center">
               <select
                 value={c.name}
-                onChange={e => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, name: e.target.value } : r))}
+                onChange={e => { setCohorts(prev => prev.map((r, j) => j === i ? { ...r, name: e.target.value } : r)); setCohortBreakDirty(true) }}
                 className={inputCls}
               >
                 <option value="">— Select —</option>
@@ -180,11 +195,11 @@ export default function CalendarEditor() {
               </select>
               <DatePickerField
                 value={c.start_date}
-                onChange={val => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r))}
+                onChange={val => { setCohorts(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r)); setCohortBreakDirty(true) }}
               />
               <DatePickerField
                 value={c.end_date}
-                onChange={val => setCohorts(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r))}
+                onChange={val => { setCohorts(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r)); setCohortBreakDirty(true) }}
               />
               <button
                 onClick={() => removeCohort(i)}
@@ -215,17 +230,17 @@ export default function CalendarEditor() {
             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 items-center">
               <input
                 value={b.label}
-                onChange={e => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
+                onChange={e => { setBreaks(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r)); setCohortBreakDirty(true) }}
                 placeholder="e.g. Spring Break"
                 className={inputCls}
               />
               <DatePickerField
                 value={b.start_date}
-                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r))}
+                onChange={val => { setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r)); setCohortBreakDirty(true) }}
               />
               <DatePickerField
                 value={b.end_date}
-                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r))}
+                onChange={val => { setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r)); setCohortBreakDirty(true) }}
               />
               <button
                 onClick={() => removeBreak(i)}
@@ -288,23 +303,23 @@ export default function CalendarEditor() {
             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1fr_32px] gap-2 items-center">
               <input
                 value={h.label}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
+                onChange={e => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r)); setHolidayDirty(true) }}
                 placeholder="e.g. Labor Day"
                 className={inputCls}
               />
               <input
                 value={h.date_display}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date_display: e.target.value } : r))}
+                onChange={e => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date_display: e.target.value } : r)); setHolidayDirty(true) }}
                 placeholder="e.g. Mon, Sep 7"
                 className={inputCls}
               />
               <DatePickerField
                 value={h.date}
-                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: val } : r))}
+                onChange={val => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: val } : r)); setHolidayDirty(true) }}
               />
               <DatePickerField
                 value={h.end_date ?? ''}
-                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: val || null } : r))}
+                onChange={val => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: val || null } : r)); setHolidayDirty(true) }}
                 placeholder="End date (opt.)"
               />
               <button onClick={() => removeHoliday(i)} className="text-muted-text hover:text-red-500 transition-colors" aria-label="Remove holiday"><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>

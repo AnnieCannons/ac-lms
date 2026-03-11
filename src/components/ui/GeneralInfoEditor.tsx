@@ -1,5 +1,6 @@
 'use client'
 import { useState, createContext, useContext } from 'react'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 const ReadOnlyCtx = createContext(false)
 import { createClient } from '@/lib/supabase/client'
@@ -124,6 +125,7 @@ function CourseOutlineCard({
   const [rows, setRows] = useState<OutlineRow[]>(() => parseOutline(section.content))
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  useUnsavedChanges(editing)
 
   const handleSave = async () => {
     setSaving(true)
@@ -392,6 +394,7 @@ function TextSectionCard({
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [making, setMaking] = useState(false)
+  useUnsavedChanges(editing)
 
   const handleMakeGlobal = async () => {
     setMaking(true)

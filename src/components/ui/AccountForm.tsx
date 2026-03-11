@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { updateUserName } from '@/lib/account-actions'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 const inputCls = 'w-full border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-dark-text bg-background focus:outline-none focus:ring-2 focus:ring-teal-primary placeholder:text-muted-text'
 
@@ -142,6 +143,12 @@ export default function AccountForm({
     }
     setPwSaving(false)
   }
+
+  const isDirty =
+    name.trim() !== initialName ||
+    email.trim() !== initialEmail ||
+    currentPw.length > 0 || newPw.length > 0 || confirmPw.length > 0
+  useUnsavedChanges(isDirty)
 
   return (
     <div className="flex flex-col gap-6">

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 type SubmissionType = "text" | "link" | "file";
 type SubmissionStatus = "draft" | "submitted" | "graded";
@@ -85,6 +86,7 @@ export default function SubmissionForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useUnsavedChanges(mode === 'edit' && hasContent);
 
   const getContent = () => {
     if (tab === "link") return linkContent.trim();

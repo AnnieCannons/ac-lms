@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import HtmlContent from '@/components/ui/HtmlContent'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3 [&_h1:first-child]:mt-0
@@ -19,6 +20,8 @@ export default function GlobalContentEditor({ slug, title }: { slug: string; tit
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const savedContentRef = useRef('')
+  useUnsavedChanges(editing && content !== savedContentRef.current)
 
   useEffect(() => {
     createClient()
@@ -27,7 +30,9 @@ export default function GlobalContentEditor({ slug, title }: { slug: string; tit
       .eq('slug', slug)
       .single()
       .then(({ data }) => {
-        setContent(data?.content ?? '')
+        const c = data?.content ?? ''
+        setContent(c)
+        savedContentRef.current = c
         setLoading(false)
       })
   }, [slug])
@@ -41,6 +46,7 @@ export default function GlobalContentEditor({ slug, title }: { slug: string; tit
     if (error) {
       setError(error.message)
     } else {
+      savedContentRef.current = content
       setSaved(true)
       setEditing(false)
       setTimeout(() => setSaved(false), 2000)

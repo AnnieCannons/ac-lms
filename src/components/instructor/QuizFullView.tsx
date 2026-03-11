@@ -28,6 +28,7 @@ import {
   upsertQuizFromJson,
   deleteQuiz,
 } from "@/lib/quiz-actions";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
 const HighlightedContent = dynamic(() => import("@/components/ui/HighlightedContent"), { ssr: false });
@@ -118,6 +119,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
   const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
 const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useUnsavedChanges(editing || editingQuestions);
 
   useEffect(() => {
     setEditTitle(quiz.title);

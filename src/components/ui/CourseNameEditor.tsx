@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 export default function CourseNameEditor({
   courseId,
@@ -17,6 +18,7 @@ export default function CourseNameEditor({
   const [name, setName] = useState(initialName);
   const [code, setCode] = useState(initialCode ?? "");
   const [saving, setSaving] = useState(false);
+  useUnsavedChanges(editing && (name !== initialName || code !== (initialCode ?? '')));
 
   const handleSave = async () => {
     if (!name.trim()) return;

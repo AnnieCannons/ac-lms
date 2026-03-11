@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import HtmlContent from '@/components/ui/HtmlContent'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 interface Props {
   courseId: string
@@ -16,6 +17,7 @@ export default function SyllabusEditor({ courseId, initialContent }: Props) {
   const [draft, setDraft] = useState(initialContent ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  useUnsavedChanges(editing && draft !== content)
 
   const handleSave = async () => {
     setSaving(true)

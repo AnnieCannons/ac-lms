@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import DatePickerField from './DatePickerField'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 type BreakRow   = { id?: string; label: string; start_date: string; end_date: string }
 type HolidayRow = { id?: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
@@ -22,6 +23,9 @@ export default function PTOEditor() {
   const [holidayError,     setHolidayError]     = useState('')
   const [copying,          setCopying]          = useState(false)
   const [loading,          setLoading]          = useState(true)
+  const [breaksDirty,      setBreaksDirty]      = useState(false)
+  const [holidaysDirty,    setHolidaysDirty]    = useState(false)
+  useUnsavedChanges(breaksDirty || holidaysDirty)
 
   useEffect(() => {
     createClient()
@@ -46,13 +50,16 @@ export default function PTOEditor() {
       })
   }, [holidayYear])
 
-  const addBreak = () =>
+  const addBreak = () => {
     setBreaks(prev => [...prev, { label: '', start_date: '', end_date: '' }])
+    setBreaksDirty(true)
+  }
 
   const removeBreak = (i: number) => {
     const row = breaks[i]
     if (row.id) setDeletedBreakIds(prev => [...prev, row.id!])
     setBreaks(prev => prev.filter((_, j) => j !== i))
+    setBreaksDirty(true)
   }
 
   const saveBreaks = async () => {
@@ -72,15 +79,19 @@ export default function PTOEditor() {
     setBreaks(data ?? [])
     setDeletedBreakIds([])
     setBreakSaving(false)
+    setBreaksDirty(false)
   }
 
-  const addHoliday = () =>
+  const addHoliday = () => {
     setHolidays(prev => [...prev, { label: '', date_display: '', date: '', end_date: null, year: holidayYear }])
+    setHolidaysDirty(true)
+  }
 
   const removeHoliday = (i: number) => {
     const row = holidays[i]
     if (row.id) setDeletedHolidayIds(prev => [...prev, row.id!])
     setHolidays(prev => prev.filter((_, j) => j !== i))
+    setHolidaysDirty(true)
   }
 
   const saveHolidays = async () => {
@@ -100,6 +111,7 @@ export default function PTOEditor() {
     setHolidays(data ?? [])
     setDeletedHolidayIds([])
     setHolidaySaving(false)
+    setHolidaysDirty(false)
   }
 
   const copyToNextYear = async () => {
@@ -133,17 +145,17 @@ export default function PTOEditor() {
             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 items-center">
               <input
                 value={b.label}
-                onChange={e => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
+                onChange={e => { setBreaks(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r)); setBreaksDirty(true) }}
                 placeholder="e.g. Thanksgiving Week"
                 className={inputCls}
               />
               <DatePickerField
                 value={b.start_date}
-                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r))}
+                onChange={val => { setBreaks(prev => prev.map((r, j) => j === i ? { ...r, start_date: val } : r)); setBreaksDirty(true) }}
               />
               <DatePickerField
                 value={b.end_date}
-                onChange={val => setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r))}
+                onChange={val => { setBreaks(prev => prev.map((r, j) => j === i ? { ...r, end_date: val } : r)); setBreaksDirty(true) }}
               />
               <button
                 onClick={() => removeBreak(i)}
@@ -210,23 +222,23 @@ export default function PTOEditor() {
             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1fr_32px] gap-2 items-center">
               <input
                 value={h.label}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r))}
+                onChange={e => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, label: e.target.value } : r)); setHolidaysDirty(true) }}
                 placeholder="e.g. Labor Day"
                 className={inputCls}
               />
               <input
                 value={h.date_display}
-                onChange={e => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date_display: e.target.value } : r))}
+                onChange={e => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date_display: e.target.value } : r)); setHolidaysDirty(true) }}
                 placeholder="e.g. Mon, Sep 7"
                 className={inputCls}
               />
               <DatePickerField
                 value={h.date}
-                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: val } : r))}
+                onChange={val => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, date: val } : r)); setHolidaysDirty(true) }}
               />
               <DatePickerField
                 value={h.end_date ?? ''}
-                onChange={val => setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: val || null } : r))}
+                onChange={val => { setHolidays(prev => prev.map((r, j) => j === i ? { ...r, end_date: val || null } : r)); setHolidaysDirty(true) }}
                 placeholder="End date (opt.)"
               />
               <button
