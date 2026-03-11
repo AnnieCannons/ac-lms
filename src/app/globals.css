@@ -2,6 +2,8 @@
 @import "tailwindcss";
 @import "highlight.js/styles/atom-one-dark.css";
 
+@custom-variant dark (&:where(html.theme-dark, html.theme-dark *));
+
 @font-face {
   font-family: 'OpenDyslexic';
   src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Regular.otf') format('opentype');

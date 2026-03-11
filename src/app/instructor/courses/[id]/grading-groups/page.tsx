@@ -78,7 +78,7 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
       <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />
-        <main id="main-content" tabIndex={-1} className="flex-1 p-6 md:p-8 focus:outline-none">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 md:p-8 focus:outline-none">
           <div className="max-w-5xl mx-auto">
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-dark-text">Grading Groups</h1>

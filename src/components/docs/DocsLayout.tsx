@@ -2,7 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode } from 'react'
+
+// Persists the back URL across SPA navigations within the same page session.
+// Resets on full page reload. More reliable than sessionStorage (no async read).
+let _persistedBackUrl: string | null = null
 
 const STUDENT_SECTIONS = [
   { slug: 'getting-started', label: 'Getting Started' },
@@ -39,17 +43,12 @@ interface DocsLayoutProps {
 export default function DocsLayout({ children, guide, section, isInstructor, backHref, fromPath }: DocsLayoutProps) {
   const pathname = usePathname()
   const sections = guide === 'student' ? STUDENT_SECTIONS : INSTRUCTOR_SECTIONS
-  const [backUrl, setBackUrl] = useState(backHref)
 
-  useEffect(() => {
-    if (fromPath && !fromPath.startsWith('/docs')) {
-      sessionStorage.setItem('docs_back_url', fromPath)
-      setBackUrl(fromPath)
-      return
-    }
-    const stored = sessionStorage.getItem('docs_back_url')
-    if (stored) setBackUrl(stored)
-  }, [fromPath])
+  // Update persisted URL whenever we arrive from a non-docs page
+  if (fromPath && !fromPath.startsWith('/docs')) {
+    _persistedBackUrl = fromPath
+  }
+  const backUrl = _persistedBackUrl ?? backHref
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

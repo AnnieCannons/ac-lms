@@ -53,38 +53,26 @@ function detectTz(): string {
   return 'PT'
 }
 
+const rowBg: Record<RowType, string> = {
+  class: 'bg-surface',
+  break: 'bg-amber-50 dark:bg-[#1e1a08]',
+  lunch: 'bg-orange-50 dark:bg-[#1e1205]',
+}
+
+const rowActivity: Record<RowType, string> = {
+  class: 'text-dark-text',
+  break: 'text-amber-700 dark:text-amber-400 font-medium',
+  lunch: 'text-orange-700 dark:text-orange-400 font-medium',
+}
+
 export default function DailySchedule() {
   const [selectedTz, setSelectedTz] = useState('PT')
-  const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
     setSelectedTz(detectTz())
-    setIsDark(document.documentElement.classList.contains('theme-dark'))
-
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains('theme-dark'))
-    })
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
   }, [])
 
   const offset = TIMEZONES.find(t => t.abbr === selectedTz)?.offset ?? 0
-
-  const rowBg: Record<RowType, string> = {
-    class: isDark ? 'bg-surface' : 'bg-white',
-    break: isDark ? 'bg-[#1e1a08]' : 'bg-amber-50',
-    lunch: isDark ? 'bg-[#1e1205]' : 'bg-orange-50',
-  }
-  const rowActivity: Record<RowType, string> = {
-    class: 'text-dark-text',
-    break: isDark ? 'text-amber-400 font-medium' : 'text-amber-700 font-medium',
-    lunch: isDark ? 'text-orange-400 font-medium' : 'text-orange-700 font-medium',
-  }
-  const legendClass  = isDark ? 'bg-surface border-border' : 'bg-white border-border'
-  const legendBreak  = isDark ? 'bg-[#1e1a08] border-amber-900' : 'bg-amber-50 border-amber-200'
-  const legendLunch  = isDark ? 'bg-[#1e1205] border-orange-900' : 'bg-orange-50 border-orange-200'
-  const legendBreakText = isDark ? 'text-amber-400' : 'text-amber-700'
-  const legendLunchText = isDark ? 'text-orange-400' : 'text-orange-700'
 
   return (
     <div>
@@ -137,15 +125,15 @@ export default function DailySchedule() {
       {/* Legend */}
       <div className="flex items-center gap-4 mt-4 flex-wrap">
         <span className="flex items-center gap-1.5 text-xs text-muted-text">
-          <span className={`w-3 h-3 rounded-sm border inline-block ${legendClass}`} />
+          <span className="w-3 h-3 rounded-sm border border-border inline-block bg-surface" />
           Class time
         </span>
-        <span className={`flex items-center gap-1.5 text-xs ${legendBreakText}`}>
-          <span className={`w-3 h-3 rounded-sm border inline-block ${legendBreak}`} />
+        <span className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+          <span className="w-3 h-3 rounded-sm border border-amber-200 dark:border-amber-900 inline-block bg-amber-50 dark:bg-[#1e1a08]" />
           Break
         </span>
-        <span className={`flex items-center gap-1.5 text-xs ${legendLunchText}`}>
-          <span className={`w-3 h-3 rounded-sm border inline-block ${legendLunch}`} />
+        <span className="flex items-center gap-1.5 text-xs text-orange-700 dark:text-orange-400">
+          <span className="w-3 h-3 rounded-sm border border-orange-200 dark:border-orange-900 inline-block bg-orange-50 dark:bg-[#1e1205]" />
           Lunch
         </span>
       </div>
