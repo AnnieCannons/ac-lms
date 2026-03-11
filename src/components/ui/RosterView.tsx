@@ -84,8 +84,9 @@ function CameraDatePopover({
   onSave: (start: string, end: string) => Promise<void>
   containerClassName?: string
 }) {
-  const [editStart, setEditStart] = useState(start ?? todayStr())
+  const [editStart, setEditStart] = useState(start ?? '')
   const [editEnd, setEditEnd] = useState(end ?? '')
+  const noDatesSet = !start && !end
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -110,6 +111,11 @@ function CameraDatePopover({
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
         <CalendarIcon size={11} /> Camera Off Dates
       </p>
+      {noDatesSet && (
+        <p className="text-xs text-muted-text italic bg-border/30 rounded-lg px-2.5 py-1.5">
+          No dates set yet
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         <div>
           <label className="text-xs text-muted-text block mb-1">Start date</label>
