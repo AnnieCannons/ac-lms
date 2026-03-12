@@ -15,20 +15,25 @@ export default function Quizzes() {
 
       <DocH2>Pasting Questions in Bulk</DocH2>
       <DocP>
-        When creating a new quiz, paste questions directly into the text area. The format is flexible — blank lines
-        separate questions, and the first answer is always treated as correct.
+        When creating a new quiz, paste questions directly into the text area. The recommended format uses numbered
+        questions with labeled choices and an Answer line:
       </DocP>
       <DocList>
-        <li>Question text on the first line (or numbered: <DocCode>1. Question?</DocCode>)</li>
-        <li>Each answer on its own line — first answer = correct</li>
-        <li>Choice labels (<DocCode>a)</DocCode>, <DocCode>b)</DocCode>, etc.) are optional</li>
-        <li>Blank line between questions</li>
-        <li>Fenced code blocks (<DocCode>```js</DocCode>) attach to the preceding question as a code snippet</li>
-        <li>Inline <DocCode>`backtick code`</DocCode> is rendered as code in the question text</li>
+        <li>Number each question: <DocCode>1. Question text here?</DocCode></li>
+        <li>Label choices with letters: <DocCode>A. Choice one</DocCode>, <DocCode>B. Choice two</DocCode>, etc.</li>
+        <li>Add an <DocCode>Answer: B</DocCode> line to mark the correct choice</li>
+        <li>Paste code directly between the question and choices — it&rsquo;s automatically detected as a code snippet (indentation preserved)</li>
+        <li>Fenced code blocks (<DocCode>```js ... ```</DocCode>) also work</li>
+        <li>Inline <DocCode>`backtick code`</DocCode> is rendered as inline code in question text</li>
       </DocList>
       <DocTip>
         If the first answer is &ldquo;True&rdquo; or &ldquo;False&rdquo;, the question is automatically marked as true/false type.
+        If no <DocCode>Answer:</DocCode> line is present, the first choice is treated as correct.
       </DocTip>
+      <DocNote>
+        You don&rsquo;t need to format the pasted code — just make sure the content is there. You can adjust the code
+        language and styling manually in the quiz editor after importing.
+      </DocNote>
 
       <DocH2>Question Types</DocH2>
       <DocList>
@@ -44,21 +49,33 @@ export default function Quizzes() {
 
       <DocH2>Max Attempts</DocH2>
       <DocP>
-        Set a maximum number of attempts on a quiz. When the limit is reached, students can no longer retake the quiz.
-        Leave blank for unlimited attempts.
+        Use the <strong>Unlimited / Limited</strong> toggle in the quiz header to control retakes. Click
+        <strong> Limited</strong> and enter a number to cap attempts. Click <strong>Unlimited</strong> to remove the cap.
       </DocP>
       <DocTip>
         Setting max attempts to 1 effectively makes the quiz non-retakeable. Setting it to 2 or 3 allows students to
         practice on wrong questions.
       </DocTip>
 
+      <DocH2>Editing Quiz Details</DocH2>
+      <DocP>
+        All quiz metadata is editable directly inline — no separate edit button needed:
+      </DocP>
+      <DocList>
+        <li><strong>Title</strong> — click the title text to edit it; changes save on blur</li>
+        <li><strong>Due date</strong> — click <em>+ Add due date</em> to set one, or <em>× No due date</em> to clear it; times display in your local timezone</li>
+        <li><strong>Week</strong> — dropdown to assign to a module week</li>
+        <li><strong>Day</strong> — dropdown to pin to a specific day (Mon–Fri or Unassigned)</li>
+        <li><strong>Attempts</strong> — Unlimited / Limited toggle (see above)</li>
+      </DocList>
+
       <DocH2>Pinning to a Day</DocH2>
       <DocP>
-        Assign a quiz to a specific day (Monday–Thursday) within its module week. This makes the quiz appear on the
-        corresponding day card in the Course Outline, both for instructors and students.
+        Assign a quiz to a specific day within its module week. This makes the quiz appear on the corresponding day card
+        in the Course Outline, both for instructors and students.
       </DocP>
       <DocStep number={1}>Open the quiz in the Quizzes section.</DocStep>
-      <DocStep number={2}>Use the <strong>Day</strong> dropdown to select Mon, Tue, Wed, or Thu.</DocStep>
+      <DocStep number={2}>Use the <strong>Day</strong> dropdown to select Mon–Fri, or leave it as Unassigned.</DocStep>
       <DocStep number={3}>The quiz now appears in the Course Outline on that day.</DocStep>
 
       <DocNote>
