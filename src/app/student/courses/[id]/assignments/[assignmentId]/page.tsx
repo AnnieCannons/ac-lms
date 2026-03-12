@@ -276,6 +276,14 @@ export default async function StudentAssignmentPage({
             </div>
           )}
 
+          {/* No checklist message */}
+          {checklistItems && checklistItems.length === 0 && (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Checklist</p>
+              <p className="text-sm text-muted-text">There is no checklist for this assignment.</p>
+            </div>
+          )}
+
           {/* Submission form (includes student checklist when items exist) */}
           {assignment.submission_required !== false ? (
             <SubmissionForm

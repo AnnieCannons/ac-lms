@@ -220,6 +220,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
         <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleOrderedList().run())} className={btn(editor.isActive("orderedList"))} aria-label="Numbered list">1. List</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleBlockquote().run())} className={btn(editor.isActive("blockquote"))} aria-label="Blockquote">&ldquo; Quote</button>
+        <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleCode().run())} className={`${btn(editor.isActive("code"))} font-mono`} aria-label="Inline code">`</button>
+        <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleCodeBlock().run())} className={`${btn(editor.isActive("codeBlock"))} font-mono`} aria-label="Code block">```</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={handleLinkButton} className={btn(isLinkActive)} aria-label={isLinkActive ? "Remove link" : "Add link"} title={isLinkActive ? "Remove link" : "Add link (select text first)"}>
           🔗

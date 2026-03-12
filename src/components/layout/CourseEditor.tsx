@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import DatePickerField from "@/components/ui/DatePickerField";
 import FileUpload from "@/components/ui/FileUpload";
-import { RUBRIC_TEMPLATES, type RubricItem } from "@/data/rubric-templates";
+import { RUBRIC_TEMPLATES, type RubricItem, type RubricTemplate } from "@/data/rubric-templates";
 import {
   DndContext,
   DragOverlay,
@@ -117,7 +117,7 @@ function ChecklistLineEditor({
               value={item.description}
               onChange={(e) => setField(i, "description", e.target.value)}
               placeholder="Description (optional)"
-              className="w-full border-0 bg-transparent py-0.5 text-xs text-[#a888c8] placeholder:text-[#3d2260] focus:outline-none"
+              className="w-full border-0 bg-transparent py-0.5 text-xs text-[#c4a8df] placeholder:text-[#5a3378] focus:outline-none"
             />
           </div>
         </div>
@@ -184,6 +184,7 @@ type RelocateCtx = {
   relocateAssignment: (assignmentId: string, targetWeek: number, targetDay: string) => Promise<void>;
   relocateAssignmentToModule: (assignmentId: string, targetModuleId: string, targetDay: string) => Promise<void>;
   relocateResource: (resourceId: string, targetWeek: number, targetDay: string, onRemoved: () => void) => Promise<void>;
+  relocateResourceToModule: (resourceId: string, targetModuleId: string, targetDay: string, onMoved?: () => void) => Promise<void>;
 };
 const RelocateContext = createContext<RelocateCtx | null>(null);
 const ReadOnlyContext = createContext(false);
@@ -408,7 +409,15 @@ function AssignmentFullView({
   const assignmentId = view.mode === "view" ? view.assignment.id : null;
 
   // ── View/edit state ──
-  const [editing, setEditing] = useState(false);
+  const persistKey = `active-assignment-${courseId}`;
+  const [editing, setEditing] = useState(() => {
+    if (view.mode !== "view" || typeof window === "undefined") return false;
+    try {
+      const saved = localStorage.getItem(`active-assignment-${courseId}`);
+      if (saved) { const p = JSON.parse(saved); return p.assignmentId === view.assignment.id && p.editing === true; }
+    } catch { /* ignore */ }
+    return false;
+  });
   const [editTitle, setEditTitle] = useState(decodeHtml(assignment?.title ?? ""));
   const [editDescription, setEditDescription] = useState(assignment?.description ?? "");
   const [editHowToTurnIn, setEditHowToTurnIn] = useState(assignment?.how_to_turn_in ?? "");
@@ -416,12 +425,9 @@ function AssignmentFullView({
     assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : ""
   );
 
-  // ── Checklist state (view mode) ──
+  // ── Checklist state ──
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-  const checklistRef = useRef(checklistItems);
-  useEffect(() => { checklistRef.current = checklistItems; }, [checklistItems]);
-  const checklistInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const focusPendingId = useRef<string | null>(null);
+  const [editChecklistItems, setEditChecklistItems] = useState<RubricItem[]>([]);
 
   useEffect(() => {
     if (!assignmentId) return;
@@ -436,80 +442,95 @@ function AssignmentFullView({
         if (fetchError) { console.error("Failed to fetch checklist:", fetchError.message); return; }
         if (data && data.length > 0) {
           setChecklistItems(data);
-        } else if (data && data.length === 0 && defaultTemplateId) {
-          const template = RUBRIC_TEMPLATES.find((t) => t.id === defaultTemplateId);
-          if (template) {
-            const { data: inserted, error } = await supabase
-              .from("checklist_items")
-              .insert(template.items.map((item, i) => ({
-                assignment_id: assignmentId,
-                text: item.text,
-                description: item.description || null,
-                order: i,
-              })))
-              .select();
-            if (cancelled) return;
-            if (error) console.error("Failed to auto-populate checklist:", error.message);
-            if (!error && inserted) setChecklistItems(inserted);
+          if (editing) setEditChecklistItems(data.map(c => ({ text: c.text, description: c.description ?? "" })));
+        } else if (data && data.length === 0) {
+          if (editing) setEditChecklistItems([]);
+          if (defaultTemplateId) {
+            const template = RUBRIC_TEMPLATES.find((t) => t.id === defaultTemplateId);
+            if (template) {
+              const { data: inserted, error } = await supabase
+                .from("checklist_items")
+                .insert(template.items.map((item, i) => ({
+                  assignment_id: assignmentId,
+                  text: item.text,
+                  description: item.description || null,
+                  order: i,
+                })))
+                .select();
+              if (cancelled) return;
+              if (error) console.error("Failed to auto-populate checklist:", error.message);
+              if (!error && inserted) {
+                setChecklistItems(inserted);
+                if (editing) setEditChecklistItems(inserted.map(c => ({ text: c.text, description: c.description ?? "" })));
+              }
+            }
           }
         }
       });
     return () => { cancelled = true; };
+  // editing intentionally excluded — only re-run when assignmentId changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId]);
 
-  // Focus newly added checklist item after render
+  const customTemplates: RubricTemplate[] = (() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("rubric-templates-custom") ?? "[]"); } catch { return []; }
+  })();
+  const allTemplates = [...RUBRIC_TEMPLATES, ...customTemplates];
+
+  const saveAsCustomTemplate = (items: RubricItem[]) => {
+    if (items.filter(i => i.text.trim()).length === 0) return;
+    const name = window.prompt("Template name:");
+    if (!name?.trim()) return;
+    const newTemplate: RubricTemplate = { id: `custom-${Date.now()}`, name: name.trim(), items };
+    try {
+      const existing: RubricTemplate[] = JSON.parse(localStorage.getItem("rubric-templates-custom") ?? "[]");
+      localStorage.setItem("rubric-templates-custom", JSON.stringify([...existing, newTemplate]));
+    } catch { /* ignore */ }
+  };
+
+  const loadEditTemplate = (templateId: string) => {
+    if (templateId === "__none__") { setEditChecklistItems([]); return; }
+    if (templateId === "__blank__") { setEditChecklistItems([{ text: "", description: "" }]); return; }
+    const template = allTemplates.find(t => t.id === templateId);
+    if (template) setEditChecklistItems(template.items.map(i => ({ text: i.text, description: i.description })));
+  };
+
+  // ── Dirty / unsaved-changes tracking ──
+  const isDirty = editing && (
+    editTitle !== decodeHtml(assignment?.title ?? "") ||
+    editDescription !== (assignment?.description ?? "") ||
+    editHowToTurnIn !== (assignment?.how_to_turn_in ?? "") ||
+    editDueDate !== (assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : "")
+  );
+
   useEffect(() => {
-    if (focusPendingId.current) {
-      const el = checklistInputRefs.current[focusPendingId.current];
-      if (el) { el.focus(); focusPendingId.current = null; }
-    }
-  });
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
-  const addChecklistItemAfter = async (afterIndex: number, text = "", description = "") => {
-    if (!assignmentId) return;
-    const { data, error } = await supabase
-      .from("checklist_items")
-      .insert({ assignment_id: assignmentId, text, description: description || null, order: checklistRef.current.length })
-      .select()
-      .single();
-    if (!error && data) {
-      focusPendingId.current = data.id;
-      setChecklistItems((prev) => { const next = [...prev]; next.splice(afterIndex + 1, 0, data); return next; });
-    }
+  const updatePersistEditing = (isEditing: boolean) => {
+    try {
+      const saved = localStorage.getItem(persistKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (isEditing) localStorage.setItem(persistKey, JSON.stringify({ ...parsed, editing: true }));
+        else { const { editing: _, ...rest } = parsed; localStorage.setItem(persistKey, JSON.stringify(rest)); }
+      }
+    } catch { /* ignore */ }
   };
 
-  const editChecklistItem = async (id: string, text: string, description?: string) => {
-    const updates: { text: string; description?: string | null } = { text };
-    if (description !== undefined) updates.description = description || null;
-    await supabase.from("checklist_items").update(updates).eq("id", id);
-    setChecklistItems((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+  const startEditing = () => {
+    setEditChecklistItems(checklistItems.map(c => ({ text: c.text, description: c.description ?? "" })));
+    setEditing(true);
+    updatePersistEditing(true);
   };
 
-  const deleteChecklistItem = async (id: string, prevIndex: number) => {
-    await supabase.from("checklist_items").delete().eq("id", id);
-    setChecklistItems((prev) => {
-      const next = prev.filter((c) => c.id !== id);
-      const focusTarget = next[Math.max(0, prevIndex - 1)];
-      if (focusTarget) setTimeout(() => checklistInputRefs.current[focusTarget.id]?.focus(), 0);
-      return next;
-    });
-  };
-
-  const loadRubricTemplate = async (templateId: string) => {
-    if (!assignmentId) return;
-    const template = RUBRIC_TEMPLATES.find((t) => t.id === templateId);
-    if (!template) return;
-    if (checklistItems.length > 0) {
-      if (!window.confirm("Replace the current checklist with this template?")) return;
-      await supabase.from("checklist_items").delete().eq("assignment_id", assignmentId);
-    }
-    const { data, error } = await supabase
-      .from("checklist_items")
-      .insert(template.items.map((item, i) => ({
-        assignment_id: assignmentId, text: item.text, description: item.description || null, order: i,
-      })))
-      .select();
-    if (!error && data) setChecklistItems(data);
+  const handleBack = () => {
+    if (isDirty && !window.confirm("You have unsaved changes. Leave without saving?")) return;
+    onClose();
   };
 
   // ── Add mode state ──
@@ -527,14 +548,31 @@ function AssignmentFullView({
   const [newChecklist, setNewChecklist] = useState<RubricItem[]>(getDefaultChecklist);
   const [editorKey] = useState(0);
 
-  const handleSaveEdit = () => {
-    if (!editTitle.trim()) return;
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim() || !assignmentId) return;
     onEdit(assignment!.id, {
       title: editTitle.trim(),
       description: editDescription.trim() || null,
       how_to_turn_in: editHowToTurnIn.trim() || null,
       due_date: editDueDate || null,
     });
+    // Save checklist to DB
+    await supabase.from("checklist_items").delete().eq("assignment_id", assignmentId);
+    const toInsert = editChecklistItems.filter(i => i.text.trim());
+    if (toInsert.length > 0) {
+      const { data } = await supabase.from("checklist_items")
+        .insert(toInsert.map((item, idx) => ({
+          assignment_id: assignmentId,
+          text: item.text.trim(),
+          description: item.description?.trim() || null,
+          order: idx,
+        })))
+        .select();
+      if (data) setChecklistItems(data);
+    } else {
+      setChecklistItems([]);
+    }
+    updatePersistEditing(false);
     setEditing(false);
   };
 
@@ -557,7 +595,7 @@ function AssignmentFullView({
         {/* Top bar */}
         <div className="flex items-center justify-between">
           <button
-            onClick={onClose}
+            onClick={handleBack}
             className="flex items-center gap-1.5 text-sm text-[#c4a8df] hover:text-white transition-colors"
             type="button"
           >
@@ -611,14 +649,35 @@ function AssignmentFullView({
                     <DatePickerField withTime value={editDueDate} onChange={setEditDueDate} />
                   </div>
                 </div>
+                {/* Checklist editor */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {editChecklistItems.some(i => i.text.trim()) && (
+                        <button type="button" onClick={() => saveAsCustomTemplate(editChecklistItems)} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-[#a888c8] hover:bg-[#12072a] transition-colors">Save as template</button>
+                      )}
+                      <button type="button" onClick={() => loadEditTemplate("__blank__")} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-[#a888c8] hover:bg-[#12072a] transition-colors">Blank</button>
+                      <button type="button" onClick={() => loadEditTemplate("__none__")} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-red-400 hover:text-red-400 transition-colors">None</button>
+                      <select value="" onChange={e => { if (e.target.value) loadEditTemplate(e.target.value); }} className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary">
+                        <option value="">Load template…</option>
+                        {allTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <ChecklistLineEditor items={editChecklistItems} onChange={setEditChecklistItems} />
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => {
+                    if (isDirty && !window.confirm("Discard changes?")) return;
                     setEditing(false);
                     setEditTitle(decodeHtml(assignment!.title));
                     setEditDescription(assignment!.description ?? "");
                     setEditHowToTurnIn(assignment!.how_to_turn_in ?? "");
+                    setEditDueDate(assignment!.due_date ? new Date(assignment!.due_date).toISOString().slice(0, 16) : "");
+                    updatePersistEditing(false);
                   }}
                   className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2 transition-colors"
                   type="button"
@@ -687,7 +746,7 @@ function AssignmentFullView({
                     View Submissions →
                   </a>
                   <button
-                    onClick={() => setEditing(true)}
+                    onClick={startEditing}
                     className="text-sm text-[#9080b0] hover:text-[#dac8ee] transition-colors"
                     type="button"
                   >
@@ -721,78 +780,23 @@ function AssignmentFullView({
               <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
-                  <select
-                    defaultValue=""
-                    onChange={(e) => { if (e.target.value) loadRubricTemplate(e.target.value); e.target.value = ""; }}
-                    className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  >
-                    <option value="">Load template…</option>
-                    {RUBRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  <button type="button" onClick={startEditing} className="text-xs text-[#7a5299] hover:text-[#c4a8df] transition-colors">✎ Edit checklist</button>
                 </div>
-                <div className="flex flex-col gap-3">
-                  {checklistItems.map((item, i) => (
-                    <div key={item.id} className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-teal-primary text-sm shrink-0">☐</span>
-                        <input
-                          ref={(el) => { checklistInputRefs.current[item.id] = el; }}
-                          type="text"
-                          defaultValue={item.text}
-                          onBlur={(e) => { const val = e.target.value.trim(); if (val !== item.text) editChecklistItem(item.id, val); }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              const val = (e.target as HTMLInputElement).value.trim();
-                              if (val !== item.text) editChecklistItem(item.id, val);
-                              addChecklistItemAfter(i);
-                            }
-                            if (e.key === "Backspace" && (e.target as HTMLInputElement).value === "") {
-                              e.preventDefault();
-                              deleteChecklistItem(item.id, i);
-                            }
-                          }}
-                          className="flex-1 border-0 border-b border-[#3d2260] bg-transparent py-0.5 text-sm font-medium text-[#f8f3fc] focus:outline-none focus:border-teal-primary transition-colors"
-                        />
-                        <button
-                          onClick={() => deleteChecklistItem(item.id, i)}
-                          className="text-[#3d2260] hover:text-red-400 shrink-0 transition-colors"
-                          type="button"
-                          aria-label="Delete item"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-                        </button>
+                {checklistItems.length === 0 ? (
+                  <p className="text-sm text-[#5a3378] italic">No checklist for this assignment.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {checklistItems.map(item => (
+                      <div key={item.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#a888c8] shrink-0 text-sm">☐</span>
+                          <p className="text-sm font-medium text-[#f8f3fc]">{item.text}</p>
+                        </div>
+                        {item.description && <p className="pl-5 text-xs text-[#9080b0] mt-0.5">{item.description}</p>}
                       </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          defaultValue={item.description ?? ""}
-                          onBlur={(e) => { const val = e.target.value.trim(); if (val !== (item.description ?? "")) editChecklistItem(item.id, item.text, val); }}
-                          placeholder="Description (optional)"
-                          className="w-full border-0 bg-transparent py-0.5 text-xs text-[#9080b0] placeholder:text-[#3d2260] focus:outline-none focus:text-[#c4a8df] transition-colors"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  {checklistItems.length === 0 && (
-                    <p className="text-sm text-[#3d2260] italic pb-1">No checklist items yet.</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1 border-t border-[#301850] pt-3">
-                    <span className="text-[#3d2260] text-sm shrink-0">☐</span>
-                    <input
-                      type="text"
-                      placeholder="Add item — Enter for more"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const val = (e.target as HTMLInputElement).value.trim();
-                          if (val) { (e.target as HTMLInputElement).value = ""; addChecklistItemAfter(checklistItems.length - 1, val); }
-                        }
-                      }}
-                      className="flex-1 bg-transparent py-0.5 text-sm text-[#9080b0] placeholder:text-[#3d2260] focus:outline-none focus:text-[#c4a8df] transition-colors"
-                    />
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </>
           )
@@ -826,19 +830,29 @@ function AssignmentFullView({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
+                  <div className="flex items-center gap-2">
+                    {newChecklist.some(i => i.text.trim()) && (
+                      <button type="button" onClick={() => saveAsCustomTemplate(newChecklist)} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-[#a888c8] hover:bg-[#1d0f3e] transition-colors">Save as template</button>
+                    )}
                   <select
                     defaultValue=""
                     onChange={(e) => {
-                      if (!e.target.value) return;
-                      const template = RUBRIC_TEMPLATES.find((t) => t.id === e.target.value);
-                      if (template) setNewChecklist(template.items.map((item) => ({ text: item.text, description: item.description })));
+                      const val = e.target.value;
+                      if (!val) return;
                       e.target.value = "";
+                      if (val === "__none__") { setNewChecklist([]); return; }
+                      if (val === "__blank__") { setNewChecklist([{ text: "", description: "" }]); return; }
+                      const template = allTemplates.find((t) => t.id === val);
+                      if (template) setNewChecklist(template.items.map((item) => ({ text: item.text, description: item.description })));
                     }}
                     className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     <option value="">Load template…</option>
-                    {RUBRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    <option value="__blank__">Blank</option>
+                    <option value="__none__">None (no checklist)</option>
+                    {allTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
+                  </div>
                 </div>
                 <ChecklistLineEditor items={newChecklist} onChange={setNewChecklist} />
               </div>
@@ -1388,7 +1402,7 @@ function SortableDay({
 
   const submitNewResource = () => {
     if (!newResTitle.trim()) return;
-    addResource(newResType, newResTitle.trim(), newResContent.trim());
+    addResource(newResType, newResTitle.trim(), newResType === "reading" ? newResContent : newResContent.trim());
     setNewResTitle("");
     setNewResContent("");
     setFileUploadKey((k) => k + 1);
@@ -1554,6 +1568,10 @@ function SortableDay({
                         if (!newResTitle.trim()) setNewResTitle(fileName);
                       }}
                     />
+                  ) : newResType === "reading" ? (
+                    <div className="flex-1">
+                      <RichTextEditor key={fileUploadKey} content={newResContent} onChange={setNewResContent} placeholder="Reading content…" />
+                    </div>
                   ) : (
                     <input
                       type="text"
@@ -1894,6 +1912,247 @@ function SortableModule({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Shared search popup helpers ─────────────────────────────────────────────
+
+function MovePopup({
+  anchorRef,
+  popupRef,
+  weekModules,
+  currentModuleId,
+  onMove,
+  onClose,
+}: {
+  anchorRef: React.RefObject<HTMLElement | null>;
+  popupRef: React.RefObject<HTMLDivElement | null>;
+  weekModules: { id: string; week: number | null; title: string | null; days: string[] }[];
+  currentModuleId: string;
+  onMove: (modId: string, day: string) => void;
+  onClose: () => void;
+}) {
+  const [modId, setModId] = useState("");
+  const [day, setDay] = useState("");
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (anchorRef.current) {
+      const r = anchorRef.current.getBoundingClientRect();
+      const popH = 200; const popW = 280;
+      const top = window.innerHeight - r.bottom < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    function onDown(e: MouseEvent) {
+      if (!popupRef.current?.contains(e.target as Node) && !anchorRef.current?.contains(e.target as Node))
+        onClose();
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const modDays = weekModules.find(m => m.id === modId)?.days ?? [];
+  const canMove = !!modId && (modDays.length === 1 || !!day);
+
+  return (
+    <div ref={popupRef} className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2" style={{ top: pos.top, left: pos.left, width: 280 }}>
+      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Move to</p>
+      <select value={modId} onChange={e => { setModId(e.target.value); setDay(""); }}
+        className="text-xs bg-background border border-border rounded px-2 py-1 text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-full">
+        <option value="">Select module…</option>
+        {weekModules.map(({ id, week, title }) => (
+          <option key={id} value={id}>{title ?? (week != null ? `Week ${week}` : "Unassigned")}</option>
+        ))}
+      </select>
+      {modId && modDays.length > 0 && (
+        modDays.length === 1
+          ? <p className="text-xs text-muted-text">Day: <span className="text-dark-text">{modDays[0]}</span></p>
+          : <div className="flex flex-wrap gap-1">
+              {modDays.map(d => (
+                <button key={d} type="button" onClick={() => setDay(d)}
+                  className={`text-xs px-2 py-1 rounded border transition-colors ${day === d ? "bg-teal-primary border-teal-primary text-white" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+      )}
+      <button type="button" onClick={() => canMove && onMove(modId, modDays.length === 1 ? modDays[0] : day)}
+        disabled={!canMove}
+        className="text-xs bg-teal-primary text-white rounded-lg py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition-opacity">
+        Move
+      </button>
+    </div>
+  );
+}
+
+// ─── SearchAssignmentRow ──────────────────────────────────────────────────────
+
+function SearchAssignmentRow({
+  result,
+  weekModules,
+  onOpen,
+}: {
+  result: { assignment: Assignment; moduleTitle: string | null; dayName: string; moduleId: string; dayId: string; weekNumber: number | null };
+  weekModules: { id: string; week: number | null; title: string | null; days: string[] }[];
+  onOpen: () => void;
+}) {
+  const ctx = useContext(RelocateContext);
+  const [popup, setPopup] = useState<"move" | null>(null);
+  const moveBtnRef = useRef<HTMLButtonElement>(null);
+  const movePopupRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <li className="flex items-center gap-3 px-4 py-2.5 hover:bg-border/20 border-b border-border/50 last:border-0">
+      <span className="text-xs bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Assignment</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-dark-text truncate">{decodeHtml(result.assignment.title)}</p>
+        <p className="text-xs text-muted-text truncate">{result.moduleTitle ?? "Unassigned"} · {result.dayName}</p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button type="button" onClick={onOpen} className="text-xs text-teal-primary hover:underline">Open →</button>
+        {ctx && (
+          <div className="relative">
+            <button ref={moveBtnRef} type="button" onClick={() => setPopup(p => p === "move" ? null : "move")}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${popup === "move" ? "border-teal-primary text-teal-primary" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}>
+              Move ⇄
+            </button>
+            {popup === "move" && (
+              <MovePopup
+                anchorRef={moveBtnRef}
+                popupRef={movePopupRef}
+                weekModules={weekModules}
+                currentModuleId={result.moduleId}
+                onMove={(modId, day) => { ctx.relocateAssignmentToModule(result.assignment.id, modId, day); setPopup(null); }}
+                onClose={() => setPopup(null)}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+// ─── SearchResourceRow ────────────────────────────────────────────────────────
+
+function SearchResourceRow({
+  resource,
+  weekModules,
+  onMoved,
+  onEdited,
+}: {
+  resource: { id: string; title: string; type: string; url: string | null; moduleTitle: string | null; dayName: string; moduleId: string };
+  weekModules: { id: string; week: number | null; title: string | null; days: string[] }[];
+  onMoved: () => void;
+  onEdited: (id: string, title: string, url: string | null) => void;
+}) {
+  const ctx = useContext(RelocateContext);
+  const supabase = createClient();
+  const [popup, setPopup] = useState<"move" | "edit" | null>(null);
+  const moveBtnRef = useRef<HTMLButtonElement>(null);
+  const editBtnRef = useRef<HTMLButtonElement>(null);
+  const movePopupRef = useRef<HTMLDivElement>(null);
+  const editPopupRef = useRef<HTMLDivElement>(null);
+  const [editTitle, setEditTitle] = useState(resource.title);
+  const [editUrl, setEditUrl] = useState(resource.url ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function saveEdit() {
+    setSaving(true);
+    const updates: { title: string; url?: string | null } = { title: editTitle.trim() || resource.title };
+    if (resource.type !== "reading") updates.url = editUrl.trim() || null;
+    await supabase.from("resources").update(updates).eq("id", resource.id);
+    onEdited(resource.id, updates.title, updates.url ?? null);
+    setSaving(false);
+    setPopup(null);
+  }
+
+  const [editPos, setEditPos] = useState({ top: 0, left: 0 });
+  function openEdit() {
+    if (popup === "edit") { setPopup(null); return; }
+    if (editBtnRef.current) {
+      const r = editBtnRef.current.getBoundingClientRect();
+      const popH = resource.type === "reading" ? 120 : 180; const popW = 300;
+      const top = window.innerHeight - r.bottom < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setEditPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    setEditTitle(resource.title);
+    setEditUrl(resource.url ?? "");
+    setPopup("edit");
+  }
+
+  useEffect(() => {
+    if (popup !== "edit") return;
+    function onDown(e: MouseEvent) {
+      if (!editPopupRef.current?.contains(e.target as Node) && !editBtnRef.current?.contains(e.target as Node))
+        setPopup(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [popup]);
+
+  return (
+    <li className="flex items-center gap-3 px-4 py-2.5 hover:bg-border/20 border-b border-border/50 last:border-0">
+      <span className="text-xs bg-teal-light text-teal-primary rounded px-1.5 py-0.5 shrink-0">{resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-dark-text truncate">{resource.title}</p>
+        <p className="text-xs text-muted-text truncate">{resource.moduleTitle ?? "Unassigned"}{resource.dayName ? ` · ${resource.dayName}` : ""}</p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Edit button */}
+        <div className="relative">
+          <button ref={editBtnRef} type="button" onClick={openEdit}
+            className={`text-xs px-2 py-1 rounded border transition-colors ${popup === "edit" ? "border-teal-primary text-teal-primary" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}>
+            Edit
+          </button>
+          {popup === "edit" && (
+            <div ref={editPopupRef} className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2" style={{ top: editPos.top, left: editPos.left, width: 300 }}>
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Edit resource</p>
+              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                placeholder="Title"
+                className="text-xs border border-border rounded px-2 py-1.5 bg-background text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-full" />
+              {resource.type === "reading" ? (
+                <p className="text-xs text-muted-text italic">To edit reading content, open it in the module view.</p>
+              ) : (
+                <input type="url" value={editUrl} onChange={e => setEditUrl(e.target.value)}
+                  placeholder="URL"
+                  className="text-xs border border-border rounded px-2 py-1.5 bg-background text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-full" />
+              )}
+              <div className="flex gap-2">
+                <button type="button" onClick={saveEdit} disabled={saving}
+                  className="flex-1 text-xs bg-teal-primary text-white rounded-lg py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  {saving ? "Saving…" : "Save"}
+                </button>
+                <button type="button" onClick={() => setPopup(null)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-text hover:text-dark-text transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Move button */}
+        {ctx && (
+          <div className="relative">
+            <button ref={moveBtnRef} type="button" onClick={() => setPopup(p => p === "move" ? null : "move")}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${popup === "move" ? "border-teal-primary text-teal-primary" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}>
+              Move ⇄
+            </button>
+            {popup === "move" && (
+              <MovePopup
+                anchorRef={moveBtnRef}
+                popupRef={movePopupRef}
+                weekModules={weekModules}
+                currentModuleId={resource.moduleId}
+                onMove={(modId, day) => { ctx.relocateResourceToModule(resource.id, modId, day, onMoved); setPopup(null); }}
+                onClose={() => setPopup(null)}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -2290,6 +2549,17 @@ export default function CourseEditor({
     setDayRefreshTriggers(prev => ({ ...prev, [targetDay.id]: (prev[targetDay.id] ?? 0) + 1 }));
   };
 
+  const relocateResourceToModule = async (resourceId: string, targetModuleId: string, targetDayName: string, onMoved?: () => void) => {
+    const targetModule = modulesRef.current.find((m) => m.id === targetModuleId);
+    if (!targetModule) return;
+    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (!targetDay) { console.error(`No day "${targetDayName}" in module`); return; }
+    const { error } = await supabase.from("resources").update({ module_day_id: targetDay.id }).eq("id", resourceId);
+    if (error) { console.error("relocateResourceToModule failed:", error.message); return; }
+    setDayRefreshTriggers(prev => ({ ...prev, [targetDay.id]: (prev[targetDay.id] ?? 0) + 1 }));
+    onMoved?.();
+  };
+
   const addDay = async (moduleId: string, dayName: string) => {
     const mod = modules.find((m) => m.id === moduleId);
     if (!mod) return;
@@ -2432,7 +2702,25 @@ export default function CourseEditor({
     );
   };
 
+  const PERSIST_KEY = `active-assignment-${course.id}`;
+
+  useEffect(() => {
+    const saved = localStorage.getItem(PERSIST_KEY);
+    if (!saved || activeView) return;
+    try {
+      const { assignmentId, dayId } = JSON.parse(saved);
+      for (const m of modules) {
+        for (const d of m.module_days) {
+          const a = d.assignments?.find(x => x.id === assignmentId);
+          if (a && d.id === dayId) { openAssignment(a, dayId); return; }
+        }
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openAssignment = (assignment: Assignment, dayId: string) => {
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ assignmentId: assignment.id, dayId }));
     const mod = modules.find((m) => m.module_days.some((d) => d.id === dayId));
     const day = mod?.module_days.find((d) => d.id === dayId);
     setActiveView({
@@ -2448,11 +2736,52 @@ export default function CourseEditor({
   const openAdd = (dayId: string) =>
     setActiveView({ mode: "add", dayId });
 
-  const closeView = () => setActiveView(null);
+  const closeView = () => { localStorage.removeItem(PERSIST_KEY); setActiveView(null); };
 
   const visibleModules = filterCategory
     ? modules.filter((m) => m.category === filterCategory)
     : modules;
+
+  const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLDivElement>(null);
+  const [resourceResults, setResourceResults] = useState<{ id: string; title: string; type: string; url: string | null; module_day_id: string; moduleTitle: string | null; dayName: string; moduleId: string; weekNumber: number | null }[]>([]);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) { setResourceResults([]); return; }
+    let cancelled = false;
+    supabase
+      .from("resources")
+      .select("id, title, type, url, module_day_id")
+      .ilike("title", `%${q}%`)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const enriched = data.map((r: { id: string; title: string; type: string; url: string | null; module_day_id: string }) => {
+          for (const m of modules) {
+            const d = m.module_days.find(d => d.id === r.module_day_id);
+            if (d) return { ...r, moduleTitle: m.title, dayName: d.day_name, moduleId: m.id, weekNumber: m.week_number };
+          }
+          return { ...r, moduleTitle: null, dayName: "", moduleId: "", weekNumber: null };
+        });
+        setResourceResults(enriched);
+      });
+    return () => { cancelled = true; };
+  }, [search]);
+
+  const assignmentResults = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const results: { assignment: Assignment; moduleTitle: string | null; dayName: string; moduleId: string; dayId: string; weekNumber: number | null }[] = [];
+    for (const m of modules) {
+      for (const d of m.module_days) {
+        for (const a of d.assignments ?? []) {
+          if (decodeHtml(a.title).toLowerCase().includes(q))
+            results.push({ assignment: a, moduleTitle: m.title, dayName: d.day_name, moduleId: m.id, dayId: d.id, weekNumber: m.week_number });
+        }
+      }
+    }
+    return results;
+  })();
 
   const weekOptions = [...new Set(modules.map((m) => m.week_number).filter(Boolean))].sort((a, b) => a - b) as number[];
   const weekModules = modules.map(m => ({
@@ -2464,7 +2793,7 @@ export default function CourseEditor({
 
   return (
     <ReadOnlyContext.Provider value={readOnly}>
-    <RelocateContext.Provider value={{ weekOptions, weekModules, relocateAssignment, relocateAssignmentToModule, relocateResource }}>
+    <RelocateContext.Provider value={{ weekOptions, weekModules, relocateAssignment, relocateAssignmentToModule, relocateResource, relocateResourceToModule }}>
     <>
       {activeView && (
         <AssignmentFullView
@@ -2497,6 +2826,44 @@ export default function CourseEditor({
           }}
         >
           <div className="flex flex-col gap-4">
+            {!readOnly && (
+              <div ref={searchRef} className="relative">
+                <input
+                  type="search"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search assignments and resources…"
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
+                {search && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-lg z-30 max-h-96 overflow-y-auto">
+                    {assignmentResults.length === 0 && resourceResults.length === 0 ? (
+                      <p className="text-sm text-muted-text px-4 py-3">No results found.</p>
+                    ) : (
+                      <ul>
+                        {assignmentResults.map((r) => (
+                          <SearchAssignmentRow
+                            key={r.assignment.id}
+                            result={r}
+                            weekModules={weekModules}
+                            onOpen={() => { openAssignment(r.assignment, r.dayId); setSearch(""); }}
+                          />
+                        ))}
+                        {resourceResults.map((r) => (
+                          <SearchResourceRow
+                            key={r.id}
+                            resource={r}
+                            weekModules={weekModules}
+                            onMoved={() => setResourceResults(prev => prev.filter(x => x.id !== r.id))}
+                            onEdited={(id, title, url) => setResourceResults(prev => prev.map(x => x.id === id ? { ...x, title, url } : x))}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {visibleModules.length > 0 && (
               <div className="flex justify-end gap-2">
                 <button
