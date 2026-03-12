@@ -198,30 +198,40 @@ function CourseOutlineCard({
               <div key={i} className={`grid border-b border-border last:border-b-0 ${editing ? 'grid-cols-[88px_1fr_1.5fr_28px]' : 'grid-cols-[88px_1fr_1.5fr]'}`}>
                 <div className="px-3 py-2 text-sm text-muted-text font-medium flex items-start pt-3">Week {row.week}</div>
                 <div className="px-1 py-1 border-r border-border">
-                  <textarea
-                    value={row.topics}
-                    onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, topics: e.target.value } : r))}
-                    onFocus={() => !readOnly && setEditing(true)}
-                    rows={2}
-                    readOnly={readOnly}
-                    placeholder={editing ? 'Topics…' : ''}
-                    className={`w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none rounded resize-none ${
-                      editing ? 'focus:bg-background resize-y cursor-text' : 'cursor-pointer hover:bg-teal-light/20'
-                    } ${readOnly ? 'cursor-default' : ''}`}
-                  />
+                  {editing ? (
+                    <textarea
+                      value={row.topics}
+                      onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, topics: e.target.value } : r))}
+                      rows={2}
+                      placeholder="Topics…"
+                      className="w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none focus:bg-background rounded resize-y cursor-text"
+                    />
+                  ) : (
+                    <div
+                      onClick={() => !readOnly && setEditing(true)}
+                      className={`px-2 py-1.5 text-sm text-dark-text min-w-0 break-words ${!readOnly ? 'cursor-pointer hover:bg-teal-light/20 rounded' : ''}`}
+                    >
+                      {row.topics || <span className="text-muted-text/40">—</span>}
+                    </div>
+                  )}
                 </div>
                 <div className="px-1 py-1">
-                  <textarea
-                    value={row.description}
-                    onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, description: e.target.value } : r))}
-                    onFocus={() => !readOnly && setEditing(true)}
-                    rows={2}
-                    readOnly={readOnly}
-                    placeholder={editing ? 'Description…' : ''}
-                    className={`w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none rounded resize-none ${
-                      editing ? 'focus:bg-background resize-y cursor-text' : 'cursor-pointer hover:bg-teal-light/20'
-                    } ${readOnly ? 'cursor-default' : ''}`}
-                  />
+                  {editing ? (
+                    <textarea
+                      value={row.description}
+                      onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, description: e.target.value } : r))}
+                      rows={2}
+                      placeholder="Description…"
+                      className="w-full px-2 py-1.5 text-sm text-dark-text bg-transparent focus:outline-none focus:bg-background rounded resize-y cursor-text"
+                    />
+                  ) : (
+                    <div
+                      onClick={() => !readOnly && setEditing(true)}
+                      className={`px-2 py-1.5 text-sm text-dark-text min-w-0 break-words ${!readOnly ? 'cursor-pointer hover:bg-teal-light/20 rounded' : ''}`}
+                    >
+                      {row.description || <span className="text-muted-text/40">—</span>}
+                    </div>
+                  )}
                 </div>
                 {editing && (
                   <div className="flex items-start pt-2.5 pr-1">
