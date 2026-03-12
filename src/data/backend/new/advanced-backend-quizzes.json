@@ -1,0 +1,4189 @@
+{
+    "course": {
+      "title": "Backend - Advanced Module (Jan 2026)",
+      "source": "Canvas course export"
+    },
+    "assessments": [
+    {
+      "identifier": "g364aa25e0c5c221d3db4d302b6c808ef",
+      "type": "quiz",
+      "title": "Quiz: Node & Command Line",
+      "due_at": "2026-03-07T06:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 8: Node and Express",
+      "manifest_title": "Quiz: Node & Command Line",
+      "questions": [
+        {
+          "ident": "g92a7ab9d2c59e94598d431f131797127",
+          "question_text": "<div><p>What does the <code data-start=\"245\" data-end=\"249\">ls</code> command do in the terminal?</p></div>",
+          "choices": [
+            {
+              "ident": "9111",
+              "text": "Lists all files and folders in the current directory"
+            },
+            {
+              "ident": "7914",
+              "text": "Changes the current directory"
+            },
+            {
+              "ident": "979",
+              "text": "Prints the full path of the current directory"
+            },
+            {
+              "ident": "2308",
+              "text": "Deletes a file"
+            }
+          ],
+          "correct_response_ident": "9111"
+        },
+        {
+          "ident": "g081532dfd1f3376565581ea27eaa1603",
+          "question_text": "<div><p>What does the <code data-start=\"474\" data-end=\"479\">pwd</code> command do?</p></div>",
+          "choices": [
+            {
+              "ident": "7955",
+              "text": "Prints the current working directory"
+            },
+            {
+              "ident": "9463",
+              "text": "Lists files in a folder"
+            },
+            {
+              "ident": "9702",
+              "text": "Changes the current directory"
+            },
+            {
+              "ident": "8825",
+              "text": "Opens the home folder"
+            }
+          ],
+          "correct_response_ident": "7955"
+        },
+        {
+          "ident": "gb3159e6eed0a355364afb9f322f570a0",
+          "question_text": "<div><p>What does <code data-start=\"653\" data-end=\"668\">cd folderName</code> do?</p></div>",
+          "choices": [
+            {
+              "ident": "1063",
+              "text": "Moves into the folder called folderName"
+            },
+            {
+              "ident": "6074",
+              "text": "Lists all files in folderName"
+            },
+            {
+              "ident": "2449",
+              "text": "Deletes the folder called folderName"
+            },
+            {
+              "ident": "272",
+              "text": "Prints the path of folderName"
+            }
+          ],
+          "correct_response_ident": "1063"
+        },
+        {
+          "ident": "geb560a77cda096999cfaa52720db0c0f",
+          "question_text": "<div><p>What does <code data-start=\"866\" data-end=\"873\">cd ..</code> do?</p></div>",
+          "choices": [
+            {
+              "ident": "663",
+              "text": "Moves to the parent directory"
+            },
+            {
+              "ident": "9916",
+              "text": "Moves to the home directory"
+            },
+            {
+              "ident": "6751",
+              "text": "Lists files in the current directory"
+            },
+            {
+              "ident": "6278",
+              "text": "Deletes the current directory"
+            }
+          ],
+          "correct_response_ident": "663"
+        },
+        {
+          "ident": "gff33abbb8125cf6e16352636a0214e47",
+          "question_text": "<div><p>What does <code data-start=\"1051\" data-end=\"1058\">cd ~</code> do?</p></div>",
+          "choices": [
+            {
+              "ident": "6370",
+              "text": "Moves to your home directory"
+            },
+            {
+              "ident": "4410",
+              "text": "Moves to the root of the project"
+            },
+            {
+              "ident": "593",
+              "text": "Moves to the parent directory"
+            },
+            {
+              "ident": "7448",
+              "text": "Lists hidden files"
+            }
+          ],
+          "correct_response_ident": "6370"
+        },
+        {
+          "ident": "ge6f4c4ed12ced3baaa164e2a4af8c3dd",
+          "question_text": "<div><p>What happens if you type <code data-start=\"1237\" data-end=\"1248\">cd ../../</code>?</p></div>",
+          "choices": [
+            {
+              "ident": "3299",
+              "text": "Moves two directories up from the current location"
+            },
+            {
+              "ident": "2380",
+              "text": "Moves two directories down"
+            },
+            {
+              "ident": "4845",
+              "text": "Opens the home directory"
+            },
+            {
+              "ident": "9503",
+              "text": "Lists files in the grandparent directory"
+            }
+          ],
+          "correct_response_ident": "3299"
+        },
+        {
+          "ident": "g68a8537d1889aaa1af7edc04d5d7137f",
+          "question_text": "<div><p>What would you do to autocomplete typing the name of a folder or file in the terminal?</p></div>",
+          "choices": [
+            {
+              "ident": "3534",
+              "text": "Pressing Tab"
+            },
+            {
+              "ident": "9896",
+              "text": "ls"
+            },
+            {
+              "ident": "5093",
+              "text": "pwd"
+            },
+            {
+              "ident": "4669",
+              "text": "cd"
+            }
+          ],
+          "correct_response_ident": "3534"
+        },
+        {
+          "ident": "g791aee52e981e637443968b536da9cbd",
+          "question_text": "<div><p>Which runtime do we use to run Javascript code on the frontend vs. the backend? </p></div>",
+          "choices": [
+            {
+              "ident": "7226",
+              "text": "Browsers run JavaScript on the frontend, while Node.js runs JavaScript on the backend"
+            },
+            {
+              "ident": "9795",
+              "text": "Node.js runs JavaScript on the frontend, while browsers run JavaScript on the backend"
+            },
+            {
+              "ident": "539",
+              "text": "Both Node.js and browsers run JavaScript only on the frontend"
+            },
+            {
+              "ident": "5293",
+              "text": "Both Node.js and browsers run JavaScript only on the backend"
+            }
+          ],
+          "correct_response_ident": "7226"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>How do we run a file with Node?</div>",
+          "choices": [
+            {
+              "ident": "5738",
+              "text": "node filename.js"
+            },
+            {
+              "ident": "7979",
+              "text": "start filename.js"
+            },
+            {
+              "ident": "4612",
+              "text": "run filename.js"
+            },
+            {
+              "ident": "4629",
+              "text": "execute filename.js"
+            }
+          ],
+          "correct_response_ident": "5738"
+        },
+        {
+          "ident": "g111db5500f3c5d697552570237030e71",
+          "question_text": "<div><p>Where do <code data-start=\"966\" data-end=\"981\">console.log()</code> messages appear when running a file with Node?</p></div>",
+          "choices": [
+            {
+              "ident": "1958",
+              "text": "In the Terminal"
+            },
+            {
+              "ident": "4159",
+              "text": "In the browser console"
+            },
+            {
+              "ident": "4562",
+              "text": "In a database"
+            },
+            {
+              "ident": "9199",
+              "text": "In package.json"
+            }
+          ],
+          "correct_response_ident": "1958"
+        },
+        {
+          "ident": "gacb472aa2cae5ad8fad75a7f98abe873",
+          "question_text": "<div><p>What is <code data-start=\"406\" data-end=\"420\">process.argv</code> in Node.js?</p></div>",
+          "choices": [
+            {
+              "ident": "3775",
+              "text": "An array containing arguments passed in when running the Node file on the command line"
+            },
+            {
+              "ident": "5813",
+              "text": "A function for reading files"
+            },
+            {
+              "ident": "6654",
+              "text": "A string with environment info"
+            },
+            {
+              "ident": "1424",
+              "text": "A built-in variable for server settings"
+            }
+          ],
+          "correct_response_ident": "3775"
+        },
+        {
+          "ident": "gf38f8441e0447f2dd5ed002100d2efa0",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we read data from a file in Node.js?</span></div>",
+          "choices": [
+            {
+              "ident": "6048",
+              "text": "fs.readFile()"
+            },
+            {
+              "ident": "3580",
+              "text": "fs.getFile()"
+            },
+            {
+              "ident": "4996",
+              "text": "fs.read()"
+            },
+            {
+              "ident": "5407",
+              "text": "fs.readData()"
+            }
+          ],
+          "correct_response_ident": "6048"
+        },
+        {
+          "ident": "g9c888ef72e188b908b50ba3a17f6e56e",
+          "question_text": "<div><p><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we turn a JSON string into JavaScript data?</span></p></div>",
+          "choices": [
+            {
+              "ident": "5737",
+              "text": "JSON.parse(data)"
+            },
+            {
+              "ident": "9097",
+              "text": "data.parseJSON()"
+            },
+            {
+              "ident": "2655",
+              "text": "JSON.stringify(data)"
+            },
+            {
+              "ident": "4539",
+              "text": "parse.JSON(data)"
+            }
+          ],
+          "correct_response_ident": "5737"
+        },
+        {
+          "ident": "g7520ba41f39de958472d576e83927c3b",
+          "question_text": "<div><p>Why do we need to use <code data-start=\"111\" data-end=\"125\">JSON.parse()</code> on data read from a file before using dot or bracket notation in JavaScript?</p></div>",
+          "choices": [
+            {
+              "ident": "6463",
+              "text": "Because the data from a file is a JSON string, and JSON.parse() converts it into a Javascript object or array that we can access with dot or bracket notation"
+            },
+            {
+              "ident": "7895",
+              "text": "Because JSON.parse() automatically reads the file from disk"
+            },
+            {
+              "ident": "8566",
+              "text": "Because dot and bracket notation only work with arrays, not objects"
+            },
+            {
+              "ident": "2441",
+              "text": "Because JSON.parse() encrypts the data for security"
+            }
+          ],
+          "correct_response_ident": "6463"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which statement is true about the following two code snippets? </p>\n<p data-start=\"268\" data-end=\"332\"><strong data-start=\"268\" data-end=\"274\">Code Snippet 1.</strong> <code data-start=\"275\" data-end=\"301\">const fs = require('fs')</code><br data-start=\"301\" data-end=\"304\"><strong data-start=\"304\" data-end=\"310\">Code Snippet 2.</strong> <code data-start=\"311\" data-end=\"332\">import fs from 'fs'</code></p></div>",
+          "choices": [
+            {
+              "ident": "712",
+              "text": "Snippet 1 uses the older CommonJS syntax; Snippet 2 uses the modern ES Module syntax"
+            },
+            {
+              "ident": "483",
+              "text": "Snippet 1 and 2 are both modern syntax"
+            },
+            {
+              "ident": "9142",
+              "text": "Snippet 1 uses the modern ES Module syntax; Snippet 2 uses the older CommonJS syntax"
+            },
+            {
+              "ident": "7177",
+              "text": "Both snippets are outdated and should not be used in Node.js"
+            }
+          ],
+          "correct_response_ident": "712"
+        },
+        {
+          "ident": "g2e34a0cc9dbf4cc01b0e71e2f6c03b0e",
+          "question_text": "<div><p>Why do we use <code data-start=\"179\" data-end=\"186\">async</code> and <code data-start=\"191\" data-end=\"198\">await</code> when reading a file with Node.js?</p></div>",
+          "choices": [
+            {
+              "ident": "7661",
+              "text": "Reading data from an external source like a file takes time, so we use async/await to tell JavaScript to wait before moving to the next line of code"
+            },
+            {
+              "ident": "3436",
+              "text": "To automatically convert JSON into JavaScript objects"
+            },
+            {
+              "ident": "4116",
+              "text": "To run the code faster than synchronous functions"
+            },
+            {
+              "ident": "6460",
+              "text": "To let the browser handle the file reading instead of Node"
+            }
+          ],
+          "correct_response_ident": "7661"
+        },
+        {
+          "ident": "g1a064766ed003fd7207fe38d35add8d5",
+          "question_text": "<div><p>What happens if you don’t use <code data-start=\"991\" data-end=\"998\">await</code> when calling an async function that reads a file?</p></div>",
+          "choices": [
+            {
+              "ident": "32",
+              "text": "The code may try to use the data before it’s ready, leading to undefined values or errors"
+            },
+            {
+              "ident": "7487",
+              "text": "The file is automatically read anyway"
+            },
+            {
+              "ident": "3900",
+              "text": "Node will pause execution until the file is done"
+            },
+            {
+              "ident": "6523",
+              "text": "JSON.parse() will fail"
+            }
+          ],
+          "correct_response_ident": "32"
+        }
+      ]
+    },
+    {
+      "identifier": "g4ac55d2f1ab4361197f28367ad9852dc",
+      "type": "quiz",
+      "title": "Quiz: Upserting Tables with SQL",
+      "due_at": "2026-02-14T07:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "Quiz: Upserting Tables with SQL",
+      "questions": [
+        {
+          "ident": "g08c45ec4c04c21ab0b8fc8b65563fbcd",
+          "question_text": "<div><p>What does the term “upsert” mean in SQL?</p></div>",
+          "choices": [
+            {
+              "ident": "8103",
+              "text": "Insert a new row if it doesn’t exist, or update the existing row if there’s a conflict"
+            },
+            {
+              "ident": "1162",
+              "text": "Insert multiple rows at the same time"
+            },
+            {
+              "ident": "4111",
+              "text": "Update all rows in a table"
+            },
+            {
+              "ident": "9287",
+              "text": "Replace a table with new data"
+            }
+          ],
+          "correct_response_ident": "8103"
+        },
+        {
+          "ident": "g4939b1c1ae8f1a8be5b2cf3fc9e32a32",
+          "question_text": "<div><p>What causes a conflict during an INSERT when using <code data-start=\"654\" data-end=\"667\">ON CONFLICT</code>?</p></div>",
+          "choices": [
+            {
+              "ident": "7507",
+              "text": "Violating a UNIQUE constraint"
+            },
+            {
+              "ident": "9929",
+              "text": "Leaving out a column name"
+            },
+            {
+              "ident": "1797",
+              "text": "Using the wrong data type"
+            },
+            {
+              "ident": "8053",
+              "text": "Running two SELECT queries at once"
+            }
+          ],
+          "correct_response_ident": "7507"
+        },
+        {
+          "ident": "g8d353a6d144bb11fbf6123aedc9561a1",
+          "question_text": "<div><p>Let's say you create a cats table: </p>\n<p><code>CREATE TABLE cats (</code><br><code>  id SERIAL PRIMARY KEY,</code><br><code>  name VARCHAR NOT NULL UNIQUE,</code><br><code>  age INTEGER NOT NULL</code><br><code>);</code></p>\n<p>Which column in the <code data-start=\"840\" data-end=\"846\">cats</code> table can cause a conflict during an insert?</p></div>",
+          "choices": [
+            {
+              "ident": "2371",
+              "text": "name"
+            },
+            {
+              "ident": "2641",
+              "text": "id"
+            },
+            {
+              "ident": "8486",
+              "text": "age"
+            },
+            {
+              "ident": "5346",
+              "text": "SERIAL"
+            }
+          ],
+          "correct_response_ident": "2371"
+        },
+        {
+          "ident": "g81da3debbf6e02b11df7a33ddb4d5f5c",
+          "question_text": "<div><p data-start=\"936\" data-end=\"1009\">What does this query do if a cat named \"Pixel\" already exists?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span class=\"hljs-keyword\">INSERT INTO</span> cats (name, age)\n</code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span class=\"hljs-keyword\">VALUES</span> (<span class=\"hljs-string\">'Pixel'</span>, <span class=\"hljs-number\">1</span>)\n</code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span class=\"hljs-keyword\">ON</span> CONFLICT (name) </code><code class=\"whitespace-pre! language-sql\">DO NOTHING;</code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "4853",
+              "text": "It skips the insert and leaves the table unchanged"
+            },
+            {
+              "ident": "3505",
+              "text": "It throws an error"
+            },
+            {
+              "ident": "3347",
+              "text": "It deletes the existing row"
+            },
+            {
+              "ident": "9222",
+              "text": "It updates Pixel’s age to 1"
+            }
+          ],
+          "correct_response_ident": "4853"
+        },
+        {
+          "ident": "gea039b6914825dc325d2fb025f5396a4",
+          "question_text": "<div><p>Which <code data-start=\"1266\" data-end=\"1279\">ON CONFLICT</code> option updates an existing row instead of inserting a duplicate?</p></div>",
+          "choices": [
+            {
+              "ident": "2545",
+              "text": "DO UPDATE SET"
+            },
+            {
+              "ident": "8072",
+              "text": "DO NOTHING"
+            },
+            {
+              "ident": "8570",
+              "text": "RETURNING"
+            },
+            {
+              "ident": "7223",
+              "text": "WHERE"
+            }
+          ],
+          "correct_response_ident": "2545"
+        },
+        {
+          "ident": "gdc820d6d13db9855b02125b48081e6bf",
+          "question_text": "<div><p>Let's say you run this SQL query: </p>\n<p><code>INSERT INTO cats (name, age) </code><br><code>VALUES ('Pixel', 1)</code><br><code>ON CONFLICT (name) </code><br><code>DO UPDATE SET age = cats.age + 1</code><br><code>RETURNING age;</code></p>\n<p> </p>\n<p data-start=\"1411\" data-end=\"1458\">What does this part of the query do?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span class=\"hljs-keyword\">SET</span> age <span class=\"hljs-operator\">=</span> cats.age <span class=\"hljs-operator\">+</span> <span class=\"hljs-number\">1</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "9717",
+              "text": "Increases the existing cat’s age by 1"
+            },
+            {
+              "ident": "2608",
+              "text": "Sets the age to exactly 1"
+            },
+            {
+              "ident": "5322",
+              "text": "Creates a new cat with age 1"
+            },
+            {
+              "ident": "7222",
+              "text": "Deletes the age column"
+            }
+          ],
+          "correct_response_ident": "9717"
+        },
+        {
+          "ident": "g5880f4973bc671e59da76ad14020031f",
+          "question_text": "<div><p>Let's say you run this SQL query: </p>\n<p><code>INSERT INTO cats (name, age) </code><br><code>VALUES ('Pixel', 1)</code><br><code>ON CONFLICT (name) </code><br><code>DO UPDATE SET age = cats.age + 1</code><br><code>RETURNING age;</code></p>\n<p> </p>\n<p data-start=\"1411\" data-end=\"1458\">What does the <code>RETURNING</code> keyword do?</p></div>",
+          "choices": [
+            {
+              "ident": "7765",
+              "text": "Returns values from the inserted or updated row"
+            },
+            {
+              "ident": "6213",
+              "text": "Saves the data permanently"
+            },
+            {
+              "ident": "5420",
+              "text": "Prevents conflicts"
+            },
+            {
+              "ident": "5828",
+              "text": "Sorts the query results"
+            }
+          ],
+          "correct_response_ident": "7765"
+        },
+        {
+          "ident": "ga0de949468c791683da9a05b9fd5afd3",
+          "question_text": "<div><p>Why is <code data-start=\"1858\" data-end=\"1869\">RETURNING</code> useful when using <code data-start=\"1888\" data-end=\"1911\">ON CONFLICT DO UPDATE</code>?</p></div>",
+          "choices": [
+            {
+              "ident": "7963",
+              "text": "It lets you see the updated values immediately"
+            },
+            {
+              "ident": "7333",
+              "text": "It avoids UNIQUE constraint errors"
+            },
+            {
+              "ident": "5767",
+              "text": "It inserts multiple rows at once"
+            },
+            {
+              "ident": "2957",
+              "text": "It replaces the need for a SELECT statement forever"
+            }
+          ],
+          "correct_response_ident": "7963"
+        },
+        {
+          "ident": "gad5b4bc22eb20c8d22e2bb287173ee3a",
+          "question_text": "<div><p>What will happen if you run this query when Egypt already exists in the <code data-start=\"2182\" data-end=\"2198\">country_counts</code> table?</p>\n<p><code>INSERT INTO country_counts (country_name, count)</code><br><code>VALUES ('Egypt', 1)</code><br><code>ON CONFLICT (country_name)</code><br><code>DO UPDATE SET count = country_counts.count + 1;</code></p></div>",
+          "choices": [
+            {
+              "ident": "2825",
+              "text": "Egypt’s count will increase by 1"
+            },
+            {
+              "ident": "7842",
+              "text": "A new row for Egypt will be added"
+            },
+            {
+              "ident": "6740",
+              "text": "The query will fail with an error"
+            },
+            {
+              "ident": "634",
+              "text": "Egypt’s count will be reset to 1"
+            }
+          ],
+          "correct_response_ident": "2825"
+        },
+        {
+          "ident": "g7380913727f2b39db60b53cbe8c524e2",
+          "question_text": "<div><p>Why is the <code>country_name</code> column marked as <code>UNIQUE</code> in the country_counts table?</p></div>",
+          "choices": [
+            {
+              "ident": "359",
+              "text": "So each country has only one count"
+            },
+            {
+              "ident": "4236",
+              "text": "So the table can store text values"
+            },
+            {
+              "ident": "7879",
+              "text": "So PostgreSQL runs faster"
+            },
+            {
+              "ident": "88",
+              "text": "So the table allows duplicate country names"
+            }
+          ],
+          "correct_response_ident": "359"
+        },
+        {
+          "ident": "g927b96d5a88c23d155ae25a27540212f",
+          "question_text": "<div><p>What happens when you insert a row with no conflict on a <code>UNIQUE</code> column?</p></div>",
+          "choices": [
+            {
+              "ident": "2401",
+              "text": "A new row is inserted normally"
+            },
+            {
+              "ident": "5761",
+              "text": "The existing row is updated"
+            },
+            {
+              "ident": "5911",
+              "text": "PostgreSQL skips the insert"
+            },
+            {
+              "ident": "6699",
+              "text": "An error is thrown"
+            }
+          ],
+          "correct_response_ident": "2401"
+        },
+        {
+          "ident": "g803e3eeebb6bbdb987b604f3f715ab58",
+          "question_text": "<div><p data-start=\"2977\" data-end=\"3054\">Which real-world app behavior is best matched to using an upsert?</p></div>",
+          "choices": [
+            {
+              "ident": "9638",
+              "text": "Tracking how many times a country page is viewed"
+            },
+            {
+              "ident": "4375",
+              "text": "Deleting old records"
+            },
+            {
+              "ident": "768",
+              "text": "Renaming a table"
+            },
+            {
+              "ident": "5138",
+              "text": "Sorting data alphabetically"
+            }
+          ],
+          "correct_response_ident": "9638"
+        }
+      ]
+    },
+    {
+      "identifier": "g4c9cd6bd2abb6d3aba980f6b9932f242",
+      "type": "quiz",
+      "title": "Quiz: Node & Express",
+      "due_at": "2026-03-14T05:59:00",
+      "quiz_type": "assignment",
+      "module_title": "Week 9: Node and Express and SQL",
+      "manifest_title": "Quiz: Node & Express",
+      "questions": [
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>How do we run a file with Node?</div>",
+          "choices": [
+            {
+              "ident": "5738",
+              "text": "node filename.js"
+            },
+            {
+              "ident": "7979",
+              "text": "start filename.js"
+            },
+            {
+              "ident": "4612",
+              "text": "run filename.js"
+            },
+            {
+              "ident": "4629",
+              "text": "execute filename.js"
+            }
+          ],
+          "correct_response_ident": "5738"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is <code data-start=\"406\" data-end=\"420\">process.argv</code> in Node.js?</div>",
+          "choices": [
+            {
+              "ident": "3775",
+              "text": "An array containing arguments passed in when running the Node file on the command line"
+            },
+            {
+              "ident": "5813",
+              "text": "A function for reading files"
+            },
+            {
+              "ident": "6654",
+              "text": "A string with environment info"
+            },
+            {
+              "ident": "1424",
+              "text": "A built-in variable for server settings"
+            }
+          ],
+          "correct_response_ident": "3775"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we read data from a file in Node.js?</span></div>",
+          "choices": [
+            {
+              "ident": "6048",
+              "text": "fs.readFile()"
+            },
+            {
+              "ident": "3580",
+              "text": "fs.getFile()"
+            },
+            {
+              "ident": "4996",
+              "text": "fs.read()"
+            },
+            {
+              "ident": "5407",
+              "text": "fs.readData()"
+            }
+          ],
+          "correct_response_ident": "6048"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we turn a JSON string into a JavaScript object?</span></div>",
+          "choices": [
+            {
+              "ident": "5737",
+              "text": "JSON.parse(data)"
+            },
+            {
+              "ident": "9097",
+              "text": "data.parseJSON()"
+            },
+            {
+              "ident": "2655",
+              "text": "JSON.stringify(data)"
+            },
+            {
+              "ident": "4539",
+              "text": "parse.JSON(data)"
+            }
+          ],
+          "correct_response_ident": "5737"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we turn a JavaScript object into a JSON string?</span></div>",
+          "choices": [
+            {
+              "ident": "4694",
+              "text": "JSON.stringify(data)"
+            },
+            {
+              "ident": "6281",
+              "text": "parse.JSON(data)"
+            },
+            {
+              "ident": "47",
+              "text": "data.parseJSON()"
+            },
+            {
+              "ident": "4509",
+              "text": "JSON.parse(data)"
+            }
+          ],
+          "correct_response_ident": "4694"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is <code data-start=\"651\" data-end=\"665\">package.json</code> used for in a Node project?</div>",
+          "choices": [
+            {
+              "ident": "1263",
+              "text": "To store information and dependencies for the project"
+            },
+            {
+              "ident": "8731",
+              "text": "To list environment variables"
+            },
+            {
+              "ident": "2425",
+              "text": "To configure the Express server"
+            },
+            {
+              "ident": "662",
+              "text": "To track file changes"
+            }
+          ],
+          "correct_response_ident": "1263"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What does \"<code data-start=\"1634\" data-end=\"1650\">type\": \"module\"</code> do in <code data-start=\"1657\" data-end=\"1671\">package.json</code>?</div>",
+          "choices": [
+            {
+              "ident": "6386",
+              "text": "Enables use of ES module syntax like the import keyword"
+            },
+            {
+              "ident": "922",
+              "text": "Creates a module file"
+            },
+            {
+              "ident": "5089",
+              "text": "Declares the app as a library"
+            },
+            {
+              "ident": "8303",
+              "text": "Disables Node.js features"
+            }
+          ],
+          "correct_response_ident": "6386"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>In a file path, what does <code data-start=\"1845\" data-end=\"1850\">../</code> mean?<br><br></p>\n<p>For example, what does the <code data-start=\"1845\" data-end=\"1850\">../</code> mean in this file path? </p>\n<p><code data-start=\"1845\" data-end=\"1850\">import \"../components/CountryDetails.jsx\"</code></p></div>",
+          "choices": [
+            {
+              "ident": "2840",
+              "text": "Parent directory"
+            },
+            {
+              "ident": "6670",
+              "text": "File extension"
+            },
+            {
+              "ident": "349",
+              "text": "Current directory"
+            },
+            {
+              "ident": "7705",
+              "text": "Root directory"
+            }
+          ],
+          "correct_response_ident": "2840"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>In a file path, what does <code data-start=\"1845\" data-end=\"1850\">./</code> mean?<br><br></p>\n<p>For example, what does the <code data-start=\"1845\" data-end=\"1850\">./</code> mean in this file path? </p>\n<p><code data-start=\"1845\" data-end=\"1850\">import \"./components/CountryDetails.jsx\"</code></p></div>",
+          "choices": [
+            {
+              "ident": "8207",
+              "text": "Current directory"
+            },
+            {
+              "ident": "305",
+              "text": "Root directory"
+            },
+            {
+              "ident": "5330",
+              "text": "Parent directory"
+            },
+            {
+              "ident": "1431",
+              "text": "File extension"
+            }
+          ],
+          "correct_response_ident": "8207"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">What is Express?</span></div>",
+          "choices": [
+            {
+              "ident": "1601",
+              "text": "A Node.js framework that makes it easier to build web servers and APIs"
+            },
+            {
+              "ident": "9024",
+              "text": "A JavaScript compiler"
+            },
+            {
+              "ident": "5672",
+              "text": "A cloud service for hosting servers online"
+            },
+            {
+              "ident": "8677",
+              "text": "A command-line tool"
+            }
+          ],
+          "correct_response_ident": "1601"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a web server?</div>",
+          "choices": [
+            {
+              "ident": "4661",
+              "text": "A computer that listens for and responds to HTTP requests"
+            },
+            {
+              "ident": "5430",
+              "text": "A browser extension"
+            },
+            {
+              "ident": "4227",
+              "text": "A database"
+            },
+            {
+              "ident": "9862",
+              "text": "A programming language"
+            }
+          ],
+          "correct_response_ident": "4661"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is an API? </div>",
+          "choices": [
+            {
+              "ident": "240",
+              "text": "A collection of endpoints for interacting with data"
+            },
+            {
+              "ident": "5600",
+              "text": "A visual interface for apps"
+            },
+            {
+              "ident": "1415",
+              "text": "A file system structure"
+            },
+            {
+              "ident": "3411",
+              "text": "A way to send emails"
+            }
+          ],
+          "correct_response_ident": "240"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we handle a GET request in Express?</span></div>",
+          "choices": [
+            {
+              "ident": "4011",
+              "text": "app.get('/', async (req, res) => {})"
+            },
+            {
+              "ident": "4361",
+              "text": "express.get(async (req, res) => {)"
+            },
+            {
+              "ident": "9256",
+              "text": "app.request('GET')"
+            },
+            {
+              "ident": "7870",
+              "text": "get.request('/', async (req, res) => {)"
+            }
+          ],
+          "correct_response_ident": "4011"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p data-pm-slice=\"0 0 []\">How do we write an API endpoint URL to get a specific user by their ID in Express?</p></div>",
+          "choices": [
+            {
+              "ident": "6695",
+              "text": "\"/user/:id\""
+            },
+            {
+              "ident": "9643",
+              "text": "\"/user/?id\""
+            },
+            {
+              "ident": "9154",
+              "text": "\"/user/{id}\""
+            },
+            {
+              "ident": "337",
+              "text": "\"/user/id\""
+            }
+          ],
+          "correct_response_ident": "6695"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>How do we create a <code data-start=\"2870\" data-end=\"2884\">package.json</code> file in a Node project?</div>",
+          "choices": [
+            {
+              "ident": "3126",
+              "text": "npm init"
+            },
+            {
+              "ident": "2084",
+              "text": "node create package"
+            },
+            {
+              "ident": "5513",
+              "text": "npm create package.json"
+            },
+            {
+              "ident": "8239",
+              "text": "node init"
+            }
+          ],
+          "correct_response_ident": "3126"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a <code data-start=\"122\" data-end=\"134\">.gitignore</code> file used for?</div>",
+          "choices": [
+            {
+              "ident": "2831",
+              "text": "To tell Git which files or folders not to track"
+            },
+            {
+              "ident": "9140",
+              "text": "To set permissions for contributors"
+            },
+            {
+              "ident": "4143",
+              "text": "To list all Git branches"
+            },
+            {
+              "ident": "9759",
+              "text": "To track changes in ignored files"
+            }
+          ],
+          "correct_response_ident": "2831"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which statement is true about the following two code snippets? </p>\n<p data-start=\"268\" data-end=\"332\"><strong data-start=\"268\" data-end=\"274\">Code Snippet 1.</strong> <code data-start=\"275\" data-end=\"301\">const fs = require('fs')</code><br data-start=\"301\" data-end=\"304\"><strong data-start=\"304\" data-end=\"310\">Code Snippet 2.</strong> <code data-start=\"311\" data-end=\"332\">import fs from 'fs'</code></p></div>",
+          "choices": [
+            {
+              "ident": "712",
+              "text": "Snippet 1 uses the older CommonJS syntax; Snippet 2 uses the modern ES Module syntax"
+            },
+            {
+              "ident": "483",
+              "text": "Snippet 1 and 2 are both modern syntax"
+            },
+            {
+              "ident": "9142",
+              "text": "Snippet 1 uses the modern ES Module syntax; Snippet 2 uses the older CommonJS syntax"
+            },
+            {
+              "ident": "7177",
+              "text": "Both snippets are outdated and should not be used in Node.js"
+            }
+          ],
+          "correct_response_ident": "712"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What does <code data-start=\"241\" data-end=\"253\">res.send()</code> do in an Express route handler?</div>",
+          "choices": [
+            {
+              "ident": "6788",
+              "text": "Sends a response back to the client that made the request"
+            },
+            {
+              "ident": "7761",
+              "text": "Sends a file to the browser"
+            },
+            {
+              "ident": "1696",
+              "text": "Sends a JSON object only"
+            },
+            {
+              "ident": "8211",
+              "text": "Ends the server"
+            }
+          ],
+          "correct_response_ident": "6788"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What does <code data-start=\"436\" data-end=\"448\">req.params</code> contain in Express?</div>",
+          "choices": [
+            {
+              "ident": "1058",
+              "text": "Dynamic parameters from the request URL"
+            },
+            {
+              "ident": "7082",
+              "text": "All the headers from the request"
+            },
+            {
+              "ident": "2113",
+              "text": "Data from the body of a POST request"
+            },
+            {
+              "ident": "3471",
+              "text": "The HTTP method of the request"
+            }
+          ],
+          "correct_response_ident": "1058"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>When handling a GET request like this in Express:</p>\n<p><code>app.get('/get-message', (req, res) => {</code><br><code>  res.send('Hello!');</code><br><code>});</code></p>\n<p> </p>\n<p>What do <code data-start=\"195\" data-end=\"200\">req</code> and <code data-start=\"205\" data-end=\"210\">res</code> stand for?</p></div>",
+          "choices": [
+            {
+              "ident": "3742",
+              "text": "req is the request from the client, and res is the response the server sends back"
+            },
+            {
+              "ident": "30",
+              "text": "req is the server, and res is the route name"
+            },
+            {
+              "ident": "5194",
+              "text": "req is the route, and res is the response text"
+            },
+            {
+              "ident": "1228",
+              "text": "req is the response the server sends back, and res is the request from the client"
+            }
+          ],
+          "correct_response_ident": "3742"
+        },
+        {
+          "ident": "gfe7b1b08122f0b02f8539d1fb426df13",
+          "question_text": "<div><p>You tried running <code>node --watch index.js</code>, and you got the following error message.</p>\n<p>What happened? How should you fix it? </p>\n<p><img src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/image-cc66478b-a3cc-4263-b6a8-d6ef26d70d4c.png\" alt=\"image.png\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "574",
+              "text": "Node.js cannot find the Express package because it has not been installed. Run `npm install express`"
+            },
+            {
+              "ident": "7268",
+              "text": "The index.js file is missing from the folder. Create a new index.js file."
+            },
+            {
+              "ident": "7508",
+              "text": "The --watch flag is incorrect. Run node index.js without --watch."
+            },
+            {
+              "ident": "533",
+              "text": "Node.js requires a .mjs file instead of .js. Rename the file to index.mjs."
+            }
+          ],
+          "correct_response_ident": "574"
+        },
+        {
+          "ident": "g4a8566b867a5981a22926f0b159791f1",
+          "question_text": "<div><p>You tried sending a GET request in Postman, and you got the following error message.</p>\n<p>What happened? How should you fix it? </p>\n<p><img src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/image-6a8a8c88-a55e-46e0-8f46-add2b707860a.png\" alt=\"image.png\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "4608",
+              "text": "The Express server is not running. Start the server by running `node index.js` or `node --watch index.js`"
+            },
+            {
+              "ident": "6742",
+              "text": "The API endpoint path is incorrect. Fix the route in Postman."
+            },
+            {
+              "ident": "7682",
+              "text": "Express is not installed. Run `npm install express`"
+            },
+            {
+              "ident": "8020",
+              "text": "Postman cannot connect to localhost. Restart Postman."
+            }
+          ],
+          "correct_response_ident": "4608"
+        }
+      ]
+    },
+    {
+      "identifier": "g7327f50164b21d32675b31c617020856",
+      "type": "quiz",
+      "title": "Quiz: Node & Express & SQL",
+      "due_at": "2026-03-21T05:59:00",
+      "quiz_type": "assignment",
+      "module_title": "Week 10: Node, Express, SQL, and APIs",
+      "manifest_title": "Quiz: Node & Express & SQL",
+      "questions": [
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a web server?</div>",
+          "choices": [
+            {
+              "ident": "4661",
+              "text": "A computer that listens for and responds to HTTP requests"
+            },
+            {
+              "ident": "5430",
+              "text": "A browser extension"
+            },
+            {
+              "ident": "4227",
+              "text": "A database"
+            },
+            {
+              "ident": "9862",
+              "text": "A programming language"
+            }
+          ],
+          "correct_response_ident": "4661"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is an API? </div>",
+          "choices": [
+            {
+              "ident": "240",
+              "text": "A collection of endpoints for interacting with data"
+            },
+            {
+              "ident": "5600",
+              "text": "A visual interface for apps"
+            },
+            {
+              "ident": "1415",
+              "text": "A file system structure"
+            },
+            {
+              "ident": "3411",
+              "text": "A way to send emails"
+            }
+          ],
+          "correct_response_ident": "240"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">What is Express?</span></div>",
+          "choices": [
+            {
+              "ident": "1601",
+              "text": "A Node.js framework that makes it easier to build web servers and APIs"
+            },
+            {
+              "ident": "9024",
+              "text": "A JavaScript compiler"
+            },
+            {
+              "ident": "5672",
+              "text": "A cloud service for hosting servers online"
+            },
+            {
+              "ident": "8677",
+              "text": "A command-line tool"
+            }
+          ],
+          "correct_response_ident": "1601"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is <code data-start=\"651\" data-end=\"665\">package.json</code> used for in a Node project?</div>",
+          "choices": [
+            {
+              "ident": "1263",
+              "text": "To store information about a project and its list of dependencies"
+            },
+            {
+              "ident": "8731",
+              "text": "To list environment variables"
+            },
+            {
+              "ident": "2425",
+              "text": "To configure the Express server"
+            },
+            {
+              "ident": "662",
+              "text": "To track file changes"
+            }
+          ],
+          "correct_response_ident": "1263"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a <code data-start=\"122\" data-end=\"134\">.gitignore</code> file used for?</div>",
+          "choices": [
+            {
+              "ident": "2831",
+              "text": "To tell Git which files or folders not to track"
+            },
+            {
+              "ident": "9140",
+              "text": "To set permissions for contributors"
+            },
+            {
+              "ident": "4143",
+              "text": "To list all Git branches"
+            },
+            {
+              "ident": "9759",
+              "text": "To track changes in ignored files"
+            }
+          ],
+          "correct_response_ident": "2831"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What command do we use to run our backend server/API so that it can listen for HTTP requests and send back responses?</div>",
+          "choices": [
+            {
+              "ident": "5738",
+              "text": "node index.js"
+            },
+            {
+              "ident": "7979",
+              "text": "start index.js"
+            },
+            {
+              "ident": "4612",
+              "text": "run index.js"
+            },
+            {
+              "ident": "4629",
+              "text": "npm run dev"
+            }
+          ],
+          "correct_response_ident": "5738"
+        },
+        {
+          "ident": "g1770de88659e80dca82ccc5ab1c22db2",
+          "question_text": "<div>What command do we use to start and view our React frontend project in the browser?</div>",
+          "choices": [
+            {
+              "ident": "7014",
+              "text": "npm run dev"
+            },
+            {
+              "ident": "4864",
+              "text": "node index.js"
+            },
+            {
+              "ident": "528",
+              "text": "npm install"
+            },
+            {
+              "ident": "7426",
+              "text": "run index.js"
+            }
+          ],
+          "correct_response_ident": "7014"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>In a file path, what does <code data-start=\"1845\" data-end=\"1850\">../</code> mean?<br><br></p>\n<p>For example, what does the <code data-start=\"1845\" data-end=\"1850\">../</code> mean in this file path? </p>\n<p><code data-start=\"1845\" data-end=\"1850\">import \"../components/CountryDetails.jsx\"</code></p></div>",
+          "choices": [
+            {
+              "ident": "2840",
+              "text": "Parent directory"
+            },
+            {
+              "ident": "6670",
+              "text": "File extension"
+            },
+            {
+              "ident": "349",
+              "text": "Current directory"
+            },
+            {
+              "ident": "7705",
+              "text": "Root directory"
+            }
+          ],
+          "correct_response_ident": "2840"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>In a file path, what does <code data-start=\"1845\" data-end=\"1850\">./</code> mean?<br><br></p>\n<p>For example, what does the <code data-start=\"1845\" data-end=\"1850\">./</code> mean in this file path? </p>\n<p><code data-start=\"1845\" data-end=\"1850\">import \"./components/CountryDetails.jsx\"</code></p></div>",
+          "choices": [
+            {
+              "ident": "8207",
+              "text": "Current directory"
+            },
+            {
+              "ident": "305",
+              "text": "Root directory"
+            },
+            {
+              "ident": "5330",
+              "text": "Parent directory"
+            },
+            {
+              "ident": "1431",
+              "text": "File extension"
+            }
+          ],
+          "correct_response_ident": "8207"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we turn a JSON string into a JavaScript object?</span></div>",
+          "choices": [
+            {
+              "ident": "5737",
+              "text": "JSON.parse(data)"
+            },
+            {
+              "ident": "9097",
+              "text": "data.parseJSON()"
+            },
+            {
+              "ident": "2655",
+              "text": "JSON.stringify(data)"
+            },
+            {
+              "ident": "4539",
+              "text": "parse.JSON(data)"
+            }
+          ],
+          "correct_response_ident": "5737"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we turn a JavaScript object into a JSON string?</span></div>",
+          "choices": [
+            {
+              "ident": "4694",
+              "text": "JSON.stringify(data)"
+            },
+            {
+              "ident": "6281",
+              "text": "parse.JSON(data)"
+            },
+            {
+              "ident": "47",
+              "text": "data.parseJSON()"
+            },
+            {
+              "ident": "4509",
+              "text": "JSON.parse(data)"
+            }
+          ],
+          "correct_response_ident": "4694"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which HTTP method should you use to <em data-start=\"277\" data-end=\"287\">get data</em> from the database?</div>",
+          "choices": [
+            {
+              "ident": "9408",
+              "text": "GET"
+            },
+            {
+              "ident": "8746",
+              "text": "POST"
+            },
+            {
+              "ident": "396",
+              "text": "PUT"
+            },
+            {
+              "ident": "7816",
+              "text": "DELETE"
+            }
+          ],
+          "correct_response_ident": "9408"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which HTTP method should you use to <em>send data</em> to the database?</div>",
+          "choices": [
+            {
+              "ident": "4298",
+              "text": "POST"
+            },
+            {
+              "ident": "6970",
+              "text": "GET"
+            },
+            {
+              "ident": "4411",
+              "text": "FETCH"
+            },
+            {
+              "ident": "321",
+              "text": "SEND"
+            }
+          ],
+          "correct_response_ident": "4298"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">How do we handle a GET request in Express?</span></div>",
+          "choices": [
+            {
+              "ident": "4011",
+              "text": "app.get(\"/route\", async (req, res) => { ... })"
+            },
+            {
+              "ident": "4361",
+              "text": "express.get(async (req, res) => {)"
+            },
+            {
+              "ident": "9256",
+              "text": "app.request('GET')"
+            },
+            {
+              "ident": "7870",
+              "text": "get.request('/route', async (req, res) => {)"
+            }
+          ],
+          "correct_response_ident": "4011"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>How do we handle a POST request in Express? </div>",
+          "choices": [
+            {
+              "ident": "9986",
+              "text": "app.post(\"/route\", async (req, res) => { ... })"
+            },
+            {
+              "ident": "5408",
+              "text": "post.app(\"/route\", async (req, res) => { ... })"
+            },
+            {
+              "ident": "6615",
+              "text": "app.send(\"/route\", async (req, res) => { ... })"
+            },
+            {
+              "ident": "6132",
+              "text": "app.write(\"POST\", \"/route\", async (req, res) => { ... })"
+            }
+          ],
+          "correct_response_ident": "9986"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>When handling a request like this in Express:</p>\n<p><code>app.get('/get-all-animals', (req, res) => {</code><br><code>  const animals = await getAllAnimals();<br>   </code><code>res.json(animals)<br></code><code>});</code></p>\n<p> </p>\n<p>What do <code data-start=\"195\" data-end=\"200\">req</code> and <code data-start=\"205\" data-end=\"210\">res</code> stand for?</p></div>",
+          "choices": [
+            {
+              "ident": "3742",
+              "text": "req is the request from the client, and res is the response the server sends back"
+            },
+            {
+              "ident": "30",
+              "text": "req is the server, and res is the route name"
+            },
+            {
+              "ident": "5194",
+              "text": "req is the route, and res is the response text"
+            },
+            {
+              "ident": "1228",
+              "text": "req is the response the server sends back, and res is the request from the client"
+            }
+          ],
+          "correct_response_ident": "3742"
+        },
+        {
+          "ident": "g521c45fb6d5dad6cd46e617e3b9e7a16",
+          "question_text": "<div><p data-pm-slice=\"0 0 []\">How do we write an API endpoint URL with dynamic parameter to get a specific user by their ID in Express?</p></div>",
+          "choices": [
+            {
+              "ident": "6695",
+              "text": "\"/user/:id\""
+            },
+            {
+              "ident": "9643",
+              "text": "\"/user/?id\""
+            },
+            {
+              "ident": "9154",
+              "text": "\"/user/{id}\""
+            },
+            {
+              "ident": "337",
+              "text": "\"/user/id\""
+            }
+          ],
+          "correct_response_ident": "6695"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>In Express, what does <code data-start=\"436\" data-end=\"448\">req.params</code> contain?</div>",
+          "choices": [
+            {
+              "ident": "1058",
+              "text": "Dynamic parameters from the request URL"
+            },
+            {
+              "ident": "7082",
+              "text": "All the headers from the request"
+            },
+            {
+              "ident": "2113",
+              "text": "Data from the body of a POST request"
+            },
+            {
+              "ident": "3471",
+              "text": "The HTTP method of the request"
+            }
+          ],
+          "correct_response_ident": "1058"
+        },
+        {
+          "ident": "ga1bb5ef5d411c04199c02ff40194d2d6",
+          "question_text": "<div>In Express, what does <code data-start=\"110\" data-end=\"120\">req.body</code> contain?</div>",
+          "choices": [
+            {
+              "ident": "4354",
+              "text": "The data sent by the client in the request body"
+            },
+            {
+              "ident": "5019",
+              "text": "The dynamic URL parameters from the request"
+            },
+            {
+              "ident": "6577",
+              "text": "The headers from the HTTP request"
+            },
+            {
+              "ident": "8654",
+              "text": "The query string values from the URL"
+            }
+          ],
+          "correct_response_ident": "4354"
+        },
+        {
+          "ident": "g447afc2703bb643e91c9b3c672581ffc",
+          "question_text": "<div>Which SQL query would be used to insert a new animal into the database?</div>",
+          "choices": [
+            {
+              "ident": "424",
+              "text": "INSERT INTO animals (name, category, can_fly, lives_in) VALUES ($1, $2, $3, $4)"
+            },
+            {
+              "ident": "8223",
+              "text": "ADD INTO animals (name, category, can_fly, lives_in) VALUES ($1, $2, $3, $4)"
+            },
+            {
+              "ident": "272",
+              "text": "CREATE INTO animals (name, category, can_fly, lives_in) VALUES ($1, $2, $3, $4)"
+            },
+            {
+              "ident": "2564",
+              "text": "UPDATE animals (name, category, can_fly, lives_in) SET ($1, $2, $3, $4)"
+            }
+          ],
+          "correct_response_ident": "424"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>In the query <code data-start=\"390\" data-end=\"449\">db.query(\"SELECT * FROM animals WHERE name = $1\", [name])</code>, what does <code data-start=\"461\" data-end=\"465\">$1</code> represent?</div>",
+          "choices": [
+            {
+              "ident": "9773",
+              "text": "A placeholder for the actual value passed into the query"
+            },
+            {
+              "ident": "4789",
+              "text": "The column name"
+            },
+            {
+              "ident": "8013",
+              "text": "The table name"
+            },
+            {
+              "ident": "1955",
+              "text": "The ID of the first animal"
+            }
+          ],
+          "correct_response_ident": "9773"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is the difference between <code data-start=\"241\" data-end=\"253\">res.send()</code> and <code data-start=\"241\" data-end=\"253\">res.json()</code>?</div>",
+          "choices": [
+            {
+              "ident": "6788",
+              "text": "res.send() sends a String, and res.json() sends a JavaScript object as JSON"
+            },
+            {
+              "ident": "7761",
+              "text": "res.send() is for errors, and res.json() is for success"
+            },
+            {
+              "ident": "1696",
+              "text": "res.send() sends data to the database, and res.json() sends it to the browser"
+            },
+            {
+              "ident": "8211",
+              "text": "There is no difference — they both send the same thing in the same way"
+            }
+          ],
+          "correct_response_ident": "6788"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>What is the best way to send the response for this API endpoint? </p>\n<p><code>app.get(\"/get-all-animals\", async (req, res) => {</code><br><code>  const animals = await getAllAnimals();</code><br><code>  // choose the best response method here</code><br><code>});</code></p>\n<p><em>Hint: You are sending an array of animal objects in the response, not just a String message.  </em></p></div>",
+          "choices": [
+            {
+              "ident": "1247",
+              "text": "res.json(animals)"
+            },
+            {
+              "ident": "5453",
+              "text": "res.send(\"All animals retrieved!\")"
+            },
+            {
+              "ident": "2617",
+              "text": "res.send(animals.toString())"
+            },
+            {
+              "ident": "5867",
+              "text": "res.json(\"All animals retrieved!\")"
+            }
+          ],
+          "correct_response_ident": "1247"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p><span>What is the best way to send the response for this API endpoint? </span></p>\n<p><code>app.post(\"/add-one-animal\", async (req, res) => {</code><br><code>  const newAnimal = req.body;</code><br><code>  await addOneAnimal(newAnimal);</code><br><code>  // choose the best response method here</code><br><code>});</code></p>\n<p><em>Hint: You're sending a success message to confirm that an animal was added to the database.  </em></p></div>",
+          "choices": [
+            {
+              "ident": "4372",
+              "text": "res.send(\"The animal was successfully added!\")"
+            },
+            {
+              "ident": "5933",
+              "text": "res.send({ message: \"The animal was added!\" })"
+            },
+            {
+              "ident": "4487",
+              "text": "res.json(\"The animal was added!\")"
+            },
+            {
+              "ident": "9220",
+              "text": "res.json(newAnimal)"
+            }
+          ],
+          "correct_response_ident": "4372"
+        }
+      ]
+    },
+    {
+      "identifier": "g9a938b4892d22dfddb72cd231f236163",
+      "type": "quiz",
+      "title": "Quiz: SQL Joins",
+      "due_at": "2026-02-21T06:59:00",
+      "quiz_type": "assignment",
+      "module_title": "Week 6: SQL Continued: Aggregate Functions & Joins",
+      "manifest_title": "Quiz: SQL Joins",
+      "questions": [
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which SQL clause explains how the two tables (owners and pets) are related in this SQL JOIN? </p>\n<p><img src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/sqljoins.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners INNER JOIN pets\nON owners.owner_id = pets.owner_id;\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "9354",
+              "text": "ON"
+            },
+            {
+              "ident": "298",
+              "text": "SELECT"
+            },
+            {
+              "ident": "8737",
+              "text": "FROM"
+            },
+            {
+              "ident": "7165",
+              "text": "INNER JOIN"
+            }
+          ],
+          "correct_response_ident": "9354"
+        },
+        {
+          "ident": "g8d9912a639fd7ec4953874317c79bd22",
+          "question_text": "<div>What SQL clause can you use to rename a column in the result of a query?</div>",
+          "choices": [
+            {
+              "ident": "930",
+              "text": "AS"
+            },
+            {
+              "ident": "471",
+              "text": "RENAME"
+            },
+            {
+              "ident": "8702",
+              "text": "LABEL"
+            },
+            {
+              "ident": "956",
+              "text": "ALIAS"
+            }
+          ],
+          "correct_response_ident": "930"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">only</span> matches between pets and owners? </p>\n<p><img src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ______ pets\nON owners.owner_id = pets.owner_id;\" loading=\"lazy\"></p>\n<p> </p></div>",
+          "choices": [
+            {
+              "ident": "3470",
+              "text": "INNER JOIN"
+            },
+            {
+              "ident": "1764",
+              "text": "LEFT JOIN"
+            },
+            {
+              "ident": "2937",
+              "text": "RIGHT JOIN"
+            },
+            {
+              "ident": "6420",
+              "text": "FULL JOIN"
+            }
+          ],
+          "correct_response_ident": "3470"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all</span> pets and owners, regardless of whether they have a match? </p>\n<p><img id=\"302186634\" src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ______ pets\nON owners.owner_id = pets.owner_id;\" width=\"772\" height=\"198\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "3588",
+              "text": "FULL JOIN"
+            },
+            {
+              "ident": "843",
+              "text": "LEFT JOIN"
+            },
+            {
+              "ident": "3440",
+              "text": "RIGHT JOIN"
+            },
+            {
+              "ident": "4962",
+              "text": "INNER JOIN"
+            }
+          ],
+          "correct_response_ident": "3588"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all owners</span>, even if they don’t have a pet? </p>\n<p><img id=\"302186634\" src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/sqljoins2.webp\" alt=\"sqljoins2.webp\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "4933",
+              "text": "LEFT JOIN"
+            },
+            {
+              "ident": "3076",
+              "text": "RIGHT JOIN"
+            },
+            {
+              "ident": "9012",
+              "text": "INNER JOIN"
+            },
+            {
+              "ident": "9618",
+              "text": "FULL JOIN"
+            }
+          ],
+          "correct_response_ident": "4933"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Which type of JOIN completes this query if we want to include <span class=\"notion-enable-hover\" data-token-index=\"1\">all pets</span>, even if they don’t have an owner? </p>\n<p><img id=\"302186634\" src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/sqljoins2.webp\" alt=\"SELECT owners.name, pets.name\nFROM owners ____ pets\nON owners.owner_id = pets.owner_id;\" width=\"772\" height=\"198\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "1353",
+              "text": "RIGHT JOIN"
+            },
+            {
+              "ident": "8370",
+              "text": "LEFT JOIN"
+            },
+            {
+              "ident": "9223",
+              "text": "INNER JOIN"
+            },
+            {
+              "ident": "7205",
+              "text": "FULL JOIN"
+            }
+          ],
+          "correct_response_ident": "1353"
+        }
+      ]
+    },
+    {
+      "identifier": "gc5c6b8213ed31fa3808898cd2e6e3cb3",
+      "type": "quiz",
+      "title": "Quiz: Creating Tables with SQL",
+      "due_at": "2026-02-14T07:59:00",
+      "quiz_type": "assignment",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "Quiz: Creating Tables with SQL",
+      "questions": [
+        {
+          "ident": "g7a08100cf91dc5385bc4f9e5ae6ed3ad",
+          "question_text": "<div>What does SQL stand for?</div>",
+          "choices": [
+            {
+              "ident": "8511",
+              "text": "Structured Query Language"
+            },
+            {
+              "ident": "187",
+              "text": "Simple Query Language"
+            },
+            {
+              "ident": "9728",
+              "text": "System Quality Logic"
+            },
+            {
+              "ident": "6686",
+              "text": "Sequential Query Logic"
+            }
+          ],
+          "correct_response_ident": "8511"
+        },
+        {
+          "ident": "gbdc8aab5641bb575b4fc3643e6ca0a5b",
+          "question_text": "<div>Which SQL clause is used to get specific columns from a table?</div>",
+          "choices": [
+            {
+              "ident": "5507",
+              "text": "SELECT"
+            },
+            {
+              "ident": "2715",
+              "text": "WHERE"
+            },
+            {
+              "ident": "63",
+              "text": "CREATE TABLE"
+            },
+            {
+              "ident": "3687",
+              "text": "INSERT INTO"
+            }
+          ],
+          "correct_response_ident": "5507"
+        },
+        {
+          "ident": "g963aab01bbc834109fc5d3e38c2b16cf",
+          "question_text": "<div>What does the wildcard <code data-start=\"2362\" data-end=\"2365\">*</code> mean in a <code data-start=\"2376\" data-end=\"2384\">SELECT</code> query?</div>",
+          "choices": [
+            {
+              "ident": "64",
+              "text": "Select all columns from a table"
+            },
+            {
+              "ident": "6615",
+              "text": "Select only one column"
+            },
+            {
+              "ident": "7263",
+              "text": "Multiply values in a column"
+            },
+            {
+              "ident": "4931",
+              "text": "Delete all rows from a table"
+            }
+          ],
+          "correct_response_ident": "64"
+        },
+        {
+          "ident": "gcb4d8dcc30c13eece47a5c66ee6c64f7",
+          "question_text": "<div>What is the purpose of the <code data-start=\"976\" data-end=\"983\">WHERE</code> clause?</div>",
+          "choices": [
+            {
+              "ident": "6565",
+              "text": "To specify which rows should be returned or affected by a query"
+            },
+            {
+              "ident": "934",
+              "text": "To create a new database"
+            },
+            {
+              "ident": "7949",
+              "text": "To define the data type of a column"
+            },
+            {
+              "ident": "2025",
+              "text": "To rename a table"
+            }
+          ],
+          "correct_response_ident": "6565"
+        },
+        {
+          "ident": "g0e0aea1bda9db39b7d882156d5e63bcc",
+          "question_text": "<div>Which clause do you use to create a new table?</div>",
+          "choices": [
+            {
+              "ident": "8877",
+              "text": "CREATE TABLE"
+            },
+            {
+              "ident": "2574",
+              "text": "ADD TABLE"
+            },
+            {
+              "ident": "2253",
+              "text": "MAKE TABLE"
+            },
+            {
+              "ident": "1720",
+              "text": "BUILD TABLE"
+            }
+          ],
+          "correct_response_ident": "8877"
+        },
+        {
+          "ident": "g4ac65992674ad18b3575fb58e547688a",
+          "question_text": "<div><p>Which SQL clause would you use to add additional rows of data into a table?</p></div>",
+          "choices": [
+            {
+              "ident": "3727",
+              "text": "INSERT INTO"
+            },
+            {
+              "ident": "9745",
+              "text": "SELECT"
+            },
+            {
+              "ident": "3353",
+              "text": "UPDATE"
+            },
+            {
+              "ident": "3350",
+              "text": "ADD"
+            }
+          ],
+          "correct_response_ident": "3727"
+        },
+        {
+          "ident": "g3b3dc52e1d2572e1f54ba63b4d483905",
+          "question_text": "<div>Which SQL clause is used to modify existing rows of data in a table?</div>",
+          "choices": [
+            {
+              "ident": "7319",
+              "text": "UPDATE"
+            },
+            {
+              "ident": "1407",
+              "text": "SELECT"
+            },
+            {
+              "ident": "5402",
+              "text": "CREATE TABLE"
+            },
+            {
+              "ident": "9468",
+              "text": "MODIFY"
+            }
+          ],
+          "correct_response_ident": "7319"
+        },
+        {
+          "ident": "g675a7da58f367f762c313404e8d1e030",
+          "question_text": "<div>Which SQL clause is used to remove rows of data from a table?</div>",
+          "choices": [
+            {
+              "ident": "93",
+              "text": "DELETE"
+            },
+            {
+              "ident": "106",
+              "text": "DROP"
+            },
+            {
+              "ident": "8322",
+              "text": "TRUNCATE"
+            },
+            {
+              "ident": "3990",
+              "text": "INSERT INTO"
+            }
+          ],
+          "correct_response_ident": "93"
+        },
+        {
+          "ident": "g1ac90336eec0ef08989d1a67955ecf0f",
+          "question_text": "<div>Which SQL clause would you use to view all the data in a table named <code data-start=\"3947\" data-end=\"3955\">orders</code>?</div>",
+          "choices": [
+            {
+              "ident": "5317",
+              "text": "SELECT * FROM orders;"
+            },
+            {
+              "ident": "5881",
+              "text": "VIEW orders;"
+            },
+            {
+              "ident": "4371",
+              "text": "SHOW orders;"
+            },
+            {
+              "ident": "7035",
+              "text": "SEE orders;"
+            }
+          ],
+          "correct_response_ident": "5317"
+        },
+        {
+          "ident": "gcb353f90bc8af987312ae4694507ad54",
+          "question_text": "<div><p>In SQL, what symbols do you type to write a single-line comment?</p></div>",
+          "choices": [
+            {
+              "ident": "5278",
+              "text": "--"
+            },
+            {
+              "ident": "6742",
+              "text": "//"
+            },
+            {
+              "ident": "2729",
+              "text": "/* */"
+            },
+            {
+              "ident": "8123",
+              "text": "##"
+            }
+          ],
+          "correct_response_ident": "5278"
+        },
+        {
+          "ident": "g6045afa607b9de8fd8849eb4afc92f52",
+          "question_text": "<div>What is the purpose of the semicolon <code data-start=\"108\" data-end=\"111\">;</code> in SQL?</div>",
+          "choices": [
+            {
+              "ident": "7588",
+              "text": "To mark the end of a SQL statement"
+            },
+            {
+              "ident": "6280",
+              "text": "To separate columns in a table"
+            },
+            {
+              "ident": "2300",
+              "text": "To indicate a comment line"
+            },
+            {
+              "ident": "6618",
+              "text": "To select all columns from a table"
+            }
+          ],
+          "correct_response_ident": "7588"
+        },
+        {
+          "ident": "gde79b8f86132555c1a635a150d5a675e",
+          "question_text": "<div>Which of these is <strong data-start=\"1963\" data-end=\"1993\">not a SQL data type</strong>?</div>",
+          "choices": [
+            {
+              "ident": "4510",
+              "text": "ADDRESS"
+            },
+            {
+              "ident": "3684",
+              "text": "TIMESTAMP"
+            },
+            {
+              "ident": "8476",
+              "text": "VARCHAR"
+            },
+            {
+              "ident": "1192",
+              "text": "DECIMAL"
+            }
+          ],
+          "correct_response_ident": "4510"
+        },
+        {
+          "ident": "g3608b58e69a272a3e736a3a1bf20895b",
+          "question_text": "<div>If you want to prevent duplicate values in a column, which constraint would you use?</div>",
+          "choices": [
+            {
+              "ident": "1417",
+              "text": "PRIMARY KEY or UNIQUE"
+            },
+            {
+              "ident": "5865",
+              "text": "NOT NULL"
+            },
+            {
+              "ident": "3786",
+              "text": "DEFAULT"
+            },
+            {
+              "ident": "2629",
+              "text": "FOREIGN KEY"
+            }
+          ],
+          "correct_response_ident": "1417"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span>With SQL, how do you select a column named <code>instagram_handle</code> from a table named <code>pets</code>?</span></div>",
+          "choices": [
+            {
+              "ident": "5700",
+              "text": "SELECT instagram_handle FROM pets"
+            },
+            {
+              "ident": "5529",
+              "text": "GET instagram_handle FROM pets"
+            },
+            {
+              "ident": "1792",
+              "text": "SELECT pets.instagram_handle"
+            },
+            {
+              "ident": "7593",
+              "text": "SELECT instagram_handle OF pets"
+            }
+          ],
+          "correct_response_ident": "5700"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span>With SQL, how do you select all the records from a table named <code>pets</code> where the value of the column <code>instagram_handle</code> is <code>'@snufflesnotmuffles'</code>?</span></div>",
+          "choices": [
+            {
+              "ident": "4212",
+              "text": "SELECT * FROM pets WHERE instagram_handle = '@snufflesnotmuffles';"
+            },
+            {
+              "ident": "1359",
+              "text": "SELECT instagram_handle FROM pets = '@snufflesnotmuffles';"
+            },
+            {
+              "ident": "2672",
+              "text": "SELECT * WHERE instagram_handle = '@snufflesnotmuffles' FROM pets;"
+            },
+            {
+              "ident": "6690",
+              "text": "SELECT pets FROM instagram_handle WHERE '@snufflesnotmuffles';"
+            }
+          ],
+          "correct_response_ident": "4212"
+        },
+        {
+          "ident": "g09b3f26fe3a29dc3266e004b42939b32",
+          "question_text": "<div><p>You want to select all columns for products that cost more than $1.50. Which query would you use?</p></div>",
+          "choices": [
+            {
+              "ident": "378",
+              "text": "SELECT * FROM products WHERE price > 1.50;"
+            },
+            {
+              "ident": "7161",
+              "text": "SELECT price FROM products WHERE price = 1.50;"
+            },
+            {
+              "ident": "8469",
+              "text": "SELECT * FROM products WHERE product_name > 1.50;"
+            },
+            {
+              "ident": "8767",
+              "text": "SELECT product_name, price FROM products;"
+            }
+          ],
+          "correct_response_ident": "378"
+        },
+        {
+          "ident": "g3b60a35af15a0264a3a288825b041f88",
+          "question_text": "<div>You accidentally typed the wrong email for a customer. Which query would you run to fix it? </div>",
+          "choices": [
+            {
+              "ident": "5721",
+              "text": "UPDATE customers SET email = 'new.email@example.com' WHERE customer_id = 2;"
+            },
+            {
+              "ident": "1819",
+              "text": "INSERT INTO customers SET email = 'new.email@example.com';"
+            },
+            {
+              "ident": "1291",
+              "text": "DELETE FROM customers WHERE email = 'new.email@example.com';"
+            },
+            {
+              "ident": "6917",
+              "text": "SELECT email FROM customers WHERE customer_id = 2;"
+            }
+          ],
+          "correct_response_ident": "5721"
+        },
+        {
+          "ident": "gba570f017bf8024676742cdc1414db1c",
+          "question_text": "<div>You want to remove all orders placed by the customer with <code data-start=\"961\" data-end=\"978\">customer_id = 3</code>. Which SQL statement would you use?</div>",
+          "choices": [
+            {
+              "ident": "3793",
+              "text": "DELETE FROM orders WHERE customer_id = 3;"
+            },
+            {
+              "ident": "9398",
+              "text": "UPDATE orders SET customer_id = NULL WHERE customer_id = 3;"
+            },
+            {
+              "ident": "2173",
+              "text": "SELECT * FROM orders WHERE customer_id = 3;"
+            },
+            {
+              "ident": "5576",
+              "text": "DROP TABLE orders WHERE customer_id = 3;"
+            }
+          ],
+          "correct_response_ident": "3793"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p data-start=\"142\" data-end=\"193\">You run the following query: </p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code>INSERT INTO products (product_name, price, inventory, description)<br>VALUE ('Choco Chip', 2.50, 10, 'Delicious cookies');</code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">PostgreSQL returns this error message:</div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code> ERROR: syntax error at or near \"VALUE\"</code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">Why did the query fail? </div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "3649",
+              "text": "Because the keyword should be VALUES instead of VALUE"
+            },
+            {
+              "ident": "3441",
+              "text": "Because INSERT INTO cannot be used with text values"
+            },
+            {
+              "ident": "704",
+              "text": "Because the table products does not exist"
+            },
+            {
+              "ident": "9754",
+              "text": "Because semicolons are missing"
+            }
+          ],
+          "correct_response_ident": "3649"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p data-start=\"142\" data-end=\"193\">You run the following queries: </p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">\n<p><code>SELECT * FROM orders</code></p>\n<p><code>SELECT name, email FROM customers;</code></p>\n</div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">PostgreSQL returns this error message:</div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code>ERROR: syntax error at or near \"SELECT\"</code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">Why did the query fail? </div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "2416",
+              "text": "Because there is a missing semicolon after the first SELECT statement"
+            },
+            {
+              "ident": "4560",
+              "text": "Because SELECT cannot be used on multiple tables"
+            },
+            {
+              "ident": "2184",
+              "text": "Because the column names must be in quotes"
+            },
+            {
+              "ident": "9011",
+              "text": "Because FROM must be lowercase"
+            }
+          ],
+          "correct_response_ident": "2416"
+        },
+        {
+          "ident": "gfec1922b73a19bba82e671ae9e1ba879",
+          "question_text": "<div><p data-start=\"100\" data-end=\"130\">You run the following query:</p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">INSERT</span> <span class=\"hljs-keyword\">INTO</span> customers (name, email) </span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">VALUES</span> (John, <span class=\"hljs-string\">'john@example.com'</span>);\n</span></code></div>\n</div>\n<p data-start=\"216\" data-end=\"256\">PostgreSQL returns this error message:</p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre!\"><span><span class=\"hljs-symbol\">ERROR:</span>  syntax <span class=\"hljs-keyword\">error</span> at <span class=\"hljs-built_in\">or</span> near <span class=\"hljs-string\">\"John\"</span>\n</span></code></div>\n</div>\n<p data-start=\"306\" data-end=\"336\"><strong data-start=\"306\" data-end=\"336\">Why did this error happen?</strong></p></div>",
+          "choices": [
+            {
+              "ident": "8310",
+              "text": "The value John is missing single quotation marks, so PostgreSQL thinks it’s a column or keyword."
+            },
+            {
+              "ident": "5470",
+              "text": "The column name cannot accept text values."
+            },
+            {
+              "ident": "2783",
+              "text": "SQL does not allow inserting both name and email in the same query."
+            },
+            {
+              "ident": "848",
+              "text": "You forgot to add a semicolon at the end of the query."
+            }
+          ],
+          "correct_response_ident": "8310"
+        }
+      ]
+    },
+    {
+      "identifier": "gd506cdb1508f25c65e4d2bb0fb62ed8c",
+      "type": "quiz",
+      "title": "Quiz: Relational Databases",
+      "due_at": "2026-02-14T07:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "Quiz: Relational Databases",
+      "questions": [
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a database?</div>",
+          "choices": [
+            {
+              "ident": "2429",
+              "text": "An organized collection of data stored electronically"
+            },
+            {
+              "ident": "3027",
+              "text": "A special type of server that only stores HTML files"
+            },
+            {
+              "ident": "2586",
+              "text": "A collection of files stored on your personal computer"
+            },
+            {
+              "ident": "5612",
+              "text": "A programming language used to build websites"
+            }
+          ],
+          "correct_response_ident": "2429"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What’s the main difference between a server and a database?</div>",
+          "choices": [
+            {
+              "ident": "3133",
+              "text": "A database stores data, while a server handles requests for that data"
+            },
+            {
+              "ident": "376",
+              "text": "A server stores the data, while the database delivers it"
+            },
+            {
+              "ident": "3844",
+              "text": "A server and a database are exactly the same thing"
+            },
+            {
+              "ident": "935",
+              "text": "A database can only work on a personal computer, not with a server"
+            }
+          ],
+          "correct_response_ident": "3133"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is <strong data-start=\"1288\" data-end=\"1307\">data governance</strong> concerned with?</div>",
+          "choices": [
+            {
+              "ident": "541",
+              "text": "Ensuring data is secure, private, accurate, and responsibly managed"
+            },
+            {
+              "ident": "5562",
+              "text": "The speed of SQL queries"
+            },
+            {
+              "ident": "7457",
+              "text": "The hardware used to store a database"
+            },
+            {
+              "ident": "2773",
+              "text": "Writing server-side code to fetch data"
+            }
+          ],
+          "correct_response_ident": "541"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a <strong data-start=\"94\" data-end=\"117\">relational database</strong>?</div>",
+          "choices": [
+            {
+              "ident": "8800",
+              "text": "A database that organizes data into tables with rows and columns"
+            },
+            {
+              "ident": "5096",
+              "text": "A database that stores data as unstructured documents"
+            },
+            {
+              "ident": "51",
+              "text": "A database that only stores numbers and strings"
+            },
+            {
+              "ident": "7695",
+              "text": "A type of database that cannot be queried with SQL"
+            }
+          ],
+          "correct_response_ident": "8800"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p data-start=\"2056\" data-end=\"2111\">What is the main purpose of a <strong data-start=\"115\" data-end=\"130\">primary key</strong> in a relational database table?</p></div>",
+          "choices": [
+            {
+              "ident": "7645",
+              "text": "To uniquely identify each row so there are no duplicates"
+            },
+            {
+              "ident": "4136",
+              "text": "To allow a column to have duplicate values"
+            },
+            {
+              "ident": "3470",
+              "text": "To store sensitive user data like passwords"
+            },
+            {
+              "ident": "8738",
+              "text": "To give users access to a server"
+            }
+          ],
+          "correct_response_ident": "7645"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is a foreign key used for?</div>",
+          "choices": [
+            {
+              "ident": "717",
+              "text": "To link a row in one table to a primary key in another table"
+            },
+            {
+              "ident": "2821",
+              "text": "To identify rows in the same table"
+            },
+            {
+              "ident": "3139",
+              "text": "To automatically back up a database"
+            },
+            {
+              "ident": "100",
+              "text": "To encrypt sensitive user data"
+            }
+          ],
+          "correct_response_ident": "717"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What does the <strong data-start=\"64\" data-end=\"76\">NOT NULL</strong> constraint do in a table column?</div>",
+          "choices": [
+            {
+              "ident": "3185",
+              "text": "It requires every row to have a value in that column (no empty values)"
+            },
+            {
+              "ident": "1803",
+              "text": "It prevents duplicate values from being entered in that column"
+            },
+            {
+              "ident": "5611",
+              "text": "It automatically generates a unique number in order for the column"
+            },
+            {
+              "ident": "1001",
+              "text": "It links the column to a primary key in another table"
+            }
+          ],
+          "correct_response_ident": "3185"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What does the <strong data-start=\"469\" data-end=\"479\">UNIQUE</strong> constraint do in a table column?</div>",
+          "choices": [
+            {
+              "ident": "7490",
+              "text": "It ensures that every value in a column is different from the others"
+            },
+            {
+              "ident": "916",
+              "text": "It requires every row to have a value in that column (no empty values)"
+            },
+            {
+              "ident": "3847",
+              "text": "It assigns a default value to a column when none is given"
+            },
+            {
+              "ident": "9253",
+              "text": "It automatically makes the column a primary key"
+            }
+          ],
+          "correct_response_ident": "7490"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Scenario:</p>\n<p data-start=\"120\" data-end=\"187\">You are designing a <strong data-start=\"140\" data-end=\"149\">Users</strong> table. You have these requirements:</p>\n<ol data-start=\"189\" data-end=\"291\">\n<li data-start=\"189\" data-end=\"236\">\n<p data-start=\"192\" data-end=\"236\">Every user <strong data-start=\"203\" data-end=\"233\">must have an email address</strong>.</p>\n</li>\n<li data-start=\"237\" data-end=\"291\">\n<p data-start=\"240\" data-end=\"291\">No two users can have the <strong data-start=\"266\" data-end=\"288\">same email address</strong>.</p>\n</li>\n</ol>\n<p>Which constraints should you use for the <code data-start=\"334\" data-end=\"341\">email</code> column?</p></div>",
+          "choices": [
+            {
+              "ident": "6015",
+              "text": "UNIQUE NOT NULL"
+            },
+            {
+              "ident": "6499",
+              "text": "NOT NULL"
+            },
+            {
+              "ident": "9374",
+              "text": "UNIQUE"
+            },
+            {
+              "ident": "4914",
+              "text": "None (no constraints needed)"
+            }
+          ],
+          "correct_response_ident": "6015"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>In SQL, which of the following are data types you might use in a column of a table?</div>",
+          "choices": [
+            {
+              "ident": "4874",
+              "text": "VARCHAR, INTEGER, BOOLEAN"
+            },
+            {
+              "ident": "562",
+              "text": "Array, Object, Function"
+            },
+            {
+              "ident": "4957",
+              "text": "HTML, CSS, JavaScript"
+            },
+            {
+              "ident": "9910",
+              "text": "Server, Database, Request"
+            }
+          ],
+          "correct_response_ident": "4874"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p><span>Scenario:</span></p>\n<p>You are designing a <strong data-start=\"648\" data-end=\"657\">Users</strong> table that needs to track whether a user is subscribed to the email newsletter. Which data type should you use for the <code>is_subscribed</code> column?</p></div>",
+          "choices": [
+            {
+              "ident": "917",
+              "text": "BOOLEAN"
+            },
+            {
+              "ident": "277",
+              "text": "INTEGER"
+            },
+            {
+              "ident": "6748",
+              "text": "VARCHAR"
+            },
+            {
+              "ident": "6586",
+              "text": "TIMESTAMP"
+            }
+          ],
+          "correct_response_ident": "917"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p><span>Scenario:</span></p>\n<p><span>You are designing an <strong data-start=\"1199\" data-end=\"1209\">Orders</strong> table. You need a column to store the quantity of items purchased in each order. Which data type should you use for the <code>quantity_purchased</code> column?</span></p></div>",
+          "choices": [
+            {
+              "ident": "6665",
+              "text": "INTEGER"
+            },
+            {
+              "ident": "824",
+              "text": "VARCHAR"
+            },
+            {
+              "ident": "6657",
+              "text": "BOOLEAN"
+            },
+            {
+              "ident": "3140",
+              "text": "TIMESTAMP"
+            }
+          ],
+          "correct_response_ident": "6665"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What is the main difference between <strong data-start=\"152\" data-end=\"163\">VARCHAR</strong> and <strong data-start=\"168\" data-end=\"176\">TEXT</strong> in a relational database?</div>",
+          "choices": [
+            {
+              "ident": "443",
+              "text": "VARCHAR is used for shorter strings with a defined maximum length, while TEXT is used for longer, unlimited-length strings"
+            },
+            {
+              "ident": "8909",
+              "text": "TEXT is used for shorter strings with a defined maximum length, while VARCHAR is used for longer, unlimited-length strings"
+            },
+            {
+              "ident": "6424",
+              "text": "TEXT is used for numbers, while VARCHAR is used for strings"
+            },
+            {
+              "ident": "3102",
+              "text": "TEXT automatically enforces uniqueness, while VARCHAR does not"
+            }
+          ],
+          "correct_response_ident": "443"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>When should you use <strong data-start=\"108\" data-end=\"116\">VARCHAR</strong> instead of <strong data-start=\"128\" data-end=\"139\">TEXT</strong> in a database?</div>",
+          "choices": [
+            {
+              "ident": "2776",
+              "text": "When you want to limit the length of the string and avoid storing endlessly long strings"
+            },
+            {
+              "ident": "9751",
+              "text": "When you want to store numbers instead of strings"
+            },
+            {
+              "ident": "2019",
+              "text": "When the string might be very long and you don’t know the maximum length"
+            },
+            {
+              "ident": "1149",
+              "text": "When you want to store a Boolean value"
+            }
+          ],
+          "correct_response_ident": "2776"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Scenario:</p>\n<p>You are designing a <strong>Customers</strong> table that will have columns named <code data-start=\"218\" data-end=\"230\">first_name</code>, <code data-start=\"232\" data-end=\"243\">last_name</code>, and <code data-start=\"249\" data-end=\"256\">email</code>. Which data type is best for these columns?</p></div>",
+          "choices": [
+            {
+              "ident": "410",
+              "text": "VARCHAR"
+            },
+            {
+              "ident": "2629",
+              "text": "INTEGER"
+            },
+            {
+              "ident": "365",
+              "text": "BOOLEAN"
+            },
+            {
+              "ident": "93",
+              "text": "TIMESTAMP"
+            }
+          ],
+          "correct_response_ident": "410"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>What does the <strong data-start=\"102\" data-end=\"112\">SERIAL</strong> data type do in a relational database?</div>",
+          "choices": [
+            {
+              "ident": "2701",
+              "text": "Automatically generates a unique, incrementing number for each new row"
+            },
+            {
+              "ident": "1554",
+              "text": "Stores very large text values without a maximum length"
+            },
+            {
+              "ident": "1889",
+              "text": "Ensures a column cannot have empty (NULL) values"
+            },
+            {
+              "ident": "4771",
+              "text": "Links a column to a primary key in another table"
+            }
+          ],
+          "correct_response_ident": "2701"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p>Scenario: </p>\n<p>You are creating a <strong data-start=\"482\" data-end=\"491\">Users</strong> table. You want the <code data-start=\"512\" data-end=\"521\">user_id</code> column to automatically assign a new, unique number every time a new user is added. Which data type should you use?</p></div>",
+          "choices": [
+            {
+              "ident": "8357",
+              "text": "SERIAL"
+            },
+            {
+              "ident": "3705",
+              "text": "BOOLEAN"
+            },
+            {
+              "ident": "3459",
+              "text": "INTEGER"
+            },
+            {
+              "ident": "5493",
+              "text": "DECIMAL"
+            }
+          ],
+          "correct_response_ident": "8357"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Why are constraints like <code>NOT NULL</code> and <code>UNIQUE</code> important in a database? </div>",
+          "choices": [
+            {
+              "ident": "5314",
+              "text": "They help keep data accurate and consistent by preventing missing or duplicate values"
+            },
+            {
+              "ident": "7718",
+              "text": "They make queries run faster"
+            },
+            {
+              "ident": "6978",
+              "text": "They replace the need for a server"
+            },
+            {
+              "ident": "1450",
+              "text": "They automatically write SQL for you"
+            }
+          ],
+          "correct_response_ident": "5314"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><p data-start=\"261\" data-end=\"374\">Which of the following follows proper naming conventions for a table or column name in a relational database?</p></div>",
+          "choices": [
+            {
+              "ident": "1895",
+              "text": "pets_of_backend"
+            },
+            {
+              "ident": "1003",
+              "text": "PetsOfBackend"
+            },
+            {
+              "ident": "5864",
+              "text": "pets-of-backend"
+            },
+            {
+              "ident": "2801",
+              "text": "Pets Of Backend"
+            }
+          ],
+          "correct_response_ident": "1895"
+        }
+      ]
+    },
+    {
+      "identifier": "gf38c5ff857b85057fd1cb63c8737c268",
+      "type": "quiz",
+      "title": "Quiz: Aggregate Functions in SQL",
+      "due_at": "2026-02-21T07:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 6: SQL Continued: Aggregate Functions & Joins",
+      "manifest_title": "Quiz: Aggregate Functions in SQL",
+      "questions": [
+        {
+          "ident": "gf30a20ef3a893184ba7218a38941ed33",
+          "question_text": "<div><p data-start=\"199\" data-end=\"234\">What does this query return?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> <span class=\"hljs-built_in\">COUNT</span>(<span class=\"hljs-operator\">*</span>) <span class=\"hljs-keyword\">FROM</span> employees;\n</span></code></div>\n</div>\n<p data-start=\"280\" data-end=\"434\"> </p></div>",
+          "choices": [
+            {
+              "ident": "7680",
+              "text": "The total number of employees in the table"
+            },
+            {
+              "ident": "2956",
+              "text": "The total salary of all employees"
+            },
+            {
+              "ident": "687",
+              "text": "The average salary of employees"
+            },
+            {
+              "ident": "56",
+              "text": "The number of departments"
+            }
+          ],
+          "correct_response_ident": "7680"
+        },
+        {
+          "ident": "g59016c0940a74f33960d470195984fc5",
+          "question_text": "<div><p>Which query counts employees who earn more than 80,000?</p></div>",
+          "choices": [
+            {
+              "ident": "6181",
+              "text": "SELECT COUNT(*) FROM employees WHERE salary > 80000;"
+            },
+            {
+              "ident": "1882",
+              "text": "SELECT COUNT(salary) FROM employees;"
+            },
+            {
+              "ident": "5642",
+              "text": "SELECT SUM(salary) FROM employees WHERE salary > 80000;"
+            },
+            {
+              "ident": "7528",
+              "text": "SELECT AVG(salary) FROM employees WHERE salary > 80000;"
+            }
+          ],
+          "correct_response_ident": "6181"
+        },
+        {
+          "ident": "g32eb44cbb84d350168704a53b2a2a136",
+          "question_text": "<div><p>What does this query calculate?</p>\n<pre>SELECT SUM(salary) FROM employees;</pre></div>",
+          "choices": [
+            {
+              "ident": "9077",
+              "text": "The total salary cost of all employees"
+            },
+            {
+              "ident": "1306",
+              "text": "The highest salary"
+            },
+            {
+              "ident": "5723",
+              "text": "The number of employees"
+            },
+            {
+              "ident": "4116",
+              "text": "The average salary"
+            }
+          ],
+          "correct_response_ident": "9077"
+        },
+        {
+          "ident": "g04f5315c8ff5fcf0a29d795b3e25fa1e",
+          "question_text": "<div><p>Which query finds the total salary cost of employees in the Engineering department?</p></div>",
+          "choices": [
+            {
+              "ident": "2501",
+              "text": "SELECT SUM(salary) FROM employees WHERE department = 'Engineering';"
+            },
+            {
+              "ident": "1124",
+              "text": "SELECT COUNT(salary) FROM employees WHERE department = 'Engineering';"
+            },
+            {
+              "ident": "1680",
+              "text": "SELECT AVG(salary) FROM employees WHERE department = 'Engineering';"
+            },
+            {
+              "ident": "3966",
+              "text": "SELECT SUM(department) FROM employees WHERE department = 'Engineering';"
+            }
+          ],
+          "correct_response_ident": "2501"
+        },
+        {
+          "ident": "gb402b1d90d777b0a2714aa768c556a30",
+          "question_text": "<div><p>What does this query return?</p>\n<pre>SELECT AVG(salary) FROM employees;</pre></div>",
+          "choices": [
+            {
+              "ident": "3449",
+              "text": "The average salary of all employees"
+            },
+            {
+              "ident": "2866",
+              "text": "The total salary of all employees"
+            },
+            {
+              "ident": "6266",
+              "text": "The lowest salary"
+            },
+            {
+              "ident": "1447",
+              "text": "The number of employees"
+            }
+          ],
+          "correct_response_ident": "3449"
+        },
+        {
+          "ident": "g0517c085d92f3035ac2bb619934c290e",
+          "question_text": "<div><p data-start=\"1581\" data-end=\"1635\">What is the purpose of <code data-start=\"1611\" data-end=\"1620\">ROUND()</code> in this query?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> ROUND(<span class=\"hljs-built_in\">AVG</span>(salary)) \n<span class=\"hljs-keyword\">FROM</span> employees \n<span class=\"hljs-keyword\">WHERE</span> department <span class=\"hljs-operator\">=</span> <span class=\"hljs-string\">'Marketing'</span>;</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "5938",
+              "text": "It rounds the average salary to the nearest whole number"
+            },
+            {
+              "ident": "3322",
+              "text": "It counts the number of Marketing employees"
+            },
+            {
+              "ident": "4582",
+              "text": "It removes decimal salaries from the table"
+            },
+            {
+              "ident": "8330",
+              "text": "It converts salary to text"
+            }
+          ],
+          "correct_response_ident": "5938"
+        },
+        {
+          "ident": "ga8949354efa02580116f8f76227d17bb",
+          "question_text": "<div><p data-start=\"1921\" data-end=\"1956\">What does this query return?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> <span class=\"hljs-built_in\">MIN</span>(salary) <span class=\"hljs-keyword\">FROM</span> employees;</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "147",
+              "text": "The lowest salary in the company"
+            },
+            {
+              "ident": "1553",
+              "text": "The highest salary in the company"
+            },
+            {
+              "ident": "128",
+              "text": "The average salary"
+            },
+            {
+              "ident": "3239",
+              "text": "The total salary"
+            }
+          ],
+          "correct_response_ident": "147"
+        },
+        {
+          "ident": "g58f3ca65d64deacd5f0271da9714295d",
+          "question_text": "<div><p>Which query finds the highest salary in the company?</p></div>",
+          "choices": [
+            {
+              "ident": "9672",
+              "text": "SELECT MAX(salary) FROM employees;"
+            },
+            {
+              "ident": "3475",
+              "text": "SELECT MIN(salary) FROM employees;"
+            },
+            {
+              "ident": "357",
+              "text": "SELECT SUM(salary) FROM employees;"
+            },
+            {
+              "ident": "90",
+              "text": "SELECT COUNT(salary) FROM employees;"
+            }
+          ],
+          "correct_response_ident": "9672"
+        },
+        {
+          "ident": "g76c0fbdfe48247b3e1f6c8dc7b15eef2",
+          "question_text": "<div><p data-start=\"2371\" data-end=\"2427\">What does <code data-start=\"2388\" data-end=\"2409\">GROUP BY department</code> do in this query?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> department, <span class=\"hljs-built_in\">COUNT</span>(<span class=\"hljs-operator\">*</span>) \n<span class=\"hljs-keyword\">FROM</span> employees \n<span class=\"hljs-keyword\">GROUP</span> <span class=\"hljs-keyword\">BY</span> department;</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "5556",
+              "text": "It groups employees by department so the count is calculated per department"
+            },
+            {
+              "ident": "4298",
+              "text": "It sorts employees alphabetically by department"
+            },
+            {
+              "ident": "8055",
+              "text": "It removes duplicate departments"
+            },
+            {
+              "ident": "3183",
+              "text": "It filters only one department"
+            }
+          ],
+          "correct_response_ident": "5556"
+        },
+        {
+          "ident": "gb6c76466e4419a399c126ced39a40124",
+          "question_text": "<div><p>Which query shows the highest salary in each department?</p></div>",
+          "choices": [
+            {
+              "ident": "6568",
+              "text": "SELECT department, MAX(salary) FROM employees GROUP BY department;"
+            },
+            {
+              "ident": "2821",
+              "text": "SELECT MAX(salary) FROM employees;"
+            },
+            {
+              "ident": "1742",
+              "text": "SELECT department FROM employees;"
+            },
+            {
+              "ident": "8432",
+              "text": "SELECT department, SUM(salary) FROM employees;"
+            }
+          ],
+          "correct_response_ident": "6568"
+        },
+        {
+          "ident": "g897eccc32bdf9a66bad0f55fcc38b384",
+          "question_text": "<div><p data-start=\"3051\" data-end=\"3087\">What does this query return?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> department, <span class=\"hljs-built_in\">SUM</span>(salary)\n<span class=\"hljs-keyword\">FROM</span> employees\n<span class=\"hljs-keyword\">GROUP</span> <span class=\"hljs-keyword\">BY</span> department;</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "8441",
+              "text": "The total salary cost per department"
+            },
+            {
+              "ident": "6956",
+              "text": "The total salary of the entire company"
+            },
+            {
+              "ident": "7871",
+              "text": "The average salary per department"
+            },
+            {
+              "ident": "5630",
+              "text": "The highest salary per department"
+            }
+          ],
+          "correct_response_ident": "8441"
+        },
+        {
+          "ident": "gab38c3cb4d39091564ab78cf4d445cb3",
+          "question_text": "<div><p data-start=\"3338\" data-end=\"3403\">What does <code data-start=\"3356\" data-end=\"3385\">ORDER BY total_payroll DESC</code> do in this query?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> department, <span class=\"hljs-built_in\">SUM</span>(salary) <span class=\"hljs-keyword\">AS</span> total_payroll\n<span class=\"hljs-keyword\">FROM</span> employees\n<span class=\"hljs-keyword\">GROUP</span> <span class=\"hljs-keyword\">BY</span> department\n<span class=\"hljs-keyword\">ORDER</span> <span class=\"hljs-keyword\">BY</span> total_payroll <span class=\"hljs-keyword\">DESC</span>\nLIMIT <span class=\"hljs-number\">1</span>;</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "1123",
+              "text": "Sorts departments from highest total payroll to lowest"
+            },
+            {
+              "ident": "4992",
+              "text": "Sorts departments alphabetically"
+            },
+            {
+              "ident": "8307",
+              "text": "Filters out departments with low payroll"
+            },
+            {
+              "ident": "4102",
+              "text": "Groups departments again"
+            }
+          ],
+          "correct_response_ident": "1123"
+        },
+        {
+          "ident": "g9475d4ed06b509405b56b31df518d837",
+          "question_text": "<div><p data-start=\"3717\" data-end=\"3766\">Why is <code data-start=\"437\" data-end=\"446\">LIMIT 1</code> necessary in this query?</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">SELECT</span> department, <span class=\"hljs-built_in\">SUM</span>(salary) <span class=\"hljs-keyword\">AS</span> total_payroll <span class=\"hljs-keyword\">FROM</span> employees <span class=\"hljs-keyword\">GROUP</span> <span class=\"hljs-keyword\">BY</span> department <span class=\"hljs-keyword\">ORDER</span> <span class=\"hljs-keyword\">BY</span> total_payroll <span class=\"hljs-keyword\">DESC</span> LIMIT <span class=\"hljs-number\">1</span>;</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "255",
+              "text": "Because we only want the department with the highest total payroll"
+            },
+            {
+              "ident": "1281",
+              "text": "Because ORDER BY requires LIMIT"
+            },
+            {
+              "ident": "9455",
+              "text": "Because SUM only works when limited to one row"
+            },
+            {
+              "ident": "5428",
+              "text": "Because GROUP BY only allows one result"
+            }
+          ],
+          "correct_response_ident": "255"
+        }
+      ]
+    },
+    {
+      "identifier": "gf3d3aa98ed5d000eb24c0be7ac97b393",
+      "type": "quiz",
+      "title": "Quiz: HTTP Requests and API Documentation",
+      "due_at": "2026-01-24T07:59:59",
+      "quiz_type": "assignment",
+      "module_title": "Week 2: HTTP Requests",
+      "manifest_title": "Quiz: HTTP Requests and API Documentation",
+      "questions": [
+        {
+          "ident": "g52597d00737b7965b2ac7c99a8ba33cb",
+          "question_text": "<div><p>Which statement best describes the difference between the Internet and the World Wide Web?</p></div>",
+          "choices": [
+            {
+              "ident": "787",
+              "text": "The Internet is the global network infrastructure, and the World Wide Web is a service that runs on top of it"
+            },
+            {
+              "ident": "619",
+              "text": "The Internet is a service that runs on top of the World Wide Web"
+            },
+            {
+              "ident": "4482",
+              "text": "The Internet and the World Wide Web are the same thing"
+            },
+            {
+              "ident": "3049",
+              "text": "The World Wide Web only exists on local servers"
+            }
+          ],
+          "correct_response_ident": "787"
+        },
+        {
+          "ident": "ge10a4f0ded726789db8134e79b0a382f",
+          "question_text": "<div><p data-start=\"1202\" data-end=\"1278\"><strong data-start=\"1202\" data-end=\"1278\">In a typical web application, which of the following acts as the client sending the request?</strong></p></div>",
+          "choices": [
+            {
+              "ident": "6131",
+              "text": "The web browser"
+            },
+            {
+              "ident": "1291",
+              "text": "The API"
+            },
+            {
+              "ident": "5051",
+              "text": "The web server"
+            },
+            {
+              "ident": "9082",
+              "text": "The database"
+            }
+          ],
+          "correct_response_ident": "6131"
+        },
+        {
+          "ident": "gac2da3acfa853d7633a64c5f780a44ec",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">What is the main purpose of a GET request?</span></div>",
+          "choices": [
+            {
+              "ident": "2073",
+              "text": "To retrieve data from the server"
+            },
+            {
+              "ident": "5675",
+              "text": "To delete data from the server"
+            },
+            {
+              "ident": "4326",
+              "text": "To send data to the server"
+            },
+            {
+              "ident": "9890",
+              "text": "To update data in the server"
+            }
+          ],
+          "correct_response_ident": "2073"
+        },
+        {
+          "ident": "gf6802f654c5156db3510bb182f0ef41c",
+          "question_text": "<div><span>What is the main purpose of a POST request?</span></div>",
+          "choices": [
+            {
+              "ident": "5769",
+              "text": "To send data to the server"
+            },
+            {
+              "ident": "5331",
+              "text": "To retrieve data from the server"
+            },
+            {
+              "ident": "40",
+              "text": "To delete data from the server"
+            },
+            {
+              "ident": "331",
+              "text": "To redeploy the server"
+            }
+          ],
+          "correct_response_ident": "5769"
+        },
+        {
+          "ident": "gbfe502d244d76ffcc34b232d3dd7b150",
+          "question_text": "<div><p><span class=\"notion-enable-hover\" data-token-index=\"0\">Which of the following statements about GET requests is true?</span></p></div>",
+          "choices": [
+            {
+              "ident": "2231",
+              "text": "They are typically used to retrieve data"
+            },
+            {
+              "ident": "8520",
+              "text": "They are more secure than POST requests"
+            },
+            {
+              "ident": "245",
+              "text": "They are intended to modify data on the server"
+            },
+            {
+              "ident": "9032",
+              "text": "They send data in the request body"
+            }
+          ],
+          "correct_response_ident": "2231"
+        },
+        {
+          "ident": "g965685705c84b0475807e2a21538a7d6",
+          "question_text": "<div><p>Which statement about HTTP requests is true? </p></div>",
+          "choices": [
+            {
+              "ident": "4733",
+              "text": "Every HTTP request should receive a response"
+            },
+            {
+              "ident": "4995",
+              "text": "Responses are optional if the request succeeds"
+            },
+            {
+              "ident": "1052",
+              "text": "Only POST requests receive responses"
+            },
+            {
+              "ident": "6419",
+              "text": "Only GET requests receive responses"
+            }
+          ],
+          "correct_response_ident": "4733"
+        },
+        {
+          "ident": "g990586d16bdf91da882ddf33556a5662",
+          "question_text": "<div>What does an HTTP response status code of 200 mean?</div>",
+          "choices": [
+            {
+              "ident": "5482",
+              "text": "The request was successful and the server returned the requested data"
+            },
+            {
+              "ident": "2132",
+              "text": "The server could not find the requested resource"
+            },
+            {
+              "ident": "7232",
+              "text": "The request was invalid due to client error"
+            },
+            {
+              "ident": "8559",
+              "text": "The server encountered an internal error"
+            }
+          ],
+          "correct_response_ident": "5482"
+        },
+        {
+          "ident": "gb8a0f90b7a4d05ac5315b8cd2f67b251",
+          "question_text": "<div>What does an HTTP response status code of 404 mean?</div>",
+          "choices": [
+            {
+              "ident": "167",
+              "text": "The server could not find the requested resource"
+            },
+            {
+              "ident": "6617",
+              "text": "The request was successful and the server returned the requested data"
+            },
+            {
+              "ident": "2043",
+              "text": "The resource was moved permanently to a different location"
+            },
+            {
+              "ident": "4567",
+              "text": "Internal server issue"
+            }
+          ],
+          "correct_response_ident": "167"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which part of a POST request usually contains the data being sent?</div>",
+          "choices": [
+            {
+              "ident": "5042",
+              "text": "Request Body"
+            },
+            {
+              "ident": "5149",
+              "text": "Request Headers"
+            },
+            {
+              "ident": "3561",
+              "text": "API Endpoint URL path"
+            },
+            {
+              "ident": "9368",
+              "text": "Status Code"
+            }
+          ],
+          "correct_response_ident": "5042"
+        },
+        {
+          "ident": "ge0c15fe07ec5987526aa2f87e6dc745f",
+          "question_text": "<div>Why do developers use Postman?</div>",
+          "choices": [
+            {
+              "ident": "1137",
+              "text": "To test, simulate, and debug API endpoints by sending HTTP requests and checking responses"
+            },
+            {
+              "ident": "1119",
+              "text": "To write full applications instead of using a code editor"
+            },
+            {
+              "ident": "6523",
+              "text": "To replace version control tools like Git"
+            },
+            {
+              "ident": "4163",
+              "text": "To host and deploy backend servers"
+            }
+          ],
+          "correct_response_ident": "1137"
+        },
+        {
+          "ident": "gbb897949d91dda1fddb7c17310987d4d",
+          "question_text": "<div><p><span class=\"notion-enable-hover\" data-token-index=\"0\">When you type a URL into the address bar of your browser and press Enter, what type of HTTP request is sent to the server?</span></p></div>",
+          "choices": [
+            {
+              "ident": "1528",
+              "text": "GET"
+            },
+            {
+              "ident": "8166",
+              "text": "POST"
+            },
+            {
+              "ident": "8939",
+              "text": "PUT"
+            },
+            {
+              "ident": "6930",
+              "text": "PATCH"
+            }
+          ],
+          "correct_response_ident": "1528"
+        },
+        {
+          "ident": "gc7dc5aca9321d3cbaa5fe8b379ecb6a3",
+          "question_text": "<div>Which tab in your browser’s Developer Tools lets you see all the HTTP requests your browser is sending when loading a website?</div>",
+          "choices": [
+            {
+              "ident": "927",
+              "text": "Network"
+            },
+            {
+              "ident": "9490",
+              "text": "Elements"
+            },
+            {
+              "ident": "6204",
+              "text": "Console"
+            },
+            {
+              "ident": "6110",
+              "text": "Application"
+            }
+          ],
+          "correct_response_ident": "927"
+        },
+        {
+          "ident": "g6362307fec874389bf9a7e45a92b980c",
+          "question_text": "<div><p>Let's say you type the API URL into the search bar of your web browser, and press Enter. You see the screen shown below. What does this mean? </p>\n<p><img src=\"$IMS-CC-FILEBASE$/Uploaded%20Media/image-e4df96c6-d220-450b-a4da-e717ca4cb11c.png\" alt=\"image.png\" loading=\"lazy\"></p></div>",
+          "choices": [
+            {
+              "ident": "8556",
+              "text": "The API was asleep, until you woke it up by sending a request. It'll wake up in about 30-60 seconds so hang tight!"
+            },
+            {
+              "ident": "7974",
+              "text": "The API is broken"
+            },
+            {
+              "ident": "6985",
+              "text": "You typed in the wrong API URL"
+            },
+            {
+              "ident": "7373",
+              "text": "You sent an invalid request to the API"
+            }
+          ],
+          "correct_response_ident": "8556"
+        },
+        {
+          "ident": "gecb958029d95edc5768bea5330fa6711",
+          "question_text": "<div><p> </p>\n<p>Refer to the Countries App's <a class=\"inline_disabled\" href=\"https://github.com/ac-backend/countries-app-instructions/blob/main/version-2/api-documentation.md\" target=\"_blank\">Version 2 API Documentation</a>. </p>\n<p>What is the <strong data-start=\"610\" data-end=\"622\">base URL</strong> for all Version 2 API requests?</p></div>",
+          "choices": [
+            {
+              "ident": "6161",
+              "text": "https://backend-answer-keys.onrender.com"
+            },
+            {
+              "ident": "7896",
+              "text": "https://onrender.com/backend-answer-keys"
+            },
+            {
+              "ident": "9225",
+              "text": "https://api.backend-answer-keys.com"
+            },
+            {
+              "ident": "5445",
+              "text": "http://localhost:3000"
+            }
+          ],
+          "correct_response_ident": "6161"
+        },
+        {
+          "ident": "g05b99bb6e49e41b123a3b63a18af890a",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">Which HTTP method should be used when submitting a form that adds a new user to the database?</span></div>",
+          "choices": [
+            {
+              "ident": "6945",
+              "text": "POST"
+            },
+            {
+              "ident": "9739",
+              "text": "GET"
+            },
+            {
+              "ident": "5828",
+              "text": "PUT"
+            },
+            {
+              "ident": "3277",
+              "text": "DELETE"
+            }
+          ],
+          "correct_response_ident": "6945"
+        },
+        {
+          "ident": "g472f2298ff2e3303534fa6511cec38e5",
+          "question_text": "<div><p>According to the <a class=\"notion-link-token notion-focusable-token notion-enable-hover\" href=\"https://github.com/ac-backend/countries-app-instructions/blob/main/version-2/api-documentation.md\" data-token-index=\"1\"><span class=\"link-annotation-unknown-block-id-380241293\">API Documentation</span></a>, what type of HTTP request should you send to the <code>/update-one-country-count</code> API endpoint?</p></div>",
+          "choices": [
+            {
+              "ident": "5397",
+              "text": "POST"
+            },
+            {
+              "ident": "1864",
+              "text": "GET"
+            },
+            {
+              "ident": "9983",
+              "text": "PUT"
+            },
+            {
+              "ident": "3633",
+              "text": "DELETE"
+            }
+          ],
+          "correct_response_ident": "5397"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">What should you send in the body of a request to the <span> </span><code>/update-one-country-count</code></span><span class=\"notion-enable-hover\" data-token-index=\"2\"> API endpoint to update the count for \"Japan\"?</span></div>",
+          "choices": [
+            {
+              "ident": "9152",
+              "text": "<pre>{ \"country_name\": \"Japan\" }</pre>"
+            },
+            {
+              "ident": "6754",
+              "text": "<pre>{ \"country\": \"Japan\" }</pre>"
+            },
+            {
+              "ident": "2706",
+              "text": "<pre>{ \"newCount\": \"Japan\" }</pre>"
+            },
+            {
+              "ident": "7050",
+              "text": "No body is needed"
+            }
+          ],
+          "correct_response_ident": "9152"
+        },
+        {
+          "ident": "g70be67548850ebaadf3a911f00f64bf8",
+          "question_text": "<div><p>Which part of an API URL specifies what you want to access from the server?</p></div>",
+          "choices": [
+            {
+              "ident": "4682",
+              "text": "API Endpoint path (such as /get-newest-user)"
+            },
+            {
+              "ident": "9994",
+              "text": "Base URL (such as https://api.example.com)"
+            },
+            {
+              "ident": "7733",
+              "text": "HTTP method (such as GET or POST)"
+            },
+            {
+              "ident": "4726",
+              "text": "Query parameters (such as ?sort=asc)"
+            }
+          ],
+          "correct_response_ident": "4682"
+        },
+        {
+          "ident": "g058933281820348f99ad11274325220c",
+          "question_text": "<div><p><span class=\"notion-enable-hover\" data-token-index=\"0\">What is the <strong>data type</strong> of the <strong>response</strong> returned by the <span> </span><code>/update-one-country-count</code> </span><span class=\"notion-enable-hover\" data-token-index=\"2\"> API endpoint?</span></p></div>",
+          "choices": [
+            {
+              "ident": "6928",
+              "text": "A single object"
+            },
+            {
+              "ident": "1223",
+              "text": "An array of objects"
+            },
+            {
+              "ident": "8562",
+              "text": "A string"
+            },
+            {
+              "ident": "1595",
+              "text": "A number"
+            }
+          ],
+          "correct_response_ident": "6928"
+        },
+        {
+          "ident": "ga6c6aafefc9e8b487aa81d11159404a5",
+          "question_text": "<div><span class=\"notion-enable-hover\" data-token-index=\"0\">What is the data type of the response you get from the </span><code>/get-newest-user</code><span class=\"notion-enable-hover\" data-token-index=\"2\"> API endpoint?</span></div>",
+          "choices": [
+            {
+              "ident": "894",
+              "text": "An array of objects"
+            },
+            {
+              "ident": "6587",
+              "text": "A single object"
+            },
+            {
+              "ident": "216",
+              "text": "A string"
+            },
+            {
+              "ident": "3253",
+              "text": "A number"
+            }
+          ],
+          "correct_response_ident": "894"
+        },
+        {
+          "ident": "gd0505354e5177250e8ced54ac9672c3e",
+          "question_text": "<div><p><span class=\"notion-enable-hover\" data-token-index=\"0\">You call the </span><code>/get-newest-user</code><span class=\"notion-enable-hover\" data-token-index=\"2\"> API endpoint and get back the response below in a </span><span class=\"notion-enable-hover\" data-token-index=\"3\">data</span><span class=\"notion-enable-hover\" data-token-index=\"4\"> variable:</span></p>\n<pre>[<br>  {<br>    \"user_id\": 42,<br>    \"name\": \"John Smith\",<br>    \"country_name\": \"Canada\",<br>    \"email\": \"john@example.com\",<br>    \"bio\": \"Another bio\"<br>  }<br>]</pre>\n\n<p>How do you access the <code>name</code> property from this response so you can render it to the page?</p></div>",
+          "choices": [
+            {
+              "ident": "8004",
+              "text": "<pre>data[0].name</pre>"
+            },
+            {
+              "ident": "1853",
+              "text": "<pre>data.name</pre>"
+            },
+            {
+              "ident": "7581",
+              "text": "<pre>data[\"name\"]</pre>"
+            },
+            {
+              "ident": "4838",
+              "text": "<pre>data.name[0]</pre>"
+            }
+          ],
+          "correct_response_ident": "8004"
+        },
+        {
+          "ident": "g15a4b4cc9e82a20e0e9332f3f51d2cb8",
+          "question_text": "<div><p><strong>You send a GET request to the <code>/get-all-saved-countries</code> endpoint and get this array of objects in the response:</strong></p>\n<pre><code class=\"language-json\">[\n  { \n\t  \"country_name\": \"Japan\"\n  },\n  { \n\t  \"country_name\": \"Germany\" \n  },<br>  { \n\t  \"country_name\": \"Brazil\" \n  } <br>]\n</code></pre>\n<p><strong>You want to display each saved country’s name, population, region, flag image, and capital on the page. What do you need to do next?</strong></p></div>",
+          "choices": [
+            {
+              "ident": "4323",
+              "text": "<p>Use each <code>country_name</code> from the <strong><code>/get-all-saved-countries</code> </strong>response to find the full country details from the REST Countries API. That way you can get the population, region, flag, and capital for each saved country and display them on the page. </p>"
+            },
+            {
+              "ident": "5686",
+              "text": "Use the data from <code>/get-all-saved-countries</code>—it already includes everything you need"
+            },
+            {
+              "ident": "7799",
+              "text": "Send a POST request to <code>/save-one-country</code> for each country"
+            },
+            {
+              "ident": "4568",
+              "text": "Try accessing properties like <code>population</code> and <code>flag</code> directly from the <code>/get-all-saved-countries</code> response"
+            }
+          ],
+          "correct_response_ident": "4323"
+        },
+        {
+          "ident": "g8cd1c45ee352bc90dd59c928e0293a60",
+          "question_text": "<div><p>What does <strong data-start=\"189\" data-end=\"197\">JSON</strong> stand for, and what does it represent?</p></div>",
+          "choices": [
+            {
+              "ident": "2085",
+              "text": "JavaScript Object Notation — a lightweight format for storing and exchanging data, structured similarly to JavaScript objects and arrays"
+            },
+            {
+              "ident": "8314",
+              "text": "Java Syntax Object Notation — a programming language used to write backend code"
+            },
+            {
+              "ident": "996",
+              "text": "Java Serialized Object Network — a database format for storing records"
+            },
+            {
+              "ident": "3338",
+              "text": "JavaScript Oriented Network — a protocol for sending HTTP requests"
+            }
+          ],
+          "correct_response_ident": "2085"
+        },
+        {
+          "ident": "gdcf0b39ab11724af29b975edbc2f9349",
+          "question_text": "<div><p>Which request body is correctly formatted JSON for the <code data-start=\"1359\" data-end=\"1374\">/add-one-user</code> endpoint?</p></div>",
+          "choices": [
+            {
+              "ident": "1657",
+              "text": "<p><code>{</code><br><code>  \"name\": \"Alice\",</code><br><code>  \"country_name\": \"Germany\",</code><br><code>  \"email\": \"alice@example.com\",</code><br><code>  \"bio\": \"Hello\"</code><br><code>}</code></p>"
+            },
+            {
+              "ident": "1035",
+              "text": "<p><code>{</code></p>\n<p><code>    name: \"Alice\", </code><br><code>    country_name: \"Germany\", </code><br><code>    email: \"alice@example.com\", </code><br><code>    bio: \"Hello\"</code></p>\n<p><code>}</code></p>"
+            },
+            {
+              "ident": "6916",
+              "text": "<p><code>{<br>  \"name\": Alice,<br>  \"country_name\": Germany,<br>  \"email\": alice@example.com,<br>  \"bio\": Hello<br>}<br></code></p>"
+            },
+            {
+              "ident": "8605",
+              "text": "<p><code>{<br>  \"name\" = \"Alice\",<br>  \"country_name\" = \"Germany\"<br>}<br></code></p>"
+            }
+          ],
+          "correct_response_ident": "1657"
+        }
+      ]
+    },
+    {
+      "identifier": "gfc30e48b706f8db9313cbd7e213be18b",
+      "type": "quiz",
+      "title": "Quiz: Querying Tables with SQL",
+      "due_at": "2026-02-14T07:59:00",
+      "quiz_type": "assignment",
+      "module_title": "Week 5: Intro to SQL: Creating & Querying Tables",
+      "manifest_title": "Quiz: Querying Tables with SQL",
+      "questions": [
+        {
+          "ident": "g5551bc41f3e0c938a3d3dd1e8b1cfd7e",
+          "question_text": "<div>How do you select only the <code data-start=\"585\" data-end=\"591\">name</code> and <code data-start=\"596\" data-end=\"603\">price</code> columns from the <code data-start=\"621\" data-end=\"632\">groceries</code> table?</div>",
+          "choices": [
+            {
+              "ident": "9079",
+              "text": "SELECT name, price FROM groceries"
+            },
+            {
+              "ident": "4263",
+              "text": "SELECT * FROM groceries"
+            },
+            {
+              "ident": "1985",
+              "text": "SELECT groceries.name, groceries.price"
+            },
+            {
+              "ident": "7773",
+              "text": "SELECT name & price FROM groceries"
+            }
+          ],
+          "correct_response_ident": "9079"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which operators allow you to check multiple conditions in a WHERE clause?</div>",
+          "choices": [
+            {
+              "ident": "6024",
+              "text": "AND, OR"
+            },
+            {
+              "ident": "1600",
+              "text": "BETWEEN, LIKE"
+            },
+            {
+              "ident": "8569",
+              "text": "DISTINCT, AS"
+            },
+            {
+              "ident": "767",
+              "text": "ORDER BY, LIMIT"
+            }
+          ],
+          "correct_response_ident": "6024"
+        },
+        {
+          "ident": "ge003b31002f69754e079a09b4245b1ae",
+          "question_text": "<div><p>Which query selects all organic fruits from the <code data-start=\"864\" data-end=\"875\">groceries</code> table?</p>\n<p> </p></div>",
+          "choices": [
+            {
+              "ident": "5209",
+              "text": "SELECT * FROM groceries WHERE category = 'Fruits' AND is_organic = true;"
+            },
+            {
+              "ident": "5359",
+              "text": "SELECT * FROM groceries WHERE category = 'Fruits' OR is_organic = true;"
+            },
+            {
+              "ident": "3585",
+              "text": "SELECT * FROM groceries WHERE category = 'Fruits';"
+            },
+            {
+              "ident": "2912",
+              "text": "SELECT * FROM groceries WHERE is_organic = true;"
+            }
+          ],
+          "correct_response_ident": "5209"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which query selects groceries that are either condiments or beverages?</div>",
+          "choices": [
+            {
+              "ident": "8992",
+              "text": "SELECT * FROM groceries WHERE category = 'Condiments' OR category = 'Beverages';"
+            },
+            {
+              "ident": "2003",
+              "text": "SELECT * FROM groceries WHERE category = 'Condiments' AND category = 'Beverages';"
+            },
+            {
+              "ident": "5611",
+              "text": "SELECT groceries WHERE category = 'Condiments' OR 'Beverages';"
+            },
+            {
+              "ident": "5991",
+              "text": "SELECT groceries WHERE category = 'Condiments' AND 'Beverages';"
+            }
+          ],
+          "correct_response_ident": "8992"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>Which SQL operator lets you find rows where a text column contains a specific pattern?</div>",
+          "choices": [
+            {
+              "ident": "3173",
+              "text": "LIKE"
+            },
+            {
+              "ident": "231",
+              "text": "INSERT INTO"
+            },
+            {
+              "ident": "285",
+              "text": "DISTINCT"
+            },
+            {
+              "ident": "1583",
+              "text": "AS"
+            }
+          ],
+          "correct_response_ident": "3173"
+        },
+        {
+          "ident": "gf47b767d37e06559ff801f2d253307ba",
+          "question_text": "<div>How do you select all groceries where the name contains \"Bread\" anywhere in the name? </div>",
+          "choices": [
+            {
+              "ident": "3811",
+              "text": "SELECT * FROM groceries WHERE name LIKE '%Bread%';"
+            },
+            {
+              "ident": "5995",
+              "text": "SELECT * FROM groceries WHERE name = '%Bread%';"
+            },
+            {
+              "ident": "3143",
+              "text": "SELECT * FROM groceries WHERE name CONTAINS 'Bread';"
+            },
+            {
+              "ident": "7554",
+              "text": "SELECT name FROM groceries LIKE 'Bread';"
+            }
+          ],
+          "correct_response_ident": "3811"
+        },
+        {
+          "ident": "g35e0cfcc68c7e040d6f1d0357b52a290",
+          "question_text": "<div>Which clause allows you to eliminate duplicate results from a query?</div>",
+          "choices": [
+            {
+              "ident": "7860",
+              "text": "DISTINCT"
+            },
+            {
+              "ident": "813",
+              "text": "AS"
+            },
+            {
+              "ident": "6232",
+              "text": "LIKE"
+            },
+            {
+              "ident": "5461",
+              "text": "LIMIT"
+            }
+          ],
+          "correct_response_ident": "7860"
+        },
+        {
+          "ident": "gee4608ddfcc39a8fcdc09758014bffbe",
+          "question_text": "<div>How do you select all distinct values from the <code>categories</code> column from the groceries table?</div>",
+          "choices": [
+            {
+              "ident": "7017",
+              "text": "SELECT DISTINCT category FROM groceries;"
+            },
+            {
+              "ident": "6798",
+              "text": "SELECT UNIQUE category FROM groceries;"
+            },
+            {
+              "ident": "3150",
+              "text": "SELECT category FROM groceries DISTINCT;"
+            },
+            {
+              "ident": "8297",
+              "text": "SELECT category FROM groceries;"
+            }
+          ],
+          "correct_response_ident": "7017"
+        },
+        {
+          "ident": "g577a2de8cb32d8ba54e819d0c22bd51d",
+          "question_text": "<div><p>Which SQL clause sorts query results?</p></div>",
+          "choices": [
+            {
+              "ident": "9829",
+              "text": "ORDER BY"
+            },
+            {
+              "ident": "3422",
+              "text": "SORT BY"
+            },
+            {
+              "ident": "1594",
+              "text": "GROUP BY"
+            },
+            {
+              "ident": "2624",
+              "text": "SELECT"
+            }
+          ],
+          "correct_response_ident": "9829"
+        },
+        {
+          "ident": "g789d43483ce2829a7a91021de59f5a94",
+          "question_text": "<div>How do you select groceries ordered by price from lowest to highest?</div>",
+          "choices": [
+            {
+              "ident": "3240",
+              "text": "SELECT * FROM groceries ORDER BY price ASC;"
+            },
+            {
+              "ident": "3356",
+              "text": "SELECT * FROM groceries ORDER BY price DESC;"
+            },
+            {
+              "ident": "4702",
+              "text": "SELECT * FROM groceries SORT BY price ASC;"
+            },
+            {
+              "ident": "1476",
+              "text": "SELECT * FROM groceries ORDER price LOWEST;"
+            }
+          ],
+          "correct_response_ident": "3240"
+        },
+        {
+          "ident": "gd0495b668ba80850eaef9192c68dffbd",
+          "question_text": "<div>How do you select all groceries ordered by quantity from highest to lowest?</div>",
+          "choices": [
+            {
+              "ident": "5648",
+              "text": "SELECT * FROM groceries ORDER BY quantity DESC;"
+            },
+            {
+              "ident": "4926",
+              "text": "SELECT * FROM groceries ORDER BY quantity ASC;"
+            },
+            {
+              "ident": "1605",
+              "text": "SELECT * FROM groceries SORT BY quantity DESC;"
+            },
+            {
+              "ident": "5442",
+              "text": "SELECT * FROM groceries ORDER quantity DESC;"
+            }
+          ],
+          "correct_response_ident": "5648"
+        },
+        {
+          "ident": "g0e583c85d2f224d9da844029caf9a627",
+          "question_text": "<div>Which SQL clause limits the number of results returned?</div>",
+          "choices": [
+            {
+              "ident": "3503",
+              "text": "LIMIT"
+            },
+            {
+              "ident": "4286",
+              "text": "ORDER BY"
+            },
+            {
+              "ident": "8371",
+              "text": "AS"
+            },
+            {
+              "ident": "7436",
+              "text": "DISTINCT"
+            }
+          ],
+          "correct_response_ident": "3503"
+        },
+        {
+          "ident": "g89a2cf08368f8c006b7ca0829d70d15b",
+          "question_text": "<div>How do you select the top 5 most expensive groceries?</div>",
+          "choices": [
+            {
+              "ident": "4604",
+              "text": "SELECT * FROM groceries ORDER BY price DESC LIMIT 5;"
+            },
+            {
+              "ident": "3362",
+              "text": "SELECT * FROM groceries ORDER BY price ASC LIMIT 5;"
+            },
+            {
+              "ident": "1237",
+              "text": "SELECT * FROM groceries TOP 5 ORDER BY price DESC;"
+            },
+            {
+              "ident": "8936",
+              "text": "SELECT * FROM groceries LIMIT 5 ORDER BY price DESC;"
+            }
+          ],
+          "correct_response_ident": "4604"
+        },
+        {
+          "ident": "g87a2f0306561194c2d41839328d7ba36",
+          "question_text": "<div>You want to rename the column <code data-start=\"128\" data-end=\"135\">price</code> to <code data-start=\"139\" data-end=\"145\">cost</code> in your query result. Which SQL query does this correctly?</div>",
+          "choices": [
+            {
+              "ident": "8308",
+              "text": "SELECT name, price AS cost FROM groceries;"
+            },
+            {
+              "ident": "1654",
+              "text": "SELECT name, price TO cost FROM groceries;"
+            },
+            {
+              "ident": "8439",
+              "text": "SELECT name, price RENAME cost FROM groceries;"
+            },
+            {
+              "ident": "5855",
+              "text": "SELECT name, price LIKE cost FROM groceries;"
+            }
+          ],
+          "correct_response_ident": "8308"
+        },
+        {
+          "ident": "g7109a50c3e377bf0acf62c3b60680354",
+          "question_text": "<div><p data-start=\"98\" data-end=\"153\">You create a<span> </span><code data-start=\"111\" data-end=\"118\">Users</code><span> </span>table with the following schema:</p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">CREATE</span> <span class=\"hljs-keyword\">TABLE</span> users (</span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">   <span> </span><code class=\"whitespace-pre! language-sql\"><span>user_id SERIAL <span class=\"hljs-keyword\">PRIMARY</span> KEY,</span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">   <span> </span><code class=\"whitespace-pre! language-sql\"><span>email VARCHAR <span class=\"hljs-keyword\">UNIQUE</span> <span class=\"hljs-keyword\">NOT</span> <span class=\"hljs-keyword\">NULL</span>,</span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">   <span> </span><code class=\"whitespace-pre! language-sql\"><span>name VARCHAR NOT NULL</span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span>);</span></code></div>\n</div>\n<p data-start=\"269\" data-end=\"299\">Then you run this command:</p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">INSERT</span> <span class=\"hljs-keyword\">INTO</span> users (email, name)</span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre! language-sql\"><span><span class=\"hljs-keyword\">VALUES</span></span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">   <span> </span><code class=\"whitespace-pre! language-sql\"><span>(<span class=\"hljs-string\">'laura@anniecannons.com'</span>, <span class=\"hljs-string\">'Laura'</span>),</span></code></div>\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\">    <code class=\"whitespace-pre! language-sql\"><span>(<span class=\"hljs-string\">'laura@anniecannons.com'</span>, <span class=\"hljs-string\">'Catie'</span>);</span></code></div>\n</div>\n<p data-start=\"456\" data-end=\"496\">PostgreSQL returns this error message:</p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre!\"><span>ERROR: duplicate key <span class=\"hljs-keyword\">value</span> violates <span class=\"hljs-keyword\">unique</span> <span class=\"hljs-keyword\">constraint</span> \"users_email_key\"</span></code></div>\n</div>\n<p data-start=\"580\" data-end=\"610\"><strong data-start=\"580\" data-end=\"610\">Why did this error happen?</strong></p>\n<p data-start=\"612\" data-end=\"898\"> </p></div>",
+          "choices": [
+            {
+              "ident": "1401",
+              "text": "The email column was defined as UNIQUE, and you tried to insert the same email twice."
+            },
+            {
+              "ident": "5280",
+              "text": "The email column was defined as NOT NULL."
+            },
+            {
+              "ident": "8941",
+              "text": "The name column cannot have two different values for the same email."
+            },
+            {
+              "ident": "4776",
+              "text": "The user_id column must always match the name column."
+            }
+          ],
+          "correct_response_ident": "1401"
+        },
+        {
+          "ident": "gc9ad329faca1086010197fc7f984d8ff",
+          "question_text": "<div><p><span>Which column definition automatically gives each new row a uniquely identifying number in a table?</span></p></div>",
+          "choices": [
+            {
+              "ident": "2215",
+              "text": "product_id SERIAL PRIMARY KEY"
+            },
+            {
+              "ident": "1919",
+              "text": "inventory INTEGER NOT NULL"
+            },
+            {
+              "ident": "5594",
+              "text": "price DECIMAL(10, 2) NOT NULL"
+            },
+            {
+              "ident": "3568",
+              "text": "description VARCHAR NOT NULL"
+            }
+          ],
+          "correct_response_ident": "2215"
+        },
+        {
+          "ident": "gd9f004942a3ba8c03fc71e43d871590e",
+          "question_text": "<div><p data-start=\"98\" data-end=\"153\">In the SQL error message below, what part tells you <strong><em data-start=\"1033\" data-end=\"1047\">which column</em></strong> caused the problem?</p>\n<div class=\"contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre!\"><span>ERROR: duplicate key <span class=\"hljs-keyword\">value</span> violates <span class=\"hljs-keyword\">unique</span> <span class=\"hljs-keyword\">constraint</span> \"users_email_key\"</span></code></div>\n</div></div>",
+          "choices": [
+            {
+              "ident": "271",
+              "text": "users_email_key"
+            },
+            {
+              "ident": "8563",
+              "text": "ERROR"
+            },
+            {
+              "ident": "7376",
+              "text": "unique constraint"
+            },
+            {
+              "ident": "5271",
+              "text": "duplicate key value"
+            }
+          ],
+          "correct_response_ident": "271"
+        },
+        {
+          "ident": "g5e0fe27c057e71c7ac371991405aada9",
+          "question_text": "<div><p data-start=\"1266\" data-end=\"1360\">Which of the following constraints would prevent two rows from having the same value?</p></div>",
+          "choices": [
+            {
+              "ident": "6490",
+              "text": "Both UNIQUE and PRIMARY KEY"
+            },
+            {
+              "ident": "4445",
+              "text": "NOT NULL"
+            },
+            {
+              "ident": "5128",
+              "text": "UNIQUE"
+            },
+            {
+              "ident": "1426",
+              "text": "PRIMARY KEY"
+            }
+          ],
+          "correct_response_ident": "6490"
+        },
+        {
+          "ident": "g6087e8198db2ff877cb8fba1e977c8a0",
+          "question_text": "<div><p data-start=\"631\" data-end=\"670\">PostgreSQL returns this error:</p>\n<div class=\"contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary\">\n<div class=\"overflow-y-auto p-4\" dir=\"ltr\"><code class=\"whitespace-pre!\"><span>ERROR: <span class=\"hljs-keyword\">null</span> <span class=\"hljs-keyword\">value</span> <span class=\"hljs-keyword\">in</span> <span class=\"hljs-keyword\">column</span> \"email\" violates <span class=\"hljs-keyword\">not</span><span class=\"hljs-operator\">-</span><span class=\"hljs-keyword\">null</span> <span class=\"hljs-keyword\">constraint</span>\n</span></code></div>\n</div>\n<p data-start=\"746\" data-end=\"776\">What does this error tell you?</p></div>",
+          "choices": [
+            {
+              "ident": "212",
+              "text": "A value was missing for the email column"
+            },
+            {
+              "ident": "8461",
+              "text": "The table does not exist"
+            },
+            {
+              "ident": "221",
+              "text": "The email already exists in the table"
+            },
+            {
+              "ident": "7036",
+              "text": "The column type is incorrect"
+            }
+          ],
+          "correct_response_ident": "212"
+        }
+      ]
+    }
+  ]
+}
