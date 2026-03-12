@@ -88,10 +88,25 @@ export default function Quizzes() {
         editor to make it visible to students. You can also publish directly from the Course Outline accordion.
       </DocP>
 
+      <DocH2>Conducting a Quiz During Class</DocH2>
+      <DocP>
+        Many quizzes are run live during class rather than assigned as homework. Here&rsquo;s the recommended workflow:
+      </DocP>
+      <DocStep number={1}>Open the quiz in the editor and make sure it has <strong>no due date</strong> (leave it blank for in-class quizzes — you control timing, not a deadline).</DocStep>
+      <DocStep number={2}>Click <strong>Published</strong> to make it visible to students right as class begins — or publish it beforehand if you want it ready.</DocStep>
+      <DocStep number={3}>Tell students to navigate to the <strong>Quizzes</strong> section of the course and open the quiz. It also appears on the day card if pinned to a day.</DocStep>
+      <DocStep number={4}>Open <strong>Quiz Submissions</strong> in your sidebar to monitor progress in real time. The table shows who has submitted, their score, and how many attempts they&rsquo;ve used. Students who have started but not yet submitted also appear — so you can see participation even before they&rsquo;re done.</DocStep>
+      <DocStep number={5}>After class, review scores in the Quiz Submissions table. Students can see their own results immediately after submitting.</DocStep>
+      <DocTip>
+        If you want to allow a retry after class, leave attempts set to Unlimited. If the quiz is a one-time in-class
+        check, set it to <strong>Limited · 1</strong> so students can&rsquo;t retake it later.
+      </DocTip>
+
       <DocH2>Viewing Quiz Submissions</DocH2>
       <DocP>
-        Navigate to <strong>Quizzes → Quiz Submissions</strong> (or the Submissions tab in the quizzes section) to see a
-        table of all student submissions, scores, and attempt counts across all quizzes.
+        Navigate to <strong>Quiz Submissions</strong> in the course sidebar to see a table of all student submissions
+        across all quizzes — scores, attempt counts, and submission times. Students who have started a quiz but not yet
+        submitted also appear, so you can track in-progress participation.
       </DocP>
     </>
   )

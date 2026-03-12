@@ -15,6 +15,10 @@ export default function Quizzes() {
       </DocList>
 
       <DocH2>Taking a Quiz</DocH2>
+      <DocTip>
+        Some quizzes are run live during class — your instructor will tell you when to open the Quizzes page and start.
+        These quizzes may not have a due date listed; just take them when instructed.
+      </DocTip>
       <DocStep number={1}>Click a quiz title to open it.</DocStep>
       <DocStep number={2}>Read each question carefully. Questions may include code snippets — read them in the code block displayed on screen.</DocStep>
       <DocStep number={3}>Select your answer for each question.</DocStep>

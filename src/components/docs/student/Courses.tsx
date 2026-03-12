@@ -56,6 +56,14 @@ export default function Courses() {
         placeholder — they simply won&apos;t appear.
       </DocNote>
 
+      <DocH2>Career Dev Content</DocH2>
+      <DocP>
+        Some assignments, resources, and quizzes are tagged with a purple <strong>Career Dev</strong> badge. These items
+        are part of your career development curriculum — things like resume workshops, portfolio prep, or job-search
+        resources — and your instructor has placed them on your coding day cards so you don&rsquo;t miss them.
+        They work exactly like any other assignment or resource; the badge is just a label.
+      </DocP>
+
       <DocH2>Course Information and Syllabus</DocH2>
       <DocP>
         The <strong>Syllabus</strong> button at the top right of the Course Outline opens the course info page, which

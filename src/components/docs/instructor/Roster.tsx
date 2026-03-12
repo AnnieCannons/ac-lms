@@ -12,6 +12,9 @@ export default function Roster() {
         students who have accommodation notes or flags on their profile — useful for instructors coordinating with
         accessibility services.
       </DocP>
+      <DocP>
+        Each student row shows their accommodation flags. The <strong>camera-off</strong> flag includes a date range — click it to open an editable popover where you can set or update the dates for which the student has a camera-off accommodation. A <strong>Notes</strong> badge appears when additional context has been recorded.
+      </DocP>
 
       <DocH2>Student Progress Overview</DocH2>
       <DocP>
