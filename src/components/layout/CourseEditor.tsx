@@ -47,14 +47,14 @@ type Assignment = {
 const DEFAULT_HOW_TO_TURN_IN =
   "<p>Turn in the link to your assignment here. Make sure you have saved your work and granted access to your instructor(s) if necessary.</p>";
 
+function decodeHtml(s: string): string {
+  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
 function getDefaultDueDate(): string {
-  // 11:59 PM PST = 07:59 UTC next day (PST = UTC-8)
   const now = new Date();
-  const target = new Date();
-  target.setUTCHours(7, 59, 0, 0);
-  if (target <= now) target.setUTCDate(target.getUTCDate() + 1);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`;
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T23:59`;
 }
 
 function ChecklistLineEditor({
@@ -143,6 +143,7 @@ type Resource = {
   content: string | null;
   description: string | null;
   order: number;
+  published: boolean;
 };
 
 type QuizEntry = {
@@ -179,7 +180,9 @@ const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday"];
 
 type RelocateCtx = {
   weekOptions: number[];
+  weekModules: { id: string; week: number | null; title: string | null; days: string[] }[];
   relocateAssignment: (assignmentId: string, targetWeek: number, targetDay: string) => Promise<void>;
+  relocateAssignmentToModule: (assignmentId: string, targetModuleId: string, targetDay: string) => Promise<void>;
   relocateResource: (resourceId: string, targetWeek: number, targetDay: string, onRemoved: () => void) => Promise<void>;
 };
 const RelocateContext = createContext<RelocateCtx | null>(null);
@@ -190,6 +193,7 @@ const ReadOnlyContext = createContext(false);
 function AssignmentCard({
   assignment,
   dayId,
+  moduleId,
   weekNumber,
   dayName,
   onOpen,
@@ -198,6 +202,7 @@ function AssignmentCard({
 }: {
   assignment: Assignment;
   dayId: string;
+  moduleId: string;
   weekNumber: number | null;
   dayName: string;
   onOpen: (assignment: Assignment, dayId: string) => void;
@@ -211,6 +216,46 @@ function AssignmentCard({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const ctx = useContext(RelocateContext);
   const readOnly = useContext(ReadOnlyContext);
+  const [relocOpen, setRelocOpen] = useState(false);
+  const [relocModule, setRelocModule] = useState(moduleId);
+  const [relocDay, setRelocDay] = useState(DAY_OPTIONS.includes(dayName) ? dayName : "");
+  const relocBtnRef = useRef<HTMLButtonElement>(null);
+  const relocPopupRef = useRef<HTMLDivElement>(null);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!relocOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!relocPopupRef.current?.contains(e.target as Node) && !relocBtnRef.current?.contains(e.target as Node))
+        setRelocOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [relocOpen]);
+
+  function openReloc() {
+    if (relocOpen) { setRelocOpen(false); return; }
+    if (relocBtnRef.current) {
+      const r = relocBtnRef.current.getBoundingClientRect();
+      const popH = 200;
+      const popW = 280;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setPopupPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    setRelocModule(moduleId);
+    setRelocDay(DAY_OPTIONS.includes(dayName) ? dayName : "");
+    setRelocOpen(true);
+  }
+
+  function applyReloc() {
+    if (!ctx || !relocModule) return;
+    const modDays = ctx.weekModules.find(m => m.id === relocModule)?.days ?? [];
+    const targetDay = relocDay || (modDays.length === 1 ? modDays[0] : "");
+    if (!targetDay) return;
+    ctx.relocateAssignmentToModule(assignment.id, relocModule, targetDay);
+    setRelocOpen(false);
+  }
 
   return (
     <div
@@ -236,44 +281,73 @@ function AssignmentCard({
           className="flex-1 min-w-0 text-left"
         >
           <p className="text-sm text-dark-text truncate">
-            {assignment.title}
+            {decodeHtml(assignment.title)}
           </p>
           <p className="text-xs text-muted-text">
             Due:{" "}
             {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
           </p>
         </button>
-        {!readOnly && ctx && (() => {
-          const isRealDay = DAY_OPTIONS.includes(dayName);
-          return (
-            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-              <select
-                value={weekNumber ?? ""}
-                onChange={e => {
-                  if (isRealDay) ctx.relocateAssignment(assignment.id, Number(e.target.value), dayName);
-                }}
-                className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-14"
-                title="Week"
+        {!readOnly && ctx && (
+          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+            <button
+              ref={relocBtnRef}
+              type="button"
+              onClick={openReloc}
+              className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${relocOpen ? "border-teal-primary text-teal-primary" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}
+              title="Move to module/day"
+            >
+              ⇄
+            </button>
+            {relocOpen && (
+              <div
+                ref={relocPopupRef}
+                className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2"
+                style={{ top: popupPos.top, left: popupPos.left, width: 280 }}
               >
-                <option value="">W?</option>
-                {ctx.weekOptions.map(w => (
-                  <option key={w} value={w}>W{w}</option>
-                ))}
-              </select>
-              <select
-                value={isRealDay ? dayName : ""}
-                onChange={e => ctx.relocateAssignment(assignment.id, weekNumber ?? 1, e.target.value)}
-                className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-16"
-                title="Day"
-              >
-                {!isRealDay && <option value="">Day?</option>}
-                {DAY_OPTIONS.map(d => (
-                  <option key={d} value={d}>{d.slice(0, 3)}</option>
-                ))}
-              </select>
-            </div>
-          );
-        })()}
+                <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Move to</p>
+                <select
+                  value={relocModule}
+                  onChange={e => { setRelocModule(e.target.value); setRelocDay(""); }}
+                  className="text-xs bg-background border border-border rounded px-2 py-1 text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-full"
+                >
+                  {ctx.weekModules.map(({ id, week, title }) => (
+                    <option key={id} value={id}>{title ?? (week != null ? `Week ${week}` : "Unassigned")}</option>
+                  ))}
+                </select>
+                {(() => {
+                  const modDays = ctx.weekModules.find(m => m.id === relocModule)?.days ?? [];
+                  if (modDays.length === 0) return null;
+                  if (modDays.length === 1) return (
+                    <p className="text-xs text-muted-text">Day: <span className="text-dark-text">{modDays[0]}</span></p>
+                  );
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {modDays.map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setRelocDay(d)}
+                          className={`text-xs px-2 py-1 rounded border transition-colors ${relocDay === d ? "bg-teal-primary border-teal-primary text-white" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={applyReloc}
+                  disabled={!relocModule || (!relocDay && (ctx.weekModules.find(m => m.id === relocModule)?.days.length ?? 0) !== 1)}
+                  className="text-xs bg-teal-primary text-white rounded-lg py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+                >
+                  Move
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {!readOnly && (
           <>
             <button
@@ -306,7 +380,7 @@ function AssignmentCard({
 // ─── AssignmentFullView ────────────────────────────────────────────────────────
 
 type ActiveView =
-  | { mode: "view"; assignment: Assignment; dayId: string }
+  | { mode: "view"; assignment: Assignment; dayId: string; moduleId: string | null; weekNumber: number | null; dayName: string }
   | { mode: "add"; dayId: string };
 
 function AssignmentFullView({
@@ -329,12 +403,13 @@ function AssignmentFullView({
   defaultTemplateId?: string;
 }) {
   const supabase = createClient();
+  const ctx = useContext(RelocateContext);
   const assignment = view.mode === "view" ? view.assignment : null;
   const assignmentId = view.mode === "view" ? view.assignment.id : null;
 
   // ── View/edit state ──
   const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(assignment?.title ?? "");
+  const [editTitle, setEditTitle] = useState(decodeHtml(assignment?.title ?? ""));
   const [editDescription, setEditDescription] = useState(assignment?.description ?? "");
   const [editHowToTurnIn, setEditHowToTurnIn] = useState(assignment?.how_to_turn_in ?? "");
   const [editDueDate, setEditDueDate] = useState(
@@ -541,7 +616,7 @@ function AssignmentFullView({
                 <button
                   onClick={() => {
                     setEditing(false);
-                    setEditTitle(assignment!.title);
+                    setEditTitle(decodeHtml(assignment!.title));
                     setEditDescription(assignment!.description ?? "");
                     setEditHowToTurnIn(assignment!.how_to_turn_in ?? "");
                   }}
@@ -564,7 +639,7 @@ function AssignmentFullView({
             <>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-white">{assignment!.title}</h1>
+                  <h1 className="text-2xl font-bold text-white">{decodeHtml(assignment!.title)}</h1>
                   <p className="text-sm text-[#c4a8df] mt-1">
                     Due:{" "}
                     {assignment!.due_date
@@ -573,6 +648,34 @@ function AssignmentFullView({
                         })
                       : "No due date"}
                   </p>
+                  {ctx && view.mode === "view" && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <select
+                        value={view.moduleId ?? ""}
+                        onChange={e => {
+                          if (e.target.value)
+                            ctx.relocateAssignmentToModule(assignment!.id, e.target.value, view.dayName);
+                        }}
+                        className="text-xs bg-[#1d0f3e] border border-[#3d2260] rounded px-2 py-1 text-[#c4a8df] focus:outline-none focus:ring-1 focus:ring-teal-primary max-w-[240px]"
+                        title="Module"
+                      >
+                        {ctx.weekModules.map(({ id, week, title }) => (
+                          <option key={id} value={id}>{title ?? (week != null ? `Week ${week}` : "Unassigned")}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={DAY_OPTIONS.includes(view.dayName) ? view.dayName : ""}
+                        onChange={e => { if (view.moduleId) ctx.relocateAssignmentToModule(assignment!.id, view.moduleId, e.target.value); }}
+                        className="text-xs bg-[#1d0f3e] border border-[#3d2260] rounded px-2 py-1 text-[#c4a8df] focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                        title="Day"
+                      >
+                        <option value="">Day?</option>
+                        {DAY_OPTIONS.map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0 mt-1">
                   <a
@@ -812,6 +915,7 @@ function AssignmentDropZone({
                     key={a.id}
                     assignment={a}
                     dayId={day.id}
+                    moduleId={day.module_id}
                     weekNumber={weekNumber}
                     dayName={day.day_name}
                     onOpen={onOpenAssignment}
@@ -852,12 +956,14 @@ function SortableResource({
   onEdit,
   onDelete,
   onRelocated,
+  onTogglePublished,
 }: {
   resource: Resource;
   weekNumber: number | null;
   onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>) => void;
   onDelete: (id: string) => void;
   onRelocated: () => void;
+  onTogglePublished: (id: string, current: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: `resource-${resource.id}`,
@@ -1096,6 +1202,20 @@ function SortableResource({
       )}
       {!readOnly && (
         <button
+          onClick={() => onTogglePublished(resource.id, resource.published)}
+          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            resource.published
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+          }`}
+          type="button"
+          aria-label={resource.published ? "Published — click to unpublish" : "Draft — click to publish"}
+        >
+          {resource.published ? "Published" : "Draft"}
+        </button>
+      )}
+      {!readOnly && (
+        <button
           onClick={() => onDelete(resource.id)}
           className="text-muted-text hover:text-red-400 shrink-0"
           type="button"
@@ -1161,6 +1281,20 @@ function SortableDay({
         if (data) setResources(data);
       });
   }, [day.id, refreshTrigger]);
+
+  const [dayNameDraft, setDayNameDraft] = useState(day.day_name);
+  const [editingDayName, setEditingDayName] = useState(false);
+
+  const saveDayName = async () => {
+    setEditingDayName(false);
+    const trimmed = dayNameDraft.trim();
+    if (!trimmed || trimmed === day.day_name) {
+      setDayNameDraft(day.day_name);
+      return;
+    }
+    setDayNameDraft(trimmed);
+    await supabase.from("module_days").update({ day_name: trimmed }).eq("id", day.id);
+  };
 
   const [crossPostedAssignments, setCrossPostedAssignments] = useState<Array<Assignment & { crossPosted: true }>>([]);
   useEffect(() => {
@@ -1241,6 +1375,12 @@ function SortableDay({
     setResources((prev) => prev.filter((r) => r.id !== id));
   };
 
+  const toggleResourcePublished = async (id: string, current: boolean) => {
+    const next = !current;
+    setResources((prev) => prev.map((r) => (r.id === id ? { ...r, published: next } : r)));
+    await supabase.from("resources").update({ published: next }).eq("id", id);
+  };
+
   const [newResType, setNewResType] = useState<Resource["type"]>("link");
   const [newResTitle, setNewResTitle] = useState("");
   const [newResContent, setNewResContent] = useState("");
@@ -1256,7 +1396,10 @@ function SortableDay({
 
   return (
     <div ref={setNodeRef} style={style} className="bg-background rounded-lg">
-      <div className="flex items-center gap-2 sm:gap-3 px-4 py-2">
+      <div
+        className="flex items-center gap-2 sm:gap-3 px-4 py-2 cursor-pointer"
+        onClick={() => !editingDayName && setOpen((v) => !v)}
+      >
         {!readOnly && (
           <button
             {...attributes}
@@ -1264,29 +1407,49 @@ function SortableDay({
             className="hidden sm:block text-border hover:text-muted-text cursor-grab focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
             aria-label={`Drag day ${day.day_name}`}
             type="button"
+            onClick={(e) => e.stopPropagation()}
           >
             ⠿
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="text-sm text-dark-text flex-1 text-left flex items-center gap-2"
-          aria-expanded={open}
-          aria-controls={`day-panel-${day.id}`}
-        >
-          <span>{day.day_name}</span>
-          <span className="text-xs text-muted-text">
-            ({assignments.length + crossPostedAssignments.length + resources.length + quizzes.length})
-          </span>
-        </button>
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          {!readOnly && editingDayName ? (
+            <input
+              autoFocus
+              value={dayNameDraft}
+              onChange={(e) => setDayNameDraft(e.target.value)}
+              onBlur={saveDayName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); saveDayName(); }
+                if (e.key === "Escape") { setDayNameDraft(day.day_name); setEditingDayName(false); }
+              }}
+              className="text-sm text-dark-text bg-background border border-teal-primary rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-teal-primary w-40"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <div
+              className="text-sm text-dark-text text-left flex items-center gap-2"
+              aria-expanded={open}
+            >
+              <span
+                onDoubleClick={!readOnly ? (e) => { e.stopPropagation(); setEditingDayName(true); } : undefined}
+                title={!readOnly ? "Double-click to rename" : undefined}
+              >
+                {dayNameDraft}
+              </span>
+              <span className="text-xs text-muted-text">
+                ({assignments.length + crossPostedAssignments.length + resources.length + quizzes.length})
+              </span>
+            </div>
+          )}
+        </div>
 
         {!readOnly && (
           <button
-            onClick={() => { if (window.confirm(`Delete "${day.day_name}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
+            onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete "${dayNameDraft}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
             className="text-muted-text hover:text-red-400"
-            aria-label={`Delete day ${day.day_name}`}
+            aria-label={`Delete day ${dayNameDraft}`}
             type="button"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
@@ -1338,6 +1501,7 @@ function SortableDay({
                             onEdit={editResource}
                             onDelete={deleteResource}
                             onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
+                            onTogglePublished={toggleResourcePublished}
                           />
                         ))}
                       </div>
@@ -1412,16 +1576,18 @@ function SortableDay({
             )}
           </div>
 
-          {/* Assignments */}
-          <AssignmentDropZone
-            day={day}
-            weekNumber={weekNumber}
-            assignments={assignments}
-            onOpenAssignment={onOpenAssignment}
-            onOpenAdd={onOpenAdd}
-            onDeleteAssignment={onDeleteAssignment}
-            onTogglePublished={onTogglePublished}
-          />
+          {/* Assignments — hidden for resource-only days */}
+          {day.day_name !== "Resources" && day.day_name !== "Wiki" && (
+            <AssignmentDropZone
+              day={day}
+              weekNumber={weekNumber}
+              assignments={assignments}
+              onOpenAssignment={onOpenAssignment}
+              onOpenAdd={onOpenAdd}
+              onDeleteAssignment={onDeleteAssignment}
+              onTogglePublished={onTogglePublished}
+            />
+          )}
 
           {/* Cross-posted assignments from Career Dev */}
           {crossPostedAssignments.length > 0 && (
@@ -1432,7 +1598,7 @@ function SortableDay({
                     href={`/instructor/courses/${courseId}/assignments/${a.id}`}
                     className="flex-1 min-w-0 text-sm text-dark-text truncate hover:text-teal-primary transition-colors"
                   >
-                    {a.title}
+                    {decodeHtml(a.title)}
                   </Link>
                   <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
                 </div>
@@ -1595,13 +1761,24 @@ function SortableModule({
               className="font-semibold text-dark-text bg-background border border-teal-primary rounded px-2 py-0.5 w-full focus:outline-none"
             />
           ) : (
-            <h3
-              className={`font-semibold text-dark-text truncate ${readOnly ? '' : 'cursor-pointer hover:text-teal-primary transition-colors'}`}
-              onClick={readOnly ? undefined : () => { setTitleDraft(module.title); setEditingTitle(true); }}
-              title={readOnly ? undefined : "Click to edit title"}
-            >
-              {module.title}
-            </h3>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h3
+                className="font-semibold text-dark-text truncate cursor-pointer hover:text-teal-primary transition-colors"
+                onClick={onToggleExpand}
+              >
+                {module.title}
+              </h3>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setTitleDraft(module.title); setEditingTitle(true); }}
+                  className="shrink-0 text-border hover:text-muted-text transition-colors"
+                  aria-label="Edit module title"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+              )}
+            </div>
           )}
           {module.week_number != null && <p className="text-xs text-muted-text">Week {module.week_number}</p>}
         </div>
@@ -2005,21 +2182,30 @@ export default function CourseEditor({
 
   const relocateAssignment = async (assignmentId: string, targetWeek: number, targetDayName: string) => {
     const currentMods = modulesRef.current;
-    const targetModule = currentMods.find((m) => m.week_number === targetWeek);
-    if (!targetModule) { console.error(`No module for week ${targetWeek}`); return; }
-    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
-    if (!targetDay) { console.error(`No day "${targetDayName}" in week ${targetWeek}`); return; }
 
-    // Find assignment and its current day
+    // Find assignment and its current day/module first
     let assignmentToMove: Assignment | undefined;
     let sourceDayId: string | undefined;
+    let sourceModule: typeof currentMods[0] | undefined;
     for (const m of currentMods) {
       for (const d of m.module_days) {
         const found = d.assignments?.find((a) => a.id === assignmentId);
-        if (found) { assignmentToMove = found; sourceDayId = d.id; break; }
+        if (found) { assignmentToMove = found; sourceDayId = d.id; sourceModule = m; break; }
       }
       if (assignmentToMove) break;
     }
+    if (!assignmentToMove || !sourceDayId || !sourceModule) return;
+
+    // Find target module: when week matches source, stay in source module to avoid
+    // accidentally picking a duplicate-week-number orphan module. Otherwise prefer
+    // modules with a non-empty title.
+    const targetModule = sourceModule.week_number === targetWeek
+      ? sourceModule
+      : (currentMods.find((m) => m.week_number === targetWeek && m.title?.trim())
+          ?? currentMods.find((m) => m.week_number === targetWeek));
+    if (!targetModule) { console.error(`No module for week ${targetWeek}`); return; }
+    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (!targetDay) { console.error(`No day "${targetDayName}" in week ${targetWeek}`); return; }
     if (!assignmentToMove || !sourceDayId || sourceDayId === targetDay.id) return;
 
     const newOrder = (targetDay.assignments ?? []).length;
@@ -2041,11 +2227,55 @@ export default function CourseEditor({
         }),
       }))
     );
+    // Keep activeView in sync if this assignment is currently open
+    setActiveView((prev) =>
+      prev?.mode === "view" && prev.assignment.id === assignmentId
+        ? { ...prev, dayId: targetDay.id, moduleId: targetModule.id, weekNumber: targetModule.week_number, dayName: targetDayName }
+        : prev
+    );
+  };
+
+  const relocateAssignmentToModule = async (assignmentId: string, targetModuleId: string, targetDayName: string) => {
+    const currentMods = modulesRef.current;
+    let assignmentToMove: Assignment | undefined;
+    let sourceDayId: string | undefined;
+    for (const m of currentMods) {
+      for (const d of m.module_days) {
+        const found = d.assignments?.find((a) => a.id === assignmentId);
+        if (found) { assignmentToMove = found; sourceDayId = d.id; break; }
+      }
+      if (assignmentToMove) break;
+    }
+    if (!assignmentToMove || !sourceDayId) return;
+    const targetModule = currentMods.find((m) => m.id === targetModuleId);
+    if (!targetModule) return;
+    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (!targetDay || sourceDayId === targetDay.id) return;
+    const newOrder = (targetDay.assignments ?? []).length;
+    const { error } = await supabase.from("assignments").update({ module_day_id: targetDay.id, order: newOrder }).eq("id", assignmentId);
+    if (error) { console.error("relocateAssignmentToModule failed:", error.message); return; }
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => {
+          if (d.id === sourceDayId) return { ...d, assignments: (d.assignments ?? []).filter((a) => a.id !== assignmentId) };
+          if (d.id === targetDay.id) return { ...d, assignments: [...(d.assignments ?? []), { ...assignmentToMove!, module_day_id: targetDay.id, order: newOrder }] };
+          return d;
+        }),
+      }))
+    );
+    setActiveView((prev) =>
+      prev?.mode === "view" && prev.assignment.id === assignmentId
+        ? { ...prev, dayId: targetDay.id, moduleId: targetModule.id, weekNumber: targetModule.week_number, dayName: targetDayName }
+        : prev
+    );
   };
 
   const relocateResource = async (resourceId: string, targetWeek: number, targetDayName: string, onRemoved: () => void) => {
     const currentMods = modulesRef.current;
-    const targetModule = currentMods.find((m) => m.week_number === targetWeek);
+    // Prefer modules with non-empty titles to avoid orphan/duplicate-week-number modules
+    const targetModule = currentMods.find((m) => m.week_number === targetWeek && m.title?.trim())
+      ?? currentMods.find((m) => m.week_number === targetWeek);
     if (!targetModule) { console.error(`No module for week ${targetWeek}`); return; }
     const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
     if (!targetDay) { console.error(`No day "${targetDayName}" in week ${targetWeek}`); return; }
@@ -2195,10 +2425,25 @@ export default function CourseEditor({
         })),
       }))
     );
+    setActiveView((prev) =>
+      prev?.mode === "view" && prev.assignment.id === assignmentId
+        ? { ...prev, assignment: { ...prev.assignment, ...updates } }
+        : prev
+    );
   };
 
-  const openAssignment = (assignment: Assignment, dayId: string) =>
-    setActiveView({ mode: "view", assignment, dayId });
+  const openAssignment = (assignment: Assignment, dayId: string) => {
+    const mod = modules.find((m) => m.module_days.some((d) => d.id === dayId));
+    const day = mod?.module_days.find((d) => d.id === dayId);
+    setActiveView({
+      mode: "view",
+      assignment,
+      dayId,
+      moduleId: mod?.id ?? null,
+      weekNumber: mod?.week_number ?? null,
+      dayName: day?.day_name ?? "",
+    });
+  };
 
   const openAdd = (dayId: string) =>
     setActiveView({ mode: "add", dayId });
@@ -2210,10 +2455,16 @@ export default function CourseEditor({
     : modules;
 
   const weekOptions = [...new Set(modules.map((m) => m.week_number).filter(Boolean))].sort((a, b) => a - b) as number[];
+  const weekModules = modules.map(m => ({
+    id: m.id,
+    week: m.week_number ?? null,
+    title: m.title ?? null,
+    days: m.module_days.map(d => d.day_name),
+  }));
 
   return (
     <ReadOnlyContext.Provider value={readOnly}>
-    <RelocateContext.Provider value={{ weekOptions, relocateAssignment, relocateResource }}>
+    <RelocateContext.Provider value={{ weekOptions, weekModules, relocateAssignment, relocateAssignmentToModule, relocateResource }}>
     <>
       {activeView && (
         <AssignmentFullView
