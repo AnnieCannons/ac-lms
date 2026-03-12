@@ -1,9 +1,24 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
+import { mergeAttributes } from "@tiptap/core";
 import { useRef } from "react";
 import StarterKit from "@tiptap/starter-kit";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { createLowlight } from "lowlight";
+import javascript from "highlight.js/lib/languages/javascript";
+import xml from "highlight.js/lib/languages/xml";
+import css from "highlight.js/lib/languages/css";
+import sql from "highlight.js/lib/languages/sql";
 import FileUpload from "@/components/ui/FileUpload";
+import CodeBlockNode from "@/components/ui/CodeBlockNode";
+
+const lowlight = createLowlight();
+lowlight.register("javascript", javascript);
+lowlight.register("jsx", javascript);
+lowlight.register("html", xml);
+lowlight.register("css", css);
+lowlight.register("sql", sql);
 
 type Props = {
   initialContent: string;
@@ -19,12 +34,28 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
+        codeBlock: false, // replaced by CodeBlockLowlight
         heading: false,
         horizontalRule: false,
         blockquote: false,
         bulletList: false,
         orderedList: false,
         listItem: false,
+      }),
+      CodeBlockLowlight.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockNode);
+        },
+        renderHTML({ node, HTMLAttributes }) {
+          return [
+            "pre",
+            mergeAttributes(HTMLAttributes),
+            ["code", { class: node.attrs.language ? `language-${node.attrs.language}` : null }, 0],
+          ];
+        },
+      }).configure({
+        lowlight,
+        defaultLanguage: "javascript",
       }),
     ],
     content: initialContent,
@@ -45,9 +76,83 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
   const isCode = editor.isActive("code");
   const isCodeBlock = editor.isActive("codeBlock");
 
+  const tool = (fn: () => void) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    fn();
+  };
+
+  const btn = (active: boolean) =>
+    `px-2 py-0.5 rounded text-xs font-mono font-medium transition-colors ${
+      active
+        ? "bg-teal-primary text-white"
+        : "text-muted-text hover:text-dark-text hover:bg-border/40"
+    }`;
+
   const insertImage = (url: string, fileName: string) => {
     const img = `<img src="${url}" alt="${fileName.replace(/"/g, "&quot;")}" />`;
     editor.chain().focus().insertContent(img).run();
+  };
+
+  const handleInlineCode = () => {
+    if (editor.isActive("codeBlock")) {
+      // Convert code block → inline code paragraph
+      editor
+        .chain()
+        .focus()
+        .command(({ tr, state }) => {
+          const { $anchor } = state.selection;
+          let cbPos = -1, cbSize = 0, cbText = "";
+          state.doc.descendants((node, pos) => {
+            if (
+              node.type.name === "codeBlock" &&
+              pos <= $anchor.pos &&
+              pos + node.nodeSize >= $anchor.pos
+            ) {
+              cbPos = pos;
+              cbSize = node.nodeSize;
+              cbText = node.textContent;
+              return false;
+            }
+          });
+          if (cbPos === -1) return false;
+          const { schema } = state;
+          tr.replaceWith(
+            cbPos,
+            cbPos + cbSize,
+            schema.nodes.paragraph.create(
+              null,
+              cbText ? schema.text(cbText, [schema.marks.code.create()]) : undefined
+            )
+          );
+          return true;
+        })
+        .run();
+    } else {
+      editor.chain().focus().toggleCode().run();
+    }
+  };
+
+  const handleCodeBlock = () => {
+    if (editor.isActive("codeBlock")) {
+      editor.chain().focus().toggleCodeBlock().run();
+      return;
+    }
+    const { from, to, empty } = editor.state.selection;
+    if (!empty) {
+      const selectedText = editor.state.doc.textBetween(from, to, "\n", "\n");
+      editor
+        .chain()
+        .focus()
+        .deleteSelection()
+        .insertContent({
+          type: "codeBlock",
+          attrs: { language: "javascript" },
+          content: selectedText ? [{ type: "text", text: selectedText }] : [],
+        })
+        .run();
+    } else {
+      editor.chain().focus().toggleCodeBlock().run();
+    }
   };
 
   return (
@@ -55,33 +160,21 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
       <div className="flex items-center gap-0.5 px-2 py-1 border-b border-border bg-surface">
         <button
           type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.chain().focus().toggleCode().run();
-          }}
-          className={`px-2 py-0.5 rounded text-xs font-mono font-medium transition-colors ${
-            isCode
-              ? "bg-teal-primary text-white"
-              : "text-muted-text hover:text-dark-text hover:bg-border/40"
-          }`}
+          onMouseDown={tool(handleInlineCode)}
+          className={btn(isCode)}
           aria-label="Inline code"
           aria-pressed={isCode}
+          title="Inline code (single line)"
         >
           `code`
         </button>
         <button
           type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.chain().focus().toggleCodeBlock().run();
-          }}
-          className={`px-2 py-0.5 rounded text-xs font-mono font-medium transition-colors ${
-            isCodeBlock
-              ? "bg-teal-primary text-white"
-              : "text-muted-text hover:text-dark-text hover:bg-border/40"
-          }`}
+          onMouseDown={tool(handleCodeBlock)}
+          className={btn(isCodeBlock)}
           aria-label="Code block"
           aria-pressed={isCodeBlock}
+          title="Code block (multi-line)"
         >
           {"</>"}
         </button>

@@ -86,8 +86,18 @@ function GripIcon() {
 
 // ── Read-only section content (shared with student view) ──────────────────────
 
-export function CourseOutlineView({ content }: { content: string | null }) {
+function getCurrentWeek(startDate: string | null | undefined): number | null {
+  if (!startDate) return null
+  const start = new Date(startDate)
+  const today = new Date()
+  const diffMs = today.getTime() - start.getTime()
+  if (diffMs < 0) return null
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
+}
+
+export function CourseOutlineView({ content, courseStartDate }: { content: string | null; courseStartDate?: string | null }) {
   const rows = parseOutline(content)
+  const currentWeek = getCurrentWeek(courseStartDate)
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="grid grid-cols-[88px_1fr_1.5fr] bg-teal-light/60 border-b border-border">
@@ -95,13 +105,18 @@ export function CourseOutlineView({ content }: { content: string | null }) {
         <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Topics Covered</div>
         <div className="px-3 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Description</div>
       </div>
-      {rows.map(row => (
-        <div key={row.week} className="grid grid-cols-[88px_1fr_1.5fr] border-b border-border last:border-b-0">
-          <div className="px-3 py-2 text-sm text-muted-text font-medium">Week {row.week}</div>
-          <div className="px-3 py-2 text-sm text-dark-text min-w-0 break-words">{row.topics || <span className="text-muted-text/40">—</span>}</div>
-          <div className="px-3 py-2 text-sm text-dark-text min-w-0 break-words">{row.description || <span className="text-muted-text/40">—</span>}</div>
-        </div>
-      ))}
+      {rows.map(row => {
+        const isCurrent = currentWeek === row.week
+        return (
+          <div key={row.week} className={`grid grid-cols-[88px_1fr_1.5fr] border-b border-border last:border-b-0 ${isCurrent ? 'bg-teal-light/10' : ''}`}>
+            <div className="px-3 py-2 text-sm text-muted-text font-medium">
+              Week {row.week}
+            </div>
+            <div className="px-3 py-2 text-sm text-dark-text min-w-0 break-words">{row.topics || <span className="text-muted-text/40">—</span>}</div>
+            <div className="px-3 py-2 text-sm text-dark-text min-w-0 break-words">{row.description || <span className="text-muted-text/40">—</span>}</div>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -247,19 +247,28 @@ html.theme-dark .quiz-html code:not(pre code) {
   border: none;
 }
 
-/* Code blocks in choice editor (ProseMirror) */
-.ProseMirror pre {
+/* Code blocks — editor + display (quiz-html, wiki-content) */
+.ProseMirror pre,
+.quiz-html pre,
+.wiki-content pre {
   background: #1e1e2e;
   border: 1px solid #313244;
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin: 0.5rem 0;
   overflow-x: auto;
-}
-.ProseMirror pre code {
+  white-space: pre;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.85em;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.ProseMirror pre code,
+.quiz-html pre code,
+.wiki-content pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
   color: #cdd6f4;
-  background: none;
+  background: none; /* override atom-one-dark .hljs background */
   padding: 0;
+  display: block;
 }

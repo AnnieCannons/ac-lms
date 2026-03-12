@@ -150,7 +150,37 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
 
         <button
           type="button"
-          onMouseDown={tool(() => editor.chain().focus().toggleCode().run())}
+          onMouseDown={tool(() => {
+            if (editor.isActive('codeBlock')) {
+              // Convert code block → inline code paragraph
+              editor.chain().focus()
+                .command(({ tr, state }) => {
+                  const { $anchor } = state.selection
+                  let codeBlockPos = -1
+                  let codeBlockSize = 0
+                  let codeBlockText = ''
+                  state.doc.descendants((node, pos) => {
+                    if (node.type.name === 'codeBlock' && pos <= $anchor.pos && pos + node.nodeSize >= $anchor.pos) {
+                      codeBlockPos = pos
+                      codeBlockSize = node.nodeSize
+                      codeBlockText = node.textContent
+                      return false
+                    }
+                  })
+                  if (codeBlockPos === -1) return false
+                  const { schema } = state
+                  const content = codeBlockText
+                    ? schema.text(codeBlockText, [schema.marks.code.create()])
+                    : undefined
+                  tr.replaceWith(codeBlockPos, codeBlockPos + codeBlockSize,
+                    schema.nodes.paragraph.create(null, content))
+                  return true
+                })
+                .run()
+            } else {
+              editor.chain().focus().toggleCode().run()
+            }
+          })}
           className={`${btn(editor.isActive("code"))} font-mono`}
           aria-label="Inline code"
           aria-pressed={editor.isActive("code")}
@@ -159,7 +189,26 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
         </button>
         <button
           type="button"
-          onMouseDown={tool(() => editor.chain().focus().toggleCodeBlock().run())}
+          onMouseDown={tool(() => {
+            if (editor.isActive('codeBlock')) {
+              editor.chain().focus().toggleCodeBlock().run()
+              return
+            }
+            const { from, to, empty } = editor.state.selection
+            if (!empty) {
+              const selectedText = editor.state.doc.textBetween(from, to, '\n', '\n')
+              editor.chain().focus()
+                .deleteSelection()
+                .insertContent({
+                  type: 'codeBlock',
+                  attrs: { language: 'javascript' },
+                  content: selectedText ? [{ type: 'text', text: selectedText }] : [],
+                })
+                .run()
+            } else {
+              editor.chain().focus().toggleCodeBlock().run()
+            }
+          })}
           className={btn(editor.isActive("codeBlock"))}
           aria-label="Code block"
           aria-pressed={editor.isActive("codeBlock")}

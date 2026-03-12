@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { saveGrade } from '@/lib/grade-actions'
+import HtmlContent from '@/components/ui/HtmlContent'
 
 export type CategorizedAssignment = {
   id: string
@@ -159,7 +160,7 @@ export default function StudentDetailView({
                     </span>
                   )}
                   {accommodation?.notes && (
-                    <span className="text-dark-text">{accommodation.notes}</span>
+                    <HtmlContent html={accommodation.notes} className="text-dark-text text-sm [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold" />
                   )}
                 </>
               )}

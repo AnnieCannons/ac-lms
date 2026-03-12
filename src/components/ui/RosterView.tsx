@@ -1,8 +1,11 @@
 'use client'
 import { useState, useTransition, Fragment, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { upsertAccommodation } from '@/lib/accommodation-actions'
+import DatePickerField from '@/components/ui/DatePickerField'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 interface Accommodation {
   cameraOff: boolean
@@ -106,7 +109,7 @@ function CameraDatePopover({
   return (
     <div
       ref={ref}
-      className={containerClassName ?? "absolute z-30 top-full mt-1 left-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-60"}
+      className={containerClassName ?? "absolute z-30 top-full mt-1 left-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-72"}
     >
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
         <CalendarIcon size={11} /> Camera Off Dates
@@ -117,25 +120,20 @@ function CameraDatePopover({
         </p>
       )}
       <div className="flex flex-col gap-2">
-        <div>
-          <label className="text-xs text-muted-text block mb-1">Start date</label>
-          <input
-            type="date"
-            value={editStart}
-            onChange={e => setEditStart(e.target.value)}
-            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-red-400"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-text block mb-1">End date</label>
-          <input
-            type="date"
-            value={editEnd}
-            min={editStart || undefined}
-            onChange={e => setEditEnd(e.target.value)}
-            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-red-400"
-          />
-        </div>
+        <DatePickerField
+          label="Start date"
+          value={editStart}
+          onChange={setEditStart}
+          placeholder="Pick a start date"
+          className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
+        />
+        <DatePickerField
+          label="End date"
+          value={editEnd}
+          onChange={setEditEnd}
+          placeholder="Pick an end date"
+          className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
+        />
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex items-center justify-between">
@@ -158,12 +156,12 @@ function NotesEditPopover({
   notes: initialNotes,
   onClose,
   onSave,
-  containerClassName,
+  fixedPos,
 }: {
   notes: string
   onClose: () => void
   onSave: (notes: string) => Promise<void>
-  containerClassName?: string
+  fixedPos: { top: number; left: number }
 }) {
   const [text, setText] = useState(initialNotes)
   const [saving, setSaving] = useState(false)
@@ -182,16 +180,17 @@ function NotesEditPopover({
     setSaving(false)
   }
 
-  return (
-    <div ref={ref} className={containerClassName ?? "absolute z-30 top-full mt-1 left-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-64"}>
+  return createPortal(
+    <div
+      ref={ref}
+      style={{ position: 'fixed', top: fixedPos.top, left: fixedPos.left, zIndex: 50 }}
+      className="bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-96"
+    >
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Other Accommodations</p>
-      <textarea
-        value={text}
-        onChange={e => setText(e.target.value)}
-        rows={3}
-        autoFocus
+      <RichTextEditor
+        content={text}
+        onChange={setText}
         placeholder="e.g. Extended time, quiet testing room, screen reader…"
-        className="w-full border border-border rounded-lg px-2 py-1.5 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none placeholder:text-muted-text"
       />
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex items-center justify-between">
@@ -206,7 +205,8 @@ function NotesEditPopover({
           Cancel
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -245,11 +245,26 @@ function AddAccommodationMenu({
   )
 }
 
+function notesCoordsFromRect(rect: DOMRect): { top: number; left: number } {
+  const popoverWidth = 384
+  const margin = 24
+  return {
+    top: rect.bottom + 6,
+    left: Math.max(margin, Math.min(rect.left, window.innerWidth - popoverWidth - margin)),
+  }
+}
+
+function notesCoords(el: HTMLElement): { top: number; left: number } {
+  return notesCoordsFromRect(el.getBoundingClientRect())
+}
+
 export default function RosterView({ courses, currentCourseId, students }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [openPopover, setOpenPopover] = useState<string | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState<string | null>(null)
+  const [notesPos, setNotesPos] = useState<{ top: number; left: number } | null>(null)
+  const plusBtnRectRef = useRef<DOMRect | null>(null)
 
   const hasAnyAccommodation = (s: Student) =>
     s.accommodation?.cameraOff || s.accommodation?.notes
@@ -316,18 +331,21 @@ export default function RosterView({ courses, currentCourseId, students }: Props
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
                     setAddMenuOpen(null)
+                    const isOpening = openPopover !== `${student.userId}:notes`
+                    if (isOpening) setNotesPos(notesCoords(e.currentTarget))
                     setOpenPopover(p => p === `${student.userId}:notes` ? null : `${student.userId}:notes`)
                   }}
                   className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-800/50 border border-amber-300 dark:border-amber-600/60 px-2 py-0.5 rounded-full transition-colors"
                 >
                   Accommodations
                 </button>
-                {openPopover === `${student.userId}:notes` && (
+                {openPopover === `${student.userId}:notes` && notesPos && (
                   <NotesEditPopover
                     notes={student.accommodation.notes}
-                    onClose={() => setOpenPopover(null)}
+                    fixedPos={notesPos}
+                    onClose={() => { setOpenPopover(null); setNotesPos(null) }}
                     onSave={async (newNotes) => {
                       const result = await upsertAccommodation(
                         student.userId,
@@ -354,7 +372,8 @@ export default function RosterView({ courses, currentCourseId, students }: Props
           <div className="relative inline-block">
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                plusBtnRectRef.current = e.currentTarget.getBoundingClientRect()
                 setOpenPopover(null)
                 setAddMenuOpen(p => p === student.userId ? null : student.userId)
               }}
@@ -371,18 +390,19 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                   setOpenPopover(`${student.userId}:camera`)
                 }}
                 onNotes={() => {
+                  if (plusBtnRectRef.current) setNotesPos(notesCoordsFromRect(plusBtnRectRef.current))
                   setAddMenuOpen(null)
                   setOpenPopover(`${student.userId}:notes`)
                 }}
                 onClose={() => setAddMenuOpen(null)}
               />
             )}
-            {/* Add popovers anchored to right edge */}
-            {openPopover === `${student.userId}:notes` && !student.accommodation?.notes && (
+            {/* Add-new notes popover via portal */}
+            {openPopover === `${student.userId}:notes` && !student.accommodation?.notes && notesPos && (
               <NotesEditPopover
                 notes=""
-                containerClassName="absolute z-30 top-full mt-1 right-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-64"
-                onClose={() => setOpenPopover(null)}
+                fixedPos={notesPos}
+                onClose={() => { setOpenPopover(null); setNotesPos(null) }}
                 onSave={async (newNotes) => {
                   const result = await upsertAccommodation(
                     student.userId,
@@ -393,6 +413,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                   )
                   if (!result.error) {
                     setOpenPopover(null)
+                    setNotesPos(null)
                     startTransition(() => router.refresh())
                   } else {
                     throw new Error(result.error)
@@ -404,7 +425,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
               <CameraDatePopover
                 start={null}
                 end={null}
-                containerClassName="absolute z-30 top-full mt-1 right-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-60"
+                containerClassName="absolute z-30 top-full mt-1 right-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-72"
                 onClose={() => setOpenPopover(null)}
                 onSave={async (start, end) => {
                   const result = await upsertAccommodation(

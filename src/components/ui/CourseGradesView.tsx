@@ -38,14 +38,13 @@ interface AssignmentStats {
 
 interface StudentRow {
   student: Student
-  submitted: number
-  missing: Assignment[]
-  needsGrading: Assignment[]
+  late: Assignment[]
+  needsReview: Assignment[]
   complete: Assignment[]
   incomplete: Assignment[]
 }
 
-type ExpandKey = 'missing' | 'needsGrading' | 'complete' | 'incomplete'
+type ExpandKey = 'late' | 'needsReview' | 'complete' | 'incomplete'
 
 interface Props {
   courseId: string
@@ -81,31 +80,28 @@ export default function CourseGradesView({
 
   const studentStats: StudentRow[] = students
     .map(student => {
-      const missing: Assignment[] = []
-      const needsGrading: Assignment[] = []
+      const late: Assignment[] = []
+      const needsReview: Assignment[] = []
       const complete: Assignment[] = []
       const incomplete: Assignment[] = []
-      let submitted = 0
 
       for (const a of assignments) {
         const sub = subMap.get(`${student.id}-${a.id}`)
         if (!sub || sub.status === 'draft') {
-          if (a.due_date && new Date(a.due_date) < now) missing.push(a)
+          if (a.due_date && new Date(a.due_date) < now) late.push(a)
         } else if (sub.status === 'submitted') {
-          submitted++
-          needsGrading.push(a)
+          needsReview.push(a)
         } else if (sub.status === 'graded') {
-          submitted++
           if (sub.grade === 'complete') complete.push(a)
           else if (sub.grade === 'incomplete') incomplete.push(a)
         }
       }
 
-      return { student, submitted, missing, needsGrading, complete, incomplete }
+      return { student, late, needsReview, complete, incomplete }
     })
     .sort((a, b) => {
-      const aAttn = a.missing.length + a.needsGrading.length + a.incomplete.length
-      const bAttn = b.missing.length + b.needsGrading.length + b.incomplete.length
+      const aAttn = a.late.length + a.needsReview.length + a.incomplete.length
+      const bAttn = b.late.length + b.needsReview.length + b.incomplete.length
       return bAttn - aAttn || a.student.name.localeCompare(b.student.name)
     })
 
@@ -165,7 +161,6 @@ export default function CourseGradesView({
       ) : (
         <StudentsTab
           studentStats={studentStats}
-          totalAssignments={assignments.length}
           courseId={courseId}
         />
       )}
@@ -493,11 +488,9 @@ function AssignmentsTab({
 
 function StudentsTab({
   studentStats,
-  totalAssignments,
   courseId,
 }: {
   studentStats: StudentRow[]
-  totalAssignments: number
   courseId: string
 }) {
   const [expanded, setExpanded] = useState<{ studentId: string; category: ExpandKey } | null>(null)
@@ -518,36 +511,36 @@ function StudentsTab({
 
   return (
     <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
-      {studentStats.map(({ student, submitted, missing, needsGrading, complete, incomplete }) => {
+      {studentStats.map(({ student, late, needsReview, complete, incomplete }) => {
         const isExpanded = (cat: ExpandKey) =>
           expanded?.studentId === student.id && expanded.category === cat
 
         const expandedList: Assignment[] =
           expanded?.studentId === student.id
-            ? { missing, needsGrading, complete, incomplete }[expanded.category] ?? []
+            ? { late, needsReview, complete, incomplete }[expanded.category] ?? []
             : []
+
+        const hasAnything = late.length + needsReview.length + complete.length + incomplete.length > 0
 
         return (
           <div key={student.id} className="bg-surface">
             <div className="px-6 py-4">
               <p className="text-sm font-semibold text-dark-text mb-1.5">{student.name}</p>
               <div className="flex items-center gap-4 text-xs flex-wrap">
-                <span className="text-muted-text">{submitted}/{totalAssignments} submitted</span>
-
-                {missing.length > 0 && (
+                {late.length > 0 && (
                   <button
-                    onClick={() => toggle(student.id, 'missing')}
-                    className={`font-medium transition-colors ${isExpanded('missing') ? 'text-red-700 underline' : 'text-red-500 hover:underline'}`}
+                    onClick={() => toggle(student.id, 'late')}
+                    className={`font-medium transition-colors ${isExpanded('late') ? 'text-red-700 underline' : 'text-red-500 hover:underline'}`}
                   >
-                    {missing.length} missing
+                    {late.length} late
                   </button>
                 )}
-                {needsGrading.length > 0 && (
+                {needsReview.length > 0 && (
                   <button
-                    onClick={() => toggle(student.id, 'needsGrading')}
-                    className={`font-medium transition-colors ${isExpanded('needsGrading') ? 'text-yellow-700 underline' : 'text-yellow-600 hover:underline'}`}
+                    onClick={() => toggle(student.id, 'needsReview')}
+                    className={`font-medium transition-colors ${isExpanded('needsReview') ? 'text-yellow-700 underline' : 'text-yellow-600 hover:underline'}`}
                   >
-                    {needsGrading.length} needs grading
+                    {needsReview.length} needs review
                   </button>
                 )}
                 {incomplete.length > 0 && (
@@ -566,6 +559,9 @@ function StudentsTab({
                     {complete.length} complete
                   </button>
                 )}
+                {!hasAnything && (
+                  <span className="text-muted-text">No activity yet</span>
+                )}
               </div>
             </div>
 
@@ -574,12 +570,12 @@ function StudentsTab({
                 {expandedList.map(a => (
                   <div key={a.id} className="flex items-center justify-between gap-4 py-1">
                     <span className="text-xs text-dark-text">{a.title}</span>
-                    {expanded.category !== 'missing' ? (
+                    {expanded.category !== 'late' ? (
                       <Link
                         href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
                         className="text-xs font-medium text-teal-primary hover:underline shrink-0"
                       >
-                        {expanded.category === 'needsGrading' ? 'Grade →' : 'View →'}
+                        {expanded.category === 'needsReview' ? 'Grade →' : 'View →'}
                       </Link>
                     ) : (
                       <Link

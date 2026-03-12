@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { submitQuiz, type AnswerEntry } from "./actions";
-import HtmlContent from "@/components/ui/HtmlContent";
 import dynamic from "next/dynamic";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
@@ -80,15 +79,16 @@ export default function QuizForm({
           Quiz submissions are paused while you&apos;re on leave.
         </div>
         {questions.map((q, i) => (
-          <fieldset
+          <div
+            role="group"
             key={i}
             className="bg-surface rounded-xl border border-border/50 p-5 opacity-60"
           >
-            <legend className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">
+            <p className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">
               Question {i + 1}
-            </legend>
-            <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
-              <HtmlContent html={q.question_text || ""} />
+            </p>
+            <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
+              <HighlightedContent html={q.question_text || ""} />
             </div>
             {q.code_snippet && (
               <div className="mb-4">
@@ -102,16 +102,16 @@ export default function QuizForm({
             <ul className="space-y-1.5">
               {(q.choices ?? []).map((choice) => (
                 <li key={choice.ident}>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/30 px-4 py-2.5">
-                    <div className="mt-1 shrink-0 w-3.5 h-3.5 rounded-full border-2 border-border/30" />
+                  <div className="flex items-center gap-3 rounded-lg border border-border/30 px-4 py-2.5">
+                    <div className="shrink-0 w-3.5 h-3.5 rounded-full border-2 border-border/30" />
                     <div className="quiz-html text-sm text-muted-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
-                      <HtmlContent html={choice.text || ""} />
+                      <HighlightedContent html={choice.text || ""} />
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
-          </fieldset>
+          </div>
         ))}
       </div>
     );
@@ -133,15 +133,16 @@ export default function QuizForm({
         if (isLocked) {
           // Correct question — read-only display, dimmed
           return (
-            <fieldset
+            <div
+              role="group"
               key={i}
               className="bg-surface rounded-xl border border-green-500/25 p-5 opacity-55"
             >
-              <legend className="text-sm font-semibold text-green-500 uppercase tracking-wide mb-3">
+              <p className="text-sm font-semibold text-green-500 uppercase tracking-wide mb-3">
                 Question {i + 1} &nbsp;✓
-              </legend>
-              <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
-                <HtmlContent html={q.question_text || ""} />
+              </p>
+              <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
+                <HighlightedContent html={q.question_text || ""} />
               </div>
               {q.code_snippet && (
                 <div className="mb-4">
@@ -156,13 +157,13 @@ export default function QuizForm({
                 {(q.choices ?? []).map((choice) => (
                   <li key={choice.ident}>
                     <div
-                      className={`flex items-start gap-3 rounded-lg border px-4 py-2.5 ${
+                      className={`flex items-center gap-3 rounded-lg border px-4 py-2.5 ${
                         choice.ident === lockedChoice
                           ? "border-green-500/40 bg-green-500/10"
                           : "border-border/30"
                       }`}
                     >
-                      <div className={`mt-1 shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                      <div className={`shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
                         choice.ident === lockedChoice ? "border-green-500" : "border-border/30"
                       }`}>
                         {choice.ident === lockedChoice && (
@@ -172,32 +173,33 @@ export default function QuizForm({
                       <div className={`quiz-html text-sm [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded ${
                         choice.ident === lockedChoice ? "text-green-400" : "text-muted-text"
                       }`}>
-                        <HtmlContent html={choice.text || ""} />
+                        <HighlightedContent html={choice.text || ""} />
                       </div>
                     </div>
                   </li>
                 ))}
               </ul>
-            </fieldset>
+            </div>
           );
         }
 
         // Active question — editable
         return (
-          <fieldset
+          <div
+            role="group"
             key={i}
             className={`bg-surface rounded-xl border p-6 ${
               isRetake ? "border-orange-500/50" : "border-border"
             }`}
           >
-            <legend className={`text-sm font-semibold uppercase tracking-wide mb-3 ${
+            <p className={`text-sm font-semibold uppercase tracking-wide mb-3 ${
               isRetake ? "text-orange-400" : "text-muted-text"
             }`}>
               Question {i + 1}
-            </legend>
+            </p>
             <HighlightedContent
               html={q.question_text || ""}
-              className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
+              className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
             />
             {q.code_snippet && (
               <div className="mb-4">
@@ -211,7 +213,7 @@ export default function QuizForm({
             <ul className="space-y-2">
               {(q.choices ?? []).map((choice) => (
                 <li key={choice.ident}>
-                  <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-border hover:border-teal-primary/50 px-4 py-3 transition-colors has-[:checked]:border-teal-primary has-[:checked]:bg-teal-light/20">
+                  <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-border hover:border-teal-primary/50 px-4 py-3 transition-colors has-[:checked]:border-teal-primary has-[:checked]:bg-teal-light/20">
                     <input
                       type="radio"
                       name={`answer_${i}`}
@@ -219,16 +221,16 @@ export default function QuizForm({
                       defaultChecked={savedProgress?.[String(i)] === choice.ident}
                       onChange={() => handleChange(String(i), choice.ident)}
                       required
-                      className="mt-1 shrink-0"
+                      className="shrink-0"
                     />
-                    <div className="quiz-html text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-3">
-                      <HtmlContent html={choice.text || ""} />
+                    <div className="quiz-html text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
+                      <HighlightedContent html={choice.text || ""} />
                     </div>
                   </label>
                 </li>
               ))}
             </ul>
-          </fieldset>
+          </div>
         );
       })}
       <div className="flex justify-end pt-2">

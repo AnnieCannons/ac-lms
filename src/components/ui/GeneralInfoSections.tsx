@@ -25,8 +25,18 @@ interface Section {
   order: number
 }
 
-export default function GeneralInfoSections({ sections }: { sections: Section[] }) {
+function getCurrentWeek(startDate: string | null | undefined): number | null {
+  if (!startDate) return null
+  const start = new Date(startDate)
+  const today = new Date()
+  const diffMs = today.getTime() - start.getTime()
+  if (diffMs < 0) return null
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
+}
+
+export default function GeneralInfoSections({ sections, courseStartDate }: { sections: Section[]; courseStartDate?: string | null }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const currentWeek = getCurrentWeek(courseStartDate)
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
@@ -71,13 +81,20 @@ export default function GeneralInfoSections({ sections }: { sections: Section[] 
             aria-controls={`section-body-${section.id}`}
             className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-border/10 transition-colors"
           >
-            <h2 className="font-semibold text-dark-text">{section.title}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold text-dark-text">{section.title}</h2>
+              {section.type === 'course_outline' && currentWeek && (
+                <span className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full">
+                  Week {currentWeek} this week
+                </span>
+              )}
+            </div>
             <span aria-hidden="true" className={`text-xs text-muted-text transition-transform duration-150 ${collapsed.has(section.id) ? '' : 'rotate-180'}`}>▾</span>
           </button>
           {!collapsed.has(section.id) && (
             <div id={`section-body-${section.id}`} className="px-6 pb-6">
               {section.type === 'daily_schedule' && <DailySchedule />}
-              {section.type === 'course_outline' && <CourseOutlineView content={section.content} />}
+              {section.type === 'course_outline' && <CourseOutlineView content={section.content} courseStartDate={courseStartDate} />}
               {section.type === 'yearly_schedule' && <YearlyScheduleSection />}
               {section.type === 'computer_wifi' && <GlobalContentSection slug="computer-wifi" />}
               {section.type === 'policies_procedures' && <GlobalContentSection slug="policies" />}

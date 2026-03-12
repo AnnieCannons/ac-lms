@@ -337,12 +337,12 @@ export default async function TakeQuizPage({
                               </p>
                               <HighlightedContent
                                 html={q.question_text || ""}
-                                className="quiz-html text-sm text-dark-text [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
+                                className="quiz-html text-sm text-dark-text [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li_p]:inline [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
                               />
                               {q.code_snippet && (
                                 <HighlightedContent
                                   html={codeSnippetHtml(q.code_snippet, q.code_language)}
-                                  className="quiz-html mt-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4"
+                                  className="quiz-html mt-2"
                                 />
                               )}
                             </div>
@@ -352,7 +352,7 @@ export default async function TakeQuizPage({
                             <div className="text-sm pl-6">
                               <div className="text-orange-600 dark:text-orange-400">
                                 <p className="mb-1">Your answer:</p>
-                                <div className="quiz-html [&_img]:max-w-full [&_img]:h-auto [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-3">
+                                <div className="quiz-html [&_img]:max-w-full [&_img]:h-auto">
                                   <HighlightedContent html={studentChoice?.text ?? "(no answer)"} />
                                 </div>
                               </div>
@@ -362,7 +362,7 @@ export default async function TakeQuizPage({
                             <div className="text-sm pl-6">
                               <div className="text-green-700 dark:text-green-400 font-medium">
                                 <p className="mb-1">Correct answer:</p>
-                                <div className="quiz-html [&_img]:max-w-full [&_img]:h-auto [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-3">
+                                <div className="quiz-html [&_img]:max-w-full [&_img]:h-auto">
                                   <HighlightedContent html={correctChoice.text} />
                                 </div>
                               </div>

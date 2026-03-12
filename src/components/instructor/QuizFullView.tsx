@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -18,7 +18,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { QuizRow, QuizQuestion, QuizChoice, CodeLanguage } from "@/data/quizzes";
-import HtmlContent from "@/components/ui/HtmlContent";
 import DatePickerField from "@/components/ui/DatePickerField";
 import dynamic from "next/dynamic";
 import {
@@ -27,6 +26,7 @@ import {
   toggleQuizPublished,
   upsertQuizFromJson,
   deleteQuiz,
+  updateQuizDay,
 } from "@/lib/quiz-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
@@ -108,29 +108,102 @@ const LANG_LABELS: Record<CodeLanguage, string> = {
 export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClose, onSaved, onDeleted }: QuizFullViewProps) {
   const router = useRouter();
   const fromJsonOnly = isJsonOnlyQuiz(quiz.id);
-  const [editing, setEditing] = useState(false);
   const [editingQuestions, setEditingQuestions] = useState(false);
-  const [editTitle, setEditTitle] = useState(quiz.title);
-  const [editDueDate, setEditDueDate] = useState(
+
+  // Inline-editable metadata fields
+  const [titleDraft, setTitleDraft] = useState(quiz.title);
+  const [dueDateDraft, setDueDateDraft] = useState(
     quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : ""
   );
-  const [editMaxAttempts, setEditMaxAttempts] = useState<number | null>(quiz.max_attempts ?? null);
-  const [editModuleTitle, setEditModuleTitle] = useState(quiz.module_title ?? "");
-  const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
-const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useUnsavedChanges(editing || editingQuestions);
+  const [maxAttemptsDraft, setMaxAttemptsDraft] = useState<number | null>(quiz.max_attempts ?? null);
+  const [moduleTitleDraft, setModuleTitleDraft] = useState(quiz.module_title ?? "");
+  const [dayTitleDraft, setDayTitleDraft] = useState(quiz.day_title ?? "");
 
+  // Attempts popover
+  const [showAttemptsPopover, setShowAttemptsPopover] = useState(false);
+  const [attemptsInput, setAttemptsInput] = useState(String(quiz.max_attempts ?? 3));
+  const attemptsContainerRef = useRef<HTMLDivElement>(null);
+
+  const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useUnsavedChanges(editingQuestions);
+
+  // Sync draft fields when quiz prop changes
   useEffect(() => {
-    setEditTitle(quiz.title);
-    setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
-    setEditMaxAttempts(quiz.max_attempts ?? null);
-    setEditModuleTitle(quiz.module_title ?? "");
-  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts, quiz.module_title]);
+    setTitleDraft(quiz.title);
+    setDueDateDraft(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
+    setMaxAttemptsDraft(quiz.max_attempts ?? null);
+    setModuleTitleDraft(quiz.module_title ?? "");
+    setDayTitleDraft(quiz.day_title ?? "");
+  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts, quiz.module_title, quiz.day_title]);
+
+  // Close attempts popover on outside click
+  useEffect(() => {
+    if (!showAttemptsPopover) return;
+    const handler = (e: MouseEvent) => {
+      if (attemptsContainerRef.current && !attemptsContainerRef.current.contains(e.target as Node)) {
+        setShowAttemptsPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAttemptsPopover]);
 
   useEffect(() => {
     setEditQuestions(JSON.parse(JSON.stringify(quiz.questions ?? [])));
   }, [quiz.id, quiz.questions]);
+
+  // Auto-save a subset of metadata fields
+  const autoSave = async (updates: {
+    title?: string;
+    due_at?: string | null;
+    max_attempts?: number | null;
+    module_title?: string;
+    day_title?: string | null;
+  }) => {
+    setError(null);
+    setSaving(true);
+    try {
+      if (fromJsonOnly) {
+        const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
+          title: (updates.title ?? titleDraft.trim()) || quiz.title,
+          due_at: updates.due_at !== undefined ? updates.due_at : (dueDateDraft || null),
+          module_title: updates.module_title ?? moduleTitleDraft,
+          published: quiz.published,
+          questions: quiz.questions ?? [],
+          max_attempts: updates.max_attempts !== undefined ? updates.max_attempts : maxAttemptsDraft,
+        });
+        if (saved) {
+          onSaved?.(saved as QuizRow);
+          // day_title not in upsertQuizFromJson — save separately after we have a real id
+          if ("day_title" in updates) {
+            await updateQuizDay((saved as QuizRow).id, updates.day_title ?? null);
+          }
+        }
+      } else {
+        const { day_title, ...metaUpdates } = updates;
+        if (Object.keys(metaUpdates).length > 0) {
+          await updateQuizMeta(quiz.id, metaUpdates);
+        }
+        if ("day_title" in updates) {
+          await updateQuizDay(quiz.id, day_title ?? null);
+        }
+        onSaved?.({ ...quiz, ...updates, day_title: "day_title" in updates ? (updates.day_title ?? null) : (quiz.day_title ?? null) } as QuizRow);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    }
+    setSaving(false);
+  };
+
+  const confirmAttempts = () => {
+    const n = Math.max(1, parseInt(attemptsInput) || 1);
+    setMaxAttemptsDraft(n);
+    setAttemptsInput(String(n));
+    setShowAttemptsPopover(false);
+    void autoSave({ max_attempts: n });
+  };
 
   const handleTogglePublished = async () => {
     setError(null);
@@ -138,12 +211,12 @@ const [saving, setSaving] = useState(false);
     try {
       if (fromJsonOnly) {
         const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
-          title: editTitle.trim() || quiz.title,
-          due_at: editDueDate || quiz.due_at || null,
-          module_title: quiz.module_title ?? "",
+          title: titleDraft.trim() || quiz.title,
+          due_at: dueDateDraft || null,
+          module_title: moduleTitleDraft,
           published: true,
           questions: quiz.questions ?? [],
-          max_attempts: quiz.max_attempts ?? null,
+          max_attempts: maxAttemptsDraft,
         });
         if (saved) onSaved?.(saved as QuizRow);
       } else {
@@ -173,38 +246,6 @@ const [saving, setSaving] = useState(false);
     setSaving(false);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editTitle.trim()) return;
-    setError(null);
-    setSaving(true);
-    try {
-      if (fromJsonOnly) {
-        const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
-          title: editTitle.trim(),
-          due_at: editDueDate || null,
-          module_title: editModuleTitle,
-          published: false,
-          questions: quiz.questions ?? [],
-          max_attempts: editMaxAttempts,
-        });
-        if (saved) onSaved?.(saved as QuizRow);
-        setEditing(false);
-      } else {
-        await updateQuizMeta(quiz.id, {
-          title: editTitle.trim(),
-          due_at: editDueDate || null,
-          max_attempts: editMaxAttempts,
-          module_title: editModuleTitle,
-        });
-        onSaved?.({ ...quiz, title: editTitle.trim(), due_at: editDueDate || null, max_attempts: editMaxAttempts, module_title: editModuleTitle });
-        setEditing(false);
-      }
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
-    }
-    setSaving(false);
-  };
 
   const handleSaveQuestions = async () => {
     setError(null);
@@ -366,9 +407,7 @@ const [saving, setSaving] = useState(false);
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                if (editing) {
-                  setEditing(false);
-                } else if (editingQuestions) {
+                if (editingQuestions) {
                   if (!confirm("You have unsaved changes. Leave without saving?")) return;
                   setEditingQuestions(false);
                 } else {
@@ -378,7 +417,7 @@ const [saving, setSaving] = useState(false);
               className="text-sm text-muted-text hover:text-dark-text transition-colors flex items-center gap-1.5"
               type="button"
             >
-              {editing || editingQuestions ? "← Back to quiz" : "← Back to quizzes"}
+              {editingQuestions ? "← Back to quiz" : "← Back to quizzes"}
             </button>
             {!fromJsonOnly && (
               <button
@@ -392,7 +431,7 @@ const [saving, setSaving] = useState(false);
             )}
           </div>
           <div className="flex items-center gap-3">
-            {!editing && !quiz.id.startsWith("json-") && quiz.published && (
+            {!quiz.id.startsWith("json-") && quiz.published && (
               <a
                 href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
                 className="text-xs font-medium px-3 py-1 rounded-full border border-border text-muted-text hover:border-teal-primary/50 hover:text-dark-text transition-colors"
@@ -400,8 +439,7 @@ const [saving, setSaving] = useState(false);
                 ▶ Conduct quiz
               </a>
             )}
-            {!editing && (
-              <button
+            <button
                 onClick={handleTogglePublished}
                 disabled={saving}
                 className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
@@ -413,7 +451,6 @@ const [saving, setSaving] = useState(false);
               >
                 {quiz.published ? "● Published" : "○ Unpublished"}
               </button>
-            )}
           </div>
         </div>
 
@@ -423,128 +460,193 @@ const [saving, setSaving] = useState(false);
           </div>
         )}
 
-        {editing ? (
-          <div className="flex flex-col gap-4">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              autoFocus
-              className="text-2xl font-bold text-dark-text bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
-            />
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-text shrink-0">Due:</label>
-              <div className="flex-1">
-                <DatePickerField withTime value={editDueDate} onChange={setEditDueDate} />
-              </div>
-            </div>
-            {moduleTitles.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-muted-text shrink-0">Week:</label>
-                <select
-                  value={editModuleTitle}
-                  onChange={(e) => setEditModuleTitle(e.target.value)}
-                  className="flex-1 bg-surface border border-border text-dark-text rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                >
-                  <option value="">— Unassigned —</option>
-                  {moduleTitles.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {/* Max attempts */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                Max Attempts
-              </label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
+        <>
+            {/* Inline-editable metadata */}
+            {!editingQuestions && (
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-2.5 flex-1 min-w-0">
+
+                  {/* Title — click to edit, auto-save on blur */}
                   <input
-                    type="radio"
-                    name="max_attempts_mode"
-                    checked={editMaxAttempts === null}
-                    onChange={() => setEditMaxAttempts(null)}
+                    type="text"
+                    value={titleDraft.startsWith("Quiz: ") ? titleDraft.slice(6) : titleDraft}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setTitleDraft(quiz.title.startsWith("Quiz: ") ? `Quiz: ${raw}` : raw);
+                    }}
+                    onBlur={() => {
+                      const trimmed = titleDraft.trim();
+                      if (trimmed && trimmed !== quiz.title) void autoSave({ title: trimmed });
+                    }}
+                    className="text-2xl font-bold text-dark-text bg-transparent border-b-2 border-transparent hover:border-border focus:border-teal-primary focus:outline-none pb-0.5 w-full transition-colors"
+                    placeholder="Quiz title"
                   />
-                  Unlimited
-                </label>
-                <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
-                  <input
-                    type="radio"
-                    name="max_attempts_mode"
-                    checked={editMaxAttempts !== null}
-                    onChange={() => setEditMaxAttempts(editMaxAttempts ?? 3)}
-                  />
-                  Limited
-                </label>
-                {editMaxAttempts !== null && (
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={editMaxAttempts}
-                    onChange={(e) => setEditMaxAttempts(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-20 bg-surface border border-border text-dark-text rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  />
-                )}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setEditing(false);
-                  setEditTitle(quiz.title);
-                  setEditDueDate(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
-                  setEditMaxAttempts(quiz.max_attempts ?? null);
-                  setEditModuleTitle(quiz.module_title ?? "");
-                }}
-                className="text-sm text-muted-text hover:text-dark-text px-4 py-2"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={saving}
-                className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50"
-                type="button"
-              >
-                Save changes
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-dark-text">{displayTitle}</h1>
-                <p className="text-sm text-muted-text mt-1">
-                  Due: {formatDueDate(quiz.due_at)}
-                </p>
-                {quiz.module_title && (
-                  <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
-                )}
-                <p className="text-xs text-muted-text mt-1">
-                  Attempts: {quiz.max_attempts ? `Up to ${quiz.max_attempts}` : "Unlimited"}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setEditing(true)}
-                  className="text-sm text-muted-text hover:text-dark-text transition-colors"
-                  type="button"
-                >
-                  ✎ Edit title &amp; due date
-                </button>
+
+                  {/* Due date */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-muted-text shrink-0">Due:</span>
+                    {dueDateDraft ? (
+                      <>
+                        <DatePickerField
+                          withTime
+                          value={dueDateDraft}
+                          onChange={(val) => {
+                            setDueDateDraft(val);
+                            void autoSave({ due_at: val || null });
+                          }}
+                        />
+                        <span className="text-xs text-muted-text shrink-0">
+                          {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDueDateDraft("");
+                            void autoSave({ due_at: null });
+                          }}
+                          className="text-xs text-muted-text hover:text-red-500 transition-colors shrink-0"
+                          title="Remove due date"
+                        >
+                          × No due date
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setHours(23, 59, 0, 0);
+                          const val = d.toISOString().slice(0, 16);
+                          setDueDateDraft(val);
+                          void autoSave({ due_at: val });
+                        }}
+                        className="text-xs text-muted-text hover:text-teal-primary transition-colors border border-dashed border-border rounded-lg px-3 py-1.5"
+                      >
+                        + Add due date
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Week + Day */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {moduleTitles.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-text shrink-0">Week:</span>
+                        <select
+                          value={moduleTitleDraft}
+                          onChange={(e) => {
+                            setModuleTitleDraft(e.target.value);
+                            void autoSave({ module_title: e.target.value });
+                          }}
+                          className="bg-surface border border-border text-dark-text rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                        >
+                          <option value="">— Unassigned —</option>
+                          {moduleTitles.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-text shrink-0">Day:</span>
+                      <select
+                        value={dayTitleDraft}
+                        onChange={(e) => {
+                          setDayTitleDraft(e.target.value);
+                          void autoSave({ day_title: e.target.value || null });
+                        }}
+                        className="bg-surface border border-border text-dark-text rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                      >
+                        <option value="">— Unassigned —</option>
+                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Attempts */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-text shrink-0">Attempts:</span>
+                    <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (maxAttemptsDraft !== null) {
+                            setMaxAttemptsDraft(null);
+                            setShowAttemptsPopover(false);
+                            void autoSave({ max_attempts: null });
+                          }
+                        }}
+                        className={`text-xs px-3 py-1 rounded-md transition-colors ${
+                          maxAttemptsDraft === null
+                            ? "bg-teal-primary text-white"
+                            : "text-muted-text hover:text-dark-text"
+                        }`}
+                      >
+                        Unlimited
+                      </button>
+                      <div ref={attemptsContainerRef} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (showAttemptsPopover) {
+                              setShowAttemptsPopover(false);
+                            } else {
+                              setAttemptsInput(String(maxAttemptsDraft ?? 3));
+                              setShowAttemptsPopover(true);
+                            }
+                          }}
+                          className={`text-xs px-3 py-1 rounded-md transition-colors ${
+                            maxAttemptsDraft !== null
+                              ? "bg-teal-primary text-white"
+                              : "text-muted-text hover:text-dark-text"
+                          }`}
+                        >
+                          {maxAttemptsDraft !== null ? `Limited · ${maxAttemptsDraft}` : "Limited"}
+                        </button>
+                        {showAttemptsPopover && (
+                          <div className="absolute top-full left-0 mt-1 z-20 bg-surface border border-border rounded-xl shadow-lg p-3 flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={99}
+                              value={attemptsInput}
+                              onChange={(e) => setAttemptsInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") confirmAttempts();
+                                if (e.key === "Escape") setShowAttemptsPopover(false);
+                              }}
+                              autoFocus
+                              className="w-14 bg-background border border-border text-dark-text rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                            />
+                            <span className="text-xs text-muted-text">attempts</span>
+                            <button
+                              type="button"
+                              onClick={confirmAttempts}
+                              className="text-xs bg-teal-primary text-white px-2.5 py-1 rounded-lg hover:opacity-90"
+                            >
+                              Set
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {saving && <p className="text-xs text-muted-text animate-pulse">Saving…</p>}
+                  {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+                </div>
+
                 <button
                   onClick={() => setEditingQuestions(true)}
-                  className="text-sm text-muted-text hover:text-dark-text transition-colors"
+                  className="text-sm text-muted-text hover:text-dark-text transition-colors shrink-0"
                   type="button"
                 >
                   ✎ Edit questions &amp; answers
                 </button>
               </div>
-            </div>
+            )}
 
             {/* Edit questions mode */}
             {editingQuestions ? (
@@ -800,7 +902,7 @@ const [saving, setSaving] = useState(false);
                               </span>
                             )}
                           </div>
-                          <div className="quiz-html mt-1 text-sm text-dark-text [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-4 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
+                          <div className="quiz-html mt-1 text-sm text-dark-text [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
                             <HighlightedContent html={q.question_text || ""} />
                           </div>
                           {q.code_snippet && (
@@ -828,8 +930,8 @@ const [saving, setSaving] = useState(false);
                                 <span className="shrink-0 mt-0.5">
                                   {isCorrect ? "✓" : "○"}
                                 </span>
-                                <div className="quiz-html min-w-0 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:bg-[#1e1e2e] [&_pre]:border [&_pre]:border-[#313244] [&_pre]:p-3">
-                                  <HtmlContent html={choice.text || ""} />
+                                <div className="quiz-html min-w-0 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:border [&_img]:border-border">
+                                  <HighlightedContent html={choice.text || ""} />
                                 </div>
                               </li>
                             );
@@ -843,7 +945,6 @@ const [saving, setSaving] = useState(false);
             </div>
             )}
           </>
-        )}
       </div>
     </div>
   );

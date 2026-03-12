@@ -41,7 +41,7 @@ export default async function GeneralInfoPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, paid_learners')
+    .select('id, name, code, paid_learners, start_date')
     .eq('id', id)
     .single()
 
@@ -72,7 +72,7 @@ export default async function GeneralInfoPage({
             </div>
 
             {sections && sections.length > 0 ? (
-              <GeneralInfoSections sections={sections} />
+              <GeneralInfoSections sections={sections} courseStartDate={course.start_date ?? null} />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
                 <p className="text-muted-text">No general information available yet.</p>

@@ -43,7 +43,7 @@ export default function CodeBlockNode({ node, updateAttributes, deleteNode }: No
           ×
         </button>
       </div>
-      <pre className="!m-0 rounded-lg overflow-x-auto text-sm leading-relaxed" style={{ background: "#1e1e2e", padding: "36px 14px 10px" }}>
+      <pre className="!m-0 rounded-lg overflow-x-auto" style={{ background: "#1e1e2e", padding: "36px 14px 10px", whiteSpace: "pre" }}>
         {/* NodeViewContent renders the code; cast needed due to @tiptap/react types */}
         <NodeViewContent as={"code" as "div"} />
       </pre>

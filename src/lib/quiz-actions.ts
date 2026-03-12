@@ -68,7 +68,7 @@ export async function createQuiz(courseId: string) {
 
 export async function updateQuizMeta(
   quizId: string,
-  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string }
+  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null }
 ) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
