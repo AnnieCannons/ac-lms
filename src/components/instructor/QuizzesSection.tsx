@@ -494,11 +494,12 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
                                           className="shrink-0 text-xs bg-background border border-border text-muted-text rounded-full px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-primary"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          <option value="">— Day —</option>
+                                          <option value="">— Unassigned —</option>
                                           <option value="Monday">Mon</option>
                                           <option value="Tuesday">Tue</option>
                                           <option value="Wednesday">Wed</option>
                                           <option value="Thursday">Thu</option>
+                                          <option value="Friday">Fri</option>
                                         </select>
                                       )}
 
