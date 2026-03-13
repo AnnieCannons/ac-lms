@@ -124,7 +124,7 @@ export default async function StudentDetailPage({
       submitted.push(entry)
       if (isLate) late.push(entry)
     } else if (sub.status === 'graded') {
-      if (isLate) late.push(entry)
+      if (isLate && sub.grade !== 'complete') late.push(entry)
       if (sub.grade === 'complete') complete.push(entry)
       else if (sub.grade === 'incomplete') incomplete.push(entry)
     }
