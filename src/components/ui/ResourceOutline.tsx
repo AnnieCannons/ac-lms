@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
+import { normalizeUrl } from '@/lib/url'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -69,21 +70,15 @@ const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 
 function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
   const isLate = !!dueDate && new Date(dueDate) < new Date()
-  if (!info) return isLate
-    ? <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>
-    : <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
-  if (info.grade === 'complete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-green-600/20 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
-  if (info.grade === 'incomplete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
-  if (info.status === 'submitted') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
-  // draft
+  if (info?.grade === 'complete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-green-600/20 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
+  if (info?.grade === 'incomplete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
+  if (info?.status === 'submitted') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
+  // not started (no submission or draft) — show both Late + Not Started if past due
   return (
-    <>
-      {isLate
-        ? <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>
-        : <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
-      }
-      <span className="text-xs italic text-muted-text shrink-0">draft</span>
-    </>
+    <div className="flex items-center gap-1.5">
+      {isLate && <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>}
+      <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
+    </div>
   )
 }
 
@@ -303,7 +298,7 @@ function LinkResource({
   return (
     <div className="flex items-center rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors group">
       <a
-        href={resource.content ?? '#'}
+        href={normalizeUrl(resource.content)}
         target="_blank"
         rel="noopener noreferrer"
         className="flex-1 flex items-center gap-3 px-4 py-3 min-w-0"
@@ -366,8 +361,8 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const isLate = !!dueDate && new Date(dueDate) < new Date()
   if (filter === 'late') return isLate && (!info || (info.status === 'draft' && !info.grade))
   if (filter === 'not-started') {
-    if (!info) return !isLate
-    return info.status === 'draft' && !info.grade && !isLate
+    if (!info) return true
+    return info.status === 'draft' && !info.grade
   }
   return true
 }

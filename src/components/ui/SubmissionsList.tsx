@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { markCompleteNoSubmission } from "@/lib/grade-actions";
+import { normalizeUrl } from "@/lib/url";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type SubmissionType = "text" | "link" | "file";
@@ -50,7 +51,7 @@ function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade
 function SubmissionPreview({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <span className="text-muted-text italic">No content</span>;
   if (type === "link" || type === "file") return (
-    <a href={content} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all line-clamp-1">
+    <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all line-clamp-1">
       {content}
     </a>
   );

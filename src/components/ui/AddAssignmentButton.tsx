@@ -79,25 +79,12 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
   }
 
   const handleCreate = async () => {
-    if (!moduleId) return
+    if (!moduleId || !dayId) return
     setCreating(true)
-
-    // Resolve day: use selected or auto-create a General day
-    let targetDayId = dayId
-    if (!targetDayId) {
-      const allDays = sectionModules.find(m => m.id === moduleId)?.module_days ?? []
-      const { data: newDay, error: dayErr } = await supabase
-        .from('module_days')
-        .insert({ module_id: moduleId, day_name: 'General', order: allDays.length })
-        .select('id')
-        .single()
-      if (dayErr || !newDay) { alert(dayErr?.message ?? 'Failed to create day'); setCreating(false); return }
-      targetDayId = newDay.id
-    }
 
     const { data, error } = await supabase
       .from('assignments')
-      .insert({ module_day_id: targetDayId, title: 'New Assignment', published: false, order: 0 })
+      .insert({ module_day_id: dayId, title: 'New Assignment', published: false, order: 0 })
       .select('id')
       .single()
     setCreating(false)
@@ -184,28 +171,32 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
               </div>
             )}
 
-            {days.length > 0 && (
-              <div>
-                <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Day <span className="normal-case font-normal text-muted-text">(optional)</span></label>
+            <div>
+              <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
+                Day <span className="normal-case font-normal text-red-400">(required)</span>
+              </label>
+              {days.length > 0 ? (
                 <select
                   value={dayId}
                   onChange={e => setDayId(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
                 >
-                  <option value="">— Add to General —</option>
+                  <option value="">— Select a day —</option>
                   {days.map(d => (
                     <option key={d.id} value={d.id}>{d.day_name}</option>
                   ))}
                 </select>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-muted-text">This module has no days. Add days to the module first.</p>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-1">
             <button onClick={() => setOpen(false)} className="text-sm text-muted-text hover:text-dark-text">Cancel</button>
             <button
               onClick={handleCreate}
-              disabled={!moduleId || creating}
+              disabled={!moduleId || !dayId || creating}
               className="text-sm font-semibold bg-purple-primary text-white px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {creating ? 'Creating…' : 'Create & Edit →'}

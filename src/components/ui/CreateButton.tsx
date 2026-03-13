@@ -251,11 +251,10 @@ export default function CreateButton({ courseId }: Props) {
     const linkedDayId = section === 'career' && crossPost && crossDayId ? crossDayId : null
 
     if (createType === 'assignment') {
-      const targetDayId = await resolveDay(resolvedModuleId)
-      if (!targetDayId) { setCreating(false); return }
+      if (!dayId) { setError('Please select a day.'); setCreating(false); return }
       const { data, error } = await supabase
         .from('assignments')
-        .insert({ module_day_id: targetDayId, title: 'New Assignment', published: false, order: 0, linked_day_id: linkedDayId, skill_tags: assignmentTags, is_bonus: section === 'level_up' })
+        .insert({ module_day_id: dayId, title: 'New Assignment', published: false, order: 0, linked_day_id: linkedDayId, skill_tags: assignmentTags, is_bonus: section === 'level_up' })
         .select('id')
         .single()
       setCreating(false)
@@ -293,7 +292,7 @@ export default function CreateButton({ courseId }: Props) {
     }
   }
 
-  const isValid = (!!moduleId || !!newModuleTitle.trim()) && (createType !== 'resource' || !!resTitle.trim())
+  const isValid = (!!moduleId || !!newModuleTitle.trim()) && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId)
 
   return (
     <>
@@ -419,21 +418,28 @@ export default function CreateButton({ courseId }: Props) {
             </div>
 
             {/* Day */}
-            {days.length > 0 && (
+            {(days.length > 0 || createType === 'assignment') && (
               <div>
                 <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
-                  Day <span className="normal-case font-normal text-muted-text">(optional)</span>
+                  Day{createType === 'assignment'
+                    ? <span className="normal-case font-normal text-red-400"> (required)</span>
+                    : <span className="normal-case font-normal text-muted-text"> (optional)</span>}
                 </label>
-                <select
-                  value={dayId}
-                  onChange={e => setDayId(e.target.value)}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                >
-                  <option value="">— No specific day —</option>
-                  {days.map(d => (
-                    <option key={d.id} value={d.id}>{d.day_name}</option>
-                  ))}
-                </select>
+                {days.length > 0 ? (
+                  <select
+                    value={dayId}
+                    onChange={e => setDayId(e.target.value)}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  >
+                    {createType === 'assignment' && <option value="">— Select a day —</option>}
+                    {createType !== 'assignment' && <option value="">— No specific day —</option>}
+                    {days.map(d => (
+                      <option key={d.id} value={d.id}>{d.day_name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-muted-text">This module has no days. Add days to the module first.</p>
+                )}
               </div>
             )}
 

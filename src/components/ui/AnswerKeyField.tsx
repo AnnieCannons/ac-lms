@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { normalizeUrl } from '@/lib/url'
 
 interface Props {
   assignmentId: string
@@ -77,7 +78,7 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
       <div className="flex items-center gap-3 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
         <span className="text-amber-600 shrink-0"><KeyIcon /></span>
         <a
-          href={url}
+          href={normalizeUrl(url)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-1 text-sm font-semibold text-amber-700 hover:text-amber-900 hover:underline flex items-center gap-1.5 min-w-0"

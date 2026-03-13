@@ -225,6 +225,14 @@ export default async function StudentAssignmentPage({
             </div>
           )}
 
+          {/* No checklist message */}
+          {checklistItems && checklistItems.length === 0 && (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Checklist</p>
+              <p className="text-sm text-muted-text">There is no checklist for this assignment.</p>
+            </div>
+          )}
+
           {/* How to turn in */}
           {assignment.how_to_turn_in && (
             <div className="bg-surface rounded-2xl border border-border p-6">
@@ -233,6 +241,25 @@ export default async function StudentAssignmentPage({
                 html={assignment.how_to_turn_in}
                 className="text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_a]:text-teal-primary [&_a]:underline [&_p]:mb-3"
               />
+            </div>
+          )}
+
+          {/* Submission form (includes student checklist when items exist) */}
+          {assignment.submission_required !== false ? (
+            <SubmissionForm
+              assignmentId={assignmentId}
+              studentId={user.id}
+              courseId={id}
+              existingSubmission={existingSubmission ?? null}
+              initialHistory={submissionHistory ?? []}
+              checklistItems={checklistItems ?? undefined}
+              initialChecked={initialChecked}
+              isObserver={isObserver}
+            />
+          ) : (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
+              <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
             </div>
           )}
 
@@ -273,33 +300,6 @@ export default async function StudentAssignmentPage({
                   )
                 })}
               </div>
-            </div>
-          )}
-
-          {/* No checklist message */}
-          {checklistItems && checklistItems.length === 0 && (
-            <div className="bg-surface rounded-2xl border border-border p-6">
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Checklist</p>
-              <p className="text-sm text-muted-text">There is no checklist for this assignment.</p>
-            </div>
-          )}
-
-          {/* Submission form (includes student checklist when items exist) */}
-          {assignment.submission_required !== false ? (
-            <SubmissionForm
-              assignmentId={assignmentId}
-              studentId={user.id}
-              courseId={id}
-              existingSubmission={existingSubmission ?? null}
-              initialHistory={submissionHistory ?? []}
-              checklistItems={checklistItems ?? undefined}
-              initialChecked={initialChecked}
-              isObserver={isObserver}
-            />
-          ) : (
-            <div className="bg-surface rounded-2xl border border-border p-6">
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
-              <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
             </div>
           )}
 

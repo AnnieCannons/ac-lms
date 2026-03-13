@@ -10,6 +10,7 @@ import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { normalizeUrl } from '@/lib/url'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -20,7 +21,7 @@ function SubmissionContent({ type, content }: { type: SubmissionType; content: s
   }
   if (type === 'link') {
     return (
-      <a href={content} target="_blank" rel="noopener noreferrer"
+      <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer"
         className="text-teal-primary underline break-all text-sm">
         {content}
       </a>

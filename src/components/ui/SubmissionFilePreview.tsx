@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { normalizeUrl } from '@/lib/url'
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i
 
@@ -13,7 +14,7 @@ export default function SubmissionFilePreview({ content }: Props) {
 
   if (!isImage) {
     return (
-      <a href={content} target="_blank" rel="noopener noreferrer"
+      <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer"
         className="text-teal-primary underline break-all text-sm">
         {content}
       </a>
@@ -29,7 +30,7 @@ export default function SubmissionFilePreview({ content }: Props) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={content} alt="Submission" className="max-h-48 object-contain bg-background" />
       </button>
-      <a href={content} target="_blank" rel="noopener noreferrer"
+      <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer"
         className="text-teal-primary underline break-all text-xs mt-1 block">
         {content}
       </a>

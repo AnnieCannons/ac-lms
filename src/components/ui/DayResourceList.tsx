@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
+import { normalizeUrl } from '@/lib/url'
 
 interface Resource {
   id: string
@@ -125,7 +126,7 @@ export default function DayResourceList({
         return (
           <div key={resource.id} className="flex items-center rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors group">
             <a
-              href={resource.content ?? '#'}
+              href={normalizeUrl(resource.content)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center gap-3 px-4 py-3 min-w-0"

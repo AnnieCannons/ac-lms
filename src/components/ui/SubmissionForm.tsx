@@ -6,6 +6,7 @@ import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { normalizeUrl } from "@/lib/url";
 
 type SubmissionType = "text" | "link" | "file";
 type SubmissionStatus = "draft" | "submitted" | "graded";
@@ -316,7 +317,7 @@ export default function SubmissionForm({
               })}
             </p>
             {saved.submission_type === "file" && isImageUrl(saved.content) ? (
-              <a href={saved.content ?? ""} target="_blank" rel="noopener noreferrer" className="block w-fit">
+              <a href={normalizeUrl(saved.content)} target="_blank" rel="noopener noreferrer" className="block w-fit">
                 <img
                   src={saved.content ?? ""}
                   alt="Submitted file"
@@ -325,7 +326,7 @@ export default function SubmissionForm({
               </a>
             ) : saved.submission_type === "file" || saved.submission_type === "link" ? (
               <a
-                href={saved.content ?? ""}
+                href={normalizeUrl(saved.content)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-teal-primary underline break-all"
@@ -338,7 +339,7 @@ export default function SubmissionForm({
           </div>
 
           {saved?.grade === "incomplete" && (
-            <p className="text-xs text-red-500 font-medium">
+            <p className="text-sm text-red-500">
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
             </p>
           )}
@@ -370,7 +371,7 @@ export default function SubmissionForm({
                     })}
                   </span>
                   {entry.submission_type === "file" && isImageUrl(entry.content) ? (
-                    <a href={entry.content ?? ""} target="_blank" rel="noopener noreferrer" className="flex-1">
+                    <a href={normalizeUrl(entry.content)} target="_blank" rel="noopener noreferrer" className="flex-1">
                       <img
                         src={entry.content ?? ""}
                         alt="Submitted file"
@@ -379,7 +380,7 @@ export default function SubmissionForm({
                     </a>
                   ) : entry.submission_type === "file" || entry.submission_type === "link" ? (
                     <a
-                      href={entry.content ?? ""}
+                      href={normalizeUrl(entry.content)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-teal-primary underline break-all flex-1"

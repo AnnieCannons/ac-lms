@@ -99,6 +99,14 @@ function processHtml(html: string): string {
     (a as HTMLAnchorElement).rel = "noopener noreferrer";
   });
 
+  // Fix image paths: Next.js serves public/ at /, so /public/foo → /foo
+  container.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+    const src = img.getAttribute("src");
+    if (src?.startsWith("/public/")) {
+      img.setAttribute("src", src.slice("/public".length));
+    }
+  });
+
   return container.innerHTML;
 }
 

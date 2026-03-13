@@ -482,9 +482,9 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
                                             ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
                                             : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
                                         }`}
-                                        aria-label={quiz.published ? "Published — click to unpublish" : "Unpublished — click to publish"}
+                                        aria-label={quiz.published ? "Published — click to unpublish" : "Draft — click to publish"}
                                       >
-                                        {quiz.published ? "Published" : "Unpublished"}
+                                        {quiz.published ? "Published" : "Draft"}
                                       </button>
 
                                       {!quiz.id.startsWith("json-") && (

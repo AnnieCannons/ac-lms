@@ -31,6 +31,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { toggleQuizPublished } from "@/lib/quiz-actions";
 import HtmlContent from "@/components/ui/HtmlContent";
+import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup, DuplicateQuizPopup, DuplicateIcon, type DuplicatedAssignment, type DuplicatedModule, type DuplicatedResource, type DuplicatedQuiz } from "@/components/ui/DuplicatePopup";
 
 
 type Assignment = {
@@ -176,7 +177,7 @@ type Module = {
   module_days: Day[];
 };
 
-const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday"];
+const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 type RelocateCtx = {
   weekOptions: number[];
@@ -197,18 +198,22 @@ function AssignmentCard({
   moduleId,
   weekNumber,
   dayName,
+  courseId,
   onOpen,
   onDelete,
   onTogglePublished,
+  onDuplicated,
 }: {
   assignment: Assignment;
   dayId: string;
   moduleId: string;
   weekNumber: number | null;
   dayName: string;
+  courseId: string;
   onOpen: (assignment: Assignment, dayId: string) => void;
   onDelete: (id: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
+  onDuplicated: (assignment: DuplicatedAssignment, targetDayId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `assignment-${assignment.id}`,
@@ -224,6 +229,11 @@ function AssignmentCard({
   const relocPopupRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
 
+  const [copyOpen, setCopyOpen] = useState(false);
+  const copyBtnRef = useRef<HTMLButtonElement>(null);
+  const copyPopupRef = useRef<HTMLDivElement>(null);
+  const [copyPopupPos, setCopyPopupPos] = useState({ top: 0, left: 0 });
+
   useEffect(() => {
     if (!relocOpen) return;
     function onDown(e: MouseEvent) {
@@ -234,11 +244,21 @@ function AssignmentCard({
     return () => document.removeEventListener("mousedown", onDown);
   }, [relocOpen]);
 
+  useEffect(() => {
+    if (!copyOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!copyPopupRef.current?.contains(e.target as Node) && !copyBtnRef.current?.contains(e.target as Node))
+        setCopyOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [copyOpen]);
+
   function openReloc() {
     if (relocOpen) { setRelocOpen(false); return; }
     if (relocBtnRef.current) {
       const r = relocBtnRef.current.getBoundingClientRect();
-      const popH = 200;
+      const popH = 280;
       const popW = 280;
       const spaceBelow = window.innerHeight - r.bottom;
       const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
@@ -256,6 +276,19 @@ function AssignmentCard({
     if (!targetDay) return;
     ctx.relocateAssignmentToModule(assignment.id, relocModule, targetDay);
     setRelocOpen(false);
+  }
+
+  function openCopy() {
+    if (copyOpen) { setCopyOpen(false); return; }
+    if (copyBtnRef.current) {
+      const r = copyBtnRef.current.getBoundingClientRect();
+      const popH = 300;
+      const popW = 300;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setCopyPopupPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    setCopyOpen(true);
   }
 
   return (
@@ -304,7 +337,7 @@ function AssignmentCard({
               <div
                 ref={relocPopupRef}
                 className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2"
-                style={{ top: popupPos.top, left: popupPos.left, width: 280 }}
+                style={{ top: popupPos.top, left: popupPos.left, width: 280, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}
               >
                 <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Move to</p>
                 <select
@@ -318,34 +351,63 @@ function AssignmentCard({
                 </select>
                 {(() => {
                   const modDays = ctx.weekModules.find(m => m.id === relocModule)?.days ?? [];
-                  if (modDays.length === 0) return null;
-                  if (modDays.length === 1) return (
-                    <p className="text-xs text-muted-text">Day: <span className="text-dark-text">{modDays[0]}</span></p>
-                  );
+                  // Show all DAY_OPTIONS (Mon–Fri) plus any extra existing days; new days shown dashed
+                  const extraDays = modDays.filter(d => !DAY_OPTIONS.includes(d));
+                  const uniqueDays = [...new Set([...extraDays, ...DAY_OPTIONS])];
+                  if (modDays.length === 0 && uniqueDays.length === 0) return null;
                   return (
                     <div className="flex flex-wrap gap-1">
-                      {modDays.map(d => (
-                        <button
-                          key={d}
-                          type="button"
-                          onClick={() => setRelocDay(d)}
-                          className={`text-xs px-2 py-1 rounded border transition-colors ${relocDay === d ? "bg-teal-primary border-teal-primary text-white" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}
-                        >
-                          {d}
-                        </button>
-                      ))}
+                      {uniqueDays.map(d => {
+                        const exists = modDays.includes(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setRelocDay(d)}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${relocDay === d ? "bg-teal-primary border-teal-primary text-white" : exists ? "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary" : "border-dashed border-border text-muted-text/60 hover:border-teal-primary hover:text-teal-primary"}`}
+                            title={exists ? d : `Create "${d}" day`}
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
                     </div>
                   );
                 })()}
                 <button
                   type="button"
                   onClick={applyReloc}
-                  disabled={!relocModule || (!relocDay && (ctx.weekModules.find(m => m.id === relocModule)?.days.length ?? 0) !== 1)}
+                  disabled={!relocModule || !relocDay}
                   className="text-xs bg-teal-primary text-white rounded-lg py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
                 >
                   Move
                 </button>
               </div>
+            )}
+          </div>
+        )}
+        {!readOnly && ctx && (
+          <div className="shrink-0" onClick={e => e.stopPropagation()}>
+            <button
+              ref={copyBtnRef}
+              type="button"
+              onClick={openCopy}
+              className={`shrink-0 transition-colors ${copyOpen ? "text-purple-primary" : "text-muted-text hover:text-purple-primary"}`}
+              title="Copy assignment"
+            >
+              <DuplicateIcon />
+            </button>
+            {copyOpen && (
+              <DuplicateAssignmentPopup
+                assignment={{ ...assignment, description: assignment.description ?? null, how_to_turn_in: assignment.how_to_turn_in ?? null }}
+                currentCourseId={courseId}
+                currentModuleId={moduleId}
+                weekModules={ctx.weekModules}
+                popupPos={copyPopupPos}
+                popupRef={copyPopupRef}
+                onClose={() => setCopyOpen(false)}
+                onDuplicatedInCourse={onDuplicated}
+              />
             )}
           </div>
         )}
@@ -397,7 +459,7 @@ function AssignmentFullView({
   view: ActiveView;
   courseId: string;
   onClose: () => void;
-  onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => void;
+  onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => Promise<void>;
   onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
   onDelete: (id: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
@@ -547,6 +609,7 @@ function AssignmentFullView({
   const [newDueDate, setNewDueDate] = useState(getDefaultDueDate);
   const [newChecklist, setNewChecklist] = useState<RubricItem[]>(getDefaultChecklist);
   const [editorKey] = useState(0);
+  const [addingSaving, setAddingSaving] = useState(false);
 
   const handleSaveEdit = async () => {
     if (!editTitle.trim() || !assignmentId) return;
@@ -576,9 +639,11 @@ function AssignmentFullView({
     setEditing(false);
   };
 
-  const handleAdd = () => {
-    if (!newTitle.trim() || view.mode !== "add") return;
-    onAdd(view.dayId, newTitle.trim(), newDescription, newHowToTurnIn, newDueDate || null, newChecklist.filter((item) => item.text.trim()));
+  const handleAdd = async () => {
+    if (!newTitle.trim() || view.mode !== "add" || addingSaving) return;
+    setAddingSaving(true);
+    await onAdd(view.dayId, newTitle.trim(), newDescription, newHowToTurnIn, newDueDate || null, newChecklist.filter((item) => item.text.trim()));
+    setAddingSaving(false);
     onClose();
   };
 
@@ -863,10 +928,11 @@ function AssignmentFullView({
               </button>
               <button
                 onClick={handleAdd}
-                className="bg-teal-primary text-white text-sm font-semibold px-6 py-2 rounded-full hover:opacity-90"
+                disabled={addingSaving}
+                className="bg-teal-primary text-white text-sm font-semibold px-6 py-2 rounded-full hover:opacity-90 disabled:opacity-50"
                 type="button"
               >
-                Add Assignment
+                {addingSaving ? "Adding…" : "Add Assignment"}
               </button>
             </div>
           </>
@@ -886,6 +952,8 @@ function AssignmentDropZone({
   onOpenAdd,
   onDeleteAssignment,
   onTogglePublished,
+  courseId,
+  onDuplicatedAssignment,
 }: {
   day: Day;
   weekNumber: number | null;
@@ -894,6 +962,8 @@ function AssignmentDropZone({
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
+  courseId: string;
+  onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
 }) {
   const readOnly = useContext(ReadOnlyContext);
   const { setNodeRef, isOver } = useDroppable({
@@ -932,9 +1002,11 @@ function AssignmentDropZone({
                     moduleId={day.module_id}
                     weekNumber={weekNumber}
                     dayName={day.day_name}
+                    courseId={courseId}
                     onOpen={onOpenAssignment}
                     onDelete={onDeleteAssignment}
                     onTogglePublished={onTogglePublished}
+                    onDuplicated={onDuplicatedAssignment}
                   />
                 ))
               )}
@@ -967,6 +1039,8 @@ const RESOURCE_TYPE_LABELS: Record<Resource["type"], string> = {
 function SortableResource({
   resource,
   weekNumber,
+  moduleId,
+  courseId,
   onEdit,
   onDelete,
   onRelocated,
@@ -974,6 +1048,8 @@ function SortableResource({
 }: {
   resource: Resource;
   weekNumber: number | null;
+  moduleId: string;
+  courseId: string;
   onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>) => void;
   onDelete: (id: string) => void;
   onRelocated: () => void;
@@ -986,8 +1062,70 @@ function SortableResource({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const ctx = useContext(RelocateContext);
   const readOnly = useContext(ReadOnlyContext);
-  const [relocWeek, setRelocWeek] = useState<string>(weekNumber ? String(weekNumber) : "");
-  const [relocDay, setRelocDay] = useState<string>("");
+  const [relocOpen, setRelocOpen] = useState(false);
+  const [relocModule, setRelocModule] = useState(moduleId);
+  const [relocDay, setRelocDay] = useState("");
+  const relocBtnRef = useRef<HTMLButtonElement>(null);
+  const relocPopupRef = useRef<HTMLDivElement>(null);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!relocOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!relocPopupRef.current?.contains(e.target as Node) && !relocBtnRef.current?.contains(e.target as Node))
+        setRelocOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [relocOpen]);
+
+  function openReloc() {
+    if (relocOpen) { setRelocOpen(false); return; }
+    if (relocBtnRef.current) {
+      const r = relocBtnRef.current.getBoundingClientRect();
+      const popH = 280; const popW = 280;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setPopupPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    setRelocModule(moduleId);
+    setRelocDay("");
+    setRelocOpen(true);
+  }
+
+  function applyReloc() {
+    if (!ctx || !relocModule || !relocDay) return;
+    ctx.relocateResourceToModule(resource.id, relocModule, relocDay, onRelocated);
+    setRelocOpen(false);
+  }
+
+  const [resCopyOpen, setResCopyOpen] = useState(false);
+  const resCopyBtnRef = useRef<HTMLButtonElement>(null);
+  const resCopyPopupRef = useRef<HTMLDivElement>(null);
+  const [resCopyPopupPos, setResCopyPopupPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!resCopyOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!resCopyPopupRef.current?.contains(e.target as Node) && !resCopyBtnRef.current?.contains(e.target as Node))
+        setResCopyOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [resCopyOpen]);
+
+  function openResCopy() {
+    if (resCopyOpen) { setResCopyOpen(false); return; }
+    if (resCopyBtnRef.current) {
+      const r = resCopyBtnRef.current.getBoundingClientRect();
+      const popH = 300; const popW = 300;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setResCopyPopupPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    setResCopyOpen(true);
+  }
+
   const [editing, setEditing] = useState(false);
   const [readingOpen, setReadingOpen] = useState(false);
   const [editType, setEditType] = useState<Resource["type"]>(resource.type);
@@ -1182,36 +1320,89 @@ function SortableResource({
       </div>
       {!readOnly && ctx && (
         <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-          <select
-            value={relocWeek}
-            onChange={e => {
-              const w = e.target.value;
-              setRelocWeek(w);
-              if (w && relocDay) ctx.relocateResource(resource.id, Number(w), relocDay, onRelocated);
-            }}
-            className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-14"
-            title="Week"
+          <button
+            ref={relocBtnRef}
+            type="button"
+            onClick={openReloc}
+            className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${relocOpen ? "border-teal-primary text-teal-primary" : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"}`}
+            title="Move to module/day"
           >
-            <option value="">W?</option>
-            {ctx.weekOptions.map(w => (
-              <option key={w} value={w}>W{w}</option>
-            ))}
-          </select>
-          <select
-            value={relocDay}
-            onChange={e => {
-              const d = e.target.value;
-              setRelocDay(d);
-              if (relocWeek && d) ctx.relocateResource(resource.id, Number(relocWeek), d, onRelocated);
-            }}
-            className="text-xs bg-background border border-border rounded px-1 py-0.5 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-16"
-            title="Day"
+            ⇄
+          </button>
+          {relocOpen && (
+            <div
+              ref={relocPopupRef}
+              className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2"
+              style={{ top: popupPos.top, left: popupPos.left, width: 280, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}
+            >
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Move to</p>
+              <select
+                value={relocModule}
+                onChange={e => { setRelocModule(e.target.value); setRelocDay(""); }}
+                className="text-xs bg-background border border-border rounded px-2 py-1 text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-full"
+              >
+                {ctx.weekModules.map(({ id, week, title }) => (
+                  <option key={id} value={id}>{title ?? (week != null ? `Week ${week}` : "Unassigned")}</option>
+                ))}
+              </select>
+              {(() => {
+                const modDays = ctx.weekModules.find(m => m.id === relocModule)?.days ?? [];
+                const extraDays = modDays.filter(d => !DAY_OPTIONS.includes(d));
+                const uniqueDays = [...new Set([...extraDays, ...DAY_OPTIONS])];
+                return (
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueDays.map(d => {
+                      const exists = modDays.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setRelocDay(d)}
+                          className={`text-xs px-2 py-1 rounded border transition-colors ${relocDay === d ? "bg-teal-primary border-teal-primary text-white" : exists ? "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary" : "border-dashed border-border text-muted-text/60 hover:border-teal-primary hover:text-teal-primary"}`}
+                          title={exists ? d : `Create "${d}" day`}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={applyReloc}
+                disabled={!relocModule || !relocDay}
+                className="text-xs bg-teal-primary text-white rounded-lg py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+              >
+                Move
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {!readOnly && ctx && (
+        <div className="shrink-0" onClick={e => e.stopPropagation()}>
+          <button
+            ref={resCopyBtnRef}
+            type="button"
+            onClick={openResCopy}
+            className={`shrink-0 transition-colors ${resCopyOpen ? "text-purple-primary" : "text-muted-text hover:text-purple-primary"}`}
+            title="Copy resource"
           >
-            <option value="">Day?</option>
-            {DAY_OPTIONS.map(d => (
-              <option key={d} value={d}>{d.slice(0, 3)}</option>
-            ))}
-          </select>
+            <DuplicateIcon />
+          </button>
+          {resCopyOpen && (
+            <DuplicateResourcePopup
+              resource={resource}
+              currentCourseId={courseId}
+              currentModuleId={moduleId}
+              weekModules={ctx.weekModules}
+              popupPos={resCopyPopupPos}
+              popupRef={resCopyPopupRef}
+              onClose={() => setResCopyOpen(false)}
+              onDuplicatedInCourse={() => setResCopyOpen(false)}
+            />
+          )}
         </div>
       )}
       {!readOnly && (
@@ -1253,6 +1444,7 @@ function SortableDay({
   onOpenAdd,
   onDeleteAssignment,
   onTogglePublished,
+  onDuplicatedAssignment,
   courseId,
   quizzesForDay,
 }: {
@@ -1264,6 +1456,7 @@ function SortableDay({
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
+  onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
   courseId: string;
   quizzesForDay: QuizEntry[];
 }) {
@@ -1275,6 +1468,7 @@ function SortableDay({
 
   const style = { transform: CSS.Transform.toString(transform), transition };
   const readOnly = useContext(ReadOnlyContext);
+  const ctx = useContext(RelocateContext);
   const [open, setOpen] = useState(false);
   const assignments = day.assignments ?? [];
   const supabase = createClient();
@@ -1327,6 +1521,18 @@ function SortableDay({
     setQuizzes(quizzesForDay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizzesKey]);
+
+  const [quizCopyId, setQuizCopyId] = useState<string | null>(null);
+  const [quizCopyPos, setQuizCopyPos] = useState({ top: 0, left: 0 });
+  const quizCopyPopupRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!quizCopyId) return;
+    function onDown(e: MouseEvent) {
+      if (!quizCopyPopupRef.current?.contains(e.target as Node)) setQuizCopyId(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [quizCopyId]);
 
   const resourceSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -1512,6 +1718,8 @@ function SortableDay({
                             key={r.id}
                             resource={r}
                             weekNumber={weekNumber}
+                            moduleId={day.module_id}
+                            courseId={courseId}
                             onEdit={editResource}
                             onDelete={deleteResource}
                             onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
@@ -1604,6 +1812,8 @@ function SortableDay({
               onOpenAdd={onOpenAdd}
               onDeleteAssignment={onDeleteAssignment}
               onTogglePublished={onTogglePublished}
+              courseId={courseId}
+              onDuplicatedAssignment={onDuplicatedAssignment}
             />
           )}
 
@@ -1651,6 +1861,38 @@ function SortableDay({
                       {isCrossPosted && (
                         <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
                       )}
+                      {!readOnly && ctx && (
+                        <button
+                          type="button"
+                          title="Copy quiz"
+                          onClick={e => {
+                            if (quizCopyId === quiz.id) { setQuizCopyId(null); return; }
+                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            const popH = 300; const popW = 300;
+                            const spaceBelow = window.innerHeight - r.bottom;
+                            const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+                            setQuizCopyPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+                            setQuizCopyId(quiz.id);
+                          }}
+                          className={`shrink-0 transition-colors ${quizCopyId === quiz.id ? 'text-purple-primary' : 'text-muted-text hover:text-purple-primary'}`}
+                        >
+                          <DuplicateIcon />
+                        </button>
+                      )}
+                      {quizCopyId === quiz.id && ctx && (
+                        <DuplicateQuizPopup
+                          quiz={quiz}
+                          currentCourseId={courseId}
+                          weekModules={ctx.weekModules}
+                          popupPos={quizCopyPos}
+                          popupRef={quizCopyPopupRef}
+                          onClose={() => setQuizCopyId(null)}
+                          onDuplicatedInCourse={(newQ) => {
+                            setQuizzes(prev => [...prev, { ...newQ, linked_day_id: null }]);
+                            setQuizCopyId(null);
+                          }}
+                        />
+                      )}
                       {!readOnly && (
                         <button
                           onClick={async () => {
@@ -1669,7 +1911,7 @@ function SortableDay({
                           }`}
                           type="button"
                         >
-                          {quiz.published ? 'Published' : 'Unpublished'}
+                          {quiz.published ? 'Published' : 'Draft'}
                         </button>
                       )}
                     </div>
@@ -1709,6 +1951,8 @@ function SortableModule({
   onUpdateCategory,
   onToggleModulePublished,
   onUpdateTitle,
+  onDuplicatedAssignment,
+  onDuplicatedModule,
   dayRefreshTriggers,
   isDraggingOverlay = false,
   allQuizzes,
@@ -1727,6 +1971,8 @@ function SortableModule({
   onUpdateCategory: (moduleId: string, category: string | null) => void;
   onToggleModulePublished: (id: string, current: boolean) => void;
   onUpdateTitle: (moduleId: string, title: string) => void;
+  onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
+  onDuplicatedModule: (newModule: DuplicatedModule) => void;
   dayRefreshTriggers: Record<string, number>;
   isDraggingOverlay?: boolean;
   allQuizzes: QuizEntry[];
@@ -1742,6 +1988,35 @@ function SortableModule({
   const [newDayName, setNewDayName] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(module.title);
+
+  const [modCopyOpen, setModCopyOpen] = useState(false);
+  const modCopyBtnRef = useRef<HTMLButtonElement>(null);
+  const modCopyPopupRef = useRef<HTMLDivElement>(null);
+  const [modCopyPopupPos, setModCopyPopupPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!modCopyOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!modCopyPopupRef.current?.contains(e.target as Node) && !modCopyBtnRef.current?.contains(e.target as Node))
+        setModCopyOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [modCopyOpen]);
+
+  function openModCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (modCopyOpen) { setModCopyOpen(false); return; }
+    if (modCopyBtnRef.current) {
+      const r = modCopyBtnRef.current.getBoundingClientRect();
+      const popH = 200;
+      const popW = 280;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+      setModCopyPopupPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+    }
+    setModCopyOpen(true);
+  }
 
   const saveTitle = () => {
     const trimmed = titleDraft.trim();
@@ -1835,6 +2110,30 @@ function SortableModule({
           {expanded ? "▲" : "▼"}
         </button>
         {!readOnly && (
+          <div className="relative shrink-0">
+            <button
+              ref={modCopyBtnRef}
+              type="button"
+              onClick={openModCopy}
+              className={`shrink-0 transition-colors ${modCopyOpen ? "text-purple-primary" : "text-muted-text hover:text-purple-primary"}`}
+              title="Copy module"
+            >
+              <DuplicateIcon className="w-4 h-4" />
+            </button>
+            {modCopyOpen && (
+              <DuplicateModulePopup
+                module={module as any}
+                currentCourseId={courseId}
+                currentModuleCount={0}
+                popupPos={modCopyPopupPos}
+                popupRef={modCopyPopupRef}
+                onClose={() => setModCopyOpen(false)}
+                onDuplicatedInCourse={onDuplicatedModule}
+              />
+            )}
+          </div>
+        )}
+        {!readOnly && (
           <button
             onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
             className="text-muted-text hover:text-red-400"
@@ -1867,6 +2166,7 @@ function SortableModule({
                   onOpenAdd={onOpenAdd}
                   onDeleteAssignment={onDeleteAssignment}
                   onTogglePublished={onTogglePublished}
+                  onDuplicatedAssignment={onDuplicatedAssignment}
                   courseId={courseId}
                   quizzesForDay={allQuizzes.filter(q => {
                     if (q.linked_day_id === day.id) return true;
@@ -2508,24 +2808,43 @@ export default function CourseEditor({
     if (!assignmentToMove || !sourceDayId) return;
     const targetModule = currentMods.find((m) => m.id === targetModuleId);
     if (!targetModule) return;
-    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
-    if (!targetDay || sourceDayId === targetDay.id) return;
-    const newOrder = (targetDay.assignments ?? []).length;
-    const { error } = await supabase.from("assignments").update({ module_day_id: targetDay.id, order: newOrder }).eq("id", assignmentId);
+    let targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (sourceDayId === targetDay?.id) return;
+    // Create the day if it doesn't exist yet
+    if (!targetDay) {
+      const { data: newDay, error: dayErr } = await supabase
+        .from("module_days")
+        .insert({ module_id: targetModuleId, day_name: targetDayName, order: targetModule.module_days.length })
+        .select()
+        .single();
+      if (dayErr || !newDay) { console.error("Failed to create day:", dayErr?.message); return; }
+      const createdDay: Day = { ...newDay, assignments: [] };
+      targetDay = createdDay;
+      setModules((prev) =>
+        prev.map((m) =>
+          m.id === targetModuleId
+            ? { ...m, module_days: [...m.module_days, createdDay] }
+            : m
+        )
+      );
+    }
+    const resolvedDay = targetDay;
+    const newOrder = (resolvedDay.assignments ?? []).length;
+    const { error } = await supabase.from("assignments").update({ module_day_id: resolvedDay.id, order: newOrder }).eq("id", assignmentId);
     if (error) { console.error("relocateAssignmentToModule failed:", error.message); return; }
     setModules((prev) =>
       prev.map((m) => ({
         ...m,
         module_days: m.module_days.map((d) => {
           if (d.id === sourceDayId) return { ...d, assignments: (d.assignments ?? []).filter((a) => a.id !== assignmentId) };
-          if (d.id === targetDay.id) return { ...d, assignments: [...(d.assignments ?? []), { ...assignmentToMove!, module_day_id: targetDay.id, order: newOrder }] };
+          if (d.id === resolvedDay.id) return { ...d, assignments: [...(d.assignments ?? []), { ...assignmentToMove!, module_day_id: resolvedDay.id, order: newOrder }] };
           return d;
         }),
       }))
     );
     setActiveView((prev) =>
       prev?.mode === "view" && prev.assignment.id === assignmentId
-        ? { ...prev, dayId: targetDay.id, moduleId: targetModule.id, weekNumber: targetModule.week_number, dayName: targetDayName }
+        ? { ...prev, dayId: resolvedDay.id, moduleId: targetModule.id, weekNumber: targetModule.week_number, dayName: targetDayName }
         : prev
     );
   };
@@ -2552,11 +2871,26 @@ export default function CourseEditor({
   const relocateResourceToModule = async (resourceId: string, targetModuleId: string, targetDayName: string, onMoved?: () => void) => {
     const targetModule = modulesRef.current.find((m) => m.id === targetModuleId);
     if (!targetModule) return;
-    const targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
-    if (!targetDay) { console.error(`No day "${targetDayName}" in module`); return; }
-    const { error } = await supabase.from("resources").update({ module_day_id: targetDay.id }).eq("id", resourceId);
+    let targetDay = targetModule.module_days.find((d) => d.day_name === targetDayName);
+    if (!targetDay) {
+      const { data: newDay, error: dayErr } = await supabase
+        .from("module_days")
+        .insert({ module_id: targetModuleId, day_name: targetDayName, order: targetModule.module_days.length })
+        .select()
+        .single();
+      if (dayErr || !newDay) { console.error("Failed to create day:", dayErr?.message); return; }
+      const createdDay: Day = { ...newDay, assignments: [] };
+      targetDay = createdDay;
+      setModules((prev) =>
+        prev.map((m) =>
+          m.id === targetModuleId ? { ...m, module_days: [...m.module_days, createdDay] } : m
+        )
+      );
+    }
+    const resolvedResourceDay = targetDay;
+    const { error } = await supabase.from("resources").update({ module_day_id: resolvedResourceDay.id }).eq("id", resourceId);
     if (error) { console.error("relocateResourceToModule failed:", error.message); return; }
-    setDayRefreshTriggers(prev => ({ ...prev, [targetDay.id]: (prev[targetDay.id] ?? 0) + 1 }));
+    setDayRefreshTriggers(prev => ({ ...prev, [resolvedResourceDay.id]: (prev[resolvedResourceDay.id] ?? 0) + 1 }));
     onMoved?.();
   };
 
@@ -2677,6 +3011,23 @@ export default function CourseEditor({
         })),
       }))
     );
+  };
+
+  const handleDuplicatedAssignment = (assignment: DuplicatedAssignment, targetDayId: string) => {
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => {
+          if (d.id !== targetDayId) return d;
+          const existing = d.assignments ?? [];
+          return { ...d, assignments: [...existing, { ...assignment, order: existing.length }] };
+        }),
+      }))
+    );
+  };
+
+  const handleDuplicatedModule = (newModule: DuplicatedModule) => {
+    setModules((prev) => [...prev, newModule as unknown as Module]);
   };
 
   const updateAssignment = async (
@@ -2904,6 +3255,8 @@ export default function CourseEditor({
                   onUpdateCategory={updateModuleCategory}
                   onToggleModulePublished={updateModulePublished}
                   onUpdateTitle={updateModuleTitle}
+                  onDuplicatedAssignment={handleDuplicatedAssignment}
+                  onDuplicatedModule={handleDuplicatedModule}
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
                   allQuizzes={courseQuizzes}
