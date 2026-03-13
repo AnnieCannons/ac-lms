@@ -224,7 +224,7 @@ export default async function GradingPage({
   const { data: rawComments } = submission
     ? await admin
         .from('submission_comments')
-        .select('id, content, created_at, author_id, users(name, role)')
+        .select('id, content, created_at, author_id, author_name, users(name, role)')
         .eq('submission_id', submission.id)
         .order('created_at', { ascending: true })
     : { data: [] }
@@ -236,7 +236,7 @@ export default async function GradingPage({
       content: c.content,
       created_at: c.created_at,
       author_id: c.author_id,
-      author_name: (u as { name: string; role: string } | null)?.name ?? 'Unknown',
+      author_name: (u as { name: string; role: string } | null)?.name ?? c.author_name ?? 'Unknown',
       author_role: (u as { name: string; role: string } | null)?.role ?? 'instructor',
     }
   })
