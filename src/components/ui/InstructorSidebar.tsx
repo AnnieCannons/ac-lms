@@ -50,11 +50,19 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
       )
 
     if (orderedAssignmentIds.length > 0) {
+      const { data: enrolledStudents } = await admin
+        .from('course_enrollments')
+        .select('user_id')
+        .eq('course_id', courseId)
+        .eq('role', 'student')
+      const enrolledStudentIds = (enrolledStudents ?? []).map(e => e.user_id)
+
       const { data: ungradedSubs } = await admin
         .from('submissions')
         .select('assignment_id, student_id')
         .in('assignment_id', orderedAssignmentIds)
         .eq('status', 'submitted')
+        .in('student_id', enrolledStudentIds.length > 0 ? enrolledStudentIds : [''])
 
       needsGrading = ungradedSubs?.length ?? 0
       const ungradedSet = new Set(ungradedSubs?.map(s => s.assignment_id) ?? [])

@@ -35,6 +35,7 @@ export default function QuizForm({
   savedProgress,
   lockedAnswers,
   isObserver,
+  isStudentPreview,
 }: {
   courseId: string;
   quizId: string;
@@ -43,6 +44,7 @@ export default function QuizForm({
   savedProgress?: Record<string, string>; // index → choice_ident (restore in-progress)
   lockedAnswers?: Record<string, string>;  // index → choice_ident (already correct in retake)
   isObserver?: boolean;
+  isStudentPreview?: boolean;
 }) {
   // Track answers by question index — no state, no re-renders
   const answersRef = useRef<Record<string, string>>({});
@@ -234,12 +236,18 @@ export default function QuizForm({
         );
       })}
       <div className="flex justify-end pt-2">
-        <button
-          type="submit"
-          className="px-6 py-3 rounded-full bg-teal-primary text-white font-semibold hover:opacity-90 transition-opacity"
-        >
-          Submit quiz
-        </button>
+        {isStudentPreview ? (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            Quiz submission is disabled in Student View.
+          </p>
+        ) : (
+          <button
+            type="submit"
+            className="px-6 py-3 rounded-full bg-teal-primary text-white font-semibold hover:opacity-90 transition-opacity"
+          >
+            Submit quiz
+          </button>
+        )}
       </div>
     </form>
   );

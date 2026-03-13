@@ -49,6 +49,7 @@ export default function SubmissionForm({
   checklistItems,
   initialChecked,
   isObserver,
+  isStudentPreview,
 }: {
   assignmentId: string;
   studentId: string;
@@ -58,6 +59,7 @@ export default function SubmissionForm({
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
   isObserver?: boolean;
+  isStudentPreview?: boolean;
 }) {
   const supabase = createClient();
 
@@ -120,6 +122,7 @@ export default function SubmissionForm({
   };
 
   const doSave = async (status: "draft" | "submitted", content: string, type: SubmissionType) => {
+    if (isStudentPreview) return false;
     if (!content) {
       setError("Please enter your submission before saving.");
       return false;
@@ -225,6 +228,11 @@ export default function SubmissionForm({
 
   return (
     <>
+    {isStudentPreview && (
+      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+        Assignment submission is disabled in Student View.
+      </div>
+    )}
     {isObserver && (
       <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
         You&apos;re currently on leave. Your submitted work is visible below, but submissions are paused.
@@ -491,7 +499,7 @@ export default function SubmissionForm({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting || !allChecked || !hasContent}
+              disabled={submitting || !allChecked || !hasContent || !!isStudentPreview}
               className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {submitting ? "Submitting…" : "Submit"}

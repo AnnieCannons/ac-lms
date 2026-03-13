@@ -255,6 +255,7 @@ export default async function StudentAssignmentPage({
               checklistItems={checklistItems ?? undefined}
               initialChecked={initialChecked}
               isObserver={isObserver}
+              isStudentPreview={preview}
             />
           ) : (
             <div className="bg-surface rounded-2xl border border-border p-6">

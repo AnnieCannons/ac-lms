@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
+import { isStudentPreview } from "@/lib/student-preview";
 import { redirect } from "next/navigation";
 
 // Answers stored by question position so duplicate idents across questions work correctly
@@ -10,6 +11,10 @@ export async function submitQuiz(formData: FormData) {
   const courseId = formData.get("courseId") as string | null;
   const quizId = formData.get("quizId") as string | null;
   if (!courseId || !quizId) redirect("/student/courses");
+
+  // Instructors in student preview cannot submit — redirect back to quiz page
+  const preview = await isStudentPreview(courseId);
+  if (preview) redirect(`/student/courses/${courseId}/quizzes/${quizId}`);
 
   // Parse previous answers (for retake merge)
   let previousAnswers: AnswerEntry[] = [];

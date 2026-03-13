@@ -210,6 +210,7 @@ export default async function TakeQuizPage({
                 questions={questions}
                 previousAnswers={previousAnswers}
                 lockedAnswers={lockedAnswers}
+                isStudentPreview={preview}
               />
             </>
           )}
@@ -250,6 +251,7 @@ export default async function TakeQuizPage({
                   previousAnswers={[]}
                   savedProgress={savedProgress}
                   isObserver={isObserver}
+                  isStudentPreview={preview}
                 />
               )}
 
