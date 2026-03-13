@@ -127,11 +127,12 @@ async function run() {
       if (ca.submission_types.includes('online_quiz')) continue
 
       // Find matching assignment in our DB by title (case-insensitive, trimmed)
-      const { data: assignment } = await supabase
+      const { data: assignmentRows } = await supabase
         .from('assignments')
         .select('id')
         .ilike('title', ca.name.trim())
-        .maybeSingle()
+        .limit(1)
+      const assignment = assignmentRows?.[0] ?? null
 
       if (!assignment) {
         if (!assignmentsNotFound.includes(ca.name)) {
