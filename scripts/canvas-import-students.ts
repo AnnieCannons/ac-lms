@@ -142,16 +142,16 @@ async function run() {
         }
         userId = authData.user.id
 
-        // Create users row
-        const { error: userErr } = await supabase.from('users').insert({
+        // Upsert users row (trigger may have already created it)
+        const { error: userErr } = await supabase.from('users').upsert({
           id: userId,
           email,
           name: cs.name,
           role: 'student',
           canvas_user_id: cs.id,
-        })
+        }, { onConflict: 'id' })
         if (userErr) {
-          console.error(`  ✗ users insert failed for ${email}: ${userErr.message}`)
+          console.error(`  ✗ users upsert failed for ${email}: ${userErr.message}`)
           continue
         }
         created++
