@@ -126,12 +126,11 @@ async function run() {
       // Skip quiz assignments entirely
       if (ca.submission_types.includes('online_quiz')) continue
 
-      // Find matching assignment in our DB by title (case-insensitive, trimmed, scoped to course)
+      // Find matching assignment in our DB by title (case-insensitive, trimmed)
       const { data: assignment } = await supabase
         .from('assignments')
-        .select('id, module_days!inner(module_id, modules!inner(course_id))')
+        .select('id')
         .ilike('title', ca.name.trim())
-        .eq('module_days.modules.course_id', course.id)
         .maybeSingle()
 
       if (!assignment) {
