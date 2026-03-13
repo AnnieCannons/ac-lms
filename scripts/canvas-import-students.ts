@@ -51,7 +51,7 @@ async function fetchCanvasStudents(courseId: string): Promise<CanvasUser[]> {
     `?enrollment_type[]=student&include[]=email&per_page=100`
 
   while (url) {
-    const res = await fetch(url, {
+    const res: Response = await fetch(url, {
       headers: { Authorization: `Bearer ${CANVAS_API_TOKEN}` },
     })
     if (!res.ok) {
