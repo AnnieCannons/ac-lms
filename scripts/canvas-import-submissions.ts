@@ -122,17 +122,30 @@ async function run() {
 
     console.log(`\n── ${course.name} (${data.assignments.length} assignments) ──`)
 
+    // Pre-fetch all assignments for this course into a title → id map
+    const { data: moduleRows } = await supabase
+      .from('modules')
+      .select('module_days(assignments!module_day_id(id, title))')
+      .eq('course_id', course.id)
+
+    const assignmentMap = new Map<string, string>()
+    for (const m of moduleRows ?? []) {
+      const days = (m.module_days ?? []) as { assignments: { id: string; title: string }[] }[]
+      for (const d of days) {
+        for (const a of d.assignments ?? []) {
+          if (a.title) assignmentMap.set(a.title.trim().toLowerCase(), a.id)
+        }
+      }
+    }
+
     for (const ca of data.assignments) {
       // Skip quiz assignments entirely
       if (ca.submission_types.includes('online_quiz')) continue
 
-      // Find matching assignment in our DB by title (case-insensitive, trimmed)
-      const { data: assignmentRows } = await supabase
-        .from('assignments')
-        .select('id')
-        .ilike('title', ca.name.trim())
-        .limit(1)
-      const assignment = assignmentRows?.[0] ?? null
+      // Find matching assignment within this course only
+      const assignment = assignmentMap.get(ca.name.trim().toLowerCase())
+        ? { id: assignmentMap.get(ca.name.trim().toLowerCase())! }
+        : null
 
       if (!assignment) {
         if (!assignmentsNotFound.includes(ca.name)) {
