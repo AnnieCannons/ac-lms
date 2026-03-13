@@ -23,7 +23,8 @@ import { createClient } from '@supabase/supabase-js'
 
 const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL!
 const CANVAS_API_TOKEN = process.env.CANVAS_API_TOKEN!
-const SYNC_SECRET = process.env.CANVAS_SYNC_SECRET!
+const SYNC_SECRET = process.env.CANVAS_SYNC_SECRET
+const CRON_SECRET = process.env.CRON_SECRET
 
 // Canvas course IDs (matches canvas_course_id on our courses table)
 const CANVAS_COURSE_IDS = ['13082263', '13642631', '13609504', '13609741']
@@ -116,9 +117,12 @@ function mapContent(sub: CanvasSubmission): string | null {
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  // Auth check
-  const secret = req.nextUrl.searchParams.get('secret')
-  if (!SYNC_SECRET || secret !== SYNC_SECRET) {
+  // Auth check — accepts Vercel's automatic CRON_SECRET header or manual query param
+  const authHeader = req.headers.get('authorization')
+  const querySecret = req.nextUrl.searchParams.get('secret')
+  const validCron = CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`
+  const validManual = SYNC_SECRET && querySecret === SYNC_SECRET
+  if (!validCron && !validManual) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

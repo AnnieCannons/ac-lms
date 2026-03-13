@@ -13,8 +13,11 @@
  *  - Safe to re-run: upserts on (assignment_id, student_id)
  *
  * Usage:
- *   source .env.local && npx ts-node --esm scripts/canvas-import-submissions.ts
+ *   npx ts-node --esm scripts/canvas-import-submissions.ts
  */
+
+import * as dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 import { createClient } from '@supabase/supabase-js'
 import * as fs from 'fs'

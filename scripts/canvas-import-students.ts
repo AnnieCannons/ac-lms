@@ -5,7 +5,7 @@
  * auth accounts (no email invite sent), and enrolls them in their course.
  *
  * Usage:
- *   source .env.local && npx ts-node --esm scripts/canvas-import-students.ts
+ *   npx ts-node --esm scripts/canvas-import-students.ts
  *
  * Required env vars:
  *   NEXT_PUBLIC_SUPABASE_URL
@@ -13,6 +13,9 @@
  *   CANVAS_API_TOKEN       — admin API token
  *   CANVAS_BASE_URL        — e.g. https://canvas.instructure.com
  */
+
+import * as dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 import { createClient } from '@supabase/supabase-js'
 
