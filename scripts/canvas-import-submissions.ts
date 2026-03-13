@@ -174,29 +174,40 @@ async function run() {
         const content = mapContent(sub)
 
         // Upsert submission
-        const { data: upserted, error: subErr } = await supabase
+        // Check if submission already exists
+        const { data: existing } = await supabase
           .from('submissions')
-          .upsert(
-            {
-              assignment_id: assignment.id,
-              student_id: student.id,
-              submission_type: submissionType,
-              content,
-              submitted_at: sub.submitted_at ?? new Date().toISOString(),
-              status,
-              grade,
-              graded_at: status === 'graded' ? (sub.submitted_at ?? new Date().toISOString()) : null,
-            },
-            { onConflict: 'assignment_id,student_id' },
-          )
           .select('id')
-          .single()
+          .eq('assignment_id', assignment.id)
+          .eq('student_id', student.id)
+          .maybeSingle()
 
-        if (subErr || !upserted) {
-          console.error(`  ✗ Submission upsert failed: ${subErr?.message}`)
-          submissionsSkipped++
-          continue
+        let submissionId: string
+        if (existing) {
+          // Update in place
+          const { error: updErr } = await supabase
+            .from('submissions')
+            .update({ submission_type: submissionType, content, status, grade,
+              submitted_at: sub.submitted_at ?? new Date().toISOString(),
+              graded_at: status === 'graded' ? (sub.submitted_at ?? new Date().toISOString()) : null,
+            })
+            .eq('id', existing.id)
+          if (updErr) { console.error(`  ✗ Submission update failed: ${updErr.message}`); submissionsSkipped++; continue }
+          submissionId = existing.id
+        } else {
+          const { data: inserted, error: insErr } = await supabase
+            .from('submissions')
+            .insert({ assignment_id: assignment.id, student_id: student.id,
+              submission_type: submissionType, content, status, grade,
+              submitted_at: sub.submitted_at ?? new Date().toISOString(),
+              graded_at: status === 'graded' ? (sub.submitted_at ?? new Date().toISOString()) : null,
+            })
+            .select('id').single()
+          if (insErr || !inserted) { console.error(`  ✗ Submission insert failed: ${insErr?.message}`); submissionsSkipped++; continue }
+          submissionId = inserted.id
         }
+
+        const upserted = { id: submissionId }
 
         submissionsImported++
 
