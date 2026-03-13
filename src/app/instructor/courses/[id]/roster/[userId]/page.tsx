@@ -62,7 +62,7 @@ export default async function StudentDetailPage({
     admin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null }, error: null })),
     admin
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published))')
+      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, canvas_assignment_id))')
       .eq('course_id', courseId)
       .order('order', { ascending: true }),
   ])
@@ -71,8 +71,8 @@ export default async function StudentDetailPage({
     (authResult as { data: { user: { last_sign_in_at?: string } | null } }).data?.user?.last_sign_in_at ?? null
 
   // Flatten to all published assignments with module context
-  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean }
-  const allAssignments: Omit<CategorizedAssignment, 'isLate'>[] = (rawModules ?? []).flatMap(m => {
+  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; canvas_assignment_id: number | null }
+  const allAssignments: (Omit<CategorizedAssignment, 'isLate'> & { canvasAssignmentId: number | null })[] = (rawModules ?? []).flatMap(m => {
     const days = (m.module_days ?? []) as { id: string; assignments: RawAssignment[] }[]
     return days.flatMap(d =>
       (d.assignments ?? [])
@@ -84,6 +84,7 @@ export default async function StudentDetailPage({
           moduleTitle: m.title ?? '',
           weekNumber: m.week_number ?? null,
           submissionId: null as string | null,
+          canvasAssignmentId: a.canvas_assignment_id ?? null,
         }))
     )
   })
@@ -119,7 +120,7 @@ export default async function StudentDetailPage({
     const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null }
 
     if (!sub || sub.status === 'draft') {
-      if (duePassed) missing.push(entry)
+      if (duePassed && a.canvasAssignmentId) missing.push(entry)
     } else if (sub.status === 'submitted') {
       submitted.push(entry)
       if (isLate) late.push(entry)
