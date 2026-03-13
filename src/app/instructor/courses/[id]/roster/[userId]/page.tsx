@@ -114,7 +114,7 @@ export default async function StudentDetailPage({
     const isLate = !!(
       sub?.submitted_at &&
       a.due_date &&
-      new Date(sub.submitted_at) > new Date(a.due_date)
+      sub.submitted_at.slice(0, 10) > a.due_date
     )
     const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null }
 
