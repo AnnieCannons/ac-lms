@@ -52,7 +52,7 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
       <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-3 px-3 truncate" title={courseName}>
         {courseName}
       </p>
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 pb-4">
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
