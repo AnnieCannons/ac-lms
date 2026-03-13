@@ -177,6 +177,11 @@ async function run() {
 
         // Upsert submission
         // Check if submission already exists
+        // When submitted_at is null (instructor-graded without submission), use
+        // 1 day before due date so it doesn't appear late. Fall back to now().
+        const submittedAt = sub.submitted_at
+          ?? (ca.due_at ? new Date(new Date(ca.due_at).getTime() - 86400000).toISOString() : new Date().toISOString())
+
         const { data: existing } = await supabase
           .from('submissions')
           .select('id')
@@ -190,8 +195,8 @@ async function run() {
           const { error: updErr } = await supabase
             .from('submissions')
             .update({ submission_type: submissionType, content, status, grade,
-              submitted_at: sub.submitted_at ?? new Date().toISOString(),
-              graded_at: status === 'graded' ? (sub.submitted_at ?? new Date().toISOString()) : null,
+              submitted_at: submittedAt,
+              graded_at: status === 'graded' ? submittedAt : null,
             })
             .eq('id', existing.id)
           if (updErr) { console.error(`  ✗ Submission update failed: ${updErr.message}`); submissionsSkipped++; continue }
@@ -201,8 +206,8 @@ async function run() {
             .from('submissions')
             .insert({ assignment_id: assignment.id, student_id: student.id,
               submission_type: submissionType, content, status, grade,
-              submitted_at: sub.submitted_at ?? new Date().toISOString(),
-              graded_at: status === 'graded' ? (sub.submitted_at ?? new Date().toISOString()) : null,
+              submitted_at: submittedAt,
+              graded_at: status === 'graded' ? submittedAt : null,
             })
             .select('id').single()
           if (insErr || !inserted) { console.error(`  ✗ Submission insert failed: ${insErr?.message}`); submissionsSkipped++; continue }

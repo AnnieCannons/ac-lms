@@ -324,7 +324,9 @@ export default function SubmissionForm({
                 hour: "numeric", minute: "2-digit",
               })}
             </p>
-            {saved.submission_type === "file" && isImageUrl(saved.content) ? (
+            {!saved.content ? (
+              <p className="text-sm text-muted-text italic">No submission content — graded by instructor.</p>
+            ) : saved.submission_type === "file" && isImageUrl(saved.content) ? (
               <a href={normalizeUrl(saved.content)} target="_blank" rel="noopener noreferrer" className="block w-fit">
                 <img
                   src={saved.content ?? ""}
