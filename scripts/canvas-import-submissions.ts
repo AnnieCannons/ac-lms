@@ -137,10 +137,11 @@ async function run() {
       if (!assignment) {
         if (!assignmentsNotFound.includes(ca.name)) {
           assignmentsNotFound.push(ca.name)
-          console.log(`  ⚠ Assignment not found: "${ca.name}"`)
         }
         continue
       }
+
+      process.stdout.write(`  ✓ "${ca.name.trim()}" ... `)
 
       // Backfill canvas_assignment_id for live sync matching
       await supabase
