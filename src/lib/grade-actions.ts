@@ -1,4 +1,5 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
 export async function markCompleteNoSubmission(
@@ -49,6 +50,8 @@ export async function markCompleteNoSubmission(
     .eq('id', submissionId)
 
   if (error) return { error: error.message }
+  if (courseId) revalidatePath(`/instructor/courses/${courseId}`)
+  else revalidatePath('/instructor/courses', 'layout')
   return {}
 }
 
@@ -82,5 +85,9 @@ export async function saveGrade(
     .eq('id', submissionId)
 
   if (error) return { error: error.message }
+
+  if (courseId) revalidatePath(`/instructor/courses/${courseId}`)
+  else revalidatePath('/instructor/courses', 'layout')
+
   return {}
 }

@@ -82,7 +82,7 @@ export default function StudentDetailView({
     if (!assignment.submissionId || grading[assignment.id]) return
     setGrading(prev => ({ ...prev, [assignment.id]: true }))
 
-    const { error } = await saveGrade(assignment.submissionId, result, student.id)
+    const { error } = await saveGrade(assignment.submissionId, result, student.id, courseId)
     if (error) { setGrading(prev => ({ ...prev, [assignment.id]: false })); return }
 
     // Move assignment across lists optimistically
