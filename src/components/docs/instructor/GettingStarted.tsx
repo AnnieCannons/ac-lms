@@ -1,4 +1,4 @@
-import { DocH2, DocH3, DocP, DocList, DocTip, DocStep } from '@/components/docs/DocComponents'
+import { DocH2, DocH3, DocP, DocList, DocTip, DocNote, DocStep } from '@/components/docs/DocComponents'
 
 export default function GettingStarted() {
   return (
@@ -18,6 +18,51 @@ export default function GettingStarted() {
         <li>Click <strong>Duplicate</strong> to copy a course with optional due-date shifting</li>
         <li>Click <strong>+ New Course</strong> to create a new course from scratch</li>
       </DocList>
+
+      <DocH2>Duplicating a Course</DocH2>
+      <DocP>
+        Clicking <strong>Duplicate</strong> on any course opens a modal where you can configure the copy before it is
+        created.
+      </DocP>
+      <DocList>
+        <li><strong>Course Name</strong> — pre-filled as &ldquo;Copy of [original name]&rdquo;; edit as needed</li>
+        <li><strong>Course Code</strong> — pre-filled by incrementing the original code&apos;s suffix (e.g. <em>BE-2026</em> → <em>BE-2027</em>); must be unique</li>
+      </DocList>
+
+      <DocH3>Date Shifting</DocH3>
+      <DocP>
+        If you enter both an <strong>Original Start Date</strong> and a <strong>New Start Date</strong>, all assignment
+        due dates are shifted by the difference between the two. Leave both blank to keep the original dates unchanged.
+      </DocP>
+      <DocStep number={1}>Enter the date the original course started (or confirm the pre-filled value).</DocStep>
+      <DocStep number={2}>Enter the start date for the new cohort.</DocStep>
+      <DocStep number={3}>Click <strong>Duplicate Course →</strong>. The new course opens automatically.</DocStep>
+      <DocTip>
+        Date shifting is purely arithmetic — it moves every assignment due date by the same number of days as the
+        difference between the two start dates. Review due dates after duplicating to catch any assignments that may
+        land on holidays or weekends.
+      </DocTip>
+
+      <DocH3>What Gets Copied</DocH3>
+      <DocList>
+        <li>All modules, days, and their structure</li>
+        <li>All assignments (including instructions, checklist items, and publish status)</li>
+        <li>All resources attached to days</li>
+        <li>Course sections (syllabus, info pages)</li>
+      </DocList>
+
+      <DocH3>What Does Not Get Copied</DocH3>
+      <DocList>
+        <li><strong>Quizzes</strong> — must be recreated or pasted in the new course</li>
+        <li><strong>Student enrollments</strong> — the new course starts empty; add students separately</li>
+        <li><strong>Submissions and grades</strong> — no student data is carried over</li>
+        <li><strong>Grading groups</strong> — reset for the new cohort</li>
+        <li><strong>Career Dev cross-posts</strong> — career dev content exists only in the source course; recreate cross-posts as needed</li>
+      </DocList>
+      <DocNote>
+        The new course is created with your account as the owner. Add co-instructors from the <strong>People</strong>
+        page after opening the new course.
+      </DocNote>
 
       <DocH2>Entering a Course</DocH2>
       <DocStep number={1}>Click a course card to open the Course Editor.</DocStep>
@@ -41,7 +86,8 @@ export default function GettingStarted() {
       <DocH3>Top Navigation</DocH3>
       <DocP>
         The top navbar shows your name (linking to your account settings), a link to the Attendance Portal, and a logout
-        button. On mobile, these collapse into a hamburger menu.
+        button. On mobile, these collapse into a hamburger menu. Your account settings page lets you update your display
+        name and change your password — use the eye icon to show or hide the password field as you type.
       </DocP>
 
       <DocH2>Your Role</DocH2>
