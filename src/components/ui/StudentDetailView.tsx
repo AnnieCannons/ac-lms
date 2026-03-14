@@ -31,16 +31,14 @@ interface Props {
 
 const STAT_CONFIG: Record<StatCategory, {
   label: string
-  cardBg: string
-  cardBorder: string
-  countColor: string
+  cardClass: string
   ringColor: string
 }> = {
-  missing:    { label: 'Missing',        cardBg: 'bg-red-50',     cardBorder: 'border-red-200',          countColor: 'text-red-600',    ringColor: 'ring-red-400' },
-  late:       { label: 'Late',           cardBg: 'bg-amber-50',   cardBorder: 'border-amber-200',        countColor: 'text-amber-700',  ringColor: 'ring-amber-400' },
-  submitted:  { label: 'Needs Grading', cardBg: 'bg-teal-light', cardBorder: 'border-teal-primary/40',  countColor: 'text-teal-primary',ringColor: 'ring-teal-primary' },
-  incomplete: { label: 'Needs Revision', cardBg: 'bg-orange-50',  cardBorder: 'border-orange-200',       countColor: 'text-orange-600', ringColor: 'ring-orange-400' },
-  complete:   { label: 'Complete',       cardBg: 'bg-green-50',   cardBorder: 'border-green-200',        countColor: 'text-green-700',  ringColor: 'ring-green-500' },
+  missing:    { label: 'Missing',       cardClass: 'status-missing-card',  ringColor: 'ring-red-400' },
+  late:       { label: 'Late',          cardClass: 'status-late-card',     ringColor: 'ring-amber-400' },
+  submitted:  { label: 'Needs Grading', cardClass: 'status-grading-card',  ringColor: 'ring-teal-primary' },
+  incomplete: { label: 'Needs Revision',cardClass: 'status-revision-card', ringColor: 'ring-orange-400' },
+  complete:   { label: 'Complete',      cardClass: 'status-complete-card', ringColor: 'ring-green-500' },
 }
 
 function formatDate(iso: string) {
@@ -155,7 +153,7 @@ export default function StudentDetailView({
               ) : (
                 <>
                   {accommodation?.cameraOff && (
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full border status-camera-badge">
                       Camera off
                     </span>
                   )}
@@ -195,14 +193,14 @@ export default function StudentDetailView({
                   isEmpty
                     ? 'bg-surface border-border opacity-40 cursor-default'
                     : isActive
-                      ? `${cfg.cardBg} ${cfg.cardBorder} ring-2 ${cfg.ringColor} shadow-sm`
-                      : `${cfg.cardBg} ${cfg.cardBorder} hover:shadow-sm hover:scale-[1.02] cursor-pointer`
+                      ? `${cfg.cardClass} ring-2 ${cfg.ringColor} shadow-sm`
+                      : `${cfg.cardClass} hover:shadow-sm hover:scale-[1.02] cursor-pointer`
                 }`}
               >
-                <span className={`text-2xl font-bold leading-none ${isEmpty ? 'text-muted-text' : cfg.countColor}`}>
+                <span className={`text-2xl font-bold leading-none ${isEmpty ? 'text-muted-text' : ''}`}>
                   {items.length}
                 </span>
-                <span className={`text-xs font-medium text-center leading-tight ${isEmpty ? 'text-muted-text' : cfg.countColor}`}>
+                <span className={`text-xs font-medium text-center leading-tight ${isEmpty ? 'text-muted-text' : ''}`}>
                   {cfg.label}
                 </span>
               </button>
@@ -213,7 +211,7 @@ export default function StudentDetailView({
         {/* Expanded assignment list */}
         {activeCategory && (
           <div className="mt-3 border border-border rounded-xl overflow-hidden">
-            <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border ${STAT_CONFIG[activeCategory].cardBg} ${STAT_CONFIG[activeCategory].countColor}`}>
+            <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border ${STAT_CONFIG[activeCategory].cardClass}`}>
               {STAT_CONFIG[activeCategory].label} — {activeItems.length} assignment{activeItems.length !== 1 ? 's' : ''}
               {(activeCategory === 'submitted' || activeCategory === 'incomplete') && activeItems.length > 0 && (
                 <span className="ml-2 normal-case font-normal text-muted-text">— click to grade inline</span>
@@ -239,7 +237,7 @@ export default function StudentDetailView({
                             <span className="text-xs text-muted-text">· Due {formatDate(a.due_date)}</span>
                           )}
                           {a.isLate && (
-                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border status-late-badge">
                               Late
                             </span>
                           )}
@@ -253,7 +251,7 @@ export default function StudentDetailView({
                               type="button"
                               disabled={isGrading}
                               onClick={() => grade(a, 'complete')}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-300 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg border status-complete-btn disabled:opacity-50 transition-colors"
                             >
                               {isGrading ? '…' : '✓ Complete'}
                             </button>
@@ -262,7 +260,7 @@ export default function StudentDetailView({
                                 type="button"
                                 disabled={isGrading}
                                 onClick={() => grade(a, 'incomplete')}
-                                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-500 border border-red-300 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg border status-revision-btn disabled:opacity-50 transition-colors"
                               >
                                 {isGrading ? '…' : '✗ Revision'}
                               </button>

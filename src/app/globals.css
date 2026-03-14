@@ -210,6 +210,39 @@ html.theme-dark .badge-count {
   color: #d4a017;
 }
 
+/* Status colors — used in StudentDetailView cards, buttons, badges.
+   Always use these classes instead of hardcoded bg-red-50 etc. so dark mode works globally. */
+.status-missing-card  { background-color: #fef2f2; border-color: #fecaca; color: #dc2626; }
+.status-late-card     { background-color: #fffbeb; border-color: #fde68a; color: #b45309; }
+.status-grading-card  { background-color: var(--color-teal-light); border-color: color-mix(in srgb, var(--color-teal-primary) 40%, transparent); color: var(--color-teal-primary); }
+.status-revision-card { background-color: #fff7ed; border-color: #fed7aa; color: #ea580c; }
+.status-complete-card { background-color: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+
+.status-missing-btn   { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.status-missing-btn:hover { background-color: #fee2e2; }
+.status-complete-btn  { background-color: #f0fdf4; color: #15803d; border-color: #86efac; }
+.status-complete-btn:hover { background-color: #dcfce7; }
+.status-revision-btn  { background-color: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+.status-revision-btn:hover { background-color: #fee2e2; }
+
+.status-late-badge    { background-color: #fffbeb; color: #b45309; border-color: #fde68a; }
+.status-camera-badge  { background-color: #fef2f2; color: #dc2626; border-color: #fecaca; }
+
+html.theme-dark .status-missing-card  { background-color: #1f0a0a; border-color: #4a1515; color: #f87171; }
+html.theme-dark .status-late-card     { background-color: #1c1200; border-color: #3d2800; color: #fbbf24; }
+html.theme-dark .status-revision-card { background-color: #1f1005; border-color: #4a2000; color: #fb923c; }
+html.theme-dark .status-complete-card { background-color: #071a0f; border-color: #14532d; color: #4ade80; }
+
+html.theme-dark .status-missing-btn   { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
+html.theme-dark .status-missing-btn:hover { background-color: #2d1010; }
+html.theme-dark .status-complete-btn  { background-color: #071a0f; color: #4ade80; border-color: #14532d; }
+html.theme-dark .status-complete-btn:hover { background-color: #0d2a18; }
+html.theme-dark .status-revision-btn  { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
+html.theme-dark .status-revision-btn:hover { background-color: #2d1010; }
+
+html.theme-dark .status-late-badge    { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
+html.theme-dark .status-camera-badge  { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
