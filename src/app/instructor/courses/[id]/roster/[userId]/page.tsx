@@ -90,6 +90,7 @@ export default async function StudentDetailPage({
   })
 
   const assignmentIds = allAssignments.map(a => a.id)
+  const canvasAssignmentCount = allAssignments.filter(a => a.canvasAssignmentId !== null).length
 
   const { data: submissions } = assignmentIds.length > 0
     ? await admin
@@ -168,7 +169,7 @@ export default async function StudentDetailPage({
               submitted={submitted}
               complete={complete}
               incomplete={incomplete}
-              totalPublished={allAssignments.length}
+              totalPublished={canvasAssignmentCount}
             />
           </main>
         </div>

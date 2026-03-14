@@ -525,7 +525,7 @@ function StudentsTab({
         return (
           <div key={student.id} className="bg-surface">
             <div className="px-6 py-4">
-              <p className="text-sm font-semibold text-dark-text mb-1.5">{student.name}</p>
+              <Link href={`/instructor/courses/${courseId}/roster/${student.id}`} className="text-sm font-semibold text-dark-text hover:text-teal-primary hover:underline mb-1.5 inline-block">{student.name}</Link>
               <div className="flex items-center gap-4 text-xs flex-wrap">
                 {late.length > 0 && (
                   <button
