@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-
-export const IMPERSONATE_COOKIE = 'impersonate-student'
+import { IMPERSONATE_COOKIE } from '@/lib/impersonate-cookie'
+export { IMPERSONATE_COOKIE }
 
 export interface ImpersonationData {
   userId: string

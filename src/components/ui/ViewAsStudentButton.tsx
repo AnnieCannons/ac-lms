@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { IMPERSONATE_COOKIE } from '@/lib/impersonate'
+import { IMPERSONATE_COOKIE } from '@/lib/impersonate-cookie'
 
 export default function ViewAsStudentButton({
   studentId,
