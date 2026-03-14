@@ -346,7 +346,9 @@ export default async function GradingPage({
 
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-dark-text">{student?.name ?? 'Student'}</h1>
+            <Link href={`/instructor/courses/${id}/roster/${studentId}`} className="text-2xl font-bold text-dark-text hover:text-teal-primary transition-colors">
+              {student?.name ?? 'Student'}
+            </Link>
             <p className="text-base font-semibold text-dark-text mt-1 truncate max-w-md">{assignment.title}</p>
             <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
           </div>

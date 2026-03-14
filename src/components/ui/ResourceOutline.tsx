@@ -53,6 +53,7 @@ type Grade = 'complete' | 'incomplete' | null
 interface SubmissionInfo {
   status: SubmissionStatus
   grade: Grade
+  hasComments?: boolean
 }
 
 interface Props {
@@ -712,13 +713,11 @@ export default function ResourceOutline({
                                 </div>
                               </div>
                             ) : (
-                              <Link
+                              <div
                                 key={a.id}
-                                href={assignmentHref(a.id)}
-                                prefetch={true}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
                               >
-                                <div className="flex-1 min-w-0">
+                                <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
                                   {a.due_date && (() => {
                                     const isPast = new Date(a.due_date) < new Date()
@@ -730,11 +729,25 @@ export default function ResourceOutline({
                                       </p>
                                     )
                                   })()}
+                                </Link>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {submissionMap?.[a.id]?.hasComments && (
+                                    <Link
+                                      href={`${assignmentHref(a.id)}#comments`}
+                                      prefetch={false}
+                                      title="View instructor comment"
+                                      className="text-teal-primary hover:text-teal-primary/70 transition-colors"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                      </svg>
+                                    </Link>
+                                  )}
+                                  {submissionMap && (
+                                    <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} />
+                                  )}
                                 </div>
-                                {submissionMap && (
-                                  <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} />
-                                )}
-                              </Link>
+                              </div>
                             ))}
                           </div>
                         )}

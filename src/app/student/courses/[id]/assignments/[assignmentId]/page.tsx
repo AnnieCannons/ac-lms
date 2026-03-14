@@ -317,14 +317,16 @@ export default async function StudentAssignmentPage({
 
           {/* Comments (only shown once there's a submission) */}
           {existingSubmission && (
-            <SubmissionComments
-              submissionId={existingSubmission.id}
-              initialComments={initialComments}
-              currentUserId={user.id}
-              currentUserName={profile?.name ?? 'Student'}
-              currentUserRole={profile?.role ?? 'student'}
-              isObserver={isObserver}
-            />
+            <div id="comments">
+              <SubmissionComments
+                submissionId={existingSubmission.id}
+                initialComments={initialComments}
+                currentUserId={user.id}
+                currentUserName={profile?.name ?? 'Student'}
+                currentUserRole={profile?.role ?? 'student'}
+                isObserver={isObserver}
+              />
+            </div>
           )}
         </div>
       </main>

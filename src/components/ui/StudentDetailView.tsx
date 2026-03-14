@@ -247,14 +247,16 @@ export default function StudentDetailView({
                       <div className="flex items-center gap-2 shrink-0">
                         {canSpeedGrade && (
                           <>
-                            <button
-                              type="button"
-                              disabled={isGrading}
-                              onClick={() => grade(a, 'complete')}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg border status-complete-btn disabled:opacity-50 transition-colors"
-                            >
-                              {isGrading ? '…' : '✓ Complete'}
-                            </button>
+                            {activeCategory === 'incomplete' && (
+                              <button
+                                type="button"
+                                disabled={isGrading}
+                                onClick={() => grade(a, 'complete')}
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg border status-complete-btn disabled:opacity-50 transition-colors"
+                              >
+                                {isGrading ? '…' : '✓ Complete'}
+                              </button>
+                            )}
                             {activeCategory === 'submitted' && (
                               <button
                                 type="button"

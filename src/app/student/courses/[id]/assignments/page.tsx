@@ -81,11 +81,25 @@ export default async function StudentAssignmentsPage({
   const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
   const { data: submissions } = await fetchClient
     .from('submissions')
-    .select('assignment_id, status, grade')
+    .select('id, assignment_id, status, grade')
     .eq('student_id', effectiveUserId)
 
+  const submissionIds = (submissions ?? []).map(s => s.id)
+  const { data: commentedSubs } = submissionIds.length > 0
+    ? await fetchClient
+        .from('submission_comments')
+        .select('submission_id')
+        .in('submission_id', submissionIds)
+    : { data: [] }
+
+  const commentedSubIds = new Set((commentedSubs ?? []).map(c => c.submission_id))
+
   const submissionMap = Object.fromEntries(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
+    (submissions ?? []).map(s => [s.assignment_id, {
+      status: s.status,
+      grade: s.grade ?? null,
+      hasComments: commentedSubIds.has(s.id),
+    }])
   )
 
   const displayName = impersonation?.studentName ?? profile?.name
