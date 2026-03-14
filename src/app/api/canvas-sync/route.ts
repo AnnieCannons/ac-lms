@@ -70,9 +70,10 @@ async function fetchSubmissionsPage(courseId: string, sinceParam: string, since:
   const results: CanvasSubmission[] = []
   let url: string | null =
     `/api/v1/courses/${courseId}/submissions` +
-    `?include[]=submission_comments&include[]=attachments` +
+    `?student_ids[]=all` +
+    `&include[]=submission_comments&include[]=attachments` +
     `&${sinceParam}=${encodeURIComponent(since)}` +
-    `&enrollment_type=student&per_page=100`
+    `&per_page=100`
 
   while (url) {
     const res = await canvasFetch(url)
