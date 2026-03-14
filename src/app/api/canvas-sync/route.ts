@@ -69,7 +69,7 @@ async function canvasFetch(path: string): Promise<Response> {
 async function fetchSubmissionsPage(courseId: string, sinceParam: string, since: string): Promise<CanvasSubmission[]> {
   const results: CanvasSubmission[] = []
   let url: string | null =
-    `/api/v1/courses/${courseId}/submissions` +
+    `/api/v1/courses/${courseId}/students/submissions` +
     `?student_ids[]=all` +
     `&include[]=submission_comments&include[]=attachments` +
     `&${sinceParam}=${encodeURIComponent(since)}` +
