@@ -14,6 +14,10 @@ import { normalizeUrl } from '@/lib/url'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 function SubmissionContent({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <p className="text-muted-text italic text-sm">No content</p>
   if (type === 'file') {
@@ -27,7 +31,14 @@ function SubmissionContent({ type, content }: { type: SubmissionType; content: s
       </a>
     )
   }
-  return <p className="text-sm text-dark-text whitespace-pre-wrap break-words">{content}</p>
+  // Strip HTML (Canvas syncs body as HTML); if result is a URL render as link
+  const text = content.includes('<') ? stripHtml(content) : content
+  try {
+    new URL(text)
+    return <a href={text} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all text-sm">{text}</a>
+  } catch {
+    return <p className="text-sm text-dark-text whitespace-pre-wrap break-words">{text}</p>
+  }
 }
 
 export default async function GradingPage({

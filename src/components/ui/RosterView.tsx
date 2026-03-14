@@ -377,7 +377,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                 setOpenPopover(null)
                 setAddMenuOpen(p => p === student.userId ? null : student.userId)
               }}
-              className="w-6 h-6 rounded-full bg-border/60 hover:bg-teal-light/60 text-muted-text hover:text-teal-primary text-sm font-bold flex items-center justify-center transition-colors leading-none"
+              className="w-6 h-6 rounded-full bg-surface border border-border hover:bg-teal-light hover:border-teal-primary text-muted-text hover:text-teal-primary text-sm font-bold flex items-center justify-center transition-colors leading-none"
               title="Add accommodation"
             >
               +
