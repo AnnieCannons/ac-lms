@@ -22,7 +22,7 @@ export default function Roster() {
         shows a breakdown of their assignment status across the entire course:
       </DocP>
       <DocList>
-        <li><strong>Missing</strong> — assignments that are past due with no submission</li>
+        <li><strong>Missing</strong> — past-due assignments with no submission; only counts assignments that were tracked in Canvas (so the count matches what Canvas would report)</li>
         <li><strong>Late</strong> — submissions received after the due date</li>
         <li><strong>Needs Grading</strong> — submitted but not yet graded</li>
         <li><strong>Needs Revision</strong> — graded as incomplete; student should revise</li>
@@ -30,7 +30,9 @@ export default function Roster() {
       </DocList>
       <DocP>
         Click any stat card to expand the assignment list for that category. The progress line at the top
-        (&ldquo;X / Y assignments complete&rdquo;) updates in real time as you grade.
+        (&ldquo;X / Y assignments complete&rdquo;) updates in real time as you grade. The denominator reflects all
+        published assignments that have an active status (missing, submitted, needing revision, or complete) — it
+        excludes assignments the student hasn&apos;t interacted with yet that aren&apos;t past due.
       </DocP>
 
       <DocH2>Speed Grading from the Student Detail View</DocH2>
@@ -54,10 +56,16 @@ export default function Roster() {
         but are labeled with their observer role.
       </DocP>
 
-      <DocH2>Linking from Roster to Student Detail</DocH2>
+      <DocH2>Accessing Student Detail</DocH2>
       <DocP>
-        Student names on the roster page are clickable links that open the student detail view at
-        <strong> /roster/[student-id]</strong>. You can share this URL directly with another instructor or TA.
+        Student names are clickable links that open the student detail view from two places:
+      </DocP>
+      <DocList>
+        <li><strong>Roster page</strong> — click any student name in the accommodation roster</li>
+        <li><strong>Grades → By Student tab</strong> — click any student name in the course-wide grades view</li>
+      </DocList>
+      <DocP>
+        The URL is <strong>/roster/[student-id]</strong> and can be shared directly with another instructor or TA.
       </DocP>
     </>
   )

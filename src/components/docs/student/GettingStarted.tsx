@@ -12,6 +12,7 @@ export default function GettingStarted() {
         will have provided your credentials when you enrolled.
       </DocP>
       <DocTip>
+        Use the <strong>show/hide password</strong> eye icon on the login page to reveal your password as you type.
         Bookmark the login page so you can return quickly. If you forget your password, contact your instructor or admin.
       </DocTip>
 

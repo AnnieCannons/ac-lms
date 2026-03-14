@@ -54,7 +54,7 @@ export default function Assignments() {
       <DocP>The grades view has two tabs:</DocP>
       <DocList>
         <li><strong>By Assignment</strong> — all assignments grouped by module, each showing turned-in count, ungraded badge, and complete/incomplete breakdown</li>
-        <li><strong>By Student</strong> — each student with their missing, needs-grading, incomplete, and complete counts; click any count to expand the assignment list inline</li>
+        <li><strong>By Student</strong> — each student with their missing, needs-grading, incomplete, and complete counts; click any count to expand the assignment list inline; click a student&apos;s name to open their full detail view</li>
       </DocList>
       <DocTip>
         Click the <strong>N need grading</strong> button (top right) to open the <strong>Speed Grader</strong> — a

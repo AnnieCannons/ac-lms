@@ -78,6 +78,17 @@ export default function Assignments() {
         Every time you submit, the previous submission is saved. You can view your submission history by scrolling to the
         bottom of the assignment page. This lets you track your progress and see what changed between submissions.
       </DocP>
+
+      <DocH2>Historical Submissions from Canvas</DocH2>
+      <DocP>
+        If your program previously used Canvas, your past submissions and instructor comments have been imported into the
+        LMS. They appear in the submission history section of each assignment page — you can review your earlier work and
+        any feedback you received at any time.
+      </DocP>
+      <DocTip>
+        If you expect to see a past submission but don&apos;t, check that you are viewing the correct course and
+        assignment. Contact your instructor if something appears to be missing.
+      </DocTip>
     </>
   )
 }
