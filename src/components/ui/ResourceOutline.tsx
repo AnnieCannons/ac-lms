@@ -66,13 +66,20 @@ interface Props {
   initialCompletedIds?: string[]
 }
 
-const SKIP_DAYS = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
+const SKIP_DAYS_RESOURCES   = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
+const SKIP_DAYS_ASSIGNMENTS = new Set(['Resources', 'Wiki', 'Links'])
 
-function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
+function isBonusLike(title?: string, isBonus?: boolean) {
+  return isBonus || !!title?.toUpperCase().includes('BONUS')
+}
+
+function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
   const isLate = !!dueDate && new Date(dueDate) < new Date()
   if (info?.grade === 'complete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-green-600/20 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
   if (info?.grade === 'incomplete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
   if (info?.status === 'submitted') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
+  // Bonus assignments: no status badge
+  if (isBonusLike(title, isBonus)) return null
   // not started (no submission or draft) — show both Late + Not Started if past due
   return (
     <div className="flex items-center gap-1.5">
@@ -352,12 +359,14 @@ const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string
   'complete':       { inactive: 'bg-green-600/20 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
 }
 
-function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null): boolean {
+function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean): boolean {
   const info = map[id]
   if (filter === 'all') return true
   if (filter === 'complete') return info?.grade === 'complete'
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
+  // Bonus/no-due-date assignments can't be Late or Not Started
+  if (isBonusLike(title, isBonus) && (filter === 'late' || filter === 'not-started')) return false
   const isLate = !!dueDate && new Date(dueDate) < new Date()
   if (filter === 'late') return isLate && (!info || (info.status === 'draft' && !info.grade))
   if (filter === 'not-started') {
@@ -396,6 +405,7 @@ export default function ResourceOutline({
     return new Set()
   })
   const [filter, setFilter] = useState<AssignmentFilter>('all')
+  const [search, setSearch] = useState('')
 
   // Save whenever collapse state changes
   useEffect(() => {
@@ -453,6 +463,8 @@ export default function ResourceOutline({
     return a.order - b.order
   })
 
+  const searchQ = search.trim().toLowerCase()
+
   const allPublishedAssignments = sorted.flatMap(m =>
     m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published))
   )
@@ -461,19 +473,26 @@ export default function ResourceOutline({
     ? Object.fromEntries(FILTERS.map(f => [
         f.key,
         f.key === 'all'
-          ? allPublishedAssignments.length
-          : allPublishedAssignments.filter(a => matchesFilter(a.id, f.key, submissionMap, a.due_date)).length,
+          ? allPublishedAssignments.filter(a => !searchQ || a.title.toLowerCase().includes(searchQ)).length
+          : allPublishedAssignments.filter(a =>
+              matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title) &&
+              (!searchQ || a.title.toLowerCase().includes(searchQ))
+            ).length,
       ])) as Record<AssignmentFilter, number>
     : null
 
+  const skipDays = mode === 'assignments' ? SKIP_DAYS_ASSIGNMENTS : SKIP_DAYS_RESOURCES
+
   const modulesWithContent = sorted.filter(m =>
     m.module_days.some(d => {
-      if (SKIP_DAYS.has(d.day_name)) return false
+      if (skipDays.has(d.day_name)) return false
       if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
       if (instructorView) return true
-      const pub = (d.assignments ?? []).filter(a => a.published)
+      const pub = (d.assignments ?? []).filter(a =>
+        a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
+      )
       if (!submissionMap || filter === 'all') return pub.length > 0
-      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date))
+      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title))
     })
   )
 
@@ -494,34 +513,56 @@ export default function ResourceOutline({
 
   const studentActions = !editable && !instructorView
 
+  const filterBar = filterCounts ? (
+    <>
+      {mode === 'assignments' && !instructorView && (
+        <div className="relative mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => { setSearch(e.target.value); if (e.target.value) expandAll() }}
+            placeholder="Search assignments…"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          />
+        </div>
+      )}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {FILTERS.map(f => {
+          const active = filter === f.key
+          const styles = FILTER_STYLES[f.key]
+          return (
+            <button key={f.key} type="button" onClick={() => changeFilter(f.key)}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
+            >
+              {f.label}
+              <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>{filterCounts[f.key]}</span>
+            </button>
+          )
+        })}
+      </div>
+    </>
+  ) : null
+
   if (modulesWithContent.length === 0) {
     return (
       <>
-        {filterCounts && (
-          <div className="flex gap-2 mb-6 flex-wrap">
-            {FILTERS.map(f => {
-              const active = filter === f.key
-              const styles = FILTER_STYLES[f.key]
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => changeFilter(f.key)}
-                  className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
-                >
-                  {f.label}
-                  <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>
-                    {filterCounts[f.key]}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
+        {filterBar}
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">
           <p className="text-muted-text">
             {filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
           </p>
+          {filter !== 'all' && (
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className="mt-3 text-sm text-teal-primary hover:underline"
+            >
+              View all assignments
+            </button>
+          )}
         </div>
       </>
     )
@@ -529,27 +570,7 @@ export default function ResourceOutline({
 
   return (
     <>
-      {filterCounts && (
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {FILTERS.map(f => {
-            const active = filter === f.key
-            const styles = FILTER_STYLES[f.key]
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => changeFilter(f.key)}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
-              >
-                {f.label}
-                <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>
-                  {filterCounts[f.key]}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {filterBar}
       <div className="flex justify-end mb-4">
         <button
           type="button"
@@ -565,13 +586,15 @@ export default function ResourceOutline({
           const days = [...module.module_days]
             .sort((a, b) => a.order - b.order)
             .filter(d => {
-              if (SKIP_DAYS.has(d.day_name)) return false
+              if (skipDays.has(d.day_name)) return false
               if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
               if (instructorView) return true
-              const pub = (d.assignments ?? []).filter(a => a.published)
+              const pub = (d.assignments ?? []).filter(a =>
+                a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
+              )
               if (!submissionMap) return pub.length > 0
-              if (filter === 'all') return true // show all days in student view, even empty ones
-              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date))
+              if (filter === 'all') return pub.length > 0
+              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title))
             })
 
           if (days.length === 0) return null
@@ -596,7 +619,9 @@ export default function ResourceOutline({
                     const visibleAssignments = (day.assignments ?? []).filter(a =>
                       instructorView
                         ? true
-                        : (a.published && (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date)))
+                        : (a.published &&
+                           (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
+                           (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title)))
                     )
                     return (
                       <div key={day.id}>
@@ -695,14 +720,19 @@ export default function ResourceOutline({
                               >
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                                  {a.due_date && (
-                                    <p className="text-xs text-muted-text mt-0.5">
-                                      Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                    </p>
-                                  )}
+                                  {a.due_date && (() => {
+                                    const isPast = new Date(a.due_date) < new Date()
+                                    const info = submissionMap?.[a.id]
+                                    const isResolved = info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
+                                    return (
+                                      <p className={`text-xs font-medium mt-0.5 ${isPast && !isResolved ? 'text-amber-600' : 'text-muted-text'}`}>
+                                        Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                      </p>
+                                    )
+                                  })()}
                                 </div>
                                 {submissionMap && (
-                                  <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} />
+                                  <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} />
                                 )}
                               </Link>
                             ))}

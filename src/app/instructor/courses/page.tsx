@@ -40,7 +40,7 @@ export default async function CoursesPage() {
     const allCourseIds = [...new Set((enrollments ?? []).map(e => e.course_id))]
     const { data: coursesData } = await admin
       .from('courses')
-      .select('id, name, start_date')
+      .select('id, name, start_date, end_date')
       .in('id', allCourseIds)
 
     const courseMap = Object.fromEntries((coursesData ?? []).map(c => [c.id, c]))
@@ -56,15 +56,16 @@ export default async function CoursesPage() {
       ...[...studentCourseIds].map(id => ({ ...courseMap[id], enrollmentRole: 'student' as const })),
     ].filter(r => r.id)
 
-    const isCurrentCourse = (startDate: string | null | undefined) => {
+    const isCurrentCourse = (startDate: string | null | undefined, endDate?: string | null) => {
       if (!startDate) return false
       const start = new Date(startDate).getTime()
-      return Date.now() >= start && Date.now() <= start + 105 * 24 * 60 * 60 * 1000
+      const end = endDate ? new Date(endDate).getTime() : start + 105 * 24 * 60 * 60 * 1000
+      return Date.now() >= start && Date.now() <= end
     }
 
     const sortedRows = [...rows].sort((a, b) => {
-      const aC = isCurrentCourse((a as typeof a & { start_date?: string }).start_date) ? 0 : 1
-      const bC = isCurrentCourse((b as typeof b & { start_date?: string }).start_date) ? 0 : 1
+      const aC = isCurrentCourse((a as typeof a & { start_date?: string; end_date?: string }).start_date, (a as typeof a & { end_date?: string }).end_date) ? 0 : 1
+      const bC = isCurrentCourse((b as typeof b & { start_date?: string; end_date?: string }).start_date, (b as typeof b & { end_date?: string }).end_date) ? 0 : 1
       return aC - bC
     })
 
@@ -79,7 +80,7 @@ export default async function CoursesPage() {
 
           <div className="flex flex-col gap-4">
             {sortedRows.map(course => {
-              const current = isCurrentCourse((course as typeof course & { start_date?: string }).start_date)
+              const current = isCurrentCourse((course as typeof course & { start_date?: string; end_date?: string }).start_date, (course as typeof course & { end_date?: string }).end_date)
               return (
               <div
                 key={course.id}
@@ -118,15 +119,16 @@ export default async function CoursesPage() {
     .select('*')
     .order('created_at', { ascending: false })
 
-  const isCurrentCourse = (startDate: string | null | undefined, isTemplate: boolean) => {
+  const isCurrentCourse = (startDate: string | null | undefined, isTemplate: boolean, endDate?: string | null) => {
     if (!startDate || isTemplate) return false
     const start = new Date(startDate).getTime()
-    return Date.now() >= start && Date.now() <= start + 105 * 24 * 60 * 60 * 1000
+    const end = endDate ? new Date(endDate).getTime() : start + 105 * 24 * 60 * 60 * 1000
+    return Date.now() >= start && Date.now() <= end
   }
 
   const courses = [...(rawCourses ?? [])].sort((a, b) => {
-    const aC = isCurrentCourse(a.start_date, a.is_template) ? 0 : 1
-    const bC = isCurrentCourse(b.start_date, b.is_template) ? 0 : 1
+    const aC = isCurrentCourse(a.start_date, a.is_template, a.end_date) ? 0 : 1
+    const bC = isCurrentCourse(b.start_date, b.is_template, b.end_date) ? 0 : 1
     return aC - bC
   })
 
@@ -156,7 +158,7 @@ export default async function CoursesPage() {
                   <Link href={`/instructor/courses/${course.id}`} className="font-semibold text-dark-text">
                     {course.name}
                   </Link>
-                  {isCurrentCourse(course.start_date, course.is_template) && (
+                  {isCurrentCourse(course.start_date, course.is_template, course.end_date) && (
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-current shrink-0">Current</span>
                   )}
                   {course.start_date && (

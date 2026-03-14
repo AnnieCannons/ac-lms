@@ -58,14 +58,16 @@ export default async function StudentAssignmentsPage({
     .eq('published', true)
     .order('order', { ascending: true })
 
-  // Filter bonus assignments out of the assignments list (they belong to Level Up only)
-  const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH')).map(m => ({
-    ...m,
-    module_days: (m.module_days ?? []).map((d: { id: string; day_name: string; order: number; assignments?: Array<{ id: string; title: string; due_date: string | null; published: boolean; is_bonus?: boolean }> }) => ({
-      ...d,
-      assignments: (d.assignments ?? []).filter((a) => !a.is_bonus),
-    })),
-  }))
+  // Filter bonus assignments out — they belong to Level Up only
+  const modules = (rawModules ?? [])
+    .filter(m => !m.title?.includes('DO NOT PUBLISH'))
+    .map(m => ({
+      ...m,
+      module_days: (m.module_days ?? []).map((d: { id: string; day_name: string; order: number; assignments?: Array<{ id: string; title: string; due_date: string | null; published: boolean; is_bonus?: boolean }> }) => ({
+        ...d,
+        assignments: (d.assignments ?? []).filter((a) => !a.is_bonus && a.published),
+      })),
+    }))
 
   const { data: submissions } = await supabase
     .from('submissions')
@@ -95,7 +97,7 @@ export default async function StudentAssignmentsPage({
             </div>
 
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-dark-text mb-1">Assignments</h1>
+              <h1 className="text-2xl font-bold text-dark-text mb-1">Grades</h1>
               <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 

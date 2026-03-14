@@ -37,16 +37,16 @@ export default async function StudentCoursesPage() {
         .order('name', { ascending: true })
     : { data: [] }
 
-  function isCurrent(startDate: string | null | undefined): boolean {
+  function isCurrent(startDate: string | null | undefined, endDate?: string | null): boolean {
     if (!startDate) return false
     const start = new Date(startDate).getTime()
-    const end = start + 105 * 24 * 60 * 60 * 1000 // 15 weeks
+    const end = endDate ? new Date(endDate).getTime() : start + 105 * 24 * 60 * 60 * 1000
     return Date.now() >= start && Date.now() <= end
   }
 
   const sortedCourses = [...(courses ?? [])].sort((a, b) => {
-    const aC = isCurrent(a.start_date) ? 0 : 1
-    const bC = isCurrent(b.start_date) ? 0 : 1
+    const aC = isCurrent(a.start_date, a.end_date) ? 0 : 1
+    const bC = isCurrent(b.start_date, b.end_date) ? 0 : 1
     if (aC !== bC) return aC - bC
     return a.name.localeCompare(b.name)
   })
@@ -68,7 +68,7 @@ export default async function StudentCoursesPage() {
             {sortedCourses.map(course => {
               const enrollmentRole = enrollmentRoleMap[course.id]
               const isTa = enrollmentRole === 'ta'
-              const current = isCurrent(course.start_date)
+              const current = isCurrent(course.start_date, course.end_date)
               return (
                 <div
                   key={course.id}

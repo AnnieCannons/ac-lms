@@ -42,6 +42,7 @@ type Assignment = {
   how_to_turn_in?: string | null;
   module_day_id: string;
   published: boolean;
+  is_bonus: boolean;
   order: number;
 };
 
@@ -454,6 +455,7 @@ function AssignmentFullView({
   onEdit,
   onDelete,
   onTogglePublished,
+  onToggleBonus,
   defaultTemplateId,
 }: {
   view: ActiveView;
@@ -463,6 +465,7 @@ function AssignmentFullView({
   onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
   onDelete: (id: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
+  onToggleBonus: (id: string, current: boolean) => void;
   defaultTemplateId?: string;
 }) {
   const supabase = createClient();
@@ -666,22 +669,35 @@ function AssignmentFullView({
           >
             ← Back to assignments
           </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {view.mode === "view" && !editing && assignment && (
-              <button
-                onClick={() => onTogglePublished(assignment.id, assignment.published)}
-                className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
-                  assignment.published
-                    ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
-                    : "border-[#3d2260] text-[#7a5299] hover:border-[#a888c8] hover:text-[#c4a8df]"
-                }`}
-                type="button"
-              >
-                {assignment.published ? "● Published" : "○ Unpublished"}
-              </button>
+              <>
+                <button
+                  onClick={() => onToggleBonus(assignment.id, assignment.is_bonus)}
+                  className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
+                    assignment.is_bonus
+                      ? "border-purple-primary text-purple-primary bg-purple-light/20 hover:bg-purple-primary hover:text-white"
+                      : "border-[#6b4c8a] text-[#c4a8df] hover:border-purple-primary hover:text-white"
+                  }`}
+                  type="button"
+                >
+                  {assignment.is_bonus ? "★ Bonus" : "Bonus?"}
+                </button>
+                <button
+                  onClick={() => onTogglePublished(assignment.id, assignment.published)}
+                  className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
+                    assignment.published
+                      ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                      : "border-[#6b4c8a] text-[#c4a8df] hover:border-[#a888c8] hover:text-white"
+                  }`}
+                  type="button"
+                >
+                  {assignment.published ? "● Published" : "○ Draft"}
+                </button>
+              </>
             )}
             {view.mode === "view" && !editing && (
-              <button onClick={handleDelete} className="text-xs text-[#3d2260] hover:text-red-400 transition-colors" type="button">
+              <button onClick={handleDelete} className="text-xs text-[#7a5299] hover:text-red-400 transition-colors" type="button">
                 Delete assignment
               </button>
             )}
@@ -848,7 +864,7 @@ function AssignmentFullView({
                   <button type="button" onClick={startEditing} className="text-xs text-[#7a5299] hover:text-[#c4a8df] transition-colors">✎ Edit checklist</button>
                 </div>
                 {checklistItems.length === 0 ? (
-                  <p className="text-sm text-[#5a3378] italic">No checklist for this assignment.</p>
+                  <p className="text-sm text-[#9b7fc0] italic">No checklist for this assignment.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {checklistItems.map(item => (
@@ -2998,6 +3014,31 @@ export default function CourseEditor({
         })),
       }))
     );
+    setActiveView((prev) =>
+      prev?.mode === "view" && prev.assignment.id === assignmentId
+        ? { ...prev, assignment: { ...prev.assignment, published: !current } }
+        : prev
+    );
+  };
+
+  const toggleBonus = async (assignmentId: string, current: boolean) => {
+    await supabase.from("assignments").update({ is_bonus: !current }).eq("id", assignmentId);
+    setModules((prev) =>
+      prev.map((m) => ({
+        ...m,
+        module_days: m.module_days.map((d) => ({
+          ...d,
+          assignments: (d.assignments ?? []).map((a) =>
+            a.id === assignmentId ? { ...a, is_bonus: !current } : a
+          ),
+        })),
+      }))
+    );
+    setActiveView((prev) =>
+      prev?.mode === "view" && prev.assignment.id === assignmentId
+        ? { ...prev, assignment: { ...prev.assignment, is_bonus: !current } }
+        : prev
+    );
   };
 
   const deleteAssignment = async (assignmentId: string) => {
@@ -3155,6 +3196,7 @@ export default function CourseEditor({
           onEdit={updateAssignment}
           onDelete={deleteAssignment}
           onTogglePublished={togglePublished}
+          onToggleBonus={toggleBonus}
           defaultTemplateId={defaultTemplateId}
         />
       )}
