@@ -148,7 +148,10 @@ export async function GET(req: NextRequest) {
   )
 
   // Optional ?since=<ISO_DATE> override for manual backfills (e.g. ?since=2026-01-01)
-  const sinceOverride = req.nextUrl.searchParams.get('since')
+  const rawSince = req.nextUrl.searchParams.get('since')
+  const sinceOverride = rawSince
+    ? (rawSince.includes('T') ? rawSince : `${rawSince}T00:00:00Z`)
+    : null
 
   const stats = { submissions: 0, comments: 0, errors: 0 }
 
