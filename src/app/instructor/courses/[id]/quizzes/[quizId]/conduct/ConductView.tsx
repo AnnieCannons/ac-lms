@@ -21,13 +21,14 @@ type ProgressEntry = {
 
 type Props = {
   quizId: string;
+  courseId: string;
   students: Student[];
   initialSubmissions: Submission[];
   initialProgress: ProgressEntry[];
   totalQuestions: number;
 };
 
-export default function ConductView({ quizId, students, initialSubmissions, initialProgress, totalQuestions }: Props) {
+export default function ConductView({ quizId, courseId, students, initialSubmissions, initialProgress, totalQuestions }: Props) {
   const [submissions, setSubmissions] = useState<Submission[]>(initialSubmissions);
   const [progress, setProgress] = useState<ProgressEntry[]>(initialProgress);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
@@ -37,7 +38,7 @@ export default function ConductView({ quizId, students, initialSubmissions, init
   const refresh = async () => {
     setRefreshing(true);
     try {
-      const data = await getConductSubmissions(quizId);
+      const data = await getConductSubmissions(quizId, courseId);
       setSubmissions(data.submissions);
       setProgress(data.progress);
       setLastRefreshed(new Date());

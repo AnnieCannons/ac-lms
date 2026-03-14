@@ -178,16 +178,16 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
           onSaved?.(saved as QuizRow);
           // day_title not in upsertQuizFromJson — save separately after we have a real id
           if ("day_title" in updates) {
-            await updateQuizDay((saved as QuizRow).id, updates.day_title ?? null);
+            await updateQuizDay((saved as QuizRow).id, courseId, updates.day_title ?? null);
           }
         }
       } else {
         const { day_title, ...metaUpdates } = updates;
         if (Object.keys(metaUpdates).length > 0) {
-          await updateQuizMeta(quiz.id, metaUpdates);
+          await updateQuizMeta(quiz.id, courseId, metaUpdates);
         }
         if ("day_title" in updates) {
-          await updateQuizDay(quiz.id, day_title ?? null);
+          await updateQuizDay(quiz.id, courseId, day_title ?? null);
         }
         onSaved?.({ ...quiz, ...updates, day_title: "day_title" in updates ? (updates.day_title ?? null) : (quiz.day_title ?? null) } as QuizRow);
       }
@@ -220,7 +220,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
         });
         if (saved) onSaved?.(saved as QuizRow);
       } else {
-        await toggleQuizPublished(quiz.id, !quiz.published);
+        await toggleQuizPublished(quiz.id, courseId, !quiz.published);
         onSaved?.({ ...quiz, published: !quiz.published });
       }
     } catch (err) {
@@ -236,7 +236,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
     setSaving(true);
     try {
       if (!fromJsonOnly) {
-        await deleteQuiz(quiz.id);
+        await deleteQuiz(quiz.id, courseId);
       }
       onDeleted?.(quiz.id);
       onClose();
@@ -263,7 +263,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
         if (saved) onSaved?.(saved as QuizRow);
         setEditingQuestions(false);
       } else {
-        await updateQuizQuestions(quiz.id, editQuestions);
+        await updateQuizQuestions(quiz.id, courseId, editQuestions);
         onSaved?.({ ...quiz, questions: editQuestions });
         setEditingQuestions(false);
       }

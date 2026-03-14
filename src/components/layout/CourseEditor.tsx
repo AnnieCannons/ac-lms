@@ -1899,7 +1899,7 @@ function SortableDay({
                             const newPublished = !quiz.published;
                             setQuizzes(prev => prev.map(q => q.id === quiz.id ? { ...q, published: newPublished } : q));
                             try {
-                              await toggleQuizPublished(quiz.id, newPublished);
+                              await toggleQuizPublished(quiz.id, courseId, newPublished);
                             } catch {
                               setQuizzes(prev => prev.map(q => q.id === quiz.id ? quiz : q));
                             }

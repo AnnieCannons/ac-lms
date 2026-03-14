@@ -113,6 +113,7 @@ export default async function ConductQuizPage({
 
             <ConductView
               quizId={quizId}
+              courseId={id}
               students={students}
               initialSubmissions={submissionsRaw ?? []}
               initialProgress={initialProgress}

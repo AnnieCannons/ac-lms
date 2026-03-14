@@ -60,12 +60,28 @@ export async function bulkAssignStudentGraders(
 
 export async function setAssignmentGrader(
   assignmentId: string,
-  graderId: string | null
+  graderId: string | null,
+  courseId: string
 ): Promise<{ error?: string; success?: boolean }> {
   const auth = await getAuthedInstructor()
   if ('error' in auth) return { error: auth.error }
 
   const admin = createServiceSupabaseClient()
+
+  // Verify the assignment belongs to this course via module_days → modules → course_id
+  const { data: check } = await admin
+    .from('assignments')
+    .select('id, module_days!module_day_id(modules!module_id(course_id))')
+    .eq('id', assignmentId)
+    .single()
+
+  // Supabase returns nested FK as arrays; extract course_id from the join
+  const days = check?.module_days as unknown as Array<{ modules: { course_id: string } | { course_id: string }[] }> | null
+  const firstDay = Array.isArray(days) ? days[0] : null
+  const mod = firstDay?.modules
+  const assignmentCourseId = mod ? (Array.isArray(mod) ? mod[0]?.course_id : mod.course_id) : null
+  if (assignmentCourseId !== courseId) return { error: 'Assignment not found in this course' }
+
   const { error } = await admin
     .from('assignments')
     .update({ grader_id: graderId })

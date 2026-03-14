@@ -68,6 +68,7 @@ export async function createQuiz(courseId: string) {
 
 export async function updateQuizMeta(
   quizId: string,
+  courseId: string,
   updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null }
 ) {
   await getInstructorSession();
@@ -75,43 +76,51 @@ export async function updateQuizMeta(
   const { error } = await admin
     .from("quizzes")
     .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", quizId);
+    .eq("id", quizId)
+    .eq("course_id", courseId);
   if (error) throw new Error(error.message);
 }
 
-export async function updateQuizQuestions(quizId: string, questions: QuizQuestion[]) {
+export async function updateQuizQuestions(quizId: string, courseId: string, questions: QuizQuestion[]) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
     .update({ questions, updated_at: new Date().toISOString() })
-    .eq("id", quizId);
+    .eq("id", quizId)
+    .eq("course_id", courseId);
   if (error) throw new Error(error.message);
 }
 
-export async function toggleQuizPublished(quizId: string, published: boolean) {
+export async function toggleQuizPublished(quizId: string, courseId: string, published: boolean) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
     .update({ published, updated_at: new Date().toISOString() })
-    .eq("id", quizId);
+    .eq("id", quizId)
+    .eq("course_id", courseId);
   if (error) throw new Error(error.message);
 }
 
-export async function deleteQuiz(quizId: string) {
+export async function deleteQuiz(quizId: string, courseId: string) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
-  // Delete related records first
+  // Verify quiz belongs to this course before cascade-deleting
+  const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
+  if (!quiz) throw new Error("Quiz not found in this course");
   await admin.from("quiz_submissions").delete().eq("quiz_id", quizId);
   await admin.from("quiz_progress").delete().eq("quiz_id", quizId);
   const { error } = await admin.from("quizzes").delete().eq("id", quizId);
   if (error) throw new Error(error.message);
 }
 
-export async function getConductSubmissions(quizId: string) {
+export async function getConductSubmissions(quizId: string, courseId: string) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
+  // Verify quiz belongs to this course
+  const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
+  if (!quiz) throw new Error("Quiz not found in this course");
   const [{ data: submissions, error }, { data: progressRaw }] = await Promise.all([
     admin
       .from("quiz_submissions")
@@ -132,13 +141,14 @@ export async function getConductSubmissions(quizId: string) {
   return { submissions: submissions ?? [], progress };
 }
 
-export async function updateQuizDay(quizId: string, dayTitle: string | null) {
+export async function updateQuizDay(quizId: string, courseId: string, dayTitle: string | null) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
     .update({ day_title: dayTitle, updated_at: new Date().toISOString() })
-    .eq("id", quizId);
+    .eq("id", quizId)
+    .eq("course_id", courseId);
   if (error) throw new Error(error.message);
 }
 

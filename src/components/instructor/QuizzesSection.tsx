@@ -225,7 +225,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
           setLocalQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? (saved as QuizRow) : q)));
         }
       } else {
-        await toggleQuizPublished(quiz.id, newPublished);
+        await toggleQuizPublished(quiz.id, courseId, newPublished);
       }
     } catch {
       setLocalQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? quiz : q)));
@@ -237,7 +237,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
       prev.map((q) => (q.id === quiz.id ? { ...q, day_title: dayTitle } : q))
     );
     try {
-      await updateQuizDay(quiz.id, dayTitle);
+      await updateQuizDay(quiz.id, courseId, dayTitle);
     } catch {
       setLocalQuizzes((prev) =>
         prev.map((q) => (q.id === quiz.id ? quiz : q))

@@ -89,7 +89,7 @@ export default function GradingGroupsManager({
 
   function handleAssignmentGrader(assignmentId: string, graderId: string | null) {
     setAssignmentGraders(prev => ({ ...prev, [assignmentId]: graderId }))
-    startTransition(async () => { await setAssignmentGrader(assignmentId, graderId) })
+    startTransition(async () => { await setAssignmentGrader(assignmentId, graderId, courseId) })
   }
 
   const studentsForGrader = (graderId: string | null) =>

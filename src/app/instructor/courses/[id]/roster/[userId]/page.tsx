@@ -1,4 +1,5 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -12,17 +13,7 @@ export default async function StudentDetailPage({
 }) {
   const { id: courseId, userId } = await params
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') redirect('/unauthorized')
+  const { profile } = await getInstructorOrTaAccess(courseId)
 
   const admin = createServiceSupabaseClient()
 
