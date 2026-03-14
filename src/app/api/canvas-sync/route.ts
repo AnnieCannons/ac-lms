@@ -177,10 +177,12 @@ export async function GET(req: NextRequest) {
 
     // Fetch updated submissions from Canvas
     const canvasSubs = await fetchUpdatedSubmissions(canvasCourseId, since)
+    console.log(`Course ${canvasCourseId}: Canvas returned ${canvasSubs.length} submissions`)
 
+    let skippedQuiz = 0, skippedStudent = 0, skippedAssignment = 0
     for (const cs of canvasSubs) {
       // Skip quizzes
-      if (cs.submission_type === 'online_quiz') continue
+      if (cs.submission_type === 'online_quiz') { skippedQuiz++; continue }
 
       // Find student
       const { data: student } = await supabase
@@ -188,18 +190,15 @@ export async function GET(req: NextRequest) {
         .select('id')
         .eq('canvas_user_id', cs.user_id)
         .maybeSingle()
-      if (!student) continue
+      if (!student) { skippedStudent++; console.log(`  No student for canvas_user_id=${cs.user_id}`); continue }
 
-      // Find assignment by canvas assignment_id — first try a direct lookup,
-      // then fall back to title match via a separate Canvas API call if needed.
-      // For now: we join via a canvas_assignment_id we store (see note below).
-      // We store canvas_assignment_id on assignments to avoid repeated title lookups.
+      // Find assignment by canvas assignment_id
       const { data: assignment } = await supabase
         .from('assignments')
         .select('id')
         .eq('canvas_assignment_id', cs.assignment_id)
         .maybeSingle()
-      if (!assignment) continue
+      if (!assignment) { skippedAssignment++; console.log(`  No assignment for canvas_assignment_id=${cs.assignment_id}`); continue }
 
       const grade = mapGrade(cs)
       const status = cs.workflow_state === 'graded' ? 'graded' : 'submitted'
@@ -222,7 +221,7 @@ export async function GET(req: NextRequest) {
         .select('id')
         .single()
 
-      if (subErr || !upserted) { stats.errors++; continue }
+      if (subErr || !upserted) { stats.errors++; console.log(`  Upsert error: ${subErr?.message}`); continue }
       stats.submissions++
 
       // Sync comments
@@ -248,6 +247,8 @@ export async function GET(req: NextRequest) {
         if (!commentErr) stats.comments++
       }
     }
+
+    if (canvasSubs.length > 0) console.log(`Course ${canvasCourseId}: skipped quiz=${skippedQuiz} no-student=${skippedStudent} no-assignment=${skippedAssignment}`)
 
     // Update the since marker to now
     await supabase
