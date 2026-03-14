@@ -80,7 +80,8 @@ async function fetchUpdatedSubmissions(
   while (url) {
     const res = await canvasFetch(url)
     if (!res.ok) {
-      console.error(`Canvas API error ${res.status} for course ${courseId}`)
+      const body = await res.text().catch(() => '')
+      console.error(`Canvas API error ${res.status} for course ${courseId} — URL: ${CANVAS_BASE_URL}${url} — Body: ${body.slice(0, 300)}`)
       break
     }
     const page: CanvasSubmission[] = await res.json()
