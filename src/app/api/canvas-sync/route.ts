@@ -66,22 +66,19 @@ async function canvasFetch(path: string): Promise<Response> {
   })
 }
 
-async function fetchUpdatedSubmissions(
-  courseId: string,
-  since: string,
-): Promise<CanvasSubmission[]> {
+async function fetchSubmissionsPage(courseId: string, sinceParam: string, since: string): Promise<CanvasSubmission[]> {
   const results: CanvasSubmission[] = []
   let url: string | null =
     `/api/v1/courses/${courseId}/submissions` +
     `?include[]=submission_comments&include[]=attachments` +
-    `&submitted_since=${encodeURIComponent(since)}` +
+    `&${sinceParam}=${encodeURIComponent(since)}` +
     `&enrollment_type=student&per_page=100`
 
   while (url) {
     const res = await canvasFetch(url)
     if (!res.ok) {
       const body = await res.text().catch(() => '')
-      console.error(`Canvas API error ${res.status} for course ${courseId} — URL: ${CANVAS_BASE_URL}${url} — Body: ${body.slice(0, 300)}`)
+      console.error(`Canvas API error ${res.status} for course ${courseId} (${sinceParam}) — URL: ${CANVAS_BASE_URL}${url} — Body: ${body.slice(0, 300)}`)
       break
     }
     const page: CanvasSubmission[] = await res.json()
@@ -89,10 +86,27 @@ async function fetchUpdatedSubmissions(
 
     const link = res.headers.get('Link') ?? ''
     const next = link.match(/<([^>]+)>;\s*rel="next"/)
-    // next[1] is the full URL; strip the base for our canvasFetch helper
     url = next ? next[1].replace(CANVAS_BASE_URL, '') : null
   }
 
+  return results
+}
+
+async function fetchUpdatedSubmissions(
+  courseId: string,
+  since: string,
+): Promise<CanvasSubmission[]> {
+  // Fetch both recently-submitted AND recently-graded submissions, then deduplicate
+  const [submitted, graded] = await Promise.all([
+    fetchSubmissionsPage(courseId, 'submitted_since', since),
+    fetchSubmissionsPage(courseId, 'graded_since', since),
+  ])
+  // Deduplicate by Canvas submission id
+  const seen = new Set<number>()
+  const results: CanvasSubmission[] = []
+  for (const s of [...submitted, ...graded]) {
+    if (!seen.has(s.id)) { seen.add(s.id); results.push(s) }
+  }
   return results
 }
 
