@@ -8,6 +8,22 @@ import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 
+// Strip HTML tags (from Canvas-synced body text) and return clean text
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Render text content: strip HTML, and if the result is a URL render it as a link
+function TextContent({ content, className }: { content: string; className?: string }) {
+  const text = content.includes('<') ? stripHtml(content) : content
+  try {
+    new URL(text)
+    return <a href={text} target="_blank" rel="noopener noreferrer" className="text-sm text-teal-primary underline break-all">{text}</a>
+  } catch {
+    return <p className={className ?? "text-sm text-dark-text whitespace-pre-wrap break-words"}>{text}</p>
+  }
+}
+
 type SubmissionType = "text" | "link" | "file";
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Mode = "view" | "confirm-resubmit" | "edit";
@@ -344,7 +360,7 @@ export default function SubmissionForm({
                 {saved.content}
               </a>
             ) : (
-              <p className="text-sm text-dark-text whitespace-pre-wrap break-words">{saved.content}</p>
+              <TextContent content={saved.content} />
             )}
           </div>
 
@@ -398,7 +414,7 @@ export default function SubmissionForm({
                       {entry.content}
                     </a>
                   ) : (
-                    <p className="text-dark-text line-clamp-2 flex-1">{entry.content}</p>
+                    <TextContent content={entry.content ?? ''} className="text-dark-text line-clamp-2 flex-1" />
                   )}
                   {i === 0 && (
                     <span className="text-muted-text shrink-0">(latest)</span>

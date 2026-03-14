@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -8,6 +8,8 @@ import ResourceOutline from '@/components/ui/ResourceOutline'
 import PageRefresher from '@/components/ui/PageRefresher'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import { getImpersonation } from '@/lib/impersonate'
+import ImpersonateBanner from '@/components/ui/ImpersonateBanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,21 +29,27 @@ export default async function StudentAssignmentsPage({
     .eq('id', user.id)
     .single()
 
+  const impersonation = await getImpersonation()
   const preview = await isStudentPreview(id)
 
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
+  // Admins/instructors bypass to instructor view — unless previewing or impersonating
+  if (!preview && !impersonation && (profile?.role === 'instructor' || profile?.role === 'admin')) {
     redirect(`/instructor/courses/${id}`)
   }
 
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id, role')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer'])
-    .maybeSingle()
+  const effectiveUserId = impersonation?.userId ?? user.id
 
-  if (!preview && !enrollment) redirect('/student/courses')
+  // Enrollment check (bypassed when previewing or impersonating)
+  if (!preview && !impersonation) {
+    const { data: enrollment } = await supabase
+      .from('course_enrollments')
+      .select('id, role')
+      .eq('user_id', effectiveUserId)
+      .eq('course_id', id)
+      .in('role', ['student', 'observer'])
+      .maybeSingle()
+    if (!enrollment) redirect('/student/courses')
+  }
 
   const { data: course } = await supabase
     .from('courses')
@@ -69,18 +77,28 @@ export default async function StudentAssignmentsPage({
       })),
     }))
 
-  const { data: submissions } = await supabase
+  // Use service role when impersonating to bypass RLS
+  const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
+  const { data: submissions } = await fetchClient
     .from('submissions')
     .select('assignment_id, status, grade')
-    .eq('student_id', user.id)
+    .eq('student_id', effectiveUserId)
 
   const submissionMap = Object.fromEntries(
     (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
   )
 
+  const displayName = impersonation?.studentName ?? profile?.name
+
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
+      <StudentTopNav name={displayName} role={profile?.role} />
+      {impersonation && (
+        <ImpersonateBanner
+          studentName={impersonation.studentName}
+          returnPath={`/instructor/courses/${id}/roster`}
+        />
+      )}
       {preview && <StudentViewBanner courseId={id} />}
 
       <div className="flex">
