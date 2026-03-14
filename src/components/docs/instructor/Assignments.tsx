@@ -3,7 +3,7 @@ import { DocH2, DocH3, DocP, DocList, DocOL, DocTip, DocNote, DocStep } from '@/
 export default function Assignments() {
   return (
     <>
-      <h1 className="text-2xl font-bold text-dark-text mb-1">Assignments & Grading</h1>
+      <h1 className="text-2xl font-bold text-dark-text mb-1">Assignments &amp; Grading</h1>
       <p className="text-sm text-muted-text mb-8">Create assignments, review submissions, and leave feedback.</p>
 
       <DocH2>Creating an Assignment</DocH2>
@@ -21,17 +21,17 @@ export default function Assignments() {
       <DocP>The assignment editor has several sections:</DocP>
       <DocList>
         <li><strong>Instructions</strong> — rich-text field; supports formatting, code blocks, links, and images</li>
-        <li><strong>Checklist Items</strong> — add self-assessment criteria that students check off before submitting</li>
-        <li><strong>Submission Required</strong> — toggle on if students must upload a link/text/file; toggle off for completion-only assignments</li>
+        <li><strong>Checklist Items</strong> — self-assessment criteria students check off before submitting; helps them review their own work before turning it in</li>
+        <li><strong>Submission Required</strong> — toggle on if students must upload a link, text, or file; toggle off for completion-only assignments</li>
         <li><strong>Due Date</strong> — optional; shown to students on the assignment page and list</li>
-        <li><strong>Published</strong> — controls student visibility</li>
+        <li><strong>Published</strong> — controls student visibility; toggle on when the assignment is ready for students</li>
         <li><strong>Bonus</strong> — marks the assignment as a bonus (see Level Up below)</li>
         <li><strong>Skill Tags</strong> — pick from preset tags or add custom ones; shown to students as teal pills</li>
       </DocList>
 
       <DocTip>
-        Use the checklist to communicate rubric expectations. Students see the same checklist and check items off before
-        submitting, which helps them self-review before you grade.
+        Use the checklist to communicate rubric expectations clearly. Students see the same checklist and check items
+        off before submitting — this reduces ambiguity and helps students self-assess before you grade.
       </DocTip>
 
       <DocH2>Bonus Assignments &amp; Level Up</DocH2>
@@ -42,18 +42,18 @@ export default function Assignments() {
       <DocList>
         <li>Mark an assignment as bonus using the <strong>Bonus</strong> toggle in the assignment editor, or by choosing <strong>Level Up Your Skills</strong> as the section when creating.</li>
         <li>Bonus assignments do not appear in the Assignments list or Grades unless a student has completed them.</li>
-        <li>Publish bonus assignments from the <strong>Level Up</strong> page in the sidebar — they appear in a &ldquo;Bonus Assignments&rdquo; section.</li>
+        <li>Publish bonus assignments from the <strong>Level Up</strong> page in the sidebar.</li>
         <li>Students see published bonus assignments in their Level Up page with skill tags displayed.</li>
       </DocList>
 
       <DocH2>Grades Overview</DocH2>
       <DocP>
         The <strong>Grades</strong> link in the sidebar opens the course-wide grades view. A yellow number badge
-        on the sidebar link shows how many submissions need grading — visible from any page in the course.
+        on the sidebar link shows how many submissions currently need grading — visible from any page in the course.
       </DocP>
       <DocP>The grades view has two tabs:</DocP>
       <DocList>
-        <li><strong>By Assignment</strong> — all assignments grouped by module, each showing turned-in count, ungraded badge, and complete/incomplete breakdown</li>
+        <li><strong>By Assignment</strong> — all assignments grouped by module, each showing the turned-in count, an ungraded badge, and complete/incomplete breakdown</li>
         <li><strong>By Student</strong> — each student with their missing, needs-grading, incomplete, and complete counts; click any count to expand the assignment list inline; click a student&apos;s name to open their full detail view</li>
       </DocList>
       <DocTip>
@@ -68,8 +68,8 @@ export default function Assignments() {
       </DocP>
       <DocList>
         <li>Students are shown one at a time with their pending assignments listed.</li>
-        <li>Click <strong>✓ Complete</strong> or <strong>✗ Revision</strong> to grade inline — the item disappears immediately.</li>
-        <li>Click <strong>View</strong> to open the full submission when you need to read the work first.</li>
+        <li>Click <strong>✓ Complete</strong> or <strong>✗ Revision</strong> to grade inline — the item disappears from the queue immediately.</li>
+        <li>Click <strong>View</strong> to open the full submission when you need to read the work or leave a comment first.</li>
         <li>Navigate between students with the <strong>← →</strong> arrows or the dot indicators at the bottom.</li>
       </DocList>
       <DocTip>
@@ -85,14 +85,14 @@ export default function Assignments() {
       </DocP>
       <DocP>On the individual grading page:</DocP>
       <DocList>
-        <li>Click <strong>Complete</strong> or <strong>Incomplete</strong> — the page automatically advances to the next ungraded student after you grade.</li>
-        <li>The nav strip shows <strong>N need grading</strong> so you always know your progress for this assignment.</li>
-        <li>Use the <strong>← / →</strong> links in the nav strip to browse all students (not just ungraded).</li>
-        <li>The answer key, checklist review, comments, and submission history are all on the same page.</li>
+        <li>Click <strong>Complete</strong> or <strong>Incomplete</strong> — the page automatically advances to the next ungraded student after you grade</li>
+        <li>The nav strip shows <strong>N need grading</strong> so you always know your progress for this assignment</li>
+        <li>Use the <strong>← / →</strong> links in the nav strip to browse all students (not just ungraded)</li>
+        <li>The answer key, checklist review, comments, and submission history are all on the same page</li>
       </DocList>
       <DocNote>
-        Auto-advance only happens when grading for the <em>first time</em> (null → complete/incomplete). Changing or
-        removing an existing grade stays on the same page.
+        Auto-advance only happens when grading for the <em>first time</em> (no previous grade → complete/incomplete).
+        Changing or removing an existing grade stays on the same page.
       </DocNote>
 
       <DocH3>Instructor Checklist Review</DocH3>
@@ -103,20 +103,22 @@ export default function Assignments() {
 
       <DocH3>Comments</DocH3>
       <DocP>
-        Add a comment to explain your grade or provide specific feedback. Comments are visible to the student immediately.
-        They appear below the submission form on the student&apos;s assignment page.
+        Add a comment to explain your grade or provide specific feedback. Comments are visible to the student immediately
+        after you save them. They appear below the submission form on the student&apos;s assignment page. For students who
+        may be sensitive to feedback, comments are a key way to frame revision requests with clarity and encouragement.
       </DocP>
 
       <DocH2>Mark Complete Without Submission</DocH2>
       <DocP>
         For assignments without a submission requirement, mark a student&apos;s assignment as complete directly from the
-        submissions list — no student submission required.
+        submissions list — no student submission required. Useful for attendance-based or in-class completion assignments.
       </DocP>
 
       <DocH2>Submission History</DocH2>
       <DocP>
         All submissions (including resubmissions) are stored. On the grading page you can see the full history of a
-        student&apos;s submissions to track revisions.
+        student&apos;s submissions to track how their work has evolved across revisions. Historical submissions imported
+        from Canvas also appear here.
       </DocP>
 
       <DocH2>Grading Groups</DocH2>
@@ -162,7 +164,8 @@ export default function Assignments() {
         <li><strong>Grade for My Group</strong> — grade only the students assigned to you in Grading Groups; respects assignment overrides</li>
       </DocList>
       <DocTip>
-        TAs see a <strong>Grade for My Group</strong> count badge showing only their own ungraded submissions.
+        TAs see a <strong>Grade for My Group</strong> count badge showing only their own assigned students&apos; ungraded
+        submissions — so they always know how much work is in their queue.
       </DocTip>
 
       <DocH3>Grading Priority</DocH3>

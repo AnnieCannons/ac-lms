@@ -1,39 +1,47 @@
-import { DocH2, DocH3, DocP, DocList, DocTip } from '@/components/docs/DocComponents'
+import { DocH2, DocH3, DocP, DocList, DocTip, DocNote } from '@/components/docs/DocComponents'
 
 export default function Roster() {
   return (
     <>
-      <h1 className="text-2xl font-bold text-dark-text mb-1">Roster & Student Progress</h1>
+      <h1 className="text-2xl font-bold text-dark-text mb-1">Roster &amp; Student Progress</h1>
       <p className="text-sm text-muted-text mb-8">Track individual student progress and grade inline from one view.</p>
 
       <DocH2>The Accommodation Roster</DocH2>
       <DocP>
         Navigate to <strong>Roster</strong> in the course sidebar to see the accommodation roster. This page lists
-        students who have accommodation notes or flags on their profile — useful for instructors coordinating with
-        accessibility services.
+        students who have accommodation notes or flags on their profile — useful for coordinating with accessibility
+        services and making sure every student has what they need.
       </DocP>
       <DocP>
-        Each student row shows their accommodation flags. The <strong>camera-off</strong> flag includes a date range — click it to open an editable popover where you can set or update the dates for which the student has a camera-off accommodation. A <strong>Notes</strong> badge appears when additional context has been recorded.
+        Each student row shows their accommodation flags:
       </DocP>
+      <DocList>
+        <li><strong>Camera Off</strong> — the student has a camera-off accommodation. Click the badge to open an editable popover where you can set or update the date range for this accommodation.</li>
+        <li><strong>Notes</strong> — additional context has been recorded on the student&apos;s profile</li>
+      </DocList>
 
       <DocH2>Student Progress Overview</DocH2>
       <DocP>
         Click any student&apos;s name in the roster to open their <strong>Student Detail View</strong>. This page
-        shows a breakdown of their assignment status across the entire course:
+        gives you a complete picture of where that student stands across the entire course, with five color-coded
+        categories:
       </DocP>
       <DocList>
-        <li><strong>Missing</strong> — past-due assignments with no submission; only counts assignments that were tracked in Canvas (so the count matches what Canvas would report)</li>
-        <li><strong>Late</strong> — submissions received after the due date</li>
-        <li><strong>Needs Grading</strong> — submitted but not yet graded</li>
-        <li><strong>Needs Revision</strong> — graded as incomplete; student should revise</li>
-        <li><strong>Complete</strong> — graded as complete</li>
+        <li><strong>Missing</strong> (red) — past-due assignments with no submission. Only counts assignments that were tracked in Canvas, so this number matches what Canvas would report.</li>
+        <li><strong>Late</strong> (amber) — submissions received after the due date. An assignment can be both Late and in another category (e.g., Late + Complete).</li>
+        <li><strong>Needs Grading</strong> (teal) — submitted and waiting for your review</li>
+        <li><strong>Needs Revision</strong> (orange) — you graded as Incomplete; the student should revise and resubmit</li>
+        <li><strong>Complete</strong> (green) — graded as complete</li>
       </DocList>
       <DocP>
-        Click any stat card to expand the assignment list for that category. The progress line at the top
-        (&ldquo;X / Y assignments complete&rdquo;) updates in real time as you grade. The denominator reflects all
-        published assignments that have an active status (missing, submitted, needing revision, or complete) — it
-        excludes assignments the student hasn&apos;t interacted with yet that aren&apos;t past due.
+        Click any stat card to expand the full list of assignments in that category. The progress line at the top
+        (&ldquo;X / Y assignments complete&rdquo;) updates immediately as you grade.
       </DocP>
+      <DocNote>
+        The denominator (Y) reflects all published assignments that the student has an active status on — missing,
+        submitted, needing revision, or complete. It excludes assignments the student hasn&apos;t started yet and
+        that aren&apos;t past due.
+      </DocNote>
 
       <DocH2>Speed Grading from the Student Detail View</DocH2>
       <DocP>
@@ -41,24 +49,18 @@ export default function Roster() {
         assignment shows inline grade buttons — no need to navigate to the individual submission page.
       </DocP>
       <DocList>
-        <li><strong>✓ Complete</strong> — marks the submission as complete; the item moves to the Complete list immediately.</li>
-        <li><strong>✗ Revision</strong> — marks the submission as needing revision (only available for Needs Grading items).</li>
-        <li><strong>View →</strong> / <strong>Grade →</strong> — opens the full submission page when you need to read the work or leave a comment.</li>
+        <li><strong>✓ Complete</strong> — marks the submission as complete; the item moves to the Complete list immediately</li>
+        <li><strong>✗ Revision</strong> — marks as needing revision (available for Needs Grading items only)</li>
+        <li><strong>View</strong> / <strong>Grade →</strong> — opens the full submission page when you need to read the work or leave a comment before grading</li>
       </DocList>
       <DocTip>
         Use this view during 1-on-1 check-ins to see exactly where a student stands and grade outstanding work on the
         spot without switching pages.
       </DocTip>
 
-      <DocH2>Who Appears on the Roster?</DocH2>
-      <DocP>
-        The roster shows all students with an active enrollment in the course. Students on observer status also appear
-        but are labeled with their observer role.
-      </DocP>
-
       <DocH2>Accessing Student Detail</DocH2>
       <DocP>
-        Student names are clickable links that open the student detail view from two places:
+        The Student Detail View is accessible from two places:
       </DocP>
       <DocList>
         <li><strong>Roster page</strong> — click any student name in the accommodation roster</li>
@@ -66,6 +68,13 @@ export default function Roster() {
       </DocList>
       <DocP>
         The URL is <strong>/roster/[student-id]</strong> and can be shared directly with another instructor or TA.
+      </DocP>
+
+      <DocH2>Who Appears on the Roster?</DocH2>
+      <DocP>
+        The roster shows all students and observers with an active enrollment in the course. Students are listed by
+        name. If a student has no accommodation notes or flags, they may not appear on the roster — that&apos;s
+        expected. The roster is specifically for tracking accommodation needs.
       </DocP>
     </>
   )
