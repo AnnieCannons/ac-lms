@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL!
+const CANVAS_BASE_URL = (process.env.CANVAS_BASE_URL ?? '').replace(/\/$/, '')
 const CANVAS_API_TOKEN = process.env.CANVAS_API_TOKEN!
 const SYNC_SECRET = process.env.CANVAS_SYNC_SECRET
 const CRON_SECRET = process.env.CRON_SECRET
