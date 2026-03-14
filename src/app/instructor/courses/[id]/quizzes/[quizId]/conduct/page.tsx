@@ -69,7 +69,7 @@ export default async function ConductQuizPage({
   const [{ data: submissionsRaw }, { data: progressRaw }] = await Promise.all([
     admin
       .from("quiz_submissions")
-      .select("student_id, score_percent, attempt_count, submitted_at")
+      .select("student_id, score_percent, attempt_count, submitted_at, started_at, attempt_history")
       .eq("quiz_id", quizId),
     admin
       .from("quiz_progress")

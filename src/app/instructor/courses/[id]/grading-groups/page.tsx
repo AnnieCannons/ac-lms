@@ -43,14 +43,14 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
   const groupMap = Object.fromEntries((groups ?? []).map(g => [g.student_id, g.grader_id]))
 
   // Assignments for this course (via modules → days → assignments)
-  const { data: moduleRows } = await admin.from('modules').select('id').eq('course_id', id)
+  const { data: moduleRows } = await admin.from('modules').select('id').eq('course_id', id).is('deleted_at', null)
   const moduleIds = moduleRows?.map(m => m.id) ?? []
   const { data: dayRows } = moduleIds.length
-    ? await admin.from('module_days').select('id').in('module_id', moduleIds)
+    ? await admin.from('module_days').select('id').in('module_id', moduleIds).is('deleted_at', null)
     : { data: [] }
   const dayIds = dayRows?.map(d => d.id) ?? []
   const { data: assignmentsData } = dayIds.length
-    ? await admin.from('assignments').select('id, title, grader_id').in('module_day_id', dayIds).order('title')
+    ? await admin.from('assignments').select('id, title, grader_id').in('module_day_id', dayIds).is('deleted_at', null).order('title')
     : { data: [] }
 
   const assignments = (assignmentsData ?? []).map(a => ({ id: a.id, title: a.title }))

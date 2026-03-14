@@ -26,18 +26,25 @@ export default async function InstructorAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from("modules")
-    .select("id, title, week_number, order, category, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published))")
+    .select("id, title, week_number, order, category, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, deleted_at))")
     .eq("course_id", id)
+    .is("deleted_at", null)
     .order("order", { ascending: true });
 
   const modules = (rawModules ?? [])
-    .filter((m: { title?: string | null }) => !m.title?.includes('DO NOT PUBLISH'))
-    .sort((a: { order: number; category?: string | null }, b: { order: number; category?: string | null }) => {
+    .filter((m) => !m.title?.includes('DO NOT PUBLISH'))
+    .sort((a, b) => {
       const aCareer = a.category === 'career'
       const bCareer = b.category === 'career'
       if (aCareer !== bCareer) return aCareer ? 1 : -1
       return a.order - b.order
-    });
+    })
+    .map((m) => ({
+      ...m,
+      module_days: (m.module_days ?? [])
+        .filter(d => !(d as { deleted_at?: string | null }).deleted_at)
+        .map(d => ({ ...d, assignments: (d.assignments ?? []).filter((a: { deleted_at?: string | null }) => !a.deleted_at) })),
+    }));
 
   return (
     <div className="min-h-screen bg-background">

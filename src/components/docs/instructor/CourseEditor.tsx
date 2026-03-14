@@ -61,6 +61,37 @@ export default function CourseEditor() {
         Use the <strong>Collapse All</strong> button at the top of the Course Editor to fold every module at once,
         giving you a compact overview of all weeks. Click any module to expand it individually.
       </DocP>
+
+      <DocH2>Deleting Content (Trash)</DocH2>
+      <DocP>
+        Deleting a module, day, assignment, resource, or quiz moves it to the <strong>Trash</strong> rather than
+        permanently removing it. Trashed items are hidden from students immediately but can be recovered at any time.
+      </DocP>
+      <DocList>
+        <li>Click the <strong>trash icon</strong> on any module, day, assignment, or resource in the Course Editor to move it to trash — you&apos;ll be asked to confirm first</li>
+        <li>Deleting a <strong>module</strong> also trashes all its days, assignments, and resources</li>
+        <li>Deleting a <strong>day</strong> also trashes all its assignments and resources</li>
+        <li>Quizzes can be trashed from the Quizzes page in the sidebar</li>
+        <li>Assignments can also be trashed directly from the <strong>Edit Assignment</strong> page using the <strong>Move to trash</strong> button</li>
+      </DocList>
+
+      <DocH3>Trash Page</DocH3>
+      <DocP>
+        Access the <strong>Trash</strong> link at the bottom of the course sidebar (instructors only). The trash page shows
+        all trashed items grouped by type — Modules, Days, Assignments, Resources, and Quizzes — sorted
+        newest-first.
+      </DocP>
+      <DocList>
+        <li><strong>Restore</strong> — moves the item back to its original location in the course; modules restore their days and assignments; days restore their assignments; quizzes restore as unpublished</li>
+        <li><strong>Delete forever</strong> — permanently removes the item; this cannot be undone</li>
+        <li><strong>Empty trash</strong> — permanently deletes everything in the trash at once</li>
+      </DocList>
+      <DocNote>
+        Restored quizzes are always unpublished — review and re-publish them from the Quizzes page when you&apos;re ready.
+      </DocNote>
+      <DocTip>
+        If you accidentally delete something, go to Trash immediately and restore it before emptying the trash.
+      </DocTip>
     </>
   )
 }

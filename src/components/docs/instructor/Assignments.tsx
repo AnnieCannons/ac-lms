@@ -34,6 +34,35 @@ export default function Assignments() {
         off before submitting — this reduces ambiguity and helps students self-assess before you grade.
       </DocTip>
 
+      <DocH2>Deleting an Assignment</DocH2>
+      <DocP>
+        Use the <strong>Move to trash</strong> button in the top-right corner of the assignment editor to soft-delete an
+        assignment. Trashed assignments are immediately hidden from students but can be recovered from the course{' '}
+        <strong>Trash</strong> page (bottom of the sidebar). See <strong>Course Editor → Deleting Content</strong> for
+        details on the trash workflow.
+      </DocP>
+
+      <DocH2>Student Due Date Overrides</DocH2>
+      <DocP>
+        The <strong>Student Overrides</strong> section at the bottom of the assignment editor lets you give individual
+        students a different due date or excuse them from the assignment entirely.
+      </DocP>
+      <DocList>
+        <li>Click <strong>+ Add override</strong> to expand the override form</li>
+        <li>Select a student from the dropdown (only enrolled students appear)</li>
+        <li>Enter a custom due date, or toggle <strong>Excused</strong> to exempt the student from the assignment</li>
+        <li>Click <strong>Save</strong> — the override appears in the list immediately</li>
+        <li>Click <strong>Remove</strong> next to any override to delete it and restore the default due date</li>
+      </DocList>
+      <DocNote>
+        Excused assignments still appear for the student — they show an amber <strong>Excused</strong> badge instead of
+        a Late indicator. The assignment is not hidden from them.
+      </DocNote>
+      <DocTip>
+        Use overrides for students with accommodations, extensions, or attendance exceptions. Each override is
+        student-specific and does not affect anyone else.
+      </DocTip>
+
       <DocH2>Bonus Assignments &amp; Level Up</DocH2>
       <DocP>
         Bonus assignments are optional enrichment work that appear in <strong>Level Up Your Skills</strong> rather than

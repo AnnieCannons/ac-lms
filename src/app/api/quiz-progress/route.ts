@@ -23,12 +23,13 @@ export async function POST(req: NextRequest) {
 
   const admin = createServiceSupabaseClient();
 
-  // Verify the quiz exists, is published, and get its course_id
+  // Verify the quiz exists, is published, and is not trashed
   const { data: quiz } = await admin
     .from("quizzes")
     .select("id, course_id")
     .eq("id", quizId)
     .eq("published", true)
+    .is("deleted_at", null)
     .single();
 
   if (!quiz) return NextResponse.json({ ok: false }, { status: 404 });

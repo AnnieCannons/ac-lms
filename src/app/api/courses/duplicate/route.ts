@@ -42,18 +42,18 @@ export async function POST(req: NextRequest) {
   if (!sourceCourse) return NextResponse.json({ error: 'Source course not found' }, { status: 404 })
 
   const { data: modules } = await service
-    .from('modules').select('*').eq('course_id', sourceCourseId).order('order')
+    .from('modules').select('*').eq('course_id', sourceCourseId).is('deleted_at', null).order('order')
 
   const moduleIds = (modules ?? []).map(m => m.id)
   const { data: days } = moduleIds.length
-    ? await service.from('module_days').select('*').in('module_id', moduleIds).order('order')
+    ? await service.from('module_days').select('*').in('module_id', moduleIds).is('deleted_at', null).order('order')
     : { data: [] }
 
   const dayIds = (days ?? []).map(d => d.id)
   const [{ data: assignments }, { data: resources }] = dayIds.length
     ? await Promise.all([
-        service.from('assignments').select('*').in('module_day_id', dayIds),
-        service.from('resources').select('*').in('module_day_id', dayIds).order('order'),
+        service.from('assignments').select('*').in('module_day_id', dayIds).is('deleted_at', null),
+        service.from('resources').select('*').in('module_day_id', dayIds).is('deleted_at', null).order('order'),
       ])
     : [{ data: [] }, { data: [] }]
 

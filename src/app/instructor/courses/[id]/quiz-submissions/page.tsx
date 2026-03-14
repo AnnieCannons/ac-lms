@@ -32,6 +32,7 @@ export default async function QuizSubmissionsPage({
     .from("quizzes")
     .select("id, title, module_title, due_at")
     .eq("course_id", id)
+    .is("deleted_at", null)
     .order("module_title", { ascending: true })
     .order("title", { ascending: true });
 
@@ -42,7 +43,7 @@ export default async function QuizSubmissionsPage({
     quizIds.length > 0
       ? await admin
           .from("quiz_submissions")
-          .select("id, quiz_id, student_id, submitted_at, score_percent, attempt_count")
+          .select("id, quiz_id, student_id, submitted_at, started_at, score_percent, attempt_count, attempt_history")
           .in("quiz_id", quizIds)
       : { data: [] };
 
@@ -78,6 +79,17 @@ export default async function QuizSubmissionsPage({
       hour: "numeric",
       minute: "2-digit",
     });
+  }
+
+  function formatDuration(startedAt: string | null, submittedAt: string) {
+    if (!startedAt) return "—";
+    const ms = new Date(submittedAt).getTime() - new Date(startedAt).getTime();
+    if (ms <= 0) return "—";
+    const totalSec = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    if (minutes === 0) return `${seconds}s`;
+    return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
   }
 
   return (
@@ -147,6 +159,7 @@ export default async function QuizSubmissionsPage({
                               <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Student</th>
                               <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Score</th>
                               <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Attempts</th>
+                              <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Duration</th>
                               <th className="text-left px-6 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Submitted</th>
                             </tr>
                           </thead>
@@ -170,6 +183,28 @@ export default async function QuizSubmissionsPage({
                                   </td>
                                   <td className="px-6 py-4 text-muted-text">
                                     {sub.attempt_count ?? 1}
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    {(() => {
+                                      type AttemptRecord = { attempt: number; started_at: string | null; submitted_at: string; score_percent: number | null }
+                                      const history: AttemptRecord[] = Array.isArray((sub as { attempt_history?: unknown }).attempt_history)
+                                        ? ((sub as { attempt_history?: unknown }).attempt_history as AttemptRecord[])
+                                        : []
+                                      if (history.length > 0) {
+                                        return (
+                                          <div className="flex flex-col gap-0.5">
+                                            {history.map((a) => (
+                                              <span key={a.attempt} className="text-xs tabular-nums text-muted-text">
+                                                <span className="text-dark-text font-medium">#{a.attempt}</span>{' '}
+                                                {formatDuration(a.started_at, a.submitted_at)}
+                                                {a.score_percent != null && <span className="text-muted-text"> · {Math.round(a.score_percent)}%</span>}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )
+                                      }
+                                      return <span className="text-muted-text">{formatDuration((sub as typeof sub & { started_at?: string | null }).started_at ?? null, sub.submitted_at)}</span>
+                                    })()}
                                   </td>
                                   <td className="px-6 py-4 text-muted-text">
                                     {formatDate(sub.submitted_at)}

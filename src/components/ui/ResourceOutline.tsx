@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
+import { trashResource } from '@/lib/trash-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import { normalizeUrl } from '@/lib/url'
 
@@ -76,15 +77,15 @@ function isBonusLike(title?: string, isBonus?: boolean) {
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
   const isLate = !!dueDate && new Date(dueDate) < new Date()
-  if (info?.grade === 'complete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-green-600/20 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
-  if (info?.grade === 'incomplete') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
-  if (info?.status === 'submitted') return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
+  if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
+  if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
+  if (info?.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
   // Bonus assignments: no status badge
   if (isBonusLike(title, isBonus)) return null
   // not started (no submission or draft) — show both Late + Not Started if past due
   return (
     <div className="flex items-center gap-1.5">
-      {isLate && <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500 shrink-0">Late</span>}
+      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>}
       <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
     </div>
   )
@@ -487,8 +488,12 @@ export default function ResourceOutline({
   const modulesWithContent = sorted.filter(m =>
     m.module_days.some(d => {
       if (skipDays.has(d.day_name)) return false
-      if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
-      if (instructorView) return true
+      if (mode === 'resources') return (d.resources ?? []).some(r =>
+        !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
+      )
+      if (instructorView) return searchQ
+        ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
+        : true
       const pub = (d.assignments ?? []).filter(a =>
         a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
       )
@@ -498,11 +503,11 @@ export default function ResourceOutline({
   )
 
   const handleDelete = async (resource: Resource) => {
-    if (!window.confirm(`Delete "${resource.title}"?`)) return
+    if (!window.confirm(`Move "${resource.title}" to trash?`)) return
     setDeletedIds(prev => new Set([...prev, resource.id]))
-    const { error } = await supabase.from('resources').delete().eq('id', resource.id)
+    const { error } = await trashResource(resource.id, courseId)
     if (error) {
-      alert(error.message)
+      alert(error)
       setDeletedIds(prev => { const next = new Set(prev); next.delete(resource.id); return next })
     }
   }
@@ -514,38 +519,42 @@ export default function ResourceOutline({
 
   const studentActions = !editable && !instructorView
 
-  const filterBar = filterCounts ? (
+  const searchBar = (
+    <div className="relative mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input
+        type="text"
+        value={search}
+        onChange={e => { setSearch(e.target.value); if (e.target.value) expandAll() }}
+        placeholder={mode === 'resources' ? 'Search resources…' : 'Search assignments…'}
+        className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+      />
+    </div>
+  )
+
+  const filterBar = (
     <>
-      {mode === 'assignments' && !instructorView && (
-        <div className="relative mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={e => { setSearch(e.target.value); if (e.target.value) expandAll() }}
-            placeholder="Search assignments…"
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-          />
+      {searchBar}
+      {filterCounts && (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {FILTERS.map(f => {
+            const active = filter === f.key
+            const styles = FILTER_STYLES[f.key]
+            return (
+              <button key={f.key} type="button" onClick={() => changeFilter(f.key)}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
+              >
+                {f.label}
+                <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>{filterCounts[f.key]}</span>
+              </button>
+            )
+          })}
         </div>
       )}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {FILTERS.map(f => {
-          const active = filter === f.key
-          const styles = FILTER_STYLES[f.key]
-          return (
-            <button key={f.key} type="button" onClick={() => changeFilter(f.key)}
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${active ? styles.active : styles.inactive}`}
-            >
-              {f.label}
-              <span className={`ml-1.5 font-normal ${active ? 'opacity-80' : 'opacity-70'}`}>{filterCounts[f.key]}</span>
-            </button>
-          )
-        })}
-      </div>
     </>
-  ) : null
+  )
 
   if (modulesWithContent.length === 0) {
     return (
@@ -553,16 +562,12 @@ export default function ResourceOutline({
         {filterBar}
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">
           <p className="text-muted-text">
-            {filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
+            {searchQ ? `No results for "${search}".` : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
           </p>
-          {filter !== 'all' && (
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className="mt-3 text-sm text-teal-primary hover:underline"
-            >
-              View all assignments
-            </button>
+          {searchQ ? (
+            <button type="button" onClick={() => setSearch('')} className="mt-3 text-sm text-teal-primary hover:underline">Clear search</button>
+          ) : filter !== 'all' && (
+            <button type="button" onClick={() => setFilter('all')} className="mt-3 text-sm text-teal-primary hover:underline">View all assignments</button>
           )}
         </div>
       </>
@@ -588,8 +593,12 @@ export default function ResourceOutline({
             .sort((a, b) => a.order - b.order)
             .filter(d => {
               if (skipDays.has(d.day_name)) return false
-              if (mode === 'resources') return (d.resources ?? []).some(r => !deletedIds.has(r.id))
-              if (instructorView) return true
+              if (mode === 'resources') return (d.resources ?? []).some(r =>
+                !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
+              )
+              if (instructorView) return searchQ
+                ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
+                : true
               const pub = (d.assignments ?? []).filter(a =>
                 a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
               )
@@ -619,7 +628,7 @@ export default function ResourceOutline({
                     const dayCollapsed = collapsedDays.has(day.id)
                     const visibleAssignments = (day.assignments ?? []).filter(a =>
                       instructorView
-                        ? true
+                        ? (!searchQ || a.title.toLowerCase().includes(searchQ))
                         : (a.published &&
                            (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
                            (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title)))
@@ -640,7 +649,7 @@ export default function ResourceOutline({
                         {!dayCollapsed && mode === 'resources' && (
                           <div className="flex flex-col gap-2 pl-3">
                             {[...(day.resources ?? [])]
-                              .filter(r => !deletedIds.has(r.id))
+                              .filter(r => !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ)))
                               .sort((a, b) => a.order - b.order)
                               .map(r => {
                                 const resolved = editedResources.get(r.id) ?? r

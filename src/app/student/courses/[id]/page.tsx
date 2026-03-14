@@ -66,13 +66,23 @@ export default async function StudentCourseDetailPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, skill_tags, is_bonus), resources!module_day_id(id, type, title, content, description, order))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, skill_tags, is_bonus, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at))')
     .eq('course_id', id)
+    .is('deleted_at', null)
     .order('order', { ascending: true })
 
-  const modules = (rawModules ?? []).filter(m =>
-    !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true
-  )
+  const modules = (rawModules ?? [])
+    .filter(m => !m.title?.includes('DO NOT PUBLISH') && m.category === 'syllabus' && m.published === true)
+    .map(m => ({
+      ...m,
+      module_days: (m.module_days ?? [])
+        .filter((d: { deleted_at: string | null }) => !d.deleted_at)
+        .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null }> }) => ({
+          ...d,
+          assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
+          resources: (d.resources ?? []).filter(r => !r.deleted_at),
+        })),
+    }))
 
   const dayIds = modules.flatMap(m => (m.module_days ?? []).map((d: { id: string }) => d.id))
 
@@ -81,12 +91,12 @@ export default async function StudentCourseDetailPage({
     supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
-    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).or('day_title.not.is.null,linked_day_id.not.is.null'),
+    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at, questions').eq('course_id', id).eq('published', true).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
     dayIds.length > 0
-      ? supabase.from('assignments').select('id, title, due_date, published, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true)
+      ? supabase.from('assignments').select('id, title, due_date, published, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
     dayIds.length > 0
-      ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds)
+      ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
   ])
 

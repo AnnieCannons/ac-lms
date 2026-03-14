@@ -90,6 +90,7 @@ export default async function TakeQuizPage({
     .eq("id", quizId)
     .eq("course_id", id)
     .eq("published", true)
+    .is("deleted_at", null)
     .single();
 
   if (!quiz) redirect(`/student/courses/${id}/quizzes`);

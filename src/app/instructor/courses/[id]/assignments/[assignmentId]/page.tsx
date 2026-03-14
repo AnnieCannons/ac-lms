@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
@@ -37,6 +37,33 @@ export default async function InstructorAssignmentEditPage({
     .eq("assignment_id", assignmentId)
     .order("order", { ascending: true });
 
+  const admin = createServiceSupabaseClient()
+
+  const { data: enrollmentRows } = await supabase
+    .from('course_enrollments')
+    .select('user_id')
+    .eq('course_id', id)
+    .eq('role', 'student')
+
+  const studentIds = (enrollmentRows ?? []).map((e: { user_id: string }) => e.user_id)
+  const { data: studentRows } = studentIds.length > 0
+    ? await admin.from('users').select('id, name').in('id', studentIds).order('name')
+    : { data: [] }
+  const enrolledStudents = (studentRows ?? []) as { id: string; name: string }[]
+
+  const { data: overrideRows } = await admin
+    .from('assignment_overrides')
+    .select('id, student_id, due_date, excused')
+    .eq('assignment_id', assignmentId)
+  const studentMap = new Map(enrolledStudents.map(s => [s.id, s.name]))
+  const initialOverrides = (overrideRows ?? []).map((o: { id: string; student_id: string; due_date: string | null; excused: boolean }) => ({
+    id: o.id,
+    student_id: o.student_id,
+    student_name: studentMap.get(o.student_id) ?? 'Unknown',
+    due_date: o.due_date,
+    excused: o.excused,
+  }))
+
   return (
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
@@ -68,6 +95,8 @@ export default async function InstructorAssignmentEditPage({
               courseId={id}
               assignment={assignment}
               initialChecklist={checklist ?? []}
+              enrolledStudents={enrolledStudents}
+              initialOverrides={initialOverrides}
             />
           </main>
         </div>

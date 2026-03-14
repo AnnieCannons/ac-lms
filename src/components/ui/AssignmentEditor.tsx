@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { RUBRIC_TEMPLATES } from '@/data/rubric-templates'
 import DatePicker from './DatePicker'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { trashAssignment } from '@/lib/trash-actions'
+import { upsertAssignmentOverride, removeAssignmentOverride } from '@/lib/override-actions'
 
 const PRESET_SKILL_TAGS = ['HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Other']
 
@@ -16,6 +18,14 @@ interface ChecklistItem {
   description: string | null
   order: number
   required: boolean
+}
+
+interface Override {
+  id: string
+  student_id: string
+  student_name: string
+  due_date: string | null
+  excused: boolean
 }
 
 interface Props {
@@ -33,9 +43,11 @@ interface Props {
     is_bonus: boolean
   }
   initialChecklist: ChecklistItem[]
+  enrolledStudents: { id: string; name: string }[]
+  initialOverrides: Override[]
 }
 
-export default function AssignmentEditor({ courseId, assignment, initialChecklist }: Props) {
+export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides }: Props) {
   const supabase = createClient()
   const router = useRouter()
 
@@ -66,6 +78,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   useUnsavedChanges(isDirty)
+
+  const [overrides, setOverrides] = useState<Override[]>(initialOverrides)
+  const [showAddOverride, setShowAddOverride] = useState(false)
+  const [newStudentId, setNewStudentId] = useState('')
+  const [newDueDate, setNewDueDate] = useState('')
+  const [newExcused, setNewExcused] = useState(false)
+  const [savingOverride, setSavingOverride] = useState(false)
 
   const toggleSkillTag = (tag: string) => {
     setSkillTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
@@ -138,9 +157,9 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   }
 
   const deleteAssignment = async () => {
-    if (!window.confirm('Delete this assignment? This cannot be undone.')) return
-    const { error } = await supabase.from('assignments').delete().eq('id', assignment.id)
-    if (error) { alert(error.message); return }
+    if (!window.confirm('Move this assignment to trash?')) return
+    const { error } = await trashAssignment(assignment.id, courseId)
+    if (error) { alert(error); return }
     router.push(`/instructor/courses/${courseId}/assignments`)
   }
 
@@ -164,6 +183,36 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       .eq('id', item.id)
     if (error) { alert(error.message); return }
     setChecklist(prev => prev.map(i => i.id === item.id ? { ...i, text, description: desc || null } : i))
+  }
+
+  const saveOverride = async () => {
+    if (!newStudentId) return
+    setSavingOverride(true)
+    const { id: newId, error } = await upsertAssignmentOverride(
+      assignment.id, newStudentId, courseId,
+      newExcused ? null : (newDueDate || null),
+      newExcused
+    )
+    if (error) { alert(error); setSavingOverride(false); return }
+    const student = enrolledStudents.find(s => s.id === newStudentId)
+    setOverrides(prev => [...prev.filter(o => o.student_id !== newStudentId), {
+      id: newId!,
+      student_id: newStudentId,
+      student_name: student?.name ?? 'Unknown',
+      due_date: newExcused ? null : (newDueDate || null),
+      excused: newExcused,
+    }])
+    setNewStudentId('')
+    setNewDueDate('')
+    setNewExcused(false)
+    setShowAddOverride(false)
+    setSavingOverride(false)
+  }
+
+  const deleteOverride = async (overrideId: string) => {
+    const { error } = await removeAssignmentOverride(overrideId, courseId)
+    if (error) { alert(error); return }
+    setOverrides(prev => prev.filter(o => o.id !== overrideId))
   }
 
   const loadTemplate = async (templateId: string) => {
@@ -201,7 +250,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
               published
                 ? 'bg-teal-light text-teal-primary border-teal-primary/30'
-                : 'bg-background text-muted-text border-border'
+                : 'bg-background text-muted-text border-border hover:border-muted-text'
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${published ? 'bg-teal-primary' : 'bg-muted-text'}`} />
@@ -212,8 +261,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             onClick={() => { setSubmissionRequired(r => !r); setIsDirty(true) }}
             className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
               submissionRequired
-                ? 'bg-background text-muted-text border-border'
-                : 'bg-amber-50 text-amber-700 border-amber-300'
+                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                : 'bg-background text-muted-text border-border hover:border-muted-text'
             }`}
           >
             {submissionRequired ? 'Submission required' : 'No submission'}
@@ -224,10 +273,17 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
               isBonus
                 ? 'bg-purple-light text-purple-primary border-purple-primary/40'
-                : 'bg-background text-muted-text border-border'
+                : 'bg-background text-muted-text border-border hover:border-muted-text'
             }`}
           >
             {isBonus ? 'Bonus (Level Up)' : 'Bonus?'}
+          </button>
+          <button
+            type="button"
+            onClick={deleteAssignment}
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:border-red-400 hover:text-red-500 transition-colors"
+          >
+            Move to trash
           </button>
         </div>
       </div>
@@ -359,6 +415,107 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         </div>
       </div>
 
+      {/* Student Overrides */}
+      {enrolledStudents.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide">Student Overrides</label>
+            {!showAddOverride && (
+              <button
+                type="button"
+                onClick={() => setShowAddOverride(true)}
+                className="text-xs text-teal-primary hover:underline"
+              >
+                + Add override
+              </button>
+            )}
+          </div>
+
+          {overrides.length > 0 && (
+            <div className="flex flex-col gap-2 mb-3">
+              {overrides.sort((a, b) => a.student_name.localeCompare(b.student_name)).map(o => (
+                <div key={o.id} className="flex items-center gap-3 bg-surface rounded-lg border border-border px-3 py-2 text-sm">
+                  <span className="font-medium text-dark-text flex-1">{o.student_name}</span>
+                  {o.excused ? (
+                    <span className="text-xs font-medium bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5">Excused</span>
+                  ) : o.due_date ? (
+                    <span className="text-xs text-muted-text">Due {new Date(o.due_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                  ) : (
+                    <span className="text-xs text-muted-text">No due date</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => deleteOverride(o.id)}
+                    className="text-xs text-muted-text hover:text-red-400 transition-colors ml-1"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAddOverride && (
+            <div className="bg-surface rounded-lg border border-border p-3 flex flex-col gap-3">
+              <select
+                value={newStudentId}
+                onChange={e => setNewStudentId(e.target.value)}
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
+              >
+                <option value="">Select student…</option>
+                {enrolledStudents
+                  .filter(s => !overrides.some(o => o.student_id === s.id))
+                  .map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))
+                }
+              </select>
+              <div className="flex items-center gap-3">
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={e => setNewDueDate(e.target.value)}
+                  disabled={newExcused}
+                  className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text disabled:opacity-40"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewExcused(e => !e)}
+                  className={`text-xs font-medium px-3 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+                    newExcused
+                      ? 'bg-amber-50 text-amber-700 border-amber-300'
+                      : 'bg-background text-muted-text border-border hover:border-muted-text'
+                  }`}
+                >
+                  Excused
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={saveOverride}
+                  disabled={!newStudentId || savingOverride}
+                  className="px-4 py-1.5 text-sm font-semibold bg-teal-primary text-white rounded-lg hover:bg-teal-600 disabled:opacity-50"
+                >
+                  {savingOverride ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddOverride(false); setNewStudentId(''); setNewDueDate(''); setNewExcused(false) }}
+                  className="px-4 py-1.5 text-sm text-muted-text hover:text-dark-text"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {overrides.length === 0 && !showAddOverride && (
+            <p className="text-sm text-muted-text">No overrides. All students see the default due date.</p>
+          )}
+        </div>
+      )}
+
       {/* Save */}
       <div className="flex items-center gap-4 pb-12">
         <button
@@ -370,9 +527,6 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
         <span aria-live="polite" className="text-sm text-teal-primary font-medium">{saved ? 'Saved ✓' : ''}</span>
-        <button type="button" onClick={deleteAssignment} className="ml-auto text-sm text-red-400 hover:text-red-600 transition-colors">
-          Delete assignment
-        </button>
         <Link
           href={`/instructor/courses/${courseId}/assignments/${assignment.id}/submissions`}
           className="text-sm text-muted-text hover:text-dark-text"

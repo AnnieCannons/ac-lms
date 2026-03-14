@@ -25,6 +25,7 @@ export default function Assignments() {
         <li><strong>Complete ✓</strong> (green) — your instructor graded it as complete</li>
         <li><strong>Needs Revision</strong> (red) — your instructor has feedback; read their comments and resubmit</li>
         <li><strong>Late</strong> (amber) — the due date has passed and no submission was recorded</li>
+        <li><strong>Excused</strong> (amber) — your instructor has excused you from this assignment; no submission is needed and it will not count as late</li>
       </DocList>
       <DocTip>
         Check the Assignments list regularly — especially the <strong>Needs Revision</strong> filter — so you never miss

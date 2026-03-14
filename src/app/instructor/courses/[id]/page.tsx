@@ -22,14 +22,27 @@ export default async function CoursePage({
     supabase.from("modules")
       .select("*, module_days(*, assignments!module_day_id(*))")
       .eq("course_id", id)
+      .is("deleted_at", null)
       .order("order", { ascending: true }),
     admin.from("quizzes")
       .select("id, title, questions, published, module_title, day_title, linked_day_id")
       .eq("course_id", id)
+      .is("deleted_at", null)
       .or("day_title.not.is.null,linked_day_id.not.is.null"),
   ]);
 
   if (!course) redirect("/instructor/courses");
+
+  // Filter out soft-deleted nested items
+  const filteredModules = (modules ?? []).map(m => ({
+    ...m,
+    module_days: (m.module_days ?? [])
+      .filter((d: { deleted_at: string | null }) => !d.deleted_at)
+      .map((d: { assignments?: Array<{ deleted_at: string | null }> }) => ({
+        ...d,
+        assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
+      })),
+  }));
 
   const courseQuizzes = (quizzesData ?? []) as Array<{
     id: string; title: string; questions: unknown[]; published: boolean; module_title: string; day_title: string; linked_day_id: string | null;
@@ -59,7 +72,7 @@ export default async function CoursePage({
               initialCode={course.code}
             />
 
-            <CourseEditor course={course} initialModules={modules || []} courseQuizzes={courseQuizzes} readOnly={isTa} />
+            <CourseEditor course={course} initialModules={filteredModules} courseQuizzes={courseQuizzes} readOnly={isTa} />
           </main>
         </div>
       </div>

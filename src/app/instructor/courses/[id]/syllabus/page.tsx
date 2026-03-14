@@ -25,17 +25,26 @@ export default async function InstructorSyllabusPage({
 
   if (!course) redirect("/instructor/courses");
 
-  const { data: modules } = await supabase
+  const { data: rawModules } = await supabase
     .from("modules")
-    .select("*, module_days(*, assignments!module_day_id(*))")
+    .select("*, module_days(*, deleted_at, assignments!module_day_id(*, deleted_at))")
     .eq("course_id", id)
+    .is("deleted_at", null)
     .order("order", { ascending: true });
+
+  const modules = (rawModules ?? []).map((m) => ({
+    ...m,
+    module_days: (m.module_days ?? [])
+      .filter((d: { deleted_at?: string | null }) => !d.deleted_at)
+      .map((d: { assignments?: Array<{ deleted_at?: string | null }> }) => ({ ...d, assignments: (d.assignments ?? []).filter(a => !a.deleted_at) })),
+  }));
 
   const admin = createServiceSupabaseClient();
   const { data: quizzesData } = await admin
     .from("quizzes")
     .select("id, title, questions, published, module_title, day_title")
     .eq("course_id", id)
+    .is("deleted_at", null)
     .not("day_title", "is", null);
 
   const courseQuizzes = (quizzesData ?? []) as Array<{

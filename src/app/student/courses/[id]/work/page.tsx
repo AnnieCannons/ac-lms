@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -55,11 +55,18 @@ export default async function MyWorkPage({
 
   if (!course) redirect('/student/courses')
 
-  const { data: modules } = await supabase
+  const { data: rawModulesWork } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, assignments!module_day_id(id, title, due_date, is_bonus))')
+    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, deleted_at))')
     .eq('course_id', id)
+    .is('deleted_at', null)
     .order('order', { ascending: true })
+  const modules = (rawModulesWork ?? []).map(m => {
+    const days = (m.module_days ?? [])
+      .filter(d => !d.deleted_at)
+      .map(d => ({ ...d, assignments: (d.assignments ?? []).filter(a => !a.deleted_at) }))
+    return { ...m, module_days: days }
+  })
 
   const { data: submissions } = await supabase
     .from('submissions')
@@ -69,6 +76,19 @@ export default async function MyWorkPage({
   const submissionMap = new Map(
     (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
   )
+
+  const allAssignmentIds = (modules ?? []).flatMap(m =>
+    (m.module_days ?? []).flatMap(d => (d.assignments ?? []).map((a: { id: string }) => a.id))
+  )
+  const adminClient = createServiceSupabaseClient()
+  const { data: overrideRows } = allAssignmentIds.length > 0
+    ? await adminClient
+        .from('assignment_overrides')
+        .select('assignment_id, due_date, excused')
+        .eq('student_id', user.id)
+        .in('assignment_id', allAssignmentIds)
+    : { data: [] }
+  const overrideMap = new Map((overrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
 
   const now = new Date()
   const currentWeek = getCurrentWeek(course.start_date)
@@ -85,11 +105,14 @@ export default async function MyWorkPage({
           })
           .map(a => {
           const sub = submissionMap.get(a.id) ?? null
-          const isLate = !sub && !!a.due_date && new Date(a.due_date) < now
+          const override = overrideMap.get(a.id)
+          const effectiveDueDate = override?.due_date ?? a.due_date
+          const isExcused = override?.excused ?? false
+          const isLate = !isExcused && !sub && !!effectiveDueDate && new Date(effectiveDueDate) < now
           return {
             id: a.id,
             title: a.title,
-            due_date: a.due_date,
+            due_date: effectiveDueDate,
             status: (sub?.status ?? null) as WorkAssignment['status'],
             grade: (sub?.grade ?? null) as WorkAssignment['grade'],
             isLate,

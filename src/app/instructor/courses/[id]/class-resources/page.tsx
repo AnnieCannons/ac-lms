@@ -25,11 +25,19 @@ export default async function InstructorClassResourcesPage({
 
   const { data: rawModules } = await supabase
     .from("modules")
-    .select("id, title, week_number, order, module_days(id, day_name, order, resources!module_day_id(id, type, title, content, description, order))")
+    .select("id, title, week_number, order, module_days(id, day_name, order, deleted_at, resources!module_day_id(id, type, title, content, description, order, deleted_at))")
     .eq("course_id", id)
+    .is("deleted_at", null)
     .order("order", { ascending: true });
 
-  const modules = (rawModules ?? []).filter((m: { title?: string | null }) => !m.title?.includes('DO NOT PUBLISH'));
+  const modules = (rawModules ?? [])
+    .filter((m) => !m.title?.includes('DO NOT PUBLISH'))
+    .map((m) => ({
+      ...m,
+      module_days: (m.module_days ?? [])
+        .filter(d => !(d as { deleted_at?: string | null }).deleted_at)
+        .map(d => ({ ...d, resources: (d.resources ?? []).filter((r: { deleted_at?: string | null }) => !r.deleted_at) })),
+    }));
 
   return (
     <div className="min-h-screen bg-background">

@@ -68,10 +68,18 @@ export async function submitQuiz(formData: FormData) {
 
   if (quizError || !quiz) redirect(`/student/courses/${courseId}/quizzes`);
 
-  // Enforce max_attempts
+  // Enforce max_attempts; also grab started_at and attempt history
   const { data: existingSub } = await admin
     .from("quiz_submissions")
-    .select("attempt_count")
+    .select("attempt_count, attempt_history")
+    .eq("quiz_id", quizId)
+    .eq("student_id", user.id)
+    .maybeSingle();
+
+  // Read when the student started this attempt (from quiz_progress)
+  const { data: progressRow } = await admin
+    .from("quiz_progress")
+    .select("started_at")
     .eq("quiz_id", quizId)
     .eq("student_id", user.id)
     .maybeSingle();
@@ -105,14 +113,29 @@ export async function submitQuiz(formData: FormData) {
   const scorePercent =
     questions.length > 0 ? Math.round((correct / questions.length) * 100) : null;
 
+  const submittedAt = new Date().toISOString();
+  const startedAt = progressRow?.started_at ?? null;
+
+  // Append this attempt's timing to the history
+  type AttemptRecord = { attempt: number; started_at: string | null; submitted_at: string; score_percent: number | null };
+  const prevHistory: AttemptRecord[] = Array.isArray(existingSub?.attempt_history)
+    ? (existingSub.attempt_history as AttemptRecord[])
+    : [];
+  const attemptHistory: AttemptRecord[] = [
+    ...prevHistory,
+    { attempt: currentAttemptCount + 1, started_at: startedAt, submitted_at: submittedAt, score_percent: scorePercent },
+  ];
+
   await admin.from("quiz_submissions").upsert(
     {
       quiz_id: quizId,
       student_id: user.id,
-      submitted_at: new Date().toISOString(),
+      submitted_at: submittedAt,
+      started_at: startedAt,
       answers: mergedAnswers,
       score_percent: scorePercent,
       attempt_count: currentAttemptCount + 1,
+      attempt_history: attemptHistory,
     },
     { onConflict: "quiz_id,student_id" }
   );

@@ -71,7 +71,7 @@ export default async function StudentDayDetailPage({
   if (!day) redirect(`/student/courses/${id}`)
 
   const [{ data: resources }, { data: stars }, { data: completions }] = await Promise.all([
-    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).order('order', { ascending: true }),
+    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).order('order', { ascending: true }),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
   ])
@@ -82,8 +82,8 @@ export default async function StudentDayDetailPage({
   type DayAssignment = { id: string; title: string; description: string | null; due_date: string | null; skill_tags?: string[] | null; is_bonus?: boolean; careerDev?: boolean }
 
   const [{ data: nativeAssignments }, { data: crossAssignments }] = await Promise.all([
-    supabase.from('assignments').select('id, title, description, due_date, skill_tags, is_bonus').eq('module_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
-    supabase.from('assignments').select('id, title, description, due_date, skill_tags, is_bonus').eq('linked_day_id', dayId).eq('published', true).order('due_date', { ascending: true }),
+    supabase.from('assignments').select('id, title, description, due_date, skill_tags, is_bonus').eq('module_day_id', dayId).eq('published', true).is('deleted_at', null).order('due_date', { ascending: true }),
+    supabase.from('assignments').select('id, title, description, due_date, skill_tags, is_bonus').eq('linked_day_id', dayId).eq('published', true).is('deleted_at', null).order('due_date', { ascending: true }),
   ])
 
   const assignments: DayAssignment[] = [
@@ -97,14 +97,24 @@ export default async function StudentDayDetailPage({
   let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
 
   const admin = createServiceSupabaseClient()
+
+  const assignmentIds = assignments.map(a => a.id)
+  const { data: dayOverrideRows } = assignmentIds.length > 0
+    ? await admin
+        .from('assignment_overrides')
+        .select('assignment_id, due_date, excused')
+        .eq('student_id', user.id)
+        .in('assignment_id', assignmentIds)
+    : { data: [] }
+  const dayOverrideMap = new Map((dayOverrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
   const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
   const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
 
   const [{ data: dayQuizData }, { data: crossQuizData }] = await Promise.all([
     day.day_name
-      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true)
+      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
-    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true),
+    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).is('deleted_at', null),
   ])
 
   if (day.day_name) {
@@ -206,13 +216,25 @@ export default async function StudentDayDetailPage({
                         {assignment.description && (
                           <p className="text-sm text-muted-text mt-1 line-clamp-2">{stripHtml(assignment.description)}</p>
                         )}
-                        {assignment.due_date && (
-                          <p className="text-xs text-muted-text mt-2">
-                            Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
-                              weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-                            })}
-                          </p>
-                        )}
+                        {(() => {
+                          const override = dayOverrideMap.get(assignment.id)
+                          const effectiveDue = override?.due_date ?? assignment.due_date
+                          const excused = override?.excused ?? false
+                          return (
+                            <>
+                              {excused && (
+                                <span className="text-xs font-medium bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5">Excused</span>
+                              )}
+                              {!excused && effectiveDue && (
+                                <p className="text-xs text-muted-text mt-2">
+                                  Due {new Date(effectiveDue).toLocaleDateString('en-US', {
+                                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                                  })}
+                                </p>
+                              )}
+                            </>
+                          )
+                        })()}
                       </div>
                       <Link
                         href={`/student/courses/${id}/assignments/${assignment.id}`}

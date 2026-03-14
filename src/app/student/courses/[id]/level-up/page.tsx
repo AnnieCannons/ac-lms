@@ -51,20 +51,33 @@ export default async function StudentLevelUpPage({
   const [{ data: rawModules }, { data: bonusAssignmentsRaw }] = await Promise.all([
     supabase
       .from('modules')
-      .select('*, skill_tags, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, skill_tags, is_bonus), resources!module_day_id(id, type, title, content, description, order))')
+      .select('*, skill_tags, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, skill_tags, is_bonus, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at))')
       .eq('course_id', id)
       .eq('category', 'level_up')
       .eq('published', true)
+      .is('deleted_at', null)
       .order('order', { ascending: true }),
     // Bonus assignments from non-level_up modules
     supabase
       .from('assignments')
       .select('id, title, due_date, skill_tags, module_day_id, module_days!module_day_id(module_id, modules(course_id, category))')
       .eq('is_bonus', true)
-      .eq('published', true),
+      .eq('published', true)
+      .is('deleted_at', null),
   ])
 
-  const modules = (rawModules ?? []).filter(m => !m.title?.includes('DO NOT PUBLISH'))
+  const modules = (rawModules ?? [])
+    .filter(m => !m.title?.includes('DO NOT PUBLISH'))
+    .map(m => ({
+      ...m,
+      module_days: (m.module_days ?? [])
+        .filter((d: { deleted_at: string | null }) => !d.deleted_at)
+        .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null }> }) => ({
+          ...d,
+          assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
+          resources: (d.resources ?? []).filter(r => !r.deleted_at),
+        })),
+    }))
 
   // Filter bonus assignments to this course and non-level_up modules
   type BonusAssignment = { id: string; title: string; due_date: string | null; skill_tags: string[] | null }

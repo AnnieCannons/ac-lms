@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import CreateButton from './CreateButton'
@@ -68,11 +68,22 @@ export default function InstructorCourseNav({
   const pathname = usePathname()
   const [graderOpen, setGraderOpen] = useState(false)
   const [courseOpen, toggleCourseOpen] = useNavSection('nav_section_course')
+  const [activeConductUrl, setActiveConductUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      setActiveConductUrl(localStorage.getItem(`conductingQuiz_${courseId}`))
+    } catch {}
+  }, [courseId, pathname])
   const [gradesOpen, toggleGradesOpen] = useNavSection('nav_section_grades')
   const [employmentOpen, toggleEmploymentOpen] = useNavSection('nav_section_employment')
 
   const navLink = (label: string, slug: string) => {
-    const href = `/instructor/courses/${courseId}${slug ? `/${slug}` : ''}`
+    const baseHref = `/instructor/courses/${courseId}${slug ? `/${slug}` : ''}`
+    const isOnConduct = pathname.includes('/conduct')
+    const href = slug === 'quizzes' && activeConductUrl && !isOnConduct
+      ? activeConductUrl
+      : baseHref
     let isActive: boolean
     if (slug === 'submissions') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/submissions`)
@@ -86,10 +97,11 @@ export default function InstructorCourseNav({
     } else if (slug === 'roster') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/roster`)
     } else if (slug === '') {
-      isActive = pathname === href && !COURSE_SLUGS.some(s => pathname.endsWith(`/${s}`))
+      isActive = pathname === baseHref && !COURSE_SLUGS.some(s => pathname.endsWith(`/${s}`))
     } else {
-      isActive = pathname === href
+      isActive = pathname === baseHref
     }
+    const isConductShortcut = slug === 'quizzes' && activeConductUrl && !isOnConduct
     return (
       <Link
         key={label}
@@ -99,8 +111,10 @@ export default function InstructorCourseNav({
             ? 'bg-teal-light text-teal-primary'
             : 'text-muted-text hover:text-dark-text hover:bg-border/20'
         }`}
+        title={isConductShortcut ? 'Return to active quiz moderation' : undefined}
       >
         {label}
+        {isConductShortcut && <span className="ml-1.5 text-[10px] font-bold text-amber-500">●</span>}
       </Link>
     )
   }
@@ -150,6 +164,10 @@ export default function InstructorCourseNav({
           </>
         )}
 
+        {!isTa && (
+          <TrashNavLink courseId={courseId} pathname={pathname} />
+        )}
+
         {isTa && (
           <>
             <SectionHeader label="Employment" open={employmentOpen} onToggle={toggleEmploymentOpen} />
@@ -197,6 +215,77 @@ export default function InstructorCourseNav({
         />
       )}
     </nav>
+  )
+}
+
+function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: string }) {
+  const href = `/instructor/courses/${courseId}/trash`
+  const isActive = pathname.startsWith(href)
+  const router = useRouter()
+  const [showEmptyPrompt, setShowEmptyPrompt] = useState(false)
+
+  useEffect(() => {
+    // Show weekly popup if trash has items and we haven't shown it this week
+    const key = `trashPrompt_${courseId}`
+    const lastShown = localStorage.getItem(key)
+    const now = Date.now()
+    const oneWeek = 7 * 24 * 60 * 60 * 1000
+    if (!lastShown || now - parseInt(lastShown, 10) > oneWeek) {
+      // Check if there are trashed items by fetching the trash page
+      // We do this lazily — the popup only shows after we have confirmed items exist
+      // We use a flag stored in localStorage when trash has items
+      const hasItems = localStorage.getItem(`trashHasItems_${courseId}`) === 'true'
+      if (hasItems) {
+        localStorage.setItem(key, String(now))
+        setShowEmptyPrompt(true)
+      }
+    }
+  }, [courseId])
+
+  return (
+    <>
+      <Link
+        href={href}
+        className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+          isActive
+            ? 'bg-teal-light text-teal-primary'
+            : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+        }`}
+      >
+        <span className="text-base leading-none">🗑</span>
+        <span>Trash</span>
+      </Link>
+
+      {showEmptyPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowEmptyPrompt(false)}>
+          <div className="bg-surface border border-border rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="text-3xl mb-3">🗑️</div>
+            <h2 className="text-lg font-bold text-dark-text mb-2">Empty trash?</h2>
+            <p className="text-sm text-muted-text mb-5">
+              You have items in the trash for this course. Would you like to permanently delete them now, or review them first?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowEmptyPrompt(false); router.push(href) }}
+                className="flex-1 px-4 py-2 rounded-full border border-border text-sm font-medium text-dark-text hover:bg-border/20 transition-colors"
+              >
+                Review trash
+              </button>
+              <button
+                onClick={() => {
+                  setShowEmptyPrompt(false)
+                  localStorage.removeItem(`trashHasItems_${courseId}`)
+                  router.push(`${href}?action=empty`)
+                }}
+                className="flex-1 px-4 py-2 rounded-full bg-red-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                Empty trash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

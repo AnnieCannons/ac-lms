@@ -30,6 +30,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { toggleQuizPublished } from "@/lib/quiz-actions";
+import { trashAssignment, trashResource, trashModule, trashDay } from "@/lib/trash-actions";
 import HtmlContent from "@/components/ui/HtmlContent";
 import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup, DuplicateQuizPopup, DuplicateIcon, type DuplicatedAssignment, type DuplicatedModule, type DuplicatedResource, type DuplicatedQuiz } from "@/components/ui/DuplicatePopup";
 
@@ -212,7 +213,7 @@ function AssignmentCard({
   dayName: string;
   courseId: string;
   onOpen: (assignment: Assignment, dayId: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
   onDuplicated: (assignment: DuplicatedAssignment, targetDayId: string) => void;
 }) {
@@ -427,7 +428,7 @@ function AssignmentCard({
               {assignment.published ? "Published" : "Draft"}
             </button>
             <button
-              onClick={() => onDelete(assignment.id)}
+              onClick={() => onDelete(assignment.id, assignment.title)}
               className="text-muted-text hover:text-red-400 shrink-0"
               type="button"
               aria-label="Delete assignment"
@@ -463,7 +464,7 @@ function AssignmentFullView({
   onClose: () => void;
   onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => Promise<void>;
   onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
   onToggleBonus: (id: string, current: boolean) => void;
   defaultTemplateId?: string;
@@ -651,8 +652,8 @@ function AssignmentFullView({
   };
 
   const handleDelete = () => {
-    if (!assignment || !window.confirm("Delete this assignment?")) return;
-    onDelete(assignment.id);
+    if (!assignment) return;
+    onDelete(assignment.id, assignment.title);
     onClose();
   };
 
@@ -976,7 +977,7 @@ function AssignmentDropZone({
   assignments: Assignment[];
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
-  onDeleteAssignment: (assignmentId: string) => void;
+  onDeleteAssignment: (assignmentId: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
   courseId: string;
   onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
@@ -1067,7 +1068,7 @@ function SortableResource({
   moduleId: string;
   courseId: string;
   onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, title: string) => void;
   onRelocated: () => void;
   onTogglePublished: (id: string, current: boolean) => void;
 }) {
@@ -1437,7 +1438,7 @@ function SortableResource({
       )}
       {!readOnly && (
         <button
-          onClick={() => onDelete(resource.id)}
+          onClick={() => onDelete(resource.id, resource.title)}
           className="text-muted-text hover:text-red-400 shrink-0"
           type="button"
           aria-label="Delete resource"
@@ -1467,10 +1468,10 @@ function SortableDay({
   day: Day;
   weekNumber: number | null;
   refreshTrigger: number;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, name: string) => void;
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
-  onDeleteAssignment: (assignmentId: string) => void;
+  onDeleteAssignment: (assignmentId: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
   onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
   courseId: string;
@@ -1500,6 +1501,7 @@ function SortableDay({
       .from("resources")
       .select("*")
       .or(`module_day_id.eq.${day.id},linked_day_id.eq.${day.id}`)
+      .is("deleted_at", null)
       .order("order")
       .then(({ data }) => {
         if (data) setResources(data);
@@ -1606,8 +1608,10 @@ function SortableDay({
     );
   };
 
-  const deleteResource = async (id: string) => {
-    await supabase.from("resources").delete().eq("id", id);
+  const deleteResource = async (id: string, title: string) => {
+    if (!window.confirm(`Move "${title}" to trash?`)) return;
+    const { error } = await trashResource(id, courseId);
+    if (error) { alert(error); return; }
     setResources((prev) => prev.filter((r) => r.id !== id));
   };
 
@@ -1683,7 +1687,7 @@ function SortableDay({
 
         {!readOnly && (
           <button
-            onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete "${dayNameDraft}" and all its resources? This cannot be undone.`)) onDelete(day.id); }}
+            onClick={(e) => { e.stopPropagation(); onDelete(day.id, day.day_name); }}
             className="text-muted-text hover:text-red-400"
             aria-label={`Delete day ${dayNameDraft}`}
             type="button"
@@ -1977,12 +1981,12 @@ function SortableModule({
   courseId: string;
   expanded: boolean;
   onToggleExpand: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, title: string) => void;
   onAddDay: (moduleId: string, dayName: string) => void;
-  onDeleteDay: (dayId: string, moduleId: string) => void;
+  onDeleteDay: (dayId: string, moduleId: string, name: string) => void;
   onOpenAssignment: (assignment: Assignment, dayId: string) => void;
   onOpenAdd: (dayId: string) => void;
-  onDeleteAssignment: (assignmentId: string) => void;
+  onDeleteAssignment: (assignmentId: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
   onUpdateCategory: (moduleId: string, category: string | null) => void;
   onToggleModulePublished: (id: string, current: boolean) => void;
@@ -2151,7 +2155,7 @@ function SortableModule({
         )}
         {!readOnly && (
           <button
-            onClick={() => { if (window.confirm(`Delete module "${module.title}" and everything in it? This cannot be undone.`)) onDelete(module.id); }}
+            onClick={() => onDelete(module.id, module.title)}
             className="text-muted-text hover:text-red-400"
             aria-label={`Delete module ${module.title}`}
             type="button"
@@ -2177,7 +2181,7 @@ function SortableModule({
                   day={day}
                   weekNumber={module.week_number}
                   refreshTrigger={dayRefreshTriggers[day.id] ?? 0}
-                  onDelete={(id) => onDeleteDay(id, module.id)}
+                  onDelete={(id, name) => onDeleteDay(id, module.id, name)}
                   onOpenAssignment={onOpenAssignment}
                   onOpenAdd={onOpenAdd}
                   onDeleteAssignment={onDeleteAssignment}
@@ -2732,8 +2736,10 @@ export default function CourseEditor({
     }
   };
 
-  const deleteModule = async (id: string) => {
-    await supabase.from("modules").delete().eq("id", id);
+  const deleteModule = async (id: string, title: string) => {
+    if (!window.confirm(`Move "${title}" and all its days to trash?`)) return;
+    const { error } = await trashModule(id, course.id);
+    if (error) { alert(error); return; }
     setModules((prev) => prev.filter((m) => m.id !== id));
   };
 
@@ -2935,8 +2941,10 @@ export default function CourseEditor({
     }
   };
 
-  const deleteDay = async (dayId: string, moduleId: string) => {
-    await supabase.from("module_days").delete().eq("id", dayId);
+  const deleteDay = async (dayId: string, moduleId: string, dayName: string) => {
+    if (!window.confirm(`Move "${dayName}" and all its content to trash?`)) return;
+    const { error } = await trashDay(dayId, course.id);
+    if (error) { alert(error); return; }
 
     setModules((prev) =>
       prev.map((m) =>
@@ -3041,8 +3049,10 @@ export default function CourseEditor({
     );
   };
 
-  const deleteAssignment = async (assignmentId: string) => {
-    await supabase.from("assignments").delete().eq("id", assignmentId);
+  const deleteAssignment = async (assignmentId: string, title: string) => {
+    if (!window.confirm(`Move "${title}" to trash?`)) return;
+    const { error } = await trashAssignment(assignmentId, course.id);
+    if (error) { alert(error); return; }
     setModules((prev) =>
       prev.map((m) => ({
         ...m,

@@ -72,6 +72,7 @@ export default async function StudentQuizzesPage({
     .select("id, title, due_at, module_title, questions, max_attempts")
     .eq("course_id", id)
     .eq("published", true)
+    .is("deleted_at", null)
     .order("module_title", { ascending: true })
     .order("title", { ascending: true });
 

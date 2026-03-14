@@ -106,12 +106,11 @@ export async function toggleQuizPublished(quizId: string, courseId: string, publ
 export async function deleteQuiz(quizId: string, courseId: string) {
   await getInstructorSession();
   const admin = createServiceSupabaseClient();
-  // Verify quiz belongs to this course before cascade-deleting
+  // Verify quiz belongs to this course
   const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
   if (!quiz) throw new Error("Quiz not found in this course");
-  await admin.from("quiz_submissions").delete().eq("quiz_id", quizId);
-  await admin.from("quiz_progress").delete().eq("quiz_id", quizId);
-  const { error } = await admin.from("quizzes").delete().eq("id", quizId);
+  // Soft delete — submissions/progress are preserved for the trash page
+  const { error } = await admin.from("quizzes").update({ deleted_at: new Date().toISOString() }).eq("id", quizId);
   if (error) throw new Error(error.message);
 }
 
@@ -124,7 +123,7 @@ export async function getConductSubmissions(quizId: string, courseId: string) {
   const [{ data: submissions, error }, { data: progressRaw }] = await Promise.all([
     admin
       .from("quiz_submissions")
-      .select("student_id, score_percent, attempt_count, submitted_at")
+      .select("student_id, score_percent, attempt_count, submitted_at, started_at, attempt_history")
       .eq("quiz_id", quizId),
     admin
       .from("quiz_progress")

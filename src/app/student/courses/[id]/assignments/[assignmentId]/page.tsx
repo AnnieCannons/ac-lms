@@ -95,6 +95,18 @@ export default async function StudentAssignmentPage({
   let admin: ReturnType<typeof createServiceSupabaseClient> | null = null
   try { admin = createServiceSupabaseClient() } catch { /* service role key not configured */ }
 
+  const { data: override } = admin
+    ? await admin
+        .from('assignment_overrides')
+        .select('due_date, excused')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', user.id)
+        .maybeSingle()
+    : { data: null }
+
+  const effectiveDueDate = (override?.due_date ?? null) ? override!.due_date : assignment.due_date
+  const isExcused = override?.excused ?? false
+
   // Instructor's checklist responses (read-only for student)
   const { data: instructorResponses } = (admin && existingSubmission)
     ? await admin
@@ -185,18 +197,23 @@ export default async function StudentAssignmentPage({
             )}
           </div>
           {existingSubmission?.grade === 'complete' && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-600">
+            <span className="status-complete-btn shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Complete ✓
             </span>
           )}
           {existingSubmission?.grade === 'incomplete' && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-red-50 text-red-500 border border-red-500">
+            <span className="status-revision-btn shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Needs Revision
             </span>
           )}
-          {!existingSubmission && assignment.due_date && new Date(assignment.due_date) < new Date() && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-500">
+          {!isExcused && !existingSubmission && effectiveDueDate && new Date(effectiveDueDate) < new Date() && (
+            <span className="status-late-badge shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Late
+            </span>
+          )}
+          {isExcused && (
+            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border bg-amber-50 text-amber-700 border-amber-300">
+              Excused
             </span>
           )}
         </div>
@@ -204,19 +221,19 @@ export default async function StudentAssignmentPage({
           {module && (
             <p className="text-muted-text text-sm">{module.title}</p>
           )}
-          {assignment.due_date && (() => {
-            const isPast = new Date(assignment.due_date) < new Date()
+          {effectiveDueDate && (() => {
+            const isPast = new Date(effectiveDueDate) < new Date()
             const isResolved = existingSubmission?.grade === 'complete' || existingSubmission?.grade === 'incomplete' || existingSubmission?.status === 'submitted'
             return (
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border ${
-                isPast && !isResolved
+                isPast && !isResolved && !isExcused
                   ? 'bg-amber-500/10 text-amber-700 border-amber-500'
                   : 'bg-surface text-muted-text border-border'
               }`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
+                Due {new Date(effectiveDueDate).toLocaleDateString('en-US', {
                   weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
                 })}
               </span>
@@ -284,10 +301,10 @@ export default async function StudentAssignmentPage({
                   <p className="text-xs text-muted-text mt-0.5">This checklist determines your grade.</p>
                 </div>
                 {existingSubmission?.grade === 'complete' && (
-                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600">Complete ✓</span>
+                  <span className="status-complete-btn shrink-0 text-xs font-semibold px-3 py-1 rounded-full border">Complete ✓</span>
                 )}
                 {existingSubmission?.grade === 'incomplete' && (
-                  <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500 border border-red-500">Needs Revision</span>
+                  <span className="status-revision-btn shrink-0 text-xs font-semibold px-3 py-1 rounded-full border">Needs Revision</span>
                 )}
               </div>
               <div className="flex flex-col gap-2">

@@ -61,20 +61,23 @@ export default async function StudentAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, is_bonus))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, deleted_at))')
     .eq('course_id', id)
     .eq('published', true)
+    .is('deleted_at', null)
     .order('order', { ascending: true })
 
-  // Filter bonus assignments out — they belong to Level Up only
+  // Filter bonus assignments out — they belong to Level Up only; also filter trashed items
   const modules = (rawModules ?? [])
     .filter(m => !m.title?.includes('DO NOT PUBLISH'))
     .map(m => ({
       ...m,
-      module_days: (m.module_days ?? []).map((d: { id: string; day_name: string; order: number; assignments?: Array<{ id: string; title: string; due_date: string | null; published: boolean; is_bonus?: boolean }> }) => ({
-        ...d,
-        assignments: (d.assignments ?? []).filter((a) => !a.is_bonus && a.published),
-      })),
+      module_days: (m.module_days ?? [])
+        .filter((d: { deleted_at: string | null }) => !d.deleted_at)
+        .map((d: { id: string; day_name: string; order: number; assignments?: Array<{ id: string; title: string; due_date: string | null; published: boolean; is_bonus?: boolean; deleted_at?: string | null }> }) => ({
+          ...d,
+          assignments: (d.assignments ?? []).filter((a) => !a.is_bonus && a.published && !a.deleted_at),
+        })),
     }))
 
   // Use service role when impersonating to bypass RLS

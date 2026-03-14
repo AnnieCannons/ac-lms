@@ -38,12 +38,14 @@ export default async function InstructorQuizzesPage({
       .from("quizzes")
       .select("*")
       .eq("course_id", id)
+      .is("deleted_at", null)
       .order("module_title", { ascending: true })
       .order("title", { ascending: true }),
     supabase
       .from("modules")
       .select("title, order")
       .eq("course_id", id)
+      .is("deleted_at", null)
       .order("order", { ascending: true }),
   ]);
   let dbQuizzes = dbQuizzesRaw as QuizRow[] | null;
@@ -71,6 +73,7 @@ export default async function InstructorQuizzesPage({
         .from("quizzes")
         .select("*")
         .eq("course_id", id)
+        .is("deleted_at", null)
         .order("module_title", { ascending: true })
         .order("title", { ascending: true });
       dbQuizzes = (res.data ?? []) as QuizRow[];
