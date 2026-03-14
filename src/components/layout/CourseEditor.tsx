@@ -3061,7 +3061,7 @@ export default function CourseEditor({
         module_days: m.module_days.map((d) => {
           if (d.id !== targetDayId) return d;
           const existing = d.assignments ?? [];
-          return { ...d, assignments: [...existing, { ...assignment, order: existing.length }] };
+          return { ...d, assignments: [...existing, { ...assignment, is_bonus: assignment.is_bonus ?? false, order: existing.length }] };
         }),
       }))
     );
