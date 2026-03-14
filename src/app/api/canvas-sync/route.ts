@@ -146,6 +146,9 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
+  // Optional ?since=<ISO_DATE> override for manual backfills (e.g. ?since=2026-01-01)
+  const sinceOverride = req.nextUrl.searchParams.get('since')
+
   const stats = { submissions: 0, comments: 0, errors: 0 }
 
   for (const canvasCourseId of CANVAS_COURSE_IDS) {
@@ -166,7 +169,8 @@ export async function GET(req: NextRequest) {
       .eq('slug', syncKey)
       .maybeSingle()
 
-    const since = marker?.content
+    const since = sinceOverride
+      ?? marker?.content
       ?? new Date(Date.now() - INITIAL_LOOKBACK_DAYS * 86400 * 1000).toISOString()
 
     const nowISO = new Date().toISOString()
