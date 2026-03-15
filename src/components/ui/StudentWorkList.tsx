@@ -21,11 +21,11 @@ export type WorkAssignment = {
 };
 
 function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean }) {
-  if (grade === "complete") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>;
-  if (grade === "incomplete") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>;
+  if (grade === "complete") return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>;
+  if (grade === "incomplete") return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>;
   if (status === "submitted") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned in</span>;
-  if (status === "draft") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-600 shrink-0">Draft</span>;
-  if (isLate) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-500 shrink-0">Late</span>;
+  if (status === "draft") return <span className="status-draft-badge text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">Draft</span>;
+  if (isLate) return <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>;
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not started</span>;
 }
 

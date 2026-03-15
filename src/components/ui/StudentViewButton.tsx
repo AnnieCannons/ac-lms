@@ -11,7 +11,11 @@ export default function StudentViewButton({ courseId }: { courseId: string }) {
       .split('; ')
       .find(row => row.startsWith('student-view='))
       ?.split('=')[1]
-    setActive(value === courseId)
+    if (value) {
+      // Arrived back on instructor side — clear the stale student-view cookie
+      document.cookie = 'student-view=; path=/; max-age=0'
+    }
+    setActive(false)
   }, [courseId])
 
   function handleClick() {
@@ -29,7 +33,7 @@ export default function StudentViewButton({ courseId }: { courseId: string }) {
       onClick={handleClick}
       className={`w-full text-sm font-semibold px-4 py-1.5 rounded-full transition-colors truncate ${
         active
-          ? 'bg-amber-100 text-amber-800 border border-amber-400 hover:bg-amber-200'
+          ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-400 dark:border-amber-600 hover:bg-amber-200 dark:hover:bg-amber-800/50'
           : 'text-teal-primary border border-teal-primary hover:bg-teal-light'
       }`}
     >

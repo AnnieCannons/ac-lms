@@ -137,13 +137,13 @@ type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'comple
 
 function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
   const isLate = !!dueDate && new Date(dueDate) < new Date()
-  if (info?.grade === 'complete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete ✓</span>
-  if (info?.grade === 'incomplete') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Needs Revision</span>
+  if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
+  if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
   if (info?.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
   // not started (no submission or draft) — show both Late + Not Started if past due
   return (
     <div className="flex items-center gap-1.5">
-      {isLate && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-500 shrink-0">Late</span>}
+      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>}
       <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
     </div>
   )

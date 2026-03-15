@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
@@ -8,21 +9,7 @@ import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 
-// Strip HTML tags (from Canvas-synced body text) and return clean text
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-}
 
-// Render text content: strip HTML, and if the result is a URL render it as a link
-function TextContent({ content, className }: { content: string; className?: string }) {
-  const text = content.includes('<') ? stripHtml(content) : content
-  try {
-    new URL(text)
-    return <a href={text} target="_blank" rel="noopener noreferrer" className="text-sm text-teal-primary underline break-all">{text}</a>
-  } catch {
-    return <p className={className ?? "text-sm text-dark-text whitespace-pre-wrap break-words"}>{text}</p>
-  }
-}
 
 type SubmissionType = "text" | "link" | "file";
 type SubmissionStatus = "draft" | "submitted" | "graded";
@@ -103,6 +90,7 @@ export default function SubmissionForm({
   const [textContent, setTextContent] = useState("");
   const [fileUrl, setFileUrl] = useState("");
 
+  const [previewMd, setPreviewMd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -245,12 +233,12 @@ export default function SubmissionForm({
   return (
     <>
     {isStudentPreview && (
-      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+      <div className="status-late-badge border rounded-xl px-4 py-3 text-sm">
         Assignment submission is disabled in Student View.
       </div>
     )}
     {isObserver && (
-      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+      <div className="status-late-badge border rounded-xl px-4 py-3 text-sm">
         You&apos;re currently on leave. Your submitted work is visible below, but submissions are paused.
       </div>
     )}
@@ -314,11 +302,11 @@ export default function SubmissionForm({
         <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Turn In</p>
         {saved && (
           <span aria-live="polite" className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-            saved.grade === "complete"   ? "bg-green-50 text-green-700 border border-green-600" :
-            saved.grade === "incomplete" ? "bg-red-50 text-red-500 border border-red-500" :
+            saved.grade === "complete"   ? "status-complete-btn border" :
+            saved.grade === "incomplete" ? "status-revision-btn border" :
             saved.status === "submitted" ? "bg-teal-light text-teal-primary border border-teal-primary" :
             saved.status === "graded"    ? "bg-purple-100 text-purple-primary" :
-                                           "bg-yellow-50 text-yellow-600"
+                                           "status-draft-badge"
           }`}>
             {saved.grade === "complete"   ? "Complete ✓" :
              saved.grade === "incomplete" ? "Needs Revision" :
@@ -360,7 +348,7 @@ export default function SubmissionForm({
                 {saved.content}
               </a>
             ) : (
-              <TextContent content={saved.content} />
+              <MarkdownContent content={saved.content} />
             )}
           </div>
 
@@ -414,7 +402,7 @@ export default function SubmissionForm({
                       {entry.content}
                     </a>
                   ) : (
-                    <TextContent content={entry.content ?? ''} className="text-dark-text line-clamp-2 flex-1" />
+                    <div className="flex-1 min-w-0 line-clamp-3"><MarkdownContent content={entry.content ?? ''} /></div>
                   )}
                   {i === 0 && (
                     <span className="text-muted-text shrink-0">(latest)</span>
@@ -493,13 +481,35 @@ export default function SubmissionForm({
           )}
 
           {tab === "text" && (
-            <textarea
-              placeholder="Write your response here…"
-              value={textContent}
-              onChange={e => setTextContent(e.target.value)}
-              rows={6}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-y"
-            />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-text">Supports **bold**, *italic*, `code`, lists, and links</p>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMd(p => !p)}
+                  className="text-xs font-medium text-teal-primary hover:underline"
+                >
+                  {previewMd ? "Edit" : "Preview"}
+                </button>
+              </div>
+              {previewMd ? (
+                <div className="min-h-[9rem] bg-background border border-border rounded-lg px-3 py-2">
+                  {textContent.trim() ? (
+                    <MarkdownContent content={textContent} />
+                  ) : (
+                    <p className="text-sm text-muted-text italic">Nothing to preview.</p>
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  placeholder="Write your response here…"
+                  value={textContent}
+                  onChange={e => setTextContent(e.target.value)}
+                  rows={6}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-y font-mono"
+                />
+              )}
+            </div>
           )}
 
           {tab === "file" && (

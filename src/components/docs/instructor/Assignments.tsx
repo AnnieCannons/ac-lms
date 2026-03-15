@@ -18,28 +18,40 @@ export default function Assignments() {
       </DocTip>
 
       <DocH2>Assignment Editor</DocH2>
-      <DocP>The assignment editor has several sections:</DocP>
+      <DocP>
+        The assignment editor opens on a dedicated page. At the top is a row of toggle buttons — click any to activate
+        or deactivate it:
+      </DocP>
       <DocList>
-        <li><strong>Instructions</strong> — rich-text field; supports formatting, code blocks, links, and images</li>
-        <li><strong>Checklist Items</strong> — self-assessment criteria students check off before submitting; helps them review their own work before turning it in</li>
-        <li><strong>Submission Required</strong> — toggle on if students must upload a link, text, or file; toggle off for completion-only assignments</li>
-        <li><strong>Due Date</strong> — optional; shown to students on the assignment page and list</li>
-        <li><strong>Published</strong> — controls student visibility; toggle on when the assignment is ready for students</li>
-        <li><strong>Bonus</strong> — marks the assignment as a bonus (see Level Up below)</li>
+        <li><strong>Published / Draft</strong> — controls student visibility; toggle to Published when the assignment is ready for students</li>
+        <li><strong>Submission Required / No submission</strong> — on means students must upload a link, text, or file; off is for completion-only assignments your instructor checks directly</li>
+        <li><strong>Bonus?</strong> — marks the assignment as optional bonus work (see Level Up below)</li>
+        <li><strong>Move to trash</strong> — soft-deletes the assignment (see Deleting an Assignment below)</li>
+      </DocList>
+      <DocP>Below the toggle row, the editor has these fields:</DocP>
+      <DocList>
+        <li><strong>Title</strong> — the assignment name students see</li>
         <li><strong>Skill Tags</strong> — pick from preset tags or add custom ones; shown to students as teal pills</li>
+        <li><strong>Due Date</strong> — optional; shown to students on the assignment page and in their Assignments list</li>
+        <li><strong>Answer Key URL</strong> — a private link only visible to instructors on the grading page</li>
+        <li><strong>Instructions</strong> — rich-text field; supports formatting, code blocks, links, and images</li>
+        <li><strong>How to Turn In</strong> — instructions for students on what to submit and where</li>
+        <li><strong>Grading Checklist</strong> — criteria students check off before submitting; helps self-assessment and informs your grading</li>
+        <li><strong>Student Overrides</strong> — per-student due date extensions or excused status (see below)</li>
       </DocList>
 
       <DocTip>
         Use the checklist to communicate rubric expectations clearly. Students see the same checklist and check items
-        off before submitting — this reduces ambiguity and helps students self-assess before you grade.
+        off before submitting — this reduces ambiguity and helps them self-assess before you grade. You can paste
+        multiple lines at once into the item text field to bulk-add checklist items.
       </DocTip>
 
       <DocH2>Deleting an Assignment</DocH2>
       <DocP>
-        Use the <strong>Move to trash</strong> button in the top-right corner of the assignment editor to soft-delete an
-        assignment. Trashed assignments are immediately hidden from students but can be recovered from the course{' '}
-        <strong>Trash</strong> page (bottom of the sidebar). See <strong>Course Editor → Deleting Content</strong> for
-        details on the trash workflow.
+        Use the <strong>Move to trash</strong> button in the button row at the top of the assignment editor to
+        soft-delete an assignment. Trashed assignments are immediately hidden from students but can be recovered from
+        the course <strong>Trash</strong> page (bottom of the sidebar). See{' '}
+        <strong>Course Editor → Deleting Content</strong> for details on the trash workflow.
       </DocP>
 
       <DocH2>Student Due Date Overrides</DocH2>
@@ -47,20 +59,29 @@ export default function Assignments() {
         The <strong>Student Overrides</strong> section at the bottom of the assignment editor lets you give individual
         students a different due date or excuse them from the assignment entirely.
       </DocP>
+
+      <DocH3>Adding a Custom Due Date</DocH3>
+      <DocStep number={1}>Click <strong>+ Add override</strong> to expand the form.</DocStep>
+      <DocStep number={2}>Select a student from the dropdown — only enrolled students appear, and students who already have an override are filtered out.</DocStep>
+      <DocStep number={3}>Enter a date in the date field.</DocStep>
+      <DocStep number={4}>Click <strong>Save due date</strong> — the student appears in the overrides list immediately with their custom date.</DocStep>
+
+      <DocH3>Excusing a Student</DocH3>
+      <DocStep number={1}>Click <strong>+ Add override</strong> to expand the form.</DocStep>
+      <DocStep number={2}>Select the student from the dropdown.</DocStep>
+      <DocStep number={3}>Click <strong>+ Excuse</strong> — the student is saved immediately with Excused status. No date entry is needed.</DocStep>
+
       <DocList>
-        <li>Click <strong>+ Add override</strong> to expand the override form</li>
-        <li>Select a student from the dropdown (only enrolled students appear)</li>
-        <li>Enter a custom due date, or toggle <strong>Excused</strong> to exempt the student from the assignment</li>
-        <li>Click <strong>Save</strong> — the override appears in the list immediately</li>
         <li>Click <strong>Remove</strong> next to any override to delete it and restore the default due date</li>
+        <li>An excused override shows the student an amber <strong>Excused</strong> badge and suppresses any Late indicator</li>
       </DocList>
       <DocNote>
-        Excused assignments still appear for the student — they show an amber <strong>Excused</strong> badge instead of
-        a Late indicator. The assignment is not hidden from them.
+        Excused assignments still appear for the student — they are not hidden. The Excused badge replaces the Late
+        indicator so students know they&apos;re covered.
       </DocNote>
       <DocTip>
         Use overrides for students with accommodations, extensions, or attendance exceptions. Each override is
-        student-specific and does not affect anyone else.
+        student-specific and does not affect anyone else in the course.
       </DocTip>
 
       <DocH2>Bonus Assignments &amp; Level Up</DocH2>

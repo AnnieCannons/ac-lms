@@ -67,14 +67,16 @@ export default function Roster() {
         <li><strong>Grades → By Student tab</strong> — click any student name in the course-wide grades view</li>
       </DocList>
       <DocP>
-        The URL is <strong>/roster/[student-id]</strong> and can be shared directly with another instructor or TA.
+        The URL follows the pattern <strong>/instructor/courses/[course-id]/roster/[student-id]</strong> and can be
+        shared directly with another instructor or TA who has access to the same course.
       </DocP>
 
       <DocH2>Who Appears on the Roster?</DocH2>
       <DocP>
-        The roster shows all students and observers with an active enrollment in the course. Students are listed by
-        name. If a student has no accommodation notes or flags, they may not appear on the roster — that&apos;s
-        expected. The roster is specifically for tracking accommodation needs.
+        The roster shows all students and observers with an active enrollment in the course. Every student appears,
+        regardless of whether they have accommodation flags. Flags (Camera Off, Notes) are displayed when set — students
+        without flags simply show without any badges. The progress and inline grading features are available for all
+        students on the roster.
       </DocP>
     </>
   )

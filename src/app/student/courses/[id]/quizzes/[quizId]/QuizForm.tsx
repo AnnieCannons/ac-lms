@@ -77,7 +77,7 @@ export default function QuizForm({
   if (isObserver) {
     return (
       <div className="space-y-4">
-        <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+        <div className="status-late-badge border rounded-xl px-4 py-3 text-sm">
           Quiz submissions are paused while you&apos;re on leave.
         </div>
         {questions.map((q, i) => (
@@ -237,7 +237,7 @@ export default function QuizForm({
       })}
       <div className="flex justify-end pt-2">
         {isStudentPreview ? (
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <p className="status-late-badge border rounded-xl px-4 py-3 text-sm">
             Quiz submission is disabled in Student View.
           </p>
         ) : (

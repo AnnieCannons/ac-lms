@@ -8,23 +8,59 @@ export default function People() {
 
       <DocH2>The Users Page</DocH2>
       <DocP>
-        Navigate to <strong>People</strong> in the course sidebar to open the Users page. It lists everyone enrolled in
-        the course along with their role and the option to change it or remove them.
+        Navigate to <strong>Users</strong> in the course sidebar to manage everyone in the course. The page has two tabs:
+      </DocP>
+      <DocList>
+        <li><strong>Current Class</strong> — everyone enrolled in this specific course, with role controls and the ability to remove members</li>
+        <li><strong>All Users</strong> — every user across all courses (admins only)</li>
+      </DocList>
+
+      <DocH2>Adding People</DocH2>
+      <DocP>
+        Click <strong>+ Add People</strong> at the top of the Users page. A modal asks you what type of person you&apos;re adding:
       </DocP>
 
-      <DocH2>Adding a Student</DocH2>
-      <DocStep number={1}>Click <strong>+ Add Student</strong> on the Users page.</DocStep>
-      <DocStep number={2}>Enter the student&apos;s email address. If they don&apos;t have an LMS account yet, one will be created and they&apos;ll receive an invitation email.</DocStep>
-      <DocStep number={3}>The student is enrolled and will see the course on their My Courses page after logging in.</DocStep>
-
+      <DocH3>Adding Students</DocH3>
+      <DocStep number={1}>Choose <strong>Students</strong> in the modal.</DocStep>
+      <DocStep number={2}>Select the <strong>course</strong> to enroll them in — it defaults to the current course, but you can change it to any other course you have access to.</DocStep>
+      <DocStep number={3}>Paste email addresses — one per line, or comma-separated. You can add as many as you like at once.</DocStep>
+      <DocStep number={4}>Click <strong>Add</strong>. Each email is processed immediately and a results list shows whether each person was added or invited.</DocStep>
       <DocTip>
-        If you&apos;re adding multiple students, add them one at a time. Each enrollment is processed separately.
+        If an email already has an account in the system, the student is enrolled instantly — no invite email is sent. If
+        the email is new, an invitation is sent and they appear in <strong>Pending Invitations</strong> until they accept.
+      </DocTip>
+
+      <DocH3>Adding Staff</DocH3>
+      <DocP>
+        Choose <strong>Staff</strong> in the modal. Staff members are added <strong>globally</strong> — they get access
+        to all courses in the system. Paste their email addresses and click Add.
+      </DocP>
+      <DocP>
+        After adding, assign them to a specific course from the <strong>Instructors</strong> table on the Users page —
+        or leave them unassigned if they don&apos;t have a dedicated class.
+      </DocP>
+      <DocNote>
+        Staff are added with the global Instructor role. If you only want someone to grade for a single course without
+        full instructor access, use the <strong>TA</strong> role instead (see below).
+      </DocNote>
+
+      <DocH2>Pending Invitations</DocH2>
+      <DocP>
+        When a new email is added that doesn&apos;t yet have an account, an invite email is sent and the address appears
+        in the <strong>Pending Invitations</strong> section. From there you can:
+      </DocP>
+      <DocList>
+        <li><strong>Resend</strong> — send the invite email again if the student didn&apos;t receive it or it expired</li>
+        <li><strong>Revoke</strong> (trash icon) — cancel the invitation before the student accepts</li>
+      </DocList>
+      <DocTip>
+        Once the student logs in and accepts, the invitation disappears and they appear in the Learners list.
       </DocTip>
 
       <DocH2>Enrollment Roles</DocH2>
       <DocList>
         <li><strong>Student</strong> — full access: can submit assignments, take quizzes, and receive grades</li>
-        <li><strong>Observer</strong> — read-only access: can view content but cannot submit or take quizzes. Use this for students who are temporarily on leave.</li>
+        <li><strong>Observer</strong> — read-only access: can view content and previous work but cannot submit or take quizzes. Use this for students who are temporarily on leave.</li>
         <li><strong>TA</strong> — read-only instructor view with grading rights: can grade submissions and view the roster, but cannot create or edit course content or manage users</li>
         <li><strong>Staff / Instructor</strong> — full instructor access to this course</li>
       </DocList>
@@ -51,25 +87,24 @@ export default function People() {
         After assigning the TA role, go to <strong>Grading Groups</strong> to assign the TA a set of students to grade.
       </DocTip>
 
-      <DocH2>Changing a Student&apos;s Role</DocH2>
-      <DocStep number={1}>Find the student in the Users list.</DocStep>
+      <DocH2>Changing a Role</DocH2>
+      <DocStep number={1}>Find the person in the Learners list.</DocStep>
       <DocStep number={2}>Click the role pill next to their name.</DocStep>
       <DocStep number={3}>Select the new role from the dropdown. The change takes effect immediately — no page refresh needed.</DocStep>
-
       <DocNote>
         Only admins can assign the Admin role. Instructors can assign Student, Observer, TA, and Instructor roles.
       </DocNote>
 
-      <DocH2>Removing a Student</DocH2>
+      <DocH2>Removing Someone from a Course</DocH2>
       <DocP>
-        Click the <strong>Remove</strong> button next to a student to unenroll them from the course. Their submission
+        Click the <strong>trash icon</strong> next to a person to unenroll them from the course. Their submission
         history and grades are preserved in the database, but they will no longer see the course on their My Courses
         page.
       </DocP>
 
       <DocH2>All Users (Admins)</DocH2>
       <DocP>
-        Admins can navigate to <strong>All Users</strong> to see every user enrolled across all courses. This view is
+        Admins can switch to the <strong>All Users</strong> tab to see every user enrolled across all courses. This view is
         useful for finding a user&apos;s email, managing users across multiple courses, or checking enrollment status
         system-wide.
       </DocP>

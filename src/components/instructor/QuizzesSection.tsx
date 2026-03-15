@@ -504,13 +504,25 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
                                       )}
 
                                       {!quiz.id.startsWith("json-") && quiz.published && (
-                                        <Link
-                                          href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
-                                          className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          ▶ Conduct
-                                        </Link>
+                                        <>
+                                          <Link
+                                            href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
+                                            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              try { localStorage.setItem(`conductingQuiz_${courseId}`, `/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`) } catch {}
+                                            }}
+                                          >
+                                            ▶ Moderate
+                                          </Link>
+                                          <Link
+                                            href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
+                                            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-border/60 hover:text-dark-text transition-colors"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            Results
+                                          </Link>
+                                        </>
                                       )}
                                     </>
                                   )}

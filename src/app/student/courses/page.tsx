@@ -70,9 +70,10 @@ export default async function StudentCoursesPage() {
               const isTa = enrollmentRole === 'ta'
               const current = isCurrent(course.start_date, course.end_date)
               return (
-                <div
+                <Link
                   key={course.id}
-                  className="bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors"
+                  href={`/student/courses/${course.id}`}
+                  className="relative block bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -97,20 +98,18 @@ export default async function StudentCoursesPage() {
                       {isTa && (
                         <Link
                           href={`/instructor/courses/${course.id}`}
-                          className="text-blue-700 text-sm font-medium hover:underline"
+                          className="relative z-10 text-blue-700 text-sm font-medium hover:underline"
+                          onClick={e => e.stopPropagation()}
                         >
                           Instructor View →
                         </Link>
                       )}
-                      <Link
-                        href={`/student/courses/${course.id}`}
-                        className="text-teal-primary text-sm font-medium hover:underline"
-                      >
+                      <span className="text-teal-primary text-sm font-medium">
                         {isTa ? 'Student View →' : 'View →'}
-                      </Link>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               )
             })}
           </div>

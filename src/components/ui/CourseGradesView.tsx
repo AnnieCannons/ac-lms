@@ -141,7 +141,7 @@ export default function CourseGradesView({
         {totalNeedsGrading > 0 && (
           <button
             onClick={() => setSpeedGraderOpen(true)}
-            className="text-sm font-semibold px-4 py-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
+            className="status-needs-grading-btn text-sm font-semibold px-4 py-2 rounded-full transition-colors"
           >
             {totalNeedsGrading} need grading
           </button>
@@ -288,7 +288,7 @@ function SpeedGrader({
               {isLast && (
                 <button
                   onClick={onClose}
-                  className="text-sm font-semibold px-4 py-2 rounded-lg bg-green-50 text-green-700 border border-green-300 hover:bg-green-100 transition-colors"
+                  className="status-complete-btn text-sm font-semibold px-4 py-2 rounded-lg border transition-colors"
                 >
                   Done — close grader
                 </button>
@@ -317,14 +317,14 @@ function SpeedGrader({
                       <button
                         disabled={isGrading}
                         onClick={() => grade(submissionId, 'complete')}
-                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-300 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                        className="status-complete-btn text-xs font-semibold px-2.5 py-1.5 rounded-lg border disabled:opacity-50 transition-colors"
                       >
                         {isGrading ? '…' : '✓ Complete'}
                       </button>
                       <button
                         disabled={isGrading}
                         onClick={() => grade(submissionId, 'incomplete')}
-                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-50 text-red-500 border border-red-300 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                        className="status-revision-btn text-xs font-semibold px-2.5 py-1.5 rounded-lg border disabled:opacity-50 transition-colors"
                       >
                         {isGrading ? '…' : '✗ Revision'}
                       </button>

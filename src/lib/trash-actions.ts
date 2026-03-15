@@ -14,11 +14,53 @@ async function getAuthedAdmin(courseId: string) {
   return { user, admin, courseId }
 }
 
+/** Verify an item actually belongs to the given course before mutating it */
+async function verifyCourseItem(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  type: ItemType,
+  id: string,
+  courseId: string
+): Promise<boolean> {
+  switch (type) {
+    case 'module': {
+      const { data } = await admin.from('modules').select('course_id').eq('id', id).single()
+      return data?.course_id === courseId
+    }
+    case 'quiz': {
+      const { data } = await admin.from('quizzes').select('course_id').eq('id', id).single()
+      return data?.course_id === courseId
+    }
+    case 'day': {
+      const { data } = await admin.from('module_days').select('module_id').eq('id', id).single()
+      if (!data) return false
+      const { data: mod } = await admin.from('modules').select('course_id').eq('id', data.module_id).single()
+      return mod?.course_id === courseId
+    }
+    case 'assignment': {
+      const { data } = await admin.from('assignments').select('module_day_id').eq('id', id).single()
+      if (!data?.module_day_id) return false
+      const { data: day } = await admin.from('module_days').select('module_id').eq('id', data.module_day_id).single()
+      if (!day) return false
+      const { data: mod } = await admin.from('modules').select('course_id').eq('id', day.module_id).single()
+      return mod?.course_id === courseId
+    }
+    case 'resource': {
+      const { data } = await admin.from('resources').select('module_day_id').eq('id', id).single()
+      if (!data?.module_day_id) return false
+      const { data: day } = await admin.from('module_days').select('module_id').eq('id', data.module_day_id).single()
+      if (!day) return false
+      const { data: mod } = await admin.from('modules').select('course_id').eq('id', day.module_id).single()
+      return mod?.course_id === courseId
+    }
+  }
+}
+
 /** Soft-delete a single assignment */
 export async function trashAssignment(assignmentId: string, courseId: string): Promise<{ error?: string }> {
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, 'assignment', assignmentId, courseId)) return { error: 'Not authorized' }
   const now = new Date().toISOString()
   const { error } = await admin.from('assignments').update({ deleted_at: now }).eq('id', assignmentId)
   if (error) return { error: error.message }
@@ -31,6 +73,7 @@ export async function trashResource(resourceId: string, courseId: string): Promi
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, 'resource', resourceId, courseId)) return { error: 'Not authorized' }
   const now = new Date().toISOString()
   const { error } = await admin.from('resources').update({ deleted_at: now }).eq('id', resourceId)
   if (error) return { error: error.message }
@@ -43,8 +86,9 @@ export async function trashQuiz(quizId: string, courseId: string): Promise<{ err
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, 'quiz', quizId, courseId)) return { error: 'Not authorized' }
   const now = new Date().toISOString()
-  const { error } = await admin.from('quizzes').update({ deleted_at: now }).eq('id', quizId)
+  const { error } = await admin.from('quizzes').update({ deleted_at: now }).eq('id', quizId).eq('course_id', courseId)
   if (error) return { error: error.message }
   revalidatePath(`/instructor/courses/${courseId}`)
   return {}
@@ -55,6 +99,7 @@ export async function trashDay(dayId: string, courseId: string): Promise<{ error
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, 'day', dayId, courseId)) return { error: 'Not authorized' }
   const now = new Date().toISOString()
 
   // Cascade to assignments and resources in this day
@@ -73,6 +118,7 @@ export async function trashModule(moduleId: string, courseId: string): Promise<{
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, 'module', moduleId, courseId)) return { error: 'Not authorized' }
   const now = new Date().toISOString()
 
   // Get all day IDs in this module
@@ -80,7 +126,7 @@ export async function trashModule(moduleId: string, courseId: string): Promise<{
   const dayIds = days?.map(d => d.id) ?? []
 
   const ops = [
-    admin.from('modules').update({ deleted_at: now }).eq('id', moduleId),
+    admin.from('modules').update({ deleted_at: now }).eq('id', moduleId).eq('course_id', courseId),
     admin.from('module_days').update({ deleted_at: now }).eq('module_id', moduleId).is('deleted_at', null),
     ...(dayIds.length > 0
       ? [
@@ -201,6 +247,7 @@ export async function restoreItem(type: ItemType, id: string, courseId: string):
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, type, id, courseId)) return { error: 'Not authorized' }
 
   const table = {
     module: 'modules', day: 'module_days', assignment: 'assignments',
@@ -242,6 +289,7 @@ export async function permanentlyDeleteItem(type: ItemType, id: string, courseId
   const auth = await getAuthedAdmin(courseId)
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
+  if (!await verifyCourseItem(admin, type, id, courseId)) return { error: 'Not authorized' }
 
   const table = {
     module: 'modules', day: 'module_days', assignment: 'assignments',

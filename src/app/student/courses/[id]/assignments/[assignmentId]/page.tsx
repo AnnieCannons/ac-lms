@@ -212,7 +212,7 @@ export default async function StudentAssignmentPage({
             </span>
           )}
           {isExcused && (
-            <span className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border bg-amber-50 text-amber-700 border-amber-300">
+            <span className="badge-amber shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Excused
             </span>
           )}

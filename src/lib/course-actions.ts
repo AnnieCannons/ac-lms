@@ -21,6 +21,17 @@ export async function updateCourseDates(
     return { error: 'Not authorized' }
   }
 
+  // Admins can edit any course; instructors must be enrolled in the course
+  if (profile?.role !== 'admin') {
+    const { data: enrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .maybeSingle()
+    if (enrollment?.role !== 'instructor') return { error: 'Not authorized' }
+  }
+
   const { error } = await supabase
     .from('courses')
     .update({ start_date: startDate || null, end_date: endDate || null })

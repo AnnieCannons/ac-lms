@@ -205,7 +205,7 @@ export default async function InstructorSubmissionsPage({
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
           {!assignment.submission_required && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 shrink-0">
+            <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">
               No submission
             </span>
           )}

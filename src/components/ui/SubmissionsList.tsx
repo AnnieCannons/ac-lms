@@ -29,10 +29,10 @@ type Sort = "name-asc" | "name-desc" | "date-newest" | "date-oldest";
 
 function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade?: "complete" | "incomplete" | null }) {
   if (grade === "complete") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 shrink-0">Complete</span>
+    <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete</span>
   );
   if (grade === "incomplete") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-500 shrink-0">Incomplete</span>
+    <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Incomplete</span>
   );
   if (status === "submitted") return (
     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned in</span>
@@ -41,7 +41,7 @@ function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade
     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-primary shrink-0">Graded</span>
   );
   if (status === "draft") return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-600 shrink-0">Draft</span>
+    <span className="status-draft-badge text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">Draft</span>
   );
   return (
     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not submitted</span>
@@ -164,7 +164,7 @@ export default function SubmissionsList({
           {firstUngradedStudentId && submissionRequired && counts["needs-grading"] > 0 && (
             <Link
               href={`/instructor/courses/${courseId}/assignments/${assignmentId}/submissions/${firstUngradedStudentId}${grader ? `?grader=${grader}` : ''}`}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 transition-colors shrink-0"
+              className="status-needs-grading-btn text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors shrink-0"
             >
               Grade all ungraded →
             </Link>

@@ -17,7 +17,7 @@ const INVITE_TYPES: { role: InviteRole; label: string; description: string; colo
   {
     role: 'student',
     label: 'Students',
-    description: 'Learners enrolled in this course',
+    description: 'Enroll learners in a specific course',
     color: 'border-teal-primary/40 hover:border-teal-primary hover:bg-teal-light/50',
   },
   {
@@ -45,15 +45,18 @@ function parseEmails(raw: string): string[] {
 export default function AddPeopleButton({
   courseId,
   currentUserRole,
+  allCourses,
 }: {
   courseId: string
   currentUserRole: 'instructor' | 'admin'
+  allCourses: { id: string; name: string }[]
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [modalOpen, setModalOpen] = useState(false)
   const [inviteStep, setInviteStep] = useState<'choose' | 'emails'>('choose')
   const [inviteRole, setInviteRole] = useState<InviteRole>('student')
+  const [selectedCourseId, setSelectedCourseId] = useState(courseId)
   const [emailsRaw, setEmailsRaw] = useState('')
   const [adding, setAdding] = useState(false)
   const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null)
@@ -69,6 +72,7 @@ export default function AddPeopleButton({
     setInviteStep('choose')
     setEmailsRaw('')
     setBulkResults(null)
+    setSelectedCourseId(courseId)
     setModalOpen(true)
   }
 
@@ -81,6 +85,7 @@ export default function AddPeopleButton({
     setInviteRole(role)
     setEmailsRaw('')
     setBulkResults(null)
+    setSelectedCourseId(courseId)
     setInviteStep('emails')
   }
 
@@ -89,13 +94,16 @@ export default function AddPeopleButton({
     setBulkResults(null)
     const emails = parseEmails(emailsRaw)
     if (emails.length === 0) return
+    const targetCourseId = inviteRole === 'student' ? selectedCourseId : courseId
     setAdding(true)
-    const results = await bulkAddPeopleToCourse(courseId, emails, inviteRole)
+    const results = await bulkAddPeopleToCourse(targetCourseId, emails, inviteRole)
     setAdding(false)
     setBulkResults(results)
     setEmailsRaw('')
     startTransition(() => router.refresh())
   }
+
+  const selectedCourseName = allCourses.find(c => c.id === selectedCourseId)?.name ?? ''
 
   return (
     <>
@@ -129,26 +137,47 @@ export default function AddPeopleButton({
             </div>
           ) : (
             <form onSubmit={handleAdd} className="flex flex-col gap-4 pt-1">
-              {inviteRole === 'instructor' && (
+              {inviteRole === 'student' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1.5">
+                    Course
+                  </label>
+                  <select
+                    value={selectedCourseId}
+                    onChange={e => { setSelectedCourseId(e.target.value); setBulkResults(null) }}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  >
+                    {allCourses.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
                 <div className="bg-purple-light/60 border border-purple-primary/30 rounded-xl px-4 py-3 text-sm text-dark-text">
                   <p className="font-semibold text-purple-primary mb-0.5">Global access</p>
                   <p className="text-muted-text">Staff members can see all courses. After adding, you can assign them to a specific course from the <strong>Instructors</strong> table on this page — or leave them unassigned if they don&apos;t have a dedicated class.</p>
                 </div>
               )}
-              <textarea
-                placeholder={"Paste email addresses, one per line or comma-separated\njane@example.com\njohn@example.com"}
-                value={emailsRaw}
-                onChange={(e) => { setEmailsRaw(e.target.value); setBulkResults(null) }}
-                rows={5}
-                autoFocus
-                className="w-full border border-border rounded-lg px-3 py-2.5 text-sm bg-surface text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-                aria-label="Email addresses"
-              />
+              <div>
+                <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1.5">
+                  Email Addresses
+                </label>
+                <textarea
+                  placeholder={"Paste email addresses, one per line or comma-separated\njane@example.com\njohn@example.com"}
+                  value={emailsRaw}
+                  onChange={(e) => { setEmailsRaw(e.target.value); setBulkResults(null) }}
+                  rows={5}
+                  autoFocus={inviteRole !== 'student'}
+                  className="w-full border border-border rounded-lg px-3 py-2.5 text-sm bg-surface text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+                  aria-label="Email addresses"
+                />
+              </div>
 
               {bulkResults && bulkResults.length > 0 && (
                 <div className="border border-border rounded-lg overflow-hidden" role="status" aria-live="polite">
                   <div className="bg-surface border-b border-border px-4 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">
-                    {bulkResults.filter(r => !r.error).length} of {bulkResults.length} succeeded
+                    {bulkResults.filter(r => !r.error).length} of {bulkResults.length} added
+                    {inviteRole === 'student' && ` to ${selectedCourseName}`}
                   </div>
                   <ul className="divide-y divide-border max-h-40 overflow-y-auto">
                     {bulkResults.map((r) => (

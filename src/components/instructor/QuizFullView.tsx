@@ -436,7 +436,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
                 href={`/instructor/courses/${courseId}/quizzes/${quiz.id}/conduct`}
                 className="text-xs font-medium px-3 py-1 rounded-full border border-border text-muted-text hover:border-teal-primary/50 hover:text-dark-text transition-colors"
               >
-                ▶ Conduct quiz
+                ▶ Moderate quiz
               </a>
             )}
             <button

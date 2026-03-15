@@ -83,7 +83,6 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [showAddOverride, setShowAddOverride] = useState(false)
   const [newStudentId, setNewStudentId] = useState('')
   const [newDueDate, setNewDueDate] = useState('')
-  const [newExcused, setNewExcused] = useState(false)
   const [savingOverride, setSavingOverride] = useState(false)
 
   const toggleSkillTag = (tag: string) => {
@@ -185,28 +184,34 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setChecklist(prev => prev.map(i => i.id === item.id ? { ...i, text, description: desc || null } : i))
   }
 
-  const saveOverride = async () => {
-    if (!newStudentId) return
+  const commitOverride = async (studentId: string, dueDate: string | null, excused: boolean) => {
     setSavingOverride(true)
     const { id: newId, error } = await upsertAssignmentOverride(
-      assignment.id, newStudentId, courseId,
-      newExcused ? null : (newDueDate || null),
-      newExcused
+      assignment.id, studentId, courseId, dueDate, excused
     )
     if (error) { alert(error); setSavingOverride(false); return }
-    const student = enrolledStudents.find(s => s.id === newStudentId)
-    setOverrides(prev => [...prev.filter(o => o.student_id !== newStudentId), {
+    const student = enrolledStudents.find(s => s.id === studentId)
+    setOverrides(prev => [...prev.filter(o => o.student_id !== studentId), {
       id: newId!,
-      student_id: newStudentId,
+      student_id: studentId,
       student_name: student?.name ?? 'Unknown',
-      due_date: newExcused ? null : (newDueDate || null),
-      excused: newExcused,
+      due_date: dueDate,
+      excused,
     }])
     setNewStudentId('')
     setNewDueDate('')
-    setNewExcused(false)
     setShowAddOverride(false)
     setSavingOverride(false)
+  }
+
+  const saveOverride = () => {
+    if (!newStudentId || !newDueDate) return
+    commitOverride(newStudentId, newDueDate, false)
+  }
+
+  const saveExcused = () => {
+    if (!newStudentId) return
+    commitOverride(newStudentId, null, true)
   }
 
   const deleteOverride = async (overrideId: string) => {
@@ -233,59 +238,59 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
 
   return (
     <div className="flex flex-col gap-8 max-w-3xl">
-      {/* Title + Published */}
-      <div className="flex items-start gap-4">
-        <div className="flex-1">
-          <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Title</label>
-          <input
-            value={title}
-            onChange={e => { setTitle(e.target.value); setIsDirty(true) }}
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
-          />
-        </div>
-        <div className="pt-6 flex flex-col gap-2 items-end">
-          <button
-            type="button"
-            onClick={() => { setPublished(p => !p); setIsDirty(true) }}
-            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
-              published
-                ? 'bg-teal-light text-teal-primary border-teal-primary/30'
-                : 'bg-background text-muted-text border-border hover:border-muted-text'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${published ? 'bg-teal-primary' : 'bg-muted-text'}`} />
-            {published ? 'Published' : 'Draft'}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setSubmissionRequired(r => !r); setIsDirty(true) }}
-            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
-              submissionRequired
-                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                : 'bg-background text-muted-text border-border hover:border-muted-text'
-            }`}
-          >
-            {submissionRequired ? 'Submission required' : 'No submission'}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setIsBonus(b => !b); setIsDirty(true) }}
-            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
-              isBonus
-                ? 'bg-purple-light text-purple-primary border-purple-primary/40'
-                : 'bg-background text-muted-text border-border hover:border-muted-text'
-            }`}
-          >
-            {isBonus ? 'Bonus (Level Up)' : 'Bonus?'}
-          </button>
-          <button
-            type="button"
-            onClick={deleteAssignment}
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:border-red-400 hover:text-red-500 transition-colors"
-          >
-            Move to trash
-          </button>
-        </div>
+      {/* Title */}
+      <div>
+        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Title</label>
+        <input
+          value={title}
+          onChange={e => { setTitle(e.target.value); setIsDirty(true) }}
+          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
+        />
+      </div>
+
+      {/* Toggle buttons row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => { setPublished(p => !p); setIsDirty(true) }}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+            published
+              ? 'bg-teal-light text-teal-primary border-teal-primary/30'
+              : 'bg-background text-muted-text border-border hover:border-muted-text'
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${published ? 'bg-teal-primary' : 'bg-muted-text'}`} />
+          {published ? 'Published' : 'Draft'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setSubmissionRequired(r => !r); setIsDirty(true) }}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+            submissionRequired
+              ? 'badge-amber'
+              : 'bg-background text-muted-text border-border hover:border-muted-text'
+          }`}
+        >
+          {submissionRequired ? 'Submission required' : 'No submission'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setIsBonus(b => !b); setIsDirty(true) }}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+            isBonus
+              ? 'bg-purple-light text-purple-primary border-purple-primary/40'
+              : 'bg-background text-muted-text border-border hover:border-muted-text'
+          }`}
+        >
+          {isBonus ? 'Bonus (Level Up)' : 'Bonus?'}
+        </button>
+        <button
+          type="button"
+          onClick={deleteAssignment}
+          className="ml-auto flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:border-red-400 hover:text-red-500 transition-colors"
+        >
+          Move to trash
+        </button>
       </div>
 
       {/* Skill tags */}
@@ -437,7 +442,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
                 <div key={o.id} className="flex items-center gap-3 bg-surface rounded-lg border border-border px-3 py-2 text-sm">
                   <span className="font-medium text-dark-text flex-1">{o.student_name}</span>
                   {o.excused ? (
-                    <span className="text-xs font-medium bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5">Excused</span>
+                    <span className="badge-amber text-xs font-medium border rounded-full px-2 py-0.5">Excused</span>
                   ) : o.due_date ? (
                     <span className="text-xs text-muted-text">Due {new Date(o.due_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                   ) : (
@@ -470,38 +475,38 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
                   ))
                 }
               </select>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={newDueDate}
                   onChange={e => setNewDueDate(e.target.value)}
-                  disabled={newExcused}
-                  className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text disabled:opacity-40"
+                  className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
+                  placeholder="Custom due date (optional)"
                 />
+                <span className="text-xs text-muted-text shrink-0">or</span>
                 <button
                   type="button"
-                  onClick={() => setNewExcused(e => !e)}
-                  className={`text-xs font-medium px-3 py-2 rounded-lg border transition-colors whitespace-nowrap ${
-                    newExcused
-                      ? 'bg-amber-50 text-amber-700 border-amber-300'
-                      : 'bg-background text-muted-text border-border hover:border-muted-text'
-                  }`}
+                  onClick={saveExcused}
+                  disabled={!newStudentId || savingOverride}
+                  className="badge-amber text-xs font-medium px-3 py-2 rounded-lg border transition-colors whitespace-nowrap disabled:opacity-40"
                 >
-                  Excused
+                  + Excuse
                 </button>
               </div>
               <div className="flex gap-2">
+                {newDueDate && (
+                  <button
+                    type="button"
+                    onClick={saveOverride}
+                    disabled={!newStudentId || savingOverride}
+                    className="px-4 py-1.5 text-sm font-semibold bg-teal-primary text-white rounded-lg hover:bg-teal-600 disabled:opacity-50"
+                  >
+                    {savingOverride ? 'Saving…' : 'Save due date'}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={saveOverride}
-                  disabled={!newStudentId || savingOverride}
-                  className="px-4 py-1.5 text-sm font-semibold bg-teal-primary text-white rounded-lg hover:bg-teal-600 disabled:opacity-50"
-                >
-                  {savingOverride ? 'Saving…' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowAddOverride(false); setNewStudentId(''); setNewDueDate(''); setNewExcused(false) }}
+                  onClick={() => { setShowAddOverride(false); setNewStudentId(''); setNewDueDate('') }}
                   className="px-4 py-1.5 text-sm text-muted-text hover:text-dark-text"
                 >
                   Cancel
@@ -591,7 +596,7 @@ function ChecklistItemRow({
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm text-dark-text">{item.text}</p>
           {!item.required && (
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-300">
+            <span className="badge-amber text-xs font-medium px-1.5 py-0.5 rounded-full border">
               Bonus
             </span>
           )}

@@ -226,7 +226,10 @@ html.theme-dark .badge-count {
 .status-revision-btn:hover { background-color: #fee2e2; }
 
 .status-late-badge    { background-color: #fffbeb; color: #b45309; border-color: #fde68a; }
+.status-draft-badge   { background-color: #fefce8; color: #a16207; border-color: #fde047; }
 .status-camera-badge  { background-color: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.status-needs-grading-btn { background-color: #fefce8; color: #a16207; border-color: #fde68a; }
+.status-needs-grading-btn:hover { background-color: #fef9c3; }
 
 html.theme-dark .status-missing-card  { background-color: #1f0a0a; border-color: #4a1515; color: #f87171; }
 html.theme-dark .status-late-card     { background-color: #1c1200; border-color: #3d2800; color: #fbbf24; }
@@ -241,7 +244,14 @@ html.theme-dark .status-revision-btn  { background-color: #1f0a0a; color: #f8717
 html.theme-dark .status-revision-btn:hover { background-color: #2d1010; }
 
 html.theme-dark .status-late-badge    { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
+html.theme-dark .status-draft-badge   { background-color: #1c1a00; color: #fcd34d; border-color: #3d3400; }
 html.theme-dark .status-camera-badge  { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
+html.theme-dark .status-needs-grading-btn { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
+html.theme-dark .status-needs-grading-btn:hover { background-color: #261a00; }
+
+/* Amber/yellow badge or button — use .badge-amber instead of bg-amber-50 so dark mode works */
+.badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }
+html.theme-dark .badge-amber { background-color: #2a1800; color: #fbbf24; border-color: #78350f; }
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {

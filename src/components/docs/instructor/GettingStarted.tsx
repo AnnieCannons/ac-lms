@@ -60,7 +60,7 @@ export default function GettingStarted() {
         <li><strong>Career Dev cross-posts</strong> — career dev content exists only in the source course; recreate cross-posts as needed</li>
       </DocList>
       <DocNote>
-        The new course is created with your account as the owner. Add co-instructors from the <strong>People</strong>
+        The new course is created with your account as the owner. Add co-instructors from the <strong>Users</strong>
         page after opening the new course.
       </DocNote>
 
@@ -78,8 +78,9 @@ export default function GettingStarted() {
         <li><strong>Level Up Your Skills</strong> — optional bonus assignments with skill tags</li>
         <li><strong>Grades</strong> — course-wide submission overview and speed grader; a yellow badge shows how many submissions need grading</li>
         <li><strong>Grading Groups</strong> — assign students to specific graders; rotate groups weekly</li>
-        <li><strong>People</strong> — manage student enrollment and roles including TA</li>
+        <li><strong>Users</strong> — manage student enrollment and roles including TA; add people to the course</li>
         <li><strong>Roster</strong> — accommodation roster with per-student progress and inline grading</li>
+        <li><strong>Trash</strong> — recover or permanently delete trashed modules, days, assignments, resources, and quizzes</li>
         <li><strong>Student Preview</strong> — view the course exactly as a student sees it</li>
       </DocList>
 

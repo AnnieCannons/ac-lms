@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import DatePickerField from "@/components/ui/DatePickerField";
@@ -470,6 +471,7 @@ function AssignmentFullView({
   defaultTemplateId?: string;
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const ctx = useContext(RelocateContext);
   const assignment = view.mode === "view" ? view.assignment : null;
   const assignmentId = view.mode === "view" ? view.assignment.id : null;
@@ -589,9 +591,9 @@ function AssignmentFullView({
   };
 
   const startEditing = () => {
-    setEditChecklistItems(checklistItems.map(c => ({ text: c.text, description: c.description ?? "" })));
-    setEditing(true);
-    updatePersistEditing(true);
+    if (assignment) {
+      router.push(`/instructor/courses/${courseId}/assignments/${assignment.id}`);
+    }
   };
 
   const handleBack = () => {
@@ -696,6 +698,15 @@ function AssignmentFullView({
                   {assignment.published ? "● Published" : "○ Draft"}
                 </button>
               </>
+            )}
+            {view.mode === "view" && !editing && assignment && (
+              <button
+                onClick={startEditing}
+                className="text-xs font-semibold px-3 py-1 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white transition-colors"
+                type="button"
+              >
+                Edit →
+              </button>
             )}
             {view.mode === "view" && !editing && (
               <button onClick={handleDelete} className="text-xs text-[#7a5299] hover:text-red-400 transition-colors" type="button">
@@ -2491,6 +2502,7 @@ export default function CourseEditor({
   courseQuizzes?: QuizEntry[];
   readOnly?: boolean;
 }) {
+  const router = useRouter();
   const [modules, setModules] = useState<Module[]>(initialModules);
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleWeek, setNewModuleWeek] = useState("");

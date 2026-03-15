@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition, Fragment, useRef, useEffect, useCallback } from 'react'
+import { useState, useTransition, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -57,15 +57,6 @@ function CalendarIcon({ size = 14 }: { size?: number }) {
   )
 }
 
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDate(str: string) {
-  const [year, month, day] = str.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, onClose: () => void) {
   const handleOutsideClick = useCallback((e: MouseEvent) => {
@@ -78,14 +69,25 @@ function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, onClose: (
   }, [handleOutsideClick])
 }
 
+// Position a popover below (or above if near viewport bottom), clamped horizontally
+function popoverCoords(rect: DOMRect, width: number, estimatedHeight: number): { top: number; left: number } {
+  const margin = 8
+  const spaceBelow = window.innerHeight - rect.bottom - 6
+  const top = spaceBelow >= estimatedHeight
+    ? rect.bottom + 6
+    : Math.max(margin, rect.top - estimatedHeight - 6)
+  const left = Math.max(margin, Math.min(rect.right - width, window.innerWidth - width - margin))
+  return { top, left }
+}
+
 function CameraDatePopover({
-  start, end, onClose, onSave, containerClassName,
+  start, end, onClose, onSave, fixedPos,
 }: {
   start: string | null
   end: string | null
   onClose: () => void
   onSave: (start: string, end: string) => Promise<void>
-  containerClassName?: string
+  fixedPos: { top: number; left: number }
 }) {
   const [editStart, setEditStart] = useState(start ?? '')
   const [editEnd, setEditEnd] = useState(end ?? '')
@@ -106,10 +108,11 @@ function CameraDatePopover({
     setSaving(false)
   }
 
-  return (
+  return createPortal(
     <div
       ref={ref}
-      className={containerClassName ?? "absolute z-30 top-full mt-1 left-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-72"}
+      style={{ position: 'fixed', top: fixedPos.top, left: fixedPos.left, zIndex: 50 }}
+      className="bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-72"
     >
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
         <CalendarIcon size={11} /> Camera Off Dates
@@ -148,7 +151,8 @@ function CameraDatePopover({
           Cancel
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -215,17 +219,23 @@ function AddAccommodationMenu({
   onNotes,
   onClose,
   hasCameraOff,
+  fixedPos,
 }: {
   onCameraOff: () => void
   onNotes: () => void
   onClose: () => void
   hasCameraOff: boolean
+  fixedPos: { top: number; left: number }
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useClickOutside(ref, onClose)
 
-  return (
-    <div ref={ref} className="absolute z-30 top-full mt-1 right-0 bg-surface border border-border rounded-xl shadow-xl py-1 w-52 text-left">
+  return createPortal(
+    <div
+      ref={ref}
+      style={{ position: 'fixed', top: fixedPos.top, left: fixedPos.left, zIndex: 50 }}
+      className="bg-surface border border-border rounded-xl shadow-xl py-1 w-52 text-left"
+    >
       {!hasCameraOff && (
         <button
           onClick={onCameraOff}
@@ -241,21 +251,9 @@ function AddAccommodationMenu({
       >
         Other Accommodation
       </button>
-    </div>
+    </div>,
+    document.body
   )
-}
-
-function notesCoordsFromRect(rect: DOMRect): { top: number; left: number } {
-  const popoverWidth = 384
-  const margin = 24
-  return {
-    top: rect.bottom + 6,
-    left: Math.max(margin, Math.min(rect.left, window.innerWidth - popoverWidth - margin)),
-  }
-}
-
-function notesCoords(el: HTMLElement): { top: number; left: number } {
-  return notesCoordsFromRect(el.getBoundingClientRect())
 }
 
 export default function RosterView({ courses, currentCourseId, students }: Props) {
@@ -264,7 +262,9 @@ export default function RosterView({ courses, currentCourseId, students }: Props
   const [openPopover, setOpenPopover] = useState<string | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState<string | null>(null)
   const [notesPos, setNotesPos] = useState<{ top: number; left: number } | null>(null)
-  const plusBtnRectRef = useRef<DOMRect | null>(null)
+  const [cameraPos, setCameraPos] = useState<{ top: number; left: number } | null>(null)
+  const [addMenuPos, setAddMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const addBtnRectRef = useRef<DOMRect | null>(null)
 
   const hasAnyAccommodation = (s: Student) =>
     s.accommodation?.cameraOff || s.accommodation?.notes
@@ -291,116 +291,61 @@ export default function RosterView({ courses, currentCourseId, students }: Props
           <div className="flex items-center gap-2 flex-wrap">
             {/* Camera Off badge */}
             {student.accommodation?.cameraOff && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddMenuOpen(null)
-                    setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)
-                  }}
-                  className="inline-flex items-center justify-center text-white bg-red-500 w-7 h-7 rounded-full hover:bg-red-600 transition-colors"
-                  title="Camera Off"
-                >
-                  <CameraOffIcon size={13} />
-                </button>
-                {openPopover === `${student.userId}:camera` && (
-                  <CameraDatePopover
-                    start={student.accommodation?.cameraOffStart ?? null}
-                    end={student.accommodation?.cameraOffEnd ?? null}
-                    onClose={() => setOpenPopover(null)}
-                    onSave={async (start, end) => {
-                      const result = await upsertAccommodation(
-                        student.userId, true,
-                        student.accommodation?.notes ?? '',
-                        start || null, end || null,
-                      )
-                      if (!result.error) {
-                        setOpenPopover(null)
-                        startTransition(() => router.refresh())
-                      } else {
-                        throw new Error(result.error)
-                      }
-                    }}
-                  />
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  setAddMenuOpen(null)
+                  const isOpening = openPopover !== `${student.userId}:camera`
+                  if (isOpening) setCameraPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 288, 260))
+                  setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)
+                }}
+                className="inline-flex items-center justify-center text-white bg-red-500 w-7 h-7 rounded-full hover:bg-red-600 transition-colors"
+                title="Camera Off"
+              >
+                <CameraOffIcon size={13} />
+              </button>
+            )}
+            {openPopover === `${student.userId}:camera` && student.accommodation?.cameraOff && cameraPos && (
+              <CameraDatePopover
+                start={student.accommodation?.cameraOffStart ?? null}
+                end={student.accommodation?.cameraOffEnd ?? null}
+                fixedPos={cameraPos}
+                onClose={() => { setOpenPopover(null); setCameraPos(null) }}
+                onSave={async (start, end) => {
+                  const result = await upsertAccommodation(
+                    student.userId, true,
+                    student.accommodation?.notes ?? '',
+                    start || null, end || null,
+                  )
+                  if (!result.error) {
+                    setOpenPopover(null)
+                    setCameraPos(null)
+                    startTransition(() => router.refresh())
+                  } else {
+                    throw new Error(result.error)
+                  }
+                }}
+              />
             )}
 
             {/* Accommodations (notes) badge */}
             {student.accommodation?.notes && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    setAddMenuOpen(null)
-                    const isOpening = openPopover !== `${student.userId}:notes`
-                    if (isOpening) setNotesPos(notesCoords(e.currentTarget))
-                    setOpenPopover(p => p === `${student.userId}:notes` ? null : `${student.userId}:notes`)
-                  }}
-                  className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-800/50 border border-amber-300 dark:border-amber-600/60 px-2 py-0.5 rounded-full transition-colors"
-                >
-                  Accommodations
-                </button>
-                {openPopover === `${student.userId}:notes` && notesPos && (
-                  <NotesEditPopover
-                    notes={student.accommodation.notes}
-                    fixedPos={notesPos}
-                    onClose={() => { setOpenPopover(null); setNotesPos(null) }}
-                    onSave={async (newNotes) => {
-                      const result = await upsertAccommodation(
-                        student.userId,
-                        student.accommodation?.cameraOff ?? false,
-                        newNotes,
-                        student.accommodation?.cameraOffStart ?? null,
-                        student.accommodation?.cameraOffEnd ?? null,
-                      )
-                      if (!result.error) {
-                        setOpenPopover(null)
-                        startTransition(() => router.refresh())
-                      } else {
-                        throw new Error(result.error)
-                      }
-                    }}
-                  />
-                )}
-              </div>
-            )}
-
-          </div>
-        </td>
-        <td className="px-4 py-3 text-right">
-          <div className="relative inline-block">
-            <button
-              type="button"
-              onClick={(e) => {
-                plusBtnRectRef.current = e.currentTarget.getBoundingClientRect()
-                setOpenPopover(null)
-                setAddMenuOpen(p => p === student.userId ? null : student.userId)
-              }}
-              className="w-6 h-6 rounded-full bg-surface border border-border hover:bg-teal-light hover:border-teal-primary text-muted-text hover:text-teal-primary text-sm font-bold flex items-center justify-center transition-colors leading-none"
-              title="Add accommodation"
-            >
-              +
-            </button>
-            {addMenuOpen === student.userId && (
-              <AddAccommodationMenu
-                hasCameraOff={!!student.accommodation?.cameraOff}
-                onCameraOff={() => {
+              <button
+                type="button"
+                onClick={(e) => {
                   setAddMenuOpen(null)
-                  setOpenPopover(`${student.userId}:camera`)
+                  const isOpening = openPopover !== `${student.userId}:notes`
+                  if (isOpening) setNotesPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 384, 320))
+                  setOpenPopover(p => p === `${student.userId}:notes` ? null : `${student.userId}:notes`)
                 }}
-                onNotes={() => {
-                  if (plusBtnRectRef.current) setNotesPos(notesCoordsFromRect(plusBtnRectRef.current))
-                  setAddMenuOpen(null)
-                  setOpenPopover(`${student.userId}:notes`)
-                }}
-                onClose={() => setAddMenuOpen(null)}
-              />
+                className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-800/50 border border-amber-300 dark:border-amber-600/60 px-2 py-0.5 rounded-full transition-colors"
+              >
+                Accommodations
+              </button>
             )}
-            {/* Add-new notes popover via portal */}
-            {openPopover === `${student.userId}:notes` && !student.accommodation?.notes && notesPos && (
+            {openPopover === `${student.userId}:notes` && student.accommodation?.notes && notesPos && (
               <NotesEditPopover
-                notes=""
+                notes={student.accommodation.notes}
                 fixedPos={notesPos}
                 onClose={() => { setOpenPopover(null); setNotesPos(null) }}
                 onSave={async (newNotes) => {
@@ -413,28 +358,6 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                   )
                   if (!result.error) {
                     setOpenPopover(null)
-                    setNotesPos(null)
-                    startTransition(() => router.refresh())
-                  } else {
-                    throw new Error(result.error)
-                  }
-                }}
-              />
-            )}
-            {openPopover === `${student.userId}:camera` && !student.accommodation?.cameraOff && (
-              <CameraDatePopover
-                start={null}
-                end={null}
-                containerClassName="absolute z-30 top-full mt-1 right-0 bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-72"
-                onClose={() => setOpenPopover(null)}
-                onSave={async (start, end) => {
-                  const result = await upsertAccommodation(
-                    student.userId, true,
-                    student.accommodation?.notes ?? '',
-                    start || null, end || null,
-                  )
-                  if (!result.error) {
-                    setOpenPopover(null)
                     startTransition(() => router.refresh())
                   } else {
                     throw new Error(result.error)
@@ -444,8 +367,91 @@ export default function RosterView({ courses, currentCourseId, students }: Props
             )}
           </div>
         </td>
+        <td className="px-4 py-3 text-right">
+          <button
+            type="button"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              addBtnRectRef.current = rect
+              setAddMenuPos(popoverCoords(rect, 208, hasCameraOff(student) ? 44 : 88))
+              setOpenPopover(null)
+              setAddMenuOpen(p => p === student.userId ? null : student.userId)
+            }}
+            className="w-6 h-6 rounded-full bg-surface border border-border hover:bg-teal-light hover:border-teal-primary text-muted-text hover:text-teal-primary text-sm font-bold flex items-center justify-center transition-colors leading-none"
+            title="Add accommodation"
+          >
+            +
+          </button>
+          {addMenuOpen === student.userId && addMenuPos && (
+            <AddAccommodationMenu
+              hasCameraOff={!!student.accommodation?.cameraOff}
+              fixedPos={addMenuPos}
+              onCameraOff={() => {
+                if (addBtnRectRef.current) setCameraPos(popoverCoords(addBtnRectRef.current, 288, 260))
+                setAddMenuOpen(null)
+                setOpenPopover(`${student.userId}:camera`)
+              }}
+              onNotes={() => {
+                if (addBtnRectRef.current) setNotesPos(popoverCoords(addBtnRectRef.current, 384, 320))
+                setAddMenuOpen(null)
+                setOpenPopover(`${student.userId}:notes`)
+              }}
+              onClose={() => setAddMenuOpen(null)}
+            />
+          )}
+          {/* Add-new notes popover via portal */}
+          {openPopover === `${student.userId}:notes` && !student.accommodation?.notes && notesPos && (
+            <NotesEditPopover
+              notes=""
+              fixedPos={notesPos}
+              onClose={() => { setOpenPopover(null); setNotesPos(null) }}
+              onSave={async (newNotes) => {
+                const result = await upsertAccommodation(
+                  student.userId,
+                  student.accommodation?.cameraOff ?? false,
+                  newNotes,
+                  student.accommodation?.cameraOffStart ?? null,
+                  student.accommodation?.cameraOffEnd ?? null,
+                )
+                if (!result.error) {
+                  setOpenPopover(null)
+                  setNotesPos(null)
+                  startTransition(() => router.refresh())
+                } else {
+                  throw new Error(result.error)
+                }
+              }}
+            />
+          )}
+          {openPopover === `${student.userId}:camera` && !student.accommodation?.cameraOff && cameraPos && (
+            <CameraDatePopover
+              start={null}
+              end={null}
+              fixedPos={cameraPos}
+              onClose={() => { setOpenPopover(null); setCameraPos(null) }}
+              onSave={async (start, end) => {
+                const result = await upsertAccommodation(
+                  student.userId, true,
+                  student.accommodation?.notes ?? '',
+                  start || null, end || null,
+                )
+                if (!result.error) {
+                  setOpenPopover(null)
+                  setCameraPos(null)
+                  startTransition(() => router.refresh())
+                } else {
+                  throw new Error(result.error)
+                }
+              }}
+            />
+          )}
+        </td>
       </tr>
     ))
+  }
+
+  function hasCameraOff(s: Student) {
+    return !!s.accommodation?.cameraOff
   }
 
   const tableHeader = (

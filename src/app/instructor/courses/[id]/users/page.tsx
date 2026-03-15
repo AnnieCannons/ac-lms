@@ -118,6 +118,7 @@ export default async function InstructorUsersPage({
                   <AddPeopleButton
                     courseId={id}
                     currentUserRole={profile?.role as 'instructor' | 'admin'}
+                    allCourses={allCourses ?? []}
                   />
                 )}
               </div>

@@ -26,6 +26,7 @@ export default function DeleteCourseButton({ courseId, courseName }: { courseId:
     <button
       onClick={handleDelete}
       disabled={deleting}
+      aria-label={`Delete course ${courseName}`}
       className="text-xs text-muted-text hover:text-red-500 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
       type="button"
     >

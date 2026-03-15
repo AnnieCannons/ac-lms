@@ -2,6 +2,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
+const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'observer', 'ta']
 
 async function getAuthedInstructorOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -195,6 +196,8 @@ export async function updateUserRole(
   targetUserId: string,
   role: Role
 ): Promise<{ error?: string }> {
+  if (!VALID_ROLES.includes(role)) return { error: 'Invalid role' }
+
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
@@ -220,6 +223,8 @@ export async function updateEnrollmentRole(
   userId: string,
   role: Role
 ): Promise<{ error?: string }> {
+  if (!VALID_ROLES.includes(role)) return { error: 'Invalid role' }
+
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return { error: auth.error }
 

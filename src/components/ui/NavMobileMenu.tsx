@@ -24,7 +24,7 @@ export default function NavMobileMenu({ name, accountHref }: { name?: string | n
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg z-50 py-2">
             <a
               href={ATTENDANCE_URL}

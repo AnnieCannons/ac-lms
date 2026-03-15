@@ -33,8 +33,9 @@ export default function Resources() {
 
       <DocH2>Deleting a Resource</DocH2>
       <DocP>
-        Click the <strong>Delete</strong> (trash) icon next to a resource to remove it. There is no undo, so confirm
-        before deleting.
+        Click the <strong>trash icon</strong> next to a resource to move it to the Trash. Trashed resources are hidden
+        from students immediately but can be restored from the <strong>Trash</strong> page at the bottom of the sidebar.
+        See <strong>Course Editor → Deleting Content</strong> for details.
       </DocP>
 
       <DocH2>Reordering Resources</DocH2>

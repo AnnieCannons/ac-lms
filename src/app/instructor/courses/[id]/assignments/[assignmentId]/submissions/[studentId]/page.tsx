@@ -9,14 +9,11 @@ import SubmissionComments, { type CommentEntry } from '@/components/ui/Submissio
 import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
+import MarkdownContent from '@/components/ui/MarkdownContent'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { normalizeUrl } from '@/lib/url'
 
 type SubmissionType = 'text' | 'link' | 'file'
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-}
 
 function SubmissionContent({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <p className="text-muted-text italic text-sm">No content</p>
@@ -31,14 +28,7 @@ function SubmissionContent({ type, content }: { type: SubmissionType; content: s
       </a>
     )
   }
-  // Strip HTML (Canvas syncs body as HTML); if result is a URL render as link
-  const text = content.includes('<') ? stripHtml(content) : content
-  try {
-    new URL(text)
-    return <a href={text} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all text-sm">{text}</a>
-  } catch {
-    return <p className="text-sm text-dark-text whitespace-pre-wrap break-words">{text}</p>
-  }
+  return <MarkdownContent content={content} />
 }
 
 export default async function GradingPage({
@@ -382,10 +372,10 @@ export default async function GradingPage({
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Submission</p>
               {submission && (
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  currentGrade === 'complete' ? 'bg-green-50 text-green-700 border border-green-600' :
-                  currentGrade === 'incomplete' ? 'bg-red-50 text-red-500 border border-red-500' :
+                  currentGrade === 'complete' ? 'status-complete-btn border' :
+                  currentGrade === 'incomplete' ? 'status-revision-btn border' :
                   submission.status === 'submitted' ? 'bg-teal-light text-teal-primary border border-teal-primary' :
-                  'bg-yellow-50 text-yellow-600'
+                  'status-draft-badge'
                 }`}>
                   {currentGrade === 'complete' ? 'Complete' :
                    currentGrade === 'incomplete' ? 'Incomplete' :
