@@ -838,13 +838,6 @@ function AssignmentFullView({
                   >
                     View Submissions →
                   </a>
-                  <button
-                    onClick={startEditing}
-                    className="text-sm text-muted-text hover:text-dark-text transition-colors"
-                    type="button"
-                  >
-                    ✎ Edit
-                  </button>
                 </div>
               </div>
 
