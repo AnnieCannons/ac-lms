@@ -99,7 +99,7 @@ function ChecklistLineEditor({
       {items.map((item, i) => (
         <div key={i} className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <span className="text-[#a888c8] text-xs shrink-0">☐</span>
+            <span className="text-muted-text text-xs shrink-0">☐</span>
             <input
               ref={(el) => { titleRefs.current[i] = el; }}
               type="text"
@@ -112,7 +112,7 @@ function ChecklistLineEditor({
                 }
               }}
               placeholder={i === 0 ? "Item title — Enter to add more" : "Item title"}
-              className="flex-1 border-0 border-b border-[#3d2260] bg-transparent py-0.5 text-xs font-medium text-[#ede0f5] focus:outline-none focus:border-teal-primary transition-colors"
+              className="flex-1 border-0 border-b border-border bg-transparent py-0.5 text-xs font-medium text-dark-text focus:outline-none focus:border-teal-primary transition-colors"
             />
           </div>
           <div className="pl-5">
@@ -121,7 +121,7 @@ function ChecklistLineEditor({
               value={item.description}
               onChange={(e) => setField(i, "description", e.target.value)}
               placeholder="Description (optional)"
-              className="w-full border-0 bg-transparent py-0.5 text-xs text-[#c4a8df] placeholder:text-[#5a3378] focus:outline-none"
+              className="w-full border-0 bg-transparent py-0.5 text-xs text-muted-text placeholder:text-muted-text/50 focus:outline-none"
             />
           </div>
         </div>
@@ -660,14 +660,14 @@ function AssignmentFullView({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#12072a] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 flex flex-col gap-6">
 
         {/* Top bar */}
         <div className="flex items-center justify-between">
           <button
             onClick={handleBack}
-            className="flex items-center gap-1.5 text-sm text-[#c4a8df] hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-sm text-muted-text hover:text-dark-text transition-colors"
             type="button"
           >
             ← Back to assignments
@@ -680,7 +680,7 @@ function AssignmentFullView({
                   className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
                     assignment.is_bonus
                       ? "border-purple-primary text-purple-primary bg-purple-light/20 hover:bg-purple-primary hover:text-white"
-                      : "border-[#6b4c8a] text-[#c4a8df] hover:border-purple-primary hover:text-white"
+                      : "border-border text-muted-text hover:border-purple-primary hover:text-dark-text"
                   }`}
                   type="button"
                 >
@@ -691,7 +691,7 @@ function AssignmentFullView({
                   className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
                     assignment.published
                       ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
-                      : "border-[#6b4c8a] text-[#c4a8df] hover:border-[#a888c8] hover:text-white"
+                      : "border-border text-muted-text hover:border-muted-text hover:text-dark-text"
                   }`}
                   type="button"
                 >
@@ -709,7 +709,7 @@ function AssignmentFullView({
               </button>
             )}
             {view.mode === "view" && !editing && (
-              <button onClick={handleDelete} className="text-xs text-[#7a5299] hover:text-red-400 transition-colors" type="button">
+              <button onClick={handleDelete} className="text-xs text-muted-text hover:text-red-500 transition-colors" type="button">
                 Delete assignment
               </button>
             )}
@@ -725,19 +725,19 @@ function AssignmentFullView({
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 autoFocus
-                className="text-2xl font-bold text-white bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
+                className="text-2xl font-bold text-dark-text bg-transparent border-b-2 border-teal-primary focus:outline-none pb-1 w-full"
               />
-              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6 flex flex-col gap-4">
+              <div className="bg-surface rounded-2xl border border-border p-6 flex flex-col gap-4">
                 <div>
-                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">Instructions</p>
+                  <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-2">Instructions</p>
                   <RichTextEditor content={editDescription} onChange={setEditDescription} placeholder="Instructions for the assignment" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">How to turn this in</p>
+                  <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-2">How to turn this in</p>
                   <RichTextEditor content={editHowToTurnIn} onChange={setEditHowToTurnIn} placeholder="Submission instructions" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
+                  <label className="text-xs text-muted-text shrink-0">Due:</label>
                   <div className="flex-1">
                     <DatePickerField withTime value={editDueDate} onChange={setEditDueDate} />
                   </div>
@@ -745,14 +745,14 @@ function AssignmentFullView({
                 {/* Checklist editor */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
+                    <p className="text-xs font-bold text-muted-text uppercase tracking-wide">Checklist</p>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       {editChecklistItems.some(i => i.text.trim()) && (
-                        <button type="button" onClick={() => saveAsCustomTemplate(editChecklistItems)} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-[#a888c8] hover:bg-[#12072a] transition-colors">Save as template</button>
+                        <button type="button" onClick={() => saveAsCustomTemplate(editChecklistItems)} className="text-xs px-2 py-0.5 rounded border border-border text-muted-text hover:border-muted-text hover:bg-background transition-colors">Save as template</button>
                       )}
-                      <button type="button" onClick={() => loadEditTemplate("__blank__")} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-[#a888c8] hover:bg-[#12072a] transition-colors">Blank</button>
-                      <button type="button" onClick={() => loadEditTemplate("__none__")} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-red-400 hover:text-red-400 transition-colors">None</button>
-                      <select value="" onChange={e => { if (e.target.value) loadEditTemplate(e.target.value); }} className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary">
+                      <button type="button" onClick={() => loadEditTemplate("__blank__")} className="text-xs px-2 py-0.5 rounded border border-border text-muted-text hover:border-muted-text hover:bg-background transition-colors">Blank</button>
+                      <button type="button" onClick={() => loadEditTemplate("__none__")} className="text-xs px-2 py-0.5 rounded border border-border text-muted-text hover:border-red-500 hover:text-red-500 transition-colors">None</button>
+                      <select value="" onChange={e => { if (e.target.value) loadEditTemplate(e.target.value); }} className="text-xs bg-background border border-border rounded-lg px-2 py-1 text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary">
                         <option value="">Load template…</option>
                         {allTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
@@ -772,7 +772,7 @@ function AssignmentFullView({
                     setEditDueDate(assignment!.due_date ? new Date(assignment!.due_date).toISOString().slice(0, 16) : "");
                     updatePersistEditing(false);
                   }}
-                  className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2 transition-colors"
+                  className="text-sm text-muted-text hover:text-dark-text px-4 py-2 transition-colors"
                   type="button"
                 >
                   Cancel
@@ -791,8 +791,8 @@ function AssignmentFullView({
             <>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-white">{decodeHtml(assignment!.title)}</h1>
-                  <p className="text-sm text-[#c4a8df] mt-1">
+                  <h1 className="text-2xl font-bold text-dark-text">{decodeHtml(assignment!.title)}</h1>
+                  <p className="text-sm text-muted-text mt-1">
                     Due:{" "}
                     {assignment!.due_date
                       ? new Date(assignment!.due_date).toLocaleDateString("en-US", {
@@ -808,7 +808,7 @@ function AssignmentFullView({
                           if (e.target.value)
                             ctx.relocateAssignmentToModule(assignment!.id, e.target.value, view.dayName);
                         }}
-                        className="text-xs bg-[#1d0f3e] border border-[#3d2260] rounded px-2 py-1 text-[#c4a8df] focus:outline-none focus:ring-1 focus:ring-teal-primary max-w-[240px]"
+                        className="text-xs bg-surface border border-border rounded px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary max-w-[240px]"
                         title="Module"
                       >
                         {ctx.weekModules.map(({ id, week, title }) => (
@@ -818,7 +818,7 @@ function AssignmentFullView({
                       <select
                         value={DAY_OPTIONS.includes(view.dayName) ? view.dayName : ""}
                         onChange={e => { if (view.moduleId) ctx.relocateAssignmentToModule(assignment!.id, view.moduleId, e.target.value); }}
-                        className="text-xs bg-[#1d0f3e] border border-[#3d2260] rounded px-2 py-1 text-[#c4a8df] focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                        className="text-xs bg-surface border border-border rounded px-2 py-1 text-muted-text focus:outline-none focus:ring-1 focus:ring-teal-primary"
                         title="Day"
                       >
                         <option value="">Day?</option>
@@ -834,13 +834,13 @@ function AssignmentFullView({
                     href={`/instructor/courses/${courseId}/assignments/${assignment!.id}/submissions`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-[#a888c8] hover:text-[#dac8ee] transition-colors"
+                    className="text-sm text-muted-text hover:text-dark-text transition-colors"
                   >
                     View Submissions →
                   </a>
                   <button
                     onClick={startEditing}
-                    className="text-sm text-[#9080b0] hover:text-[#dac8ee] transition-colors"
+                    className="text-sm text-muted-text hover:text-dark-text transition-colors"
                     type="button"
                   >
                     ✎ Edit
@@ -848,44 +848,44 @@ function AssignmentFullView({
                 </div>
               </div>
 
-              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
-                <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-3">Instructions</p>
+              <div className="bg-surface rounded-2xl border border-border p-6">
+                <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">Instructions</p>
                 {assignment!.description ? (
                   <HtmlContent
                     html={assignment!.description}
-                    className="tiptap text-sm text-[#ede0f5] leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-bold [&_h2]:text-base [&_h2]:text-white [&_h3]:font-semibold [&_h3]:text-white [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
+                    className="tiptap text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-bold [&_h2]:text-base [&_h3]:font-semibold [&_strong]:font-bold [&_a]:text-teal-primary"
                   />
                 ) : (
-                  <p className="text-sm text-[#7a5299] italic">No instructions.</p>
+                  <p className="text-sm text-muted-text italic">No instructions.</p>
                 )}
               </div>
 
               {assignment!.how_to_turn_in && (
-                <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
-                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-3">How to turn this in</p>
+                <div className="bg-surface rounded-2xl border border-border p-6">
+                  <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">How to turn this in</p>
                   <HtmlContent
                     html={assignment!.how_to_turn_in}
-                    className="tiptap text-sm text-[#ede0f5] leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_strong]:text-white [&_a]:text-teal-primary"
+                    className="tiptap text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_a]:text-teal-primary"
                   />
                 </div>
               )}
 
-              <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6">
+              <div className="bg-surface rounded-2xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
-                  <button type="button" onClick={startEditing} className="text-xs text-[#7a5299] hover:text-[#c4a8df] transition-colors">✎ Edit checklist</button>
+                  <p className="text-xs font-bold text-muted-text uppercase tracking-wide">Checklist</p>
+                  <button type="button" onClick={startEditing} className="text-xs text-muted-text hover:text-dark-text transition-colors">✎ Edit checklist</button>
                 </div>
                 {checklistItems.length === 0 ? (
-                  <p className="text-sm text-[#9b7fc0] italic">No checklist for this assignment.</p>
+                  <p className="text-sm text-muted-text italic">No checklist for this assignment.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {checklistItems.map(item => (
                       <div key={item.id}>
                         <div className="flex items-center gap-2">
-                          <span className="text-[#a888c8] shrink-0 text-sm">☐</span>
-                          <p className="text-sm font-medium text-[#f8f3fc]">{item.text}</p>
+                          <span className="text-muted-text shrink-0 text-sm">☐</span>
+                          <p className="text-sm font-medium text-dark-text">{item.text}</p>
                         </div>
-                        {item.description && <p className="pl-5 text-xs text-[#9080b0] mt-0.5">{item.description}</p>}
+                        {item.description && <p className="pl-5 text-xs text-muted-text mt-0.5">{item.description}</p>}
                       </div>
                     ))}
                   </div>
@@ -896,36 +896,36 @@ function AssignmentFullView({
         ) : (
           // ── Add mode ──
           <>
-            <h1 className="text-2xl font-bold text-white">New Assignment</h1>
-            <div className="bg-[#1d0f3e] rounded-2xl border border-[#301850] p-6 flex flex-col gap-4">
+            <h1 className="text-2xl font-bold text-dark-text">New Assignment</h1>
+            <div className="bg-surface rounded-2xl border border-border p-6 flex flex-col gap-4">
               <input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Assignment title *"
                 autoFocus
-                className="w-full bg-[#12072a] border border-[#3d2260] text-white rounded-lg px-3 py-2 text-sm placeholder:text-[#7a5299] focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="w-full bg-background border border-border text-dark-text rounded-lg px-3 py-2 text-sm placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
               />
               <div>
-                <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">Instructions</p>
+                <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-2">Instructions</p>
                 <RichTextEditor key={`desc-${editorKey}`} content={newDescription} onChange={setNewDescription} placeholder="Instructions for the assignment" />
               </div>
               <div>
-                <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide mb-2">How to turn this in</p>
+                <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-2">How to turn this in</p>
                 <RichTextEditor key={`htti-${editorKey}`} content={newHowToTurnIn} onChange={setNewHowToTurnIn} placeholder="Submission instructions" />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-[#a888c8] shrink-0">Due:</label>
+                <label className="text-xs text-muted-text shrink-0">Due:</label>
                 <div className="flex-1">
                   <DatePickerField withTime value={newDueDate} onChange={setNewDueDate} />
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold text-[#a888c8] uppercase tracking-wide">Checklist</p>
+                  <p className="text-xs font-bold text-muted-text uppercase tracking-wide">Checklist</p>
                   <div className="flex items-center gap-2">
                     {newChecklist.some(i => i.text.trim()) && (
-                      <button type="button" onClick={() => saveAsCustomTemplate(newChecklist)} className="text-xs px-2 py-0.5 rounded border border-[#3d2260] text-[#c4a8df] hover:border-[#a888c8] hover:bg-[#1d0f3e] transition-colors">Save as template</button>
+                      <button type="button" onClick={() => saveAsCustomTemplate(newChecklist)} className="text-xs px-2 py-0.5 rounded border border-border text-muted-text hover:border-muted-text hover:bg-surface transition-colors">Save as template</button>
                     )}
                   <select
                     defaultValue=""
@@ -938,7 +938,7 @@ function AssignmentFullView({
                       const template = allTemplates.find((t) => t.id === val);
                       if (template) setNewChecklist(template.items.map((item) => ({ text: item.text, description: item.description })));
                     }}
-                    className="text-xs bg-[#12072a] border border-[#3d2260] rounded-lg px-2 py-1 text-[#dac8ee] focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    className="text-xs bg-background border border-border rounded-lg px-2 py-1 text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     <option value="">Load template…</option>
                     <option value="__blank__">Blank</option>
@@ -951,7 +951,7 @@ function AssignmentFullView({
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={onClose} className="text-sm text-[#a888c8] hover:text-[#dac8ee] px-4 py-2 transition-colors" type="button">
+              <button onClick={onClose} className="text-sm text-muted-text hover:text-dark-text px-4 py-2 transition-colors" type="button">
                 Cancel
               </button>
               <button
