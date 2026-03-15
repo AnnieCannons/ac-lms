@@ -87,8 +87,8 @@ html.theme-dark textarea,
 html.theme-dark select {
   color-scheme: dark;
 }
-/* Tiptap editor area */
-html.theme-dark .ProseMirror {
+/* Tiptap editor area — explicit background so it never shows white in any theme */
+.ProseMirror {
   background-color: var(--color-background);
 }
 html.theme-dark button {

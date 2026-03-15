@@ -50,7 +50,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
     editorProps: {
       attributes: {
         class:
-          "min-h-[180px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2",
+          "min-h-[180px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
       },
     },
   });

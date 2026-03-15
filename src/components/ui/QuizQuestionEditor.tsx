@@ -66,7 +66,7 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
     editorProps: {
       attributes: {
         class:
-          "min-h-[120px] max-h-[500px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2 " +
+          "min-h-[120px] max-h-[500px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2 " +
           "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
           "[&_li_p]:inline [&_strong]:font-bold [&_em]:italic",
       },

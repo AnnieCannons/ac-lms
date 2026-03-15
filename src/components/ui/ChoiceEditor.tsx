@@ -66,7 +66,7 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
     editorProps: {
       attributes: {
         class:
-          "min-h-[52px] max-h-[200px] overflow-y-auto focus:outline-none text-sm text-dark-text leading-relaxed px-3 py-2",
+          "min-h-[52px] max-h-[200px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
       },
     },
   });
