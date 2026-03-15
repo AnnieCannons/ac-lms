@@ -213,7 +213,7 @@ function AssignmentCard({
   weekNumber: number | null;
   dayName: string;
   courseId: string;
-  onOpen: (assignment: Assignment, dayId: string) => void;
+  onOpen: (assignment: Assignment) => void;
   onDelete: (id: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
   onDuplicated: (assignment: DuplicatedAssignment, targetDayId: string) => void;
@@ -314,7 +314,7 @@ function AssignmentCard({
         )}
         <button
           type="button"
-          onClick={() => onOpen(assignment, dayId)}
+          onClick={() => onOpen(assignment)}
           className="flex-1 min-w-0 text-left"
         >
           <p className="text-sm text-dark-text truncate">
@@ -979,7 +979,7 @@ function AssignmentDropZone({
   day: Day;
   weekNumber: number | null;
   assignments: Assignment[];
-  onOpenAssignment: (assignment: Assignment, dayId: string) => void;
+  onOpenAssignment: (assignment: Assignment) => void;
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
@@ -1473,7 +1473,7 @@ function SortableDay({
   weekNumber: number | null;
   refreshTrigger: number;
   onDelete: (id: string, name: string) => void;
-  onOpenAssignment: (assignment: Assignment, dayId: string) => void;
+  onOpenAssignment: (assignment: Assignment) => void;
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
@@ -1988,7 +1988,7 @@ function SortableModule({
   onDelete: (id: string, title: string) => void;
   onAddDay: (moduleId: string, dayName: string) => void;
   onDeleteDay: (dayId: string, moduleId: string, name: string) => void;
-  onOpenAssignment: (assignment: Assignment, dayId: string) => void;
+  onOpenAssignment: (assignment: Assignment) => void;
   onOpenAdd: (dayId: string) => void;
   onDeleteAssignment: (assignmentId: string, title: string) => void;
   onTogglePublished: (id: string, current: boolean) => void;
@@ -3109,41 +3109,14 @@ export default function CourseEditor({
     );
   };
 
-  const PERSIST_KEY = `active-assignment-${course.id}`;
-
-  useEffect(() => {
-    const saved = localStorage.getItem(PERSIST_KEY);
-    if (!saved || activeView) return;
-    try {
-      const { assignmentId, dayId } = JSON.parse(saved);
-      for (const m of modules) {
-        for (const d of m.module_days) {
-          const a = d.assignments?.find(x => x.id === assignmentId);
-          if (a && d.id === dayId) { openAssignment(a, dayId); return; }
-        }
-      }
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const openAssignment = (assignment: Assignment, dayId: string) => {
-    localStorage.setItem(PERSIST_KEY, JSON.stringify({ assignmentId: assignment.id, dayId }));
-    const mod = modules.find((m) => m.module_days.some((d) => d.id === dayId));
-    const day = mod?.module_days.find((d) => d.id === dayId);
-    setActiveView({
-      mode: "view",
-      assignment,
-      dayId,
-      moduleId: mod?.id ?? null,
-      weekNumber: mod?.week_number ?? null,
-      dayName: day?.day_name ?? "",
-    });
+  const openAssignment = (assignment: Assignment) => {
+    router.push(`/instructor/courses/${course.id}/assignments/${assignment.id}`);
   };
 
   const openAdd = (dayId: string) =>
     setActiveView({ mode: "add", dayId });
 
-  const closeView = () => { localStorage.removeItem(PERSIST_KEY); setActiveView(null); };
+  const closeView = () => { setActiveView(null); };
 
   const visibleModules = filterCategory
     ? modules.filter((m) => m.category === filterCategory)
@@ -3254,7 +3227,7 @@ export default function CourseEditor({
                             key={r.assignment.id}
                             result={r}
                             weekModules={weekModules}
-                            onOpen={() => { openAssignment(r.assignment, r.dayId); setSearch(""); }}
+                            onOpen={() => { openAssignment(r.assignment); setSearch(""); }}
                           />
                         ))}
                         {resourceResults.map((r) => (
