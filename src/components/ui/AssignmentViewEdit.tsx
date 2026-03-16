@@ -65,26 +65,26 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
   const [checklist, setChecklist] = useState(initialChecklist)
 
   const navBar = (prevAssignment || nextAssignment) && (
-    <div className="flex items-center justify-between gap-4 pt-6 mt-6 border-t border-border">
-      <div className="flex-1 min-w-0">
+    <div className="flex items-center justify-between gap-8 pt-6 mt-6 border-t border-border">
+      <div className="w-[45%] min-w-0">
         {prevAssignment && (
           <Link
             href={`/instructor/courses/${courseId}/assignments/${prevAssignment.id}${editing ? '?edit=1' : ''}`}
-            className="group flex flex-col gap-0.5 text-left"
+            className="group flex flex-col gap-0.5"
           >
             <span className="text-xs text-muted-text group-hover:text-teal-primary transition-colors">← Previous</span>
-            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{decodeHtml(prevAssignment.title)}</span>
+            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate block">{decodeHtml(prevAssignment.title)}</span>
           </Link>
         )}
       </div>
-      <div className="flex-1 min-w-0 text-right">
+      <div className="w-[45%] min-w-0 text-right">
         {nextAssignment && (
           <Link
             href={`/instructor/courses/${courseId}/assignments/${nextAssignment.id}${editing ? '?edit=1' : ''}`}
             className="group flex flex-col gap-0.5 items-end"
           >
             <span className="text-xs text-muted-text group-hover:text-teal-primary transition-colors">Next →</span>
-            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{decodeHtml(nextAssignment.title)}</span>
+            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate block w-full">{decodeHtml(nextAssignment.title)}</span>
           </Link>
         )}
       </div>
