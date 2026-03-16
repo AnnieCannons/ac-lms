@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import { getMarkRange } from "@tiptap/core";
+import Image from "@tiptap/extension-image";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -68,6 +69,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         autolink: true,
         HTMLAttributes: { class: "text-teal-primary underline cursor-pointer" },
       }),
+      Image.configure({ inline: true, HTMLAttributes: { class: "max-w-full rounded" } }),
     ],
     content,
     onUpdate: ({ editor }) => {
