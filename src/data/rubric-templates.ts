@@ -33,6 +33,18 @@ export const RUBRIC_TEMPLATES: RubricTemplate[] = [
     ],
   },
   {
+    id: "weekly-check-in",
+    name: "Weekly Check-In",
+    items: [
+      { text: "MONDAY", description: "Required questions are completed." },
+      { text: "TUESDAY", description: "Required questions are completed." },
+      { text: "WEDNESDAY", description: "Required questions are completed." },
+      { text: "THURSDAY", description: "Required questions are completed." },
+      { text: "FRIDAY", description: "Required questions are completed." },
+      { text: "INCOMPLETE ASSIGNMENTS LIST", description: "All missing & incomplete Canvas assignments are listed." },
+    ],
+  },
+  {
     id: "clean-comment-code",
     name: "Clean & Comment Your Code",
     items: [

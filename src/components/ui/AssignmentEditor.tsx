@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from './RichTextEditor'
@@ -9,6 +9,12 @@ import DatePicker from './DatePicker'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { trashAssignment } from '@/lib/trash-actions'
 import { upsertAssignmentOverride, removeAssignmentOverride } from '@/lib/override-actions'
+
+interface CustomTemplate {
+  id: string
+  name: string
+  items: { text: string; description: string }[]
+}
 
 const PRESET_SKILL_TAGS = ['HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Other']
 
@@ -79,6 +85,41 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   useUnsavedChanges(isDirty)
+
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([])
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
+
+  useEffect(() => {
+    supabase.from('rubric_templates').select('id, name, items').order('name').then(({ data }) => {
+      if (data) setCustomTemplates(data as CustomTemplate[])
+    })
+  }, [])
+
+  const saveAsTemplate = async () => {
+    if (!templateName.trim() || checklist.length === 0) return
+    setSavingTemplate(true)
+    const items = [...checklist].sort((a, b) => a.order - b.order).map(i => ({ text: i.text, description: i.description ?? '' }))
+    const { data, error } = await supabase.from('rubric_templates').insert({ name: templateName.trim(), items }).select('id, name, items').single()
+    setSavingTemplate(false)
+    if (error) { alert(error.message); return }
+    setCustomTemplates(prev => [...prev, data as CustomTemplate].sort((a, b) => a.name.localeCompare(b.name)))
+    setTemplateName('')
+    setShowSaveTemplate(false)
+  }
+
+  const deleteCustomTemplate = async (id: string) => {
+    if (!window.confirm('Delete this template?')) return
+    const { error } = await supabase.from('rubric_templates').delete().eq('id', id)
+    if (error) { alert(error.message); return }
+    setCustomTemplates(prev => prev.filter(t => t.id !== id))
+  }
+
+  const allTemplates = [
+    ...RUBRIC_TEMPLATES,
+    ...customTemplates.map(t => ({ id: t.id, name: t.name, items: t.items })),
+  ]
 
   const [overrides, setOverrides] = useState<Override[]>(initialOverrides)
   const [showAddOverride, setShowAddOverride] = useState(false)
@@ -227,7 +268,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   }
 
   const loadTemplate = async (templateId: string) => {
-    const template = RUBRIC_TEMPLATES.find(t => t.id === templateId)
+    const template = allTemplates.find(t => t.id === templateId)
     if (!template) return
     if (checklist.length > 0 && !window.confirm('Replace the current checklist with this template?')) return
     if (checklist.length > 0) {
@@ -370,17 +411,65 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
 
       {/* Checklist */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">Grading Checklist</label>
-          <select
-            defaultValue=""
-            onChange={e => { if (e.target.value) { loadTemplate(e.target.value); e.currentTarget.value = '' } }}
-            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
-          >
-            <option value="">Load template…</option>
-            {RUBRIC_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          <div className="flex items-center gap-2">
+            {checklist.length > 0 && !showSaveTemplate && (
+              <button
+                type="button"
+                onClick={() => setShowSaveTemplate(true)}
+                className="text-xs text-muted-text hover:text-teal-primary transition-colors"
+              >
+                Save as template…
+              </button>
+            )}
+            <select
+              defaultValue=""
+              onChange={e => { if (e.target.value) { loadTemplate(e.target.value); e.currentTarget.value = '' } }}
+              className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-purple-primary"
+            >
+              <option value="">Load template…</option>
+              {RUBRIC_TEMPLATES.length > 0 && (
+                <optgroup label="Built-in">
+                  {RUBRIC_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              )}
+              {customTemplates.length > 0 && (
+                <optgroup label="Custom">
+                  {customTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              )}
+            </select>
+          </div>
         </div>
+        {showSaveTemplate && (
+          <div className="flex items-center gap-2 mb-3 p-3 bg-surface rounded-lg border border-border">
+            <input
+              autoFocus
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveAsTemplate(); if (e.key === 'Escape') { setShowSaveTemplate(false); setTemplateName('') } }}
+              placeholder="Template name…"
+              className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+            <button type="button" onClick={saveAsTemplate} disabled={!templateName.trim() || savingTemplate}
+              className="text-xs font-semibold px-3 py-1.5 bg-teal-primary text-white rounded-lg disabled:opacity-50">
+              {savingTemplate ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" onClick={() => { setShowSaveTemplate(false); setTemplateName('') }}
+              className="text-xs text-muted-text hover:text-dark-text">Cancel</button>
+          </div>
+        )}
+        {customTemplates.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {customTemplates.map(t => (
+              <span key={t.id} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-border bg-surface text-muted-text">
+                {t.name}
+                <button type="button" onClick={() => deleteCustomTemplate(t.id)} className="hover:text-red-500 transition-colors ml-0.5">✕</button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex flex-col gap-2 mb-4">
           {checklist.sort((a, b) => a.order - b.order).map(item => (
             <ChecklistItemRow key={item.id} item={item} onDelete={deleteChecklistItem} onUpdate={updateChecklistItem} onToggleRequired={toggleChecklistRequired} />
