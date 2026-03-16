@@ -9,6 +9,9 @@ import DatePicker from './DatePicker'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { trashAssignment } from '@/lib/trash-actions'
 import { upsertAssignmentOverride, removeAssignmentOverride } from '@/lib/override-actions'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface CustomTemplate {
   id: string
@@ -78,6 +81,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [customTagInput, setCustomTagInput] = useState('')
   const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
+  const checklistSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const [newItemText, setNewItemText] = useState('')
   const [newItemDesc, setNewItemDesc] = useState('')
   const [newItemBonus, setNewItemBonus] = useState(false)
@@ -289,6 +293,20 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const { error } = await supabase.from('checklist_items').delete().eq('id', id)
     if (error) { alert(error.message); return }
     setChecklist(prev => prev.filter(i => i.id !== id))
+  }
+
+  const handleChecklistDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const sorted = [...checklist].sort((a, b) => a.order - b.order)
+    const oldIndex = sorted.findIndex(i => i.id === active.id)
+    const newIndex = sorted.findIndex(i => i.id === over.id)
+    const reordered = arrayMove(sorted, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }))
+    setChecklist(reordered)
+    // Persist new order
+    await Promise.all(reordered.map(item =>
+      supabase.from('checklist_items').update({ order: item.order }).eq('id', item.id)
+    ))
   }
 
   const updateChecklistItem = async (item: ChecklistItem, text: string, desc: string) => {
@@ -670,11 +688,15 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             ))}
           </div>
         )}
-        <div className="flex flex-col gap-2 mb-4">
-          {checklist.sort((a, b) => a.order - b.order).map(item => (
-            <ChecklistItemRow key={item.id} item={item} onDelete={deleteChecklistItem} onUpdate={updateChecklistItem} onToggleRequired={toggleChecklistRequired} />
-          ))}
-        </div>
+        <DndContext sensors={checklistSensors} collisionDetection={closestCenter} onDragEnd={handleChecklistDragEnd}>
+          <SortableContext items={checklist.map(i => i.id)} strategy={verticalListSortingStrategy}>
+            <div className="flex flex-col gap-2 mb-4">
+              {[...checklist].sort((a, b) => a.order - b.order).map(item => (
+                <ChecklistItemRow key={item.id} item={item} onDelete={deleteChecklistItem} onUpdate={updateChecklistItem} onToggleRequired={toggleChecklistRequired} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
         {/* Add new item */}
         <div className="bg-surface rounded-xl border border-dashed border-border p-4 flex flex-col gap-2">
           <div className="flex items-baseline justify-between">
@@ -849,6 +871,8 @@ function ChecklistItemRow({
   onUpdate: (item: ChecklistItem, text: string, desc: string) => void
   onToggleRequired: (id: string, current: boolean) => void
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(item.text)
   const [desc, setDesc] = useState(item.description ?? '')
@@ -861,7 +885,7 @@ function ChecklistItemRow({
 
   if (editing) {
     return (
-      <div className="rounded-xl border border-teal-primary bg-teal-light/20 p-3 flex flex-col gap-2">
+      <div ref={setNodeRef} style={style} className="rounded-xl border border-teal-primary bg-teal-light/20 p-3 flex flex-col gap-2">
         <input
           autoFocus
           value={text}
@@ -885,7 +909,10 @@ function ChecklistItemRow({
   }
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-border bg-background group">
+    <div ref={setNodeRef} style={style} className="flex items-start gap-3 px-4 py-3 rounded-xl border border-border bg-background group">
+      <button {...attributes} {...listeners} type="button" className="mt-0.5 shrink-0 text-border hover:text-muted-text cursor-grab active:cursor-grabbing" aria-label="Drag to reorder">
+        ⠿
+      </button>
       <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-400" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
