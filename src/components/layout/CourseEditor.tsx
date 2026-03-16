@@ -1461,6 +1461,7 @@ function SortableDay({
   onDuplicatedAssignment,
   courseId,
   quizzesForDay,
+  forceOpen,
 }: {
   day: Day;
   weekNumber: number | null;
