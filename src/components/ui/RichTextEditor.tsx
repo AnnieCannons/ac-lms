@@ -6,16 +6,43 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import { getMarkRange } from "@tiptap/core";
+import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  storagePath?: string;
 };
 
 type HoveredLink = { href: string; top: number; left: number; domEl: HTMLAnchorElement };
 
-export default function RichTextEditor({ content, onChange, placeholder }: Props) {
+export default function RichTextEditor({ content, onChange, placeholder, storagePath }: Props) {
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    if (!storagePath) return null;
+    setUploadingImage(true);
+    const supabase = createClient();
+    const safeName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+    const filePath = `${storagePath}${safeName}`;
+    const { error } = await supabase.storage.from("lms-resources").upload(filePath, file, { upsert: true });
+    setUploadingImage(false);
+    if (error) { alert(`Image upload failed: ${error.message}`); return null; }
+    const { data } = supabase.storage.from("lms-resources").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const insertImageUrl = (url: string, name: string) => {
+    editor?.chain().focus().insertContent(`<img src="${url}" alt="${name.replace(/"/g, "&quot;")}" />`).run();
+  };
+
+  const handleImageFile = async (file: File) => {
+    const url = await uploadImage(file);
+    if (url) insertImageUrl(url, file.name);
+  };
+
   // Add-link input (shown below toolbar when adding new link)
   const [linkInputOpen, setLinkInputOpen] = useState(false);
   const [linkUrlDraft, setLinkUrlDraft] = useState("");
@@ -51,6 +78,17 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
       attributes: {
         class:
           "min-h-[180px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
+      },
+      handlePaste: (_view, event) => {
+        if (!storagePath) return false;
+        const items = Array.from(event.clipboardData?.items ?? []);
+        const imageItem = items.find(item => item.type.startsWith("image/"));
+        if (!imageItem) return false;
+        const file = imageItem.getAsFile();
+        if (!file) return false;
+        event.preventDefault();
+        handleImageFile(file);
+        return true;
       },
     },
   });
@@ -226,6 +264,28 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
         <button type="button" onMouseDown={handleLinkButton} className={btn(isLinkActive)} aria-label={isLinkActive ? "Remove link" : "Add link"} title={isLinkActive ? "Remove link" : "Add link (select text first)"}>
           🔗
         </button>
+        {storagePath && (
+          <>
+            <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
+            <button
+              type="button"
+              onMouseDown={e => { e.preventDefault(); imageInputRef.current?.click(); }}
+              className={btn(false)}
+              aria-label="Insert image"
+              title={uploadingImage ? "Uploading…" : "Insert image (or paste with ⌘V)"}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? "…" : "img"}
+            </button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = ""; }}
+            />
+          </>
+        )}
       </div>
 
       {/* Inline URL input for adding a new link */}

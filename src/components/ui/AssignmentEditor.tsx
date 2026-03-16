@@ -400,13 +400,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       {/* Description */}
       <div>
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Instructions</label>
-        <RichTextEditor content={description} onChange={v => { setDescription(v); setIsDirty(true) }} placeholder="Assignment instructions…" />
+        <RichTextEditor content={description} onChange={v => { setDescription(v); setIsDirty(true) }} placeholder="Assignment instructions…" storagePath={`assignments/${assignment.id}/images/`} />
       </div>
 
       {/* How to turn in */}
       <div>
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">How to Turn In</label>
-        <RichTextEditor content={howToTurnIn} onChange={v => { setHowToTurnIn(v); setIsDirty(true) }} placeholder="How students should submit this assignment…" />
+        <RichTextEditor content={howToTurnIn} onChange={v => { setHowToTurnIn(v); setIsDirty(true) }} placeholder="How students should submit this assignment…" storagePath={`assignments/${assignment.id}/images/`} />
       </div>
 
       {/* Checklist */}
