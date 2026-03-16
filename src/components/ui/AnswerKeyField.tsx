@@ -45,7 +45,7 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
 
   if (editing) {
     return (
-      <div className="flex items-center gap-2 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+      <div className="flex items-center gap-2 mt-4 p-3 badge-amber border rounded-xl">
         <KeyIcon />
         <input
           autoFocus
@@ -54,12 +54,12 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setDraft(url); setEditing(false) } }}
           placeholder="https://…"
-          className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm bg-white text-dark-text min-w-0"
+          className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-dark-text placeholder:text-muted-text min-w-0 focus:outline-none focus:ring-2 focus:ring-teal-primary"
         />
         <button
           onClick={save}
           disabled={saving}
-          className="text-sm px-4 py-1.5 bg-amber-500 text-white rounded-lg font-semibold disabled:opacity-50 shrink-0"
+          className="text-sm px-4 py-1.5 bg-teal-primary text-white rounded-lg font-semibold disabled:opacity-50 shrink-0 hover:opacity-90 transition-opacity"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -75,20 +75,20 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
 
   if (url) {
     return (
-      <div className="flex items-center gap-3 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-        <span className="text-amber-600 shrink-0"><KeyIcon /></span>
+      <div className="flex items-center gap-3 mt-4 px-4 py-3 badge-amber border rounded-xl">
+        <span className="shrink-0"><KeyIcon /></span>
         <a
           href={normalizeUrl(url)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-sm font-semibold text-amber-700 hover:text-amber-900 hover:underline flex items-center gap-1.5 min-w-0"
+          className="flex-1 text-sm font-semibold hover:underline flex items-center gap-1.5 min-w-0"
         >
           <span>Answer Key</span>
           <ExternalIcon />
         </a>
         <button
           onClick={() => { setDraft(url); setEditing(true) }}
-          className="text-xs text-amber-600 hover:text-amber-900 font-medium shrink-0"
+          className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity"
         >
           Edit
         </button>
@@ -99,7 +99,7 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-amber-300 text-amber-600 hover:border-amber-400 hover:bg-amber-50 transition-colors text-xs font-semibold"
+      className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed badge-amber hover:opacity-80 transition-opacity text-xs font-semibold"
     >
       <KeyIcon />
       Add answer key
