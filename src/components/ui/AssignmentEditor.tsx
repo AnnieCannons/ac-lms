@@ -272,15 +272,19 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     if (!template) return
     if (checklist.length > 0 && !window.confirm('Replace the current checklist with this template?')) return
     if (checklist.length > 0) {
-      await supabase.from('checklist_items').delete().eq('assignment_id', assignment.id)
+      const { error: delError } = await supabase.from('checklist_items').delete().eq('assignment_id', assignment.id)
+      if (delError) { alert(`Failed to clear checklist: ${delError.message}`); return }
     }
+    setChecklist([])
+    if (template.items.length === 0) return
     const { data, error } = await supabase
       .from('checklist_items')
       .insert(template.items.map((item, i) => ({
         assignment_id: assignment.id, text: item.text, description: item.description || null, order: i, required: true,
       })))
       .select('id, text, description, order, required')
-    if (!error && data) setChecklist(data)
+    if (error) { alert(`Failed to load template: ${error.message}`); return }
+    if (data) setChecklist(data)
   }
 
   return (
