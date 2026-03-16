@@ -55,7 +55,7 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_strong]:font-semibold`
 
 function decodeHtml(str: string) {
-  return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
 }
 
 export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment }: Props) {

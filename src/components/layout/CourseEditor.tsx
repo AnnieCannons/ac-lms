@@ -52,7 +52,7 @@ const DEFAULT_HOW_TO_TURN_IN =
   "<p>Turn in the link to your assignment here. Make sure you have saved your work and granted access to your instructor(s) if necessary.</p>";
 
 function decodeHtml(s: string): string {
-  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
 }
 
 function getDefaultDueDate(): string {
@@ -1968,6 +1968,7 @@ function SortableModule({
   onUpdateCategory,
   onToggleModulePublished,
   onUpdateTitle,
+  onUpdateWeekNumber,
   onDuplicatedAssignment,
   onDuplicatedModule,
   dayRefreshTriggers,
@@ -1988,6 +1989,7 @@ function SortableModule({
   onUpdateCategory: (moduleId: string, category: string | null) => void;
   onToggleModulePublished: (id: string, current: boolean) => void;
   onUpdateTitle: (moduleId: string, title: string) => void;
+  onUpdateWeekNumber: (moduleId: string, weekNumber: number) => void;
   onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
   onDuplicatedModule: (newModule: DuplicatedModule) => void;
   dayRefreshTriggers: Record<string, number>;
@@ -2005,6 +2007,8 @@ function SortableModule({
   const [newDayName, setNewDayName] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(module.title);
+  const [editingWeek, setEditingWeek] = useState(false);
+  const [weekDraft, setWeekDraft] = useState(String(module.week_number ?? ''));
 
   const [modCopyOpen, setModCopyOpen] = useState(false);
   const modCopyBtnRef = useRef<HTMLButtonElement>(null);
@@ -2040,6 +2044,13 @@ function SortableModule({
     if (trimmed && trimmed !== module.title) onUpdateTitle(module.id, trimmed);
     else setTitleDraft(module.title);
     setEditingTitle(false);
+  };
+
+  const saveWeek = () => {
+    const n = parseInt(weekDraft, 10);
+    if (!isNaN(n) && n > 0 && n !== module.week_number) onUpdateWeekNumber(module.id, n);
+    else setWeekDraft(String(module.week_number ?? ''));
+    setEditingWeek(false);
   };
 
   return (
@@ -2090,7 +2101,31 @@ function SortableModule({
               )}
             </div>
           )}
-          {module.week_number != null && <p className="text-xs text-muted-text">Week {module.week_number}</p>}
+          {module.week_number != null && (
+            !readOnly && editingWeek ? (
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-xs text-muted-text">Week</span>
+                <input
+                  autoFocus
+                  type="number"
+                  min="1"
+                  value={weekDraft}
+                  onChange={e => setWeekDraft(e.target.value)}
+                  onBlur={saveWeek}
+                  onKeyDown={e => { if (e.key === 'Enter') saveWeek(); if (e.key === 'Escape') { setWeekDraft(String(module.week_number ?? '')); setEditingWeek(false); } }}
+                  className="w-14 text-xs text-dark-text bg-background border border-teal-primary rounded px-1.5 py-0.5 focus:outline-none"
+                />
+              </div>
+            ) : (
+              <p
+                className={`text-xs text-muted-text mt-0.5${!readOnly ? ' cursor-pointer hover:text-teal-primary transition-colors' : ''}`}
+                onClick={!readOnly ? (e) => { e.stopPropagation(); setWeekDraft(String(module.week_number ?? '')); setEditingWeek(true); } : undefined}
+                title={!readOnly ? 'Click to edit week number' : undefined}
+              >
+                Week {module.week_number}
+              </p>
+            )
+          )}
         </div>
         {!readOnly && (
           <select
@@ -2759,6 +2794,12 @@ export default function CourseEditor({
     setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, title } : m));
   };
 
+  const updateModuleWeekNumber = async (moduleId: string, weekNumber: number) => {
+    const { error } = await supabase.from("modules").update({ week_number: weekNumber }).eq("id", moduleId);
+    if (error) { console.error("updateModuleWeekNumber failed:", error.message); return; }
+    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, week_number: weekNumber } : m));
+  };
+
   const relocateAssignment = async (assignmentId: string, targetWeek: number, targetDayName: string) => {
     const currentMods = modulesRef.current;
 
@@ -3290,6 +3331,7 @@ export default function CourseEditor({
                   onUpdateCategory={updateModuleCategory}
                   onToggleModulePublished={updateModulePublished}
                   onUpdateTitle={updateModuleTitle}
+                  onUpdateWeekNumber={updateModuleWeekNumber}
                   onDuplicatedAssignment={handleDuplicatedAssignment}
                   onDuplicatedModule={handleDuplicatedModule}
                   dayRefreshTriggers={dayRefreshTriggers}
