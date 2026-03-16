@@ -91,6 +91,11 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [showManageTemplates, setShowManageTemplates] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
+  const [editTemplateName, setEditTemplateName] = useState('')
+  const [editTemplateItems, setEditTemplateItems] = useState<{ text: string; description: string }[]>([])
+  const [editTemplateNewItem, setEditTemplateNewItem] = useState('')
+  const [savingTemplateEdit, setSavingTemplateEdit] = useState(false)
 
   useEffect(() => {
     supabase.from('rubric_templates').select('id, name, items').order('name').then(({ data }) => {
@@ -115,6 +120,30 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     const { error } = await supabase.from('rubric_templates').delete().eq('id', id)
     if (error) { alert(error.message); return }
     setCustomTemplates(prev => prev.filter(t => t.id !== id))
+    if (editingTemplateId === id) setEditingTemplateId(null)
+  }
+
+  const startEditTemplate = (t: CustomTemplate) => {
+    setEditingTemplateId(t.id)
+    setEditTemplateName(t.name)
+    setEditTemplateItems(t.items.map(i => ({ text: i.text, description: i.description ?? '' })))
+    setEditTemplateNewItem('')
+  }
+
+  const saveTemplateEdit = async () => {
+    if (!editingTemplateId || !editTemplateName.trim()) return
+    setSavingTemplateEdit(true)
+    const { error } = await supabase
+      .from('rubric_templates')
+      .update({ name: editTemplateName.trim(), items: editTemplateItems })
+      .eq('id', editingTemplateId)
+    setSavingTemplateEdit(false)
+    if (error) { alert(error.message); return }
+    setCustomTemplates(prev =>
+      prev.map(t => t.id === editingTemplateId ? { ...t, name: editTemplateName.trim(), items: editTemplateItems } : t)
+        .sort((a, b) => a.name.localeCompare(b.name))
+    )
+    setEditingTemplateId(null)
   }
 
   const allTemplates = [
@@ -490,18 +519,89 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           </div>
         )}
         {showManageTemplates && customTemplates.length > 0 && (
-          <div className="flex flex-col gap-1.5 mb-3 p-3 bg-surface rounded-lg border border-border">
+          <div className="flex flex-col gap-2 mb-3 p-3 bg-surface rounded-lg border border-border">
             <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Custom Templates</p>
             {customTemplates.map(t => (
-              <div key={t.id} className="flex items-center justify-between gap-2">
-                <span className="text-sm text-dark-text">{t.name}</span>
-                <button
-                  type="button"
-                  onClick={() => deleteCustomTemplate(t.id)}
-                  className="text-xs text-red-400 hover:text-red-500 transition-colors shrink-0"
-                >
-                  Delete
-                </button>
+              <div key={t.id} className="flex flex-col gap-2">
+                {editingTemplateId === t.id ? (
+                  <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border border-teal-primary/40">
+                    <input
+                      autoFocus
+                      value={editTemplateName}
+                      onChange={e => setEditTemplateName(e.target.value)}
+                      placeholder="Template name…"
+                      className="text-sm font-medium bg-transparent border-b border-border pb-1 text-dark-text focus:outline-none focus:border-teal-primary w-full"
+                    />
+                    <div className="flex flex-col gap-1">
+                      {editTemplateItems.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-2 group">
+                          <div className="flex-1 flex flex-col gap-0.5">
+                            <input
+                              value={item.text}
+                              onChange={e => setEditTemplateItems(prev => prev.map((it, i) => i === idx ? { ...it, text: e.target.value } : it))}
+                              className="text-xs bg-transparent border-b border-border text-dark-text focus:outline-none focus:border-teal-primary w-full"
+                              placeholder="Item text"
+                            />
+                            <input
+                              value={item.description}
+                              onChange={e => setEditTemplateItems(prev => prev.map((it, i) => i === idx ? { ...it, description: e.target.value } : it))}
+                              className="text-xs bg-transparent border-b border-border/50 text-muted-text focus:outline-none focus:border-teal-primary w-full"
+                              placeholder="Description (optional)"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setEditTemplateItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-xs text-red-400 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+                          >✕</button>
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          value={editTemplateNewItem}
+                          onChange={e => setEditTemplateNewItem(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && editTemplateNewItem.trim()) {
+                              setEditTemplateItems(prev => [...prev, { text: editTemplateNewItem.trim(), description: '' }])
+                              setEditTemplateNewItem('')
+                            }
+                          }}
+                          placeholder="+ Add item (Enter to add)"
+                          className="flex-1 text-xs bg-transparent border-b border-dashed border-border text-dark-text focus:outline-none focus:border-teal-primary"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={saveTemplateEdit}
+                        disabled={savingTemplateEdit || !editTemplateName.trim()}
+                        className="text-xs font-semibold px-3 py-1 bg-teal-primary text-white rounded-lg disabled:opacity-50"
+                      >{savingTemplateEdit ? 'Saving…' : 'Save'}</button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTemplateId(null)}
+                        className="text-xs text-muted-text hover:text-dark-text"
+                      >Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-dark-text">{t.name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => startEditTemplate(t)}
+                        className="text-xs text-teal-primary hover:underline transition-colors"
+                      >Edit</button>
+                      <button
+                        type="button"
+                        onClick={() => deleteCustomTemplate(t.id)}
+                        className="text-xs text-red-400 hover:text-red-500 transition-colors"
+                      >Delete</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
