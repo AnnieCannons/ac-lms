@@ -1030,13 +1030,14 @@ function AssignmentDropZone({
         );
       })()}
       {!readOnly && (
-        <button
-          onClick={() => onOpenAdd(day.id)}
-          className="mt-2 text-xs text-teal-primary hover:underline"
-          type="button"
-        >
-          + Add Assignment
-        </button>
+        <CreateButton
+          courseId={courseId}
+          compact
+          label="+ Add Assignment"
+          defaultType="assignment"
+          defaultModuleId={day.module_id}
+          defaultDayId={day.id}
+        />
       )}
     </div>
   );
@@ -1968,12 +1969,14 @@ function SortableDay({
                 })}
               </div>
               {!readOnly && (
-                <Link
-                  href={`/instructor/courses/${courseId}/quizzes`}
-                  className="mt-2 text-xs text-teal-primary hover:underline inline-block"
-                >
-                  + Add Quiz
-                </Link>
+                <CreateButton
+                  courseId={courseId}
+                  compact
+                  label="+ Add Quiz"
+                  defaultType="quiz"
+                  defaultModuleId={day.module_id}
+                  defaultDayId={day.id}
+                />
               )}
             </div>
           )}
@@ -2578,13 +2581,6 @@ export default function CourseEditor({
   const [isMounted, setIsMounted] = useState(false);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
   const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setShowScrollTop(window.scrollY > 400);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   const isModuleExpanded = (id: string) => !collapsedModules.has(id);
   const toggleModuleExpand = (id: string) => {
@@ -3363,7 +3359,7 @@ export default function CourseEditor({
               </div>
             )}
             {visibleModules.length > 0 && (
-              <div className="flex justify-end gap-2">
+              <div className="sticky top-0 z-20 bg-background py-1 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={expandAllModules}
@@ -3464,19 +3460,7 @@ export default function CourseEditor({
           </DragOverlay>
         </DndContext>
       )}
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={() => {
-            collapseAllModules(visibleModules.map(m => m.id));
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-1.5 bg-surface border border-border text-muted-text hover:text-dark-text hover:border-teal-primary text-xs font-medium px-3 py-2 rounded-full shadow-lg transition-colors"
-          title="Collapse all and scroll to top"
-        >
-          ▲ Collapse all
-        </button>
-      )}
+
     </>
     </RelocateContext.Provider>
     </ReadOnlyContext.Provider>

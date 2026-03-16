@@ -28,9 +28,11 @@ interface Props {
   compact?: boolean
   defaultType?: CreateType
   defaultModuleId?: string
+  defaultDayId?: string
+  label?: string
 }
 
-export default function CreateButton({ courseId, compact, defaultType, defaultModuleId }: Props) {
+export default function CreateButton({ courseId, compact, defaultType, defaultModuleId, defaultDayId, label }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -140,9 +142,9 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
       const mods2 = ((data2 ?? []) as Module[]).filter(m => m.title && !m.title.includes('DO NOT PUBLISH'))
       setModules(mods2)
       setSection('coding')
-      setModuleId(mods2[0]?.id ?? '')
-      setDayId('')
-      setCreateType('assignment')
+      setModuleId(defaultModuleId ?? mods2[0]?.id ?? '')
+      setDayId(defaultDayId ?? '')
+      setCreateType(defaultType ?? 'assignment')
       setResType('link')
       setResTitle('')
       setResUrl('')
@@ -173,7 +175,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     setModules(mods)
     setSection('coding')
     setModuleId(resolvedModuleId)
-    setDayId('')
+    setDayId(defaultDayId ?? '')
     setCreateType(defaultType ?? 'assignment')
     setResType('link')
     setResTitle('')
@@ -300,7 +302,15 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
   return (
     <>
-      {compact ? (
+      {compact && label ? (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="text-xs text-teal-primary hover:underline"
+        >
+          {label}
+        </button>
+      ) : compact ? (
         <button
           type="button"
           onClick={handleOpen}
