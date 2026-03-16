@@ -40,6 +40,8 @@ interface Props {
   initialChecklist: ChecklistItem[]
   enrolledStudents: { id: string; name: string }[]
   initialOverrides: Override[]
+  prevAssignment?: { id: string; title: string } | null
+  nextAssignment?: { id: string; title: string } | null
 }
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
@@ -52,26 +54,56 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_a]:text-teal-primary [&_a]:underline
   [&_strong]:font-semibold`
 
-export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides }: Props) {
+export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment }: Props) {
   const searchParams = useSearchParams()
   const [editing, setEditing] = useState(searchParams.get('edit') === '1')
   const [assignment, setAssignment] = useState(initialAssignment)
   const [checklist, setChecklist] = useState(initialChecklist)
 
+  const navBar = (prevAssignment || nextAssignment) && (
+    <div className="flex items-center justify-between gap-4 pt-6 mt-6 border-t border-border">
+      <div className="flex-1 min-w-0">
+        {prevAssignment && (
+          <Link
+            href={`/instructor/courses/${courseId}/assignments/${prevAssignment.id}${editing ? '?edit=1' : ''}`}
+            className="group flex flex-col gap-0.5 text-left"
+          >
+            <span className="text-xs text-muted-text group-hover:text-teal-primary transition-colors">← Previous</span>
+            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{prevAssignment.title}</span>
+          </Link>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 text-right">
+        {nextAssignment && (
+          <Link
+            href={`/instructor/courses/${courseId}/assignments/${nextAssignment.id}${editing ? '?edit=1' : ''}`}
+            className="group flex flex-col gap-0.5 items-end"
+          >
+            <span className="text-xs text-muted-text group-hover:text-teal-primary transition-colors">Next →</span>
+            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{nextAssignment.title}</span>
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+
   if (editing) {
     return (
-      <AssignmentEditor
-        courseId={courseId}
-        assignment={assignment}
-        initialChecklist={checklist}
-        enrolledStudents={enrolledStudents}
-        initialOverrides={initialOverrides}
-        onSaved={(updated, updatedChecklist) => {
-          if (updated) setAssignment(prev => ({ ...prev, ...updated }))
-          if (updatedChecklist) setChecklist(updatedChecklist)
-          setEditing(false)
-        }}
-      />
+      <>
+        <AssignmentEditor
+          courseId={courseId}
+          assignment={assignment}
+          initialChecklist={checklist}
+          enrolledStudents={enrolledStudents}
+          initialOverrides={initialOverrides}
+          onSaved={(updated, updatedChecklist) => {
+            if (updated) setAssignment(prev => ({ ...prev, ...updated }))
+            if (updatedChecklist) setChecklist(updatedChecklist)
+            setEditing(false)
+          }}
+        />
+        {navBar}
+      </>
     )
   }
 
@@ -174,6 +206,8 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
           </div>
         </div>
       )}
+
+      {navBar}
     </div>
   )
 }

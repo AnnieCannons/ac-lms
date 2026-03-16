@@ -64,6 +64,29 @@ export default async function InstructorAssignmentEditPage({
     excused: o.excused,
   }))
 
+  // Fetch all assignments in module order for prev/next navigation
+  const { data: modules } = await supabase
+    .from('modules')
+    .select('week_number, order, module_days(order, assignments(id, title, order, deleted_at))')
+    .eq('course_id', id)
+    .order('week_number')
+
+  const orderedAssignments = (modules ?? [])
+    .sort((a, b) => a.week_number - b.week_number || a.order - b.order)
+    .flatMap(m =>
+      [...(m.module_days ?? [])].sort((a: { order: number }, b: { order: number }) => a.order - b.order)
+        .flatMap((d: { order: number; assignments: { id: string; title: string; order: number; deleted_at: string | null }[] }) =>
+          [...(d.assignments ?? [])]
+            .filter(a => !a.deleted_at)
+            .sort((a, b) => a.order - b.order)
+            .map(a => ({ id: a.id, title: a.title }))
+        )
+    )
+
+  const currentIndex = orderedAssignments.findIndex(a => a.id === assignmentId)
+  const prevAssignment = currentIndex > 0 ? orderedAssignments[currentIndex - 1] : null
+  const nextAssignment = currentIndex < orderedAssignments.length - 1 ? orderedAssignments[currentIndex + 1] : null
+
   return (
     <div className="min-h-screen bg-background">
       <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
@@ -85,6 +108,8 @@ export default async function InstructorAssignmentEditPage({
               initialChecklist={checklist ?? []}
               enrolledStudents={enrolledStudents}
               initialOverrides={initialOverrides}
+              prevAssignment={prevAssignment}
+              nextAssignment={nextAssignment}
             />
           </main>
         </div>
