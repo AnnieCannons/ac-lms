@@ -1473,6 +1473,7 @@ function SortableDay({
   onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
   courseId: string;
   quizzesForDay: QuizEntry[];
+  forceOpen?: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1484,6 +1485,10 @@ function SortableDay({
   const readOnly = useContext(ReadOnlyContext);
   const ctx = useContext(RelocateContext);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
   const assignments = day.assignments ?? [];
   const supabase = createClient();
 
@@ -1974,6 +1979,7 @@ function SortableModule({
   dayRefreshTriggers,
   isDraggingOverlay = false,
   allQuizzes,
+  expandDays,
 }: {
   module: Module;
   courseId: string;
@@ -1995,6 +2001,7 @@ function SortableModule({
   dayRefreshTriggers: Record<string, number>;
   isDraggingOverlay?: boolean;
   allQuizzes: QuizEntry[];
+  expandDays?: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -2220,6 +2227,7 @@ function SortableModule({
                   onTogglePublished={onTogglePublished}
                   onDuplicatedAssignment={onDuplicatedAssignment}
                   courseId={courseId}
+                  forceOpen={expandDays}
                   quizzesForDay={allQuizzes.filter(q => {
                     if (q.linked_day_id === day.id) return true;
                     if (q.day_title?.trim() !== day.day_name?.trim()) return false;
@@ -2529,16 +2537,32 @@ export default function CourseEditor({
   const [newModuleWeek, setNewModuleWeek] = useState("");
   const [isMounted, setIsMounted] = useState(false);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+  const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
 
   const isModuleExpanded = (id: string) => !collapsedModules.has(id);
   const toggleModuleExpand = (id: string) => {
     setCollapsedModules(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      const wasCollapsed = next.has(id);
+      if (wasCollapsed) {
+        next.delete(id);
+        // expanding: also expand all days in this module
+        setExpandDaysTriggers(t => ({ ...t, [id]: (t[id] ?? 0) + 1 }));
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
-  const expandAllModules = () => setCollapsedModules(new Set());
+  const expandAllModules = () => {
+    setCollapsedModules(new Set());
+    // expand all days in all modules
+    setExpandDaysTriggers(prev => {
+      const next = { ...prev };
+      modules.forEach(m => { next[m.id] = (next[m.id] ?? 0) + 1; });
+      return next;
+    });
+  };
   const collapseAllModules = (ids: string[]) => setCollapsedModules(new Set(ids));
   const supabase = createClient();
 
@@ -3337,6 +3361,7 @@ export default function CourseEditor({
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
                   allQuizzes={courseQuizzes}
+                  expandDays={expandDaysTriggers[module.id]}
                 />
               ))}
             </SortableContext>
