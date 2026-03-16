@@ -471,7 +471,6 @@ function AssignmentFullView({
   defaultTemplateId?: string;
 }) {
   const supabase = createClient();
-  const router = useRouter();
   const ctx = useContext(RelocateContext);
   const assignment = view.mode === "view" ? view.assignment : null;
   const assignmentId = view.mode === "view" ? view.assignment.id : null;
@@ -590,11 +589,6 @@ function AssignmentFullView({
     } catch { /* ignore */ }
   };
 
-  const startEditing = () => {
-    if (assignment) {
-      window.open(`/instructor/courses/${courseId}/assignments/${assignment.id}`, '_blank');
-    }
-  };
 
   const handleBack = () => {
     if (isDirty && !window.confirm("You have unsaved changes. Leave without saving?")) return;
@@ -700,13 +694,12 @@ function AssignmentFullView({
               </>
             )}
             {view.mode === "view" && !editing && assignment && (
-              <button
-                onClick={startEditing}
+              <Link
+                href={`/instructor/courses/${courseId}/assignments/${assignment.id}`}
                 className="text-xs font-semibold px-3 py-1 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white transition-colors"
-                type="button"
               >
                 Edit →
-              </button>
+              </Link>
             )}
             {view.mode === "view" && !editing && (
               <button onClick={handleDelete} className="text-xs text-muted-text hover:text-red-500 transition-colors" type="button">
@@ -866,7 +859,7 @@ function AssignmentFullView({
               <div className="bg-surface rounded-2xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs font-bold text-muted-text uppercase tracking-wide">Checklist</p>
-                  <button type="button" onClick={startEditing} className="text-xs text-muted-text hover:text-dark-text transition-colors">✎ Edit checklist</button>
+                  <Link href={`/instructor/courses/${courseId}/assignments/${assignment!.id}`} className="text-xs text-muted-text hover:text-dark-text transition-colors">✎ Edit checklist</Link>
                 </div>
                 {checklistItems.length === 0 ? (
                   <p className="text-sm text-muted-text italic">No checklist for this assignment.</p>
