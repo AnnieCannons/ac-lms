@@ -27,6 +27,7 @@ interface Sub {
   student_id: string
   status: string
   grade: string | null
+  attempt_count?: number | null
 }
 
 interface AssignmentStats {
@@ -162,6 +163,7 @@ export default function CourseGradesView({
         <StudentsTab
           studentStats={studentStats}
           courseId={courseId}
+          subMap={subMap}
         />
       )}
 
@@ -489,9 +491,11 @@ function AssignmentsTab({
 function StudentsTab({
   studentStats,
   courseId,
+  subMap,
 }: {
   studentStats: StudentRow[]
   courseId: string
+  subMap: Map<string, Sub>
 }) {
   const [expanded, setExpanded] = useState<{ studentId: string; category: ExpandKey } | null>(null)
 
@@ -540,7 +544,7 @@ function StudentsTab({
                     onClick={() => toggle(student.id, 'needsReview')}
                     className={`font-medium transition-colors ${isExpanded('needsReview') ? 'text-yellow-700 underline' : 'text-yellow-600 hover:underline'}`}
                   >
-                    {needsReview.length} needs review
+                    {needsReview.length} ungraded
                   </button>
                 )}
                 {incomplete.length > 0 && (
@@ -567,26 +571,35 @@ function StudentsTab({
 
             {expanded?.studentId === student.id && expandedList.length > 0 && (
               <div className="border-t border-border bg-background px-6 py-3 flex flex-col gap-1">
-                {expandedList.map(a => (
-                  <div key={a.id} className="flex items-center justify-between gap-4 py-1">
-                    <span className="text-xs text-dark-text">{a.title}</span>
-                    {expanded.category !== 'late' ? (
-                      <Link
-                        href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
-                        className="text-xs font-medium text-teal-primary hover:underline shrink-0"
-                      >
-                        {expanded.category === 'needsReview' ? 'Grade →' : 'View →'}
-                      </Link>
-                    ) : (
-                      <Link
-                        href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
-                        className="text-xs text-muted-text hover:text-teal-primary shrink-0"
-                      >
-                        View class →
-                      </Link>
-                    )}
-                  </div>
-                ))}
+                {expandedList.map(a => {
+                  const sub = subMap.get(`${student.id}-${a.id}`)
+                  const attempts = sub?.attempt_count ?? null
+                  return (
+                    <div key={a.id} className="flex items-center justify-between gap-4 py-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-dark-text truncate">{a.title}</span>
+                        {attempts !== null && attempts > 1 && (
+                          <span className="text-xs text-muted-text shrink-0">{attempts} attempts</span>
+                        )}
+                      </div>
+                      {expanded.category !== 'late' ? (
+                        <Link
+                          href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
+                          className="text-xs font-medium text-teal-primary hover:underline shrink-0"
+                        >
+                          {expanded.category === 'needsReview' ? 'Grade →' : 'View →'}
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
+                          className="text-xs text-muted-text hover:text-teal-primary shrink-0"
+                        >
+                          View class →
+                        </Link>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

@@ -59,7 +59,7 @@ export default async function CourseSubmissionsPage({
   const { data: allSubmissions } = assignmentIds.length
     ? await admin
         .from('submissions')
-        .select('id, assignment_id, student_id, status, grade, submitted_at')
+        .select('id, assignment_id, student_id, status, grade, submitted_at, attempt_count')
         .in('assignment_id', assignmentIds)
     : { data: [] }
 
