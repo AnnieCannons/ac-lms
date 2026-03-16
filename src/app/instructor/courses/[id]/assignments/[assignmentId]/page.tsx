@@ -64,23 +64,29 @@ export default async function InstructorAssignmentEditPage({
     excused: o.excused,
   }))
 
-  // Fetch all assignments in module order for prev/next navigation
-  const { data: modules } = await supabase
-    .from('modules')
-    .select('week_number, order, module_days(order, assignments(id, title, order))')
-    .eq('course_id', id)
-    .order('week_number')
+  // Fetch all assignments in module order for prev/next navigation (flat queries via admin to avoid RLS)
+  const { data: navModules } = await admin.from('modules').select('id, week_number, order').eq('course_id', id)
+  const moduleIds = (navModules ?? []).map(m => m.id)
+  const { data: navDays } = moduleIds.length > 0
+    ? await admin.from('module_days').select('id, module_id, order').in('module_id', moduleIds)
+    : { data: [] }
+  const dayIds = (navDays ?? []).map(d => d.id)
+  const { data: navAssignments } = dayIds.length > 0
+    ? await admin.from('assignments').select('id, title, order, module_day_id').in('module_day_id', dayIds)
+    : { data: [] }
 
-  const orderedAssignments = (modules ?? [])
-    .sort((a, b) => a.week_number - b.week_number || a.order - b.order)
-    .flatMap(m =>
-      [...(m.module_days ?? [])].sort((a: { order: number }, b: { order: number }) => a.order - b.order)
-        .flatMap((d: { order: number; assignments: { id: string; title: string; order: number }[] }) =>
-          [...(d.assignments ?? [])]
-            .sort((a, b) => a.order - b.order)
-            .map(a => ({ id: a.id, title: a.title }))
-        )
-    )
+  const moduleMap = new Map((navModules ?? []).map(m => [m.id, m]))
+  const dayMap = new Map((navDays ?? []).map(d => [d.id, d]))
+  const orderedAssignments = [...(navAssignments ?? [])].sort((a, b) => {
+    const da = dayMap.get(a.module_day_id)
+    const db = dayMap.get(b.module_day_id)
+    const ma = da ? moduleMap.get(da.module_id) : null
+    const mb = db ? moduleMap.get(db.module_id) : null
+    return (ma?.week_number ?? 0) - (mb?.week_number ?? 0)
+      || (ma?.order ?? 0) - (mb?.order ?? 0)
+      || (da?.order ?? 0) - (db?.order ?? 0)
+      || a.order - b.order
+  }).map(a => ({ id: a.id, title: a.title }))
 
   const currentIndex = orderedAssignments.findIndex(a => a.id === assignmentId)
   const prevAssignment = currentIndex > 0 ? orderedAssignments[currentIndex - 1] : null
