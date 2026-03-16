@@ -73,12 +73,10 @@ export default async function InstructorAssignmentEditPage({
 
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
-            <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
-              <Link href={`/instructor/courses/${id}/assignments`} className="hover:text-teal-primary">
-                Assignments
+            <div className="mb-6">
+              <Link href={`/instructor/courses/${id}/assignments`} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
+                ← Back
               </Link>
-              <span className="text-border">/</span>
-              <span className="text-dark-text font-medium truncate max-w-xs">{assignment.title}</span>
             </div>
 
             <AssignmentViewEdit

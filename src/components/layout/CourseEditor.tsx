@@ -695,7 +695,7 @@ function AssignmentFullView({
             )}
             {view.mode === "view" && !editing && assignment && (
               <Link
-                href={`/instructor/courses/${courseId}/assignments/${assignment.id}`}
+                href={`/instructor/courses/${courseId}/assignments/${assignment.id}?edit=1`}
                 className="text-xs font-semibold px-3 py-1 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white transition-colors"
               >
                 Edit →
@@ -859,7 +859,7 @@ function AssignmentFullView({
               <div className="bg-surface rounded-2xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs font-bold text-muted-text uppercase tracking-wide">Checklist</p>
-                  <Link href={`/instructor/courses/${courseId}/assignments/${assignment!.id}`} className="text-xs text-muted-text hover:text-dark-text transition-colors">✎ Edit checklist</Link>
+                  <Link href={`/instructor/courses/${courseId}/assignments/${assignment!.id}?edit=1`} className="text-xs text-muted-text hover:text-dark-text transition-colors">✎ Edit checklist</Link>
                 </div>
                 {checklistItems.length === 0 ? (
                   <p className="text-sm text-muted-text italic">No checklist for this assignment.</p>

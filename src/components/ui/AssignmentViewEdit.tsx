@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import HtmlContent from './HtmlContent'
 import AssignmentEditor from './AssignmentEditor'
@@ -52,7 +53,8 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_strong]:font-semibold`
 
 export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides }: Props) {
-  const [editing, setEditing] = useState(false)
+  const searchParams = useSearchParams()
+  const [editing, setEditing] = useState(searchParams.get('edit') === '1')
   const [assignment, setAssignment] = useState(initialAssignment)
   const [checklist, setChecklist] = useState(initialChecklist)
 
