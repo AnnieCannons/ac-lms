@@ -88,6 +88,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
 
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([])
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [showManageTemplates, setShowManageTemplates] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [savingTemplate, setSavingTemplate] = useState(false)
 
@@ -442,6 +443,15 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
                 Save as template…
               </button>
             )}
+            {customTemplates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowManageTemplates(m => !m)}
+                className="text-xs text-muted-text hover:text-dark-text transition-colors"
+              >
+                {showManageTemplates ? 'Done' : 'Manage…'}
+              </button>
+            )}
             <select
               defaultValue=""
               onChange={e => { if (e.target.value) { loadTemplate(e.target.value); e.currentTarget.value = '' } }}
@@ -477,6 +487,23 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             </button>
             <button type="button" onClick={() => { setShowSaveTemplate(false); setTemplateName('') }}
               className="text-xs text-muted-text hover:text-dark-text">Cancel</button>
+          </div>
+        )}
+        {showManageTemplates && customTemplates.length > 0 && (
+          <div className="flex flex-col gap-1.5 mb-3 p-3 bg-surface rounded-lg border border-border">
+            <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Custom Templates</p>
+            {customTemplates.map(t => (
+              <div key={t.id} className="flex items-center justify-between gap-2">
+                <span className="text-sm text-dark-text">{t.name}</span>
+                <button
+                  type="button"
+                  onClick={() => deleteCustomTemplate(t.id)}
+                  className="text-xs text-red-400 hover:text-red-500 transition-colors shrink-0"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
           </div>
         )}
         <div className="flex flex-col gap-2 mb-4">
