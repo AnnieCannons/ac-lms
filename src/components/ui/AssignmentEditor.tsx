@@ -96,6 +96,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [editTemplateItems, setEditTemplateItems] = useState<{ text: string; description: string }[]>([])
   const [editTemplateNewItem, setEditTemplateNewItem] = useState('')
   const [savingTemplateEdit, setSavingTemplateEdit] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
 
   useEffect(() => {
     supabase.from('rubric_templates').select('id, name, items').order('name').then(({ data }) => {
@@ -128,21 +129,59 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setEditTemplateName(t.name)
     setEditTemplateItems(t.items.map(i => ({ text: i.text, description: i.description ?? '' })))
     setEditTemplateNewItem('')
+    setNewTemplateName('')
   }
 
-  const saveTemplateEdit = async () => {
+  const flushNewItem = (items: { text: string; description: string }[]) => {
+    if (editTemplateNewItem.trim()) {
+      return [...items, { text: editTemplateNewItem.trim(), description: '' }]
+    }
+    return items
+  }
+
+  const saveTemplateEditAllInstances = async () => {
     if (!editingTemplateId || !editTemplateName.trim()) return
+    const items = flushNewItem(editTemplateItems)
     setSavingTemplateEdit(true)
     const { error } = await supabase
       .from('rubric_templates')
-      .update({ name: editTemplateName.trim(), items: editTemplateItems })
+      .update({ name: editTemplateName.trim(), items })
       .eq('id', editingTemplateId)
     setSavingTemplateEdit(false)
     if (error) { alert(error.message); return }
     setCustomTemplates(prev =>
-      prev.map(t => t.id === editingTemplateId ? { ...t, name: editTemplateName.trim(), items: editTemplateItems } : t)
+      prev.map(t => t.id === editingTemplateId ? { ...t, name: editTemplateName.trim(), items } : t)
         .sort((a, b) => a.name.localeCompare(b.name))
     )
+    setEditingTemplateId(null)
+  }
+
+  const applyTemplateToThisAssignment = () => {
+    const items = flushNewItem(editTemplateItems)
+    const newChecklist: ChecklistItem[] = items.map((item, idx) => ({
+      id: `temp-edit-${idx}-${Date.now()}`,
+      text: item.text,
+      description: item.description || null,
+      order: idx,
+      required: true,
+    }))
+    setChecklist(newChecklist)
+    setEditingTemplateId(null)
+    setIsDirty(true)
+  }
+
+  const saveAsNewTemplate = async () => {
+    if (!newTemplateName.trim()) return
+    const items = flushNewItem(editTemplateItems)
+    setSavingTemplateEdit(true)
+    const { data, error } = await supabase
+      .from('rubric_templates')
+      .insert({ name: newTemplateName.trim(), items })
+      .select('id, name, items')
+      .single()
+    setSavingTemplateEdit(false)
+    if (error) { alert(error.message); return }
+    setCustomTemplates(prev => [...prev, data as CustomTemplate].sort((a, b) => a.name.localeCompare(b.name)))
     setEditingTemplateId(null)
   }
 
@@ -524,15 +563,17 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             {customTemplates.map(t => (
               <div key={t.id} className="flex flex-col gap-2">
                 {editingTemplateId === t.id ? (
-                  <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border border-teal-primary/40">
+                  <div className="flex flex-col gap-3 p-3 bg-background rounded-lg border border-teal-primary/40">
+                    {/* Template name */}
                     <input
                       autoFocus
                       value={editTemplateName}
                       onChange={e => setEditTemplateName(e.target.value)}
                       placeholder="Template name…"
-                      className="text-sm font-medium bg-transparent border-b border-border pb-1 text-dark-text focus:outline-none focus:border-teal-primary w-full"
+                      className="text-sm font-semibold bg-transparent border-b border-border pb-1 text-dark-text focus:outline-none focus:border-teal-primary w-full"
                     />
-                    <div className="flex flex-col gap-1">
+                    {/* Items */}
+                    <div className="flex flex-col gap-2">
                       {editTemplateItems.map((item, idx) => (
                         <div key={idx} className="flex items-start gap-2 group">
                           <div className="flex-1 flex flex-col gap-0.5">
@@ -556,32 +597,55 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
                           >✕</button>
                         </div>
                       ))}
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          value={editTemplateNewItem}
-                          onChange={e => setEditTemplateNewItem(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && editTemplateNewItem.trim()) {
-                              setEditTemplateItems(prev => [...prev, { text: editTemplateNewItem.trim(), description: '' }])
-                              setEditTemplateNewItem('')
-                            }
-                          }}
-                          placeholder="+ Add item (Enter to add)"
-                          className="flex-1 text-xs bg-transparent border-b border-dashed border-border text-dark-text focus:outline-none focus:border-teal-primary"
-                        />
-                      </div>
+                      <input
+                        value={editTemplateNewItem}
+                        onChange={e => setEditTemplateNewItem(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && editTemplateNewItem.trim()) {
+                            setEditTemplateItems(prev => [...prev, { text: editTemplateNewItem.trim(), description: '' }])
+                            setEditTemplateNewItem('')
+                          }
+                        }}
+                        placeholder="+ Add item (press Enter)"
+                        className="text-xs bg-transparent border-b border-dashed border-border text-dark-text focus:outline-none focus:border-teal-primary w-full mt-1"
+                      />
                     </div>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={saveTemplateEdit}
-                        disabled={savingTemplateEdit || !editTemplateName.trim()}
-                        className="text-xs font-semibold px-3 py-1 bg-teal-primary text-white rounded-lg disabled:opacity-50"
-                      >{savingTemplateEdit ? 'Saving…' : 'Save'}</button>
+                    {/* Save options */}
+                    <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                      <p className="text-xs text-muted-text font-medium">Save changes as:</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={saveTemplateEditAllInstances}
+                          disabled={savingTemplateEdit || !editTemplateName.trim()}
+                          className="text-xs font-semibold px-3 py-1.5 bg-teal-primary text-white rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity"
+                        >{savingTemplateEdit ? 'Saving…' : 'Edit all instances'}</button>
+                        <button
+                          type="button"
+                          onClick={applyTemplateToThisAssignment}
+                          disabled={savingTemplateEdit}
+                          className="text-xs font-semibold px-3 py-1.5 border border-teal-primary text-teal-primary rounded-lg disabled:opacity-50 hover:bg-teal-light transition-colors"
+                        >Edit just this assignment</button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={newTemplateName}
+                          onChange={e => setNewTemplateName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveAsNewTemplate() }}
+                          placeholder="New template name…"
+                          className="flex-1 text-xs border border-dashed border-border rounded px-2 py-1 bg-transparent text-dark-text focus:outline-none focus:border-teal-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={saveAsNewTemplate}
+                          disabled={savingTemplateEdit || !newTemplateName.trim()}
+                          className="text-xs font-semibold px-3 py-1.5 border border-border text-muted-text rounded-lg disabled:opacity-50 hover:border-teal-primary hover:text-teal-primary transition-colors whitespace-nowrap"
+                        >Create new template</button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setEditingTemplateId(null)}
-                        className="text-xs text-muted-text hover:text-dark-text"
+                        className="text-xs text-muted-text hover:text-dark-text w-fit"
                       >Cancel</button>
                     </div>
                   </div>
