@@ -375,7 +375,7 @@ export default function SubmissionForm({
           {!isObserver && canResubmit && (
             <button
               type="button"
-              onClick={() => saved?.status === 'draft' ? editDraft() : setMode("confirm-resubmit")}
+              onClick={() => saved?.status === 'draft' || saved?.submission_type !== 'link' ? editDraft() : setMode("confirm-resubmit")}
               className="text-sm text-muted-text hover:text-dark-text transition-colors w-fit"
             >
               {saved?.status === 'draft' ? 'Edit' : 'Resubmit →'}
