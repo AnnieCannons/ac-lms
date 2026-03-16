@@ -54,6 +54,10 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_a]:text-teal-primary [&_a]:underline
   [&_strong]:font-semibold`
 
+function decodeHtml(str: string) {
+  return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+}
+
 export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment }: Props) {
   const searchParams = useSearchParams()
   const [editing, setEditing] = useState(searchParams.get('edit') === '1')
@@ -69,7 +73,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             className="group flex flex-col gap-0.5 text-left"
           >
             <span className="text-xs text-muted-text group-hover:text-teal-primary transition-colors">← Previous</span>
-            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{prevAssignment.title}</span>
+            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{decodeHtml(prevAssignment.title)}</span>
           </Link>
         )}
       </div>
@@ -80,7 +84,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             className="group flex flex-col gap-0.5 items-end"
           >
             <span className="text-xs text-muted-text group-hover:text-teal-primary transition-colors">Next →</span>
-            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{nextAssignment.title}</span>
+            <span className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors truncate">{decodeHtml(nextAssignment.title)}</span>
           </Link>
         )}
       </div>
