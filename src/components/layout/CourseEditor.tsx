@@ -1628,6 +1628,7 @@ function SortableDay({
   const [newResTitle, setNewResTitle] = useState("");
   const [newResContent, setNewResContent] = useState("");
   const [fileUploadKey, setFileUploadKey] = useState(0);
+  const [showAddResource, setShowAddResource] = useState(false);
 
   const submitNewResource = () => {
     if (!newResTitle.trim()) return;
@@ -1635,6 +1636,7 @@ function SortableDay({
     setNewResTitle("");
     setNewResContent("");
     setFileUploadKey((k) => k + 1);
+    setShowAddResource(false);
   };
 
   return (
@@ -1767,61 +1769,78 @@ function SortableDay({
             })()}
 
             {!readOnly && (
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <select
-                    value={newResType}
-                    onChange={(e) => { setNewResType(e.target.value as Resource["type"]); setNewResContent(""); }}
-                    className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  >
-                    <option value="link">Link</option>
-                    <option value="video">Video</option>
-                    <option value="reading">Reading</option>
-                    <option value="file">File</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Title"
-                    value={newResTitle}
-                    onChange={(e) => setNewResTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
-                    className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  />
-                </div>
-                <div className="flex gap-2 items-start">
-                  {newResType === "file" ? (
-                    <FileUpload
-                      key={fileUploadKey}
-                      bucket="lms-resources"
-                      path={`module-day-${day.id}/`}
-                      onUpload={(url, fileName) => {
-                        setNewResContent(url);
-                        if (!newResTitle.trim()) setNewResTitle(fileName);
-                      }}
-                    />
-                  ) : newResType === "reading" ? (
-                    <div className="flex-1">
-                      <RichTextEditor key={fileUploadKey} content={newResContent} onChange={setNewResContent} placeholder="Reading content…" />
-                    </div>
-                  ) : (
+              showAddResource ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <select
+                      value={newResType}
+                      onChange={(e) => { setNewResType(e.target.value as Resource["type"]); setNewResContent(""); }}
+                      className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    >
+                      <option value="link">Link</option>
+                      <option value="video">Video</option>
+                      <option value="reading">Reading</option>
+                      <option value="file">File</option>
+                    </select>
                     <input
+                      autoFocus
                       type="text"
-                      placeholder="URL or content"
-                      value={newResContent}
-                      onChange={(e) => setNewResContent(e.target.value)}
+                      placeholder="Title"
+                      value={newResTitle}
+                      onChange={(e) => setNewResTitle(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
                       className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                     />
-                  )}
-                  <button
-                    onClick={submitNewResource}
-                    className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:text-white transition-colors"
-                    type="button"
-                  >
-                    Add
-                  </button>
+                    <button
+                      onClick={() => { setShowAddResource(false); setNewResTitle(""); setNewResContent(""); }}
+                      className="text-muted-text hover:text-dark-text text-xs px-1"
+                      type="button"
+                      aria-label="Cancel"
+                    >✕</button>
+                  </div>
+                  <div className="flex gap-2 items-start">
+                    {newResType === "file" ? (
+                      <FileUpload
+                        key={fileUploadKey}
+                        bucket="lms-resources"
+                        path={`module-day-${day.id}/`}
+                        onUpload={(url, fileName) => {
+                          setNewResContent(url);
+                          if (!newResTitle.trim()) setNewResTitle(fileName);
+                        }}
+                      />
+                    ) : newResType === "reading" ? (
+                      <div className="flex-1">
+                        <RichTextEditor key={fileUploadKey} content={newResContent} onChange={setNewResContent} placeholder="Reading content…" />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="URL or content"
+                        value={newResContent}
+                        onChange={(e) => setNewResContent(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
+                        className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                      />
+                    )}
+                    <button
+                      onClick={submitNewResource}
+                      className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:text-white transition-colors"
+                      type="button"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddResource(true)}
+                  className="mt-1 text-xs text-teal-primary hover:underline"
+                  type="button"
+                >
+                  + Add Resource
+                </button>
+              )
             )}
           </div>
 
