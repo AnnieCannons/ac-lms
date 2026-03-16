@@ -1032,7 +1032,7 @@ function AssignmentDropZone({
       {!readOnly && (
         <button
           onClick={() => onOpenAdd(day.id)}
-          className="mt-3 text-xs font-semibold bg-purple-primary text-white rounded-full px-3 py-1.5 hover:opacity-90 transition-opacity"
+          className="mt-2 text-xs text-teal-primary hover:underline"
           type="button"
         >
           + Add Assignment
@@ -1967,6 +1967,14 @@ function SortableDay({
                   );
                 })}
               </div>
+              {!readOnly && (
+                <Link
+                  href={`/instructor/courses/${courseId}/quizzes`}
+                  className="mt-2 text-xs text-teal-primary hover:underline inline-block"
+                >
+                  + Add Quiz
+                </Link>
+              )}
             </div>
           )}
         </div>
