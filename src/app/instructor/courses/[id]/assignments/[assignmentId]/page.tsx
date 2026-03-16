@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
-import AssignmentEditor from "@/components/ui/AssignmentEditor";
+import AssignmentViewEdit from "@/components/ui/AssignmentViewEdit";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
 export default async function InstructorAssignmentEditPage({
@@ -81,17 +81,7 @@ export default async function InstructorAssignmentEditPage({
               <span className="text-dark-text font-medium truncate max-w-xs">{assignment.title}</span>
             </div>
 
-            <div className="flex items-center justify-between gap-4 mb-8">
-              <h2 className="text-xl font-bold text-dark-text">Edit Assignment</h2>
-              <Link
-                href={`/instructor/courses/${id}/assignments/${assignmentId}/submissions`}
-                className="text-sm text-teal-primary font-semibold hover:underline"
-              >
-                View Submissions →
-              </Link>
-            </div>
-
-            <AssignmentEditor
+            <AssignmentViewEdit
               courseId={id}
               assignment={assignment}
               initialChecklist={checklist ?? []}

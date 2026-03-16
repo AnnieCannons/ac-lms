@@ -45,9 +45,10 @@ interface Props {
   initialChecklist: ChecklistItem[]
   enrolledStudents: { id: string; name: string }[]
   initialOverrides: Override[]
+  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; skill_tags: string[]; answer_key_url: string | null }, updatedChecklist: ChecklistItem[]) => void
 }
 
-export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides }: Props) {
+export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides, onSaved }: Props) {
   const supabase = createClient()
   const router = useRouter()
 
@@ -119,9 +120,14 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setSaving(false)
     if (error) { alert(error.message); return }
     setIsDirty(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-    router.refresh()
+    if (onSaved) {
+      onSaved(
+        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null, published, submission_required: submissionRequired, is_bonus: isBonus, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
+        checklist
+      )
+    } else {
+      router.refresh()
+    }
   }
 
   const addChecklistItem = async () => {

@@ -592,7 +592,7 @@ function AssignmentFullView({
 
   const startEditing = () => {
     if (assignment) {
-      router.push(`/instructor/courses/${courseId}/assignments/${assignment.id}`);
+      window.open(`/instructor/courses/${courseId}/assignments/${assignment.id}`, '_blank');
     }
   };
 
