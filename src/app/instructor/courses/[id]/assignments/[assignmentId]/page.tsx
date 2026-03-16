@@ -67,7 +67,7 @@ export default async function InstructorAssignmentEditPage({
   // Fetch all assignments in module order for prev/next navigation
   const { data: modules } = await supabase
     .from('modules')
-    .select('week_number, order, module_days(order, assignments(id, title, order, deleted_at))')
+    .select('week_number, order, module_days(order, assignments(id, title, order))')
     .eq('course_id', id)
     .order('week_number')
 
@@ -75,9 +75,8 @@ export default async function InstructorAssignmentEditPage({
     .sort((a, b) => a.week_number - b.week_number || a.order - b.order)
     .flatMap(m =>
       [...(m.module_days ?? [])].sort((a: { order: number }, b: { order: number }) => a.order - b.order)
-        .flatMap((d: { order: number; assignments: { id: string; title: string; order: number; deleted_at: string | null }[] }) =>
+        .flatMap((d: { order: number; assignments: { id: string; title: string; order: number }[] }) =>
           [...(d.assignments ?? [])]
-            .filter(a => !a.deleted_at)
             .sort((a, b) => a.order - b.order)
             .map(a => ({ id: a.id, title: a.title }))
         )
