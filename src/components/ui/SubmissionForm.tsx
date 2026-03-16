@@ -377,9 +377,12 @@ export default function SubmissionForm({
             <button
               type="button"
               onClick={() => saved?.status === 'draft' || saved?.submission_type !== 'link' ? editDraft() : setMode("confirm-resubmit")}
-              className="text-sm text-muted-text hover:text-dark-text transition-colors w-fit"
+              className={saved?.status === 'draft'
+                ? "text-sm text-muted-text hover:text-dark-text transition-colors w-fit"
+                : "text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:border-teal-primary hover:text-teal-primary transition-colors w-fit"
+              }
             >
-              {saved?.status === 'draft' ? 'Edit' : 'Resubmit →'}
+              {saved?.status === 'draft' ? 'Edit' : 'Resubmit'}
             </button>
           )}
           {isGraded && saved?.grade === "complete" && (
