@@ -419,8 +419,14 @@ export default function ResourceOutline({
   }, [collapsedDays])
 
   const allExpanded = collapsedModules.size === 0
-  const expandAll = () => setCollapsedModules(new Set())
-  const collapseAll = () => setCollapsedModules(new Set(modules.map(m => m.id)))
+  const expandAll = () => {
+    setCollapsedModules(new Set())
+    setCollapsedDays(new Set())
+  }
+  const collapseAll = () => {
+    setCollapsedModules(new Set(modules.map(m => m.id)))
+    setCollapsedDays(new Set(modules.flatMap(m => m.module_days.map((d: { id: string }) => d.id))))
+  }
 
   const changeFilter = (f: AssignmentFilter) => {
     setFilter(f)
@@ -451,8 +457,18 @@ export default function ResourceOutline({
     ? `/instructor/courses/${courseId}/assignments/${id}/submissions`
     : `/student/courses/${courseId}/assignments/${id}`
 
-  const toggleModule = (id: string) =>
-    setCollapsedModules(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  const toggleModule = (moduleId: string) => {
+    const isCollapsed = collapsedModules.has(moduleId)
+    setCollapsedModules(prev => { const next = new Set(prev); isCollapsed ? next.delete(moduleId) : next.add(moduleId); return next })
+    // When expanding a module, also expand all its days
+    if (isCollapsed) {
+      const module = modules.find(m => m.id === moduleId)
+      if (module) {
+        const dayIds = module.module_days.map((d: { id: string }) => d.id)
+        setCollapsedDays(prev => { const next = new Set(prev); dayIds.forEach((id: string) => next.delete(id)); return next })
+      }
+    }
+  }
 
   const toggleDay = (id: string) =>
     setCollapsedDays(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
