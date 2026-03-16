@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import { getMarkRange } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import { createClient } from "@/lib/supabase/client";
+import ImageResizeNode from "./ImageResizeNode";
 
 type Props = {
   content: string;
@@ -69,7 +70,14 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         autolink: true,
         HTMLAttributes: { class: "text-teal-primary underline cursor-pointer" },
       }),
-      Image.configure({ inline: true, HTMLAttributes: { class: "max-w-full rounded" } }),
+      Image.extend({
+        addAttributes() {
+          return { ...this.parent?.(), width: { default: null } };
+        },
+        addNodeView() {
+          return ReactNodeViewRenderer(ImageResizeNode);
+        },
+      }).configure({ inline: true }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -79,7 +87,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
     editorProps: {
       attributes: {
         class:
-          "min-h-[180px] max-h-[400px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
+          "min-h-[300px] max-h-[800px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
       },
       handlePaste: (_view, event) => {
         if (!storagePath) return false;
