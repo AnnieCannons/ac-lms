@@ -360,6 +360,22 @@ export default async function GradingPage({
         </div>
 
         <div className="flex flex-col gap-6">
+          {/* Assignment instructions (collapsed reference) */}
+          {assignment.description && (
+            <details className="bg-surface rounded-2xl border border-border p-6 group">
+              <summary className="text-xs font-semibold text-muted-text uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
+                Assignment Instructions
+                <span className="text-muted-text text-xs group-open:rotate-180 transition-transform">▾</span>
+              </summary>
+              <div className="mt-4">
+                <HtmlContent
+                  html={assignment.description}
+                  className="text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_a]:text-teal-primary [&_a]:underline [&_p]:mb-3 [&_li]:mb-1"
+                />
+              </div>
+            </details>
+          )}
+
           {/* Submission */}
           {assignment.submission_required === false ? (
             <div className="bg-surface rounded-2xl border border-border p-6">
@@ -458,21 +474,6 @@ export default async function GradingPage({
             />
           )}
 
-          {/* Assignment instructions (collapsed reference) */}
-          {assignment.description && (
-            <details className="bg-surface rounded-2xl border border-border p-6 group">
-              <summary className="text-xs font-semibold text-muted-text uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
-                Assignment Instructions
-                <span className="text-muted-text text-xs group-open:rotate-180 transition-transform">▾</span>
-              </summary>
-              <div className="mt-4">
-                <HtmlContent
-                  html={assignment.description}
-                  className="text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_a]:text-teal-primary [&_a]:underline [&_p]:mb-3 [&_li]:mb-1"
-                />
-              </div>
-            </details>
-          )}
         </div>
 
         {/* Bottom nav */}
