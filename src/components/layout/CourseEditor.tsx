@@ -1486,7 +1486,7 @@ function SortableDay({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const readOnly = useContext(ReadOnlyContext);
   const ctx = useContext(RelocateContext);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   useEffect(() => {
     if (forceOpen) setOpen(true);
@@ -2570,6 +2570,13 @@ export default function CourseEditor({
   const [isMounted, setIsMounted] = useState(false);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
   const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const isModuleExpanded = (id: string) => !collapsedModules.has(id);
   const toggleModuleExpand = (id: string) => {
@@ -3448,6 +3455,19 @@ export default function CourseEditor({
             })() : null}
           </DragOverlay>
         </DndContext>
+      )}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => {
+            collapseAllModules(visibleModules.map(m => m.id));
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-1.5 bg-surface border border-border text-muted-text hover:text-dark-text hover:border-teal-primary text-xs font-medium px-3 py-2 rounded-full shadow-lg transition-colors"
+          title="Collapse all and scroll to top"
+        >
+          ▲ Collapse all
+        </button>
       )}
     </>
     </RelocateContext.Provider>
