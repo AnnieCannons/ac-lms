@@ -367,35 +367,6 @@ export default function SubmissionForm({
             )}
           </div>
 
-          {/* Student comment — always editable in view mode */}
-          {!isObserver && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                Note to instructor <span className="normal-case font-normal">(optional)</span>
-              </label>
-              <textarea
-                placeholder="Add a note for your instructor…"
-                value={studentComment}
-                onChange={e => { setStudentComment(e.target.value); setCommentSaved(false); }}
-                onBlur={e => saveComment(e.target.value)}
-                rows={2}
-                disabled={isStudentPreview}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-y disabled:opacity-50"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => saveComment(studentComment)}
-                  disabled={savingComment || isStudentPreview}
-                  className="text-xs text-teal-primary hover:underline disabled:opacity-50"
-                >
-                  {savingComment ? 'Saving…' : 'Save note'}
-                </button>
-                {commentSaved && <span className="text-xs text-teal-primary">Saved ✓</span>}
-              </div>
-            </div>
-          )}
-
           {saved?.grade === "incomplete" && (
             <p className="text-sm text-red-500">
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
@@ -564,20 +535,6 @@ export default function SubmissionForm({
               onError={setError}
             />
           )}
-
-          {/* Note to instructor */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-              Note to instructor <span className="normal-case font-normal">(optional)</span>
-            </label>
-            <textarea
-              placeholder="Add a note for your instructor…"
-              value={studentComment}
-              onChange={e => setStudentComment(e.target.value)}
-              rows={2}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-y"
-            />
-          </div>
 
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 
