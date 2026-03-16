@@ -425,9 +425,9 @@ export default async function GradingPage({
                 {submissionHistory && submissionHistory.length > 1 && (
                   <div className="flex flex-col gap-2 pt-2 border-t border-border">
                     <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                      All Submissions ({submissionHistory.length})
+                      Past Submissions ({submissionHistory.length - 1})
                     </p>
-                    {submissionHistory.map((entry, i) => (
+                    {submissionHistory.slice(1).map((entry) => (
                       <div key={entry.id} className="flex items-start gap-3 text-xs bg-background rounded-lg px-3 py-2">
                         <span className="text-muted-text shrink-0 w-36">
                           {new Date(entry.submitted_at).toLocaleDateString('en-US', {
@@ -441,7 +441,6 @@ export default async function GradingPage({
                             content={entry.content}
                           />
                         </div>
-                        {i === 0 && <span className="text-muted-text shrink-0">(latest)</span>}
                       </div>
                     ))}
                   </div>

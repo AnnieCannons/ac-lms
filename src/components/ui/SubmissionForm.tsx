@@ -390,9 +390,9 @@ export default function SubmissionForm({
           {history.length > 1 && (
             <div className="flex flex-col gap-2 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                Submission History ({history.length})
+                Past Submissions ({history.length - 1})
               </p>
-              {history.map((entry, i) => (
+              {history.slice(1).map((entry) => (
                 <div key={entry.id} className="flex items-start gap-3 text-xs">
                   <span className="text-muted-text shrink-0 whitespace-nowrap mt-0.5">
                     {new Date(entry.submitted_at).toLocaleDateString("en-US", {
@@ -419,9 +419,6 @@ export default function SubmissionForm({
                     </a>
                   ) : (
                     <div className="flex-1 min-w-0 line-clamp-3"><MarkdownContent content={entry.content ?? ''} /></div>
-                  )}
-                  {i === 0 && (
-                    <span className="text-muted-text shrink-0">(latest)</span>
                   )}
                 </div>
               ))}
