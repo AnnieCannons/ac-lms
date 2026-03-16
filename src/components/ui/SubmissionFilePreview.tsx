@@ -30,11 +30,6 @@ export default function SubmissionFilePreview({ content }: Props) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={content} alt="Submission" className="max-h-48 object-contain bg-background" />
       </button>
-      <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer"
-        className="text-teal-primary underline break-all text-xs mt-1 block">
-        {content}
-      </a>
-
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
