@@ -33,6 +33,7 @@ import Link from "next/link";
 import { toggleQuizPublished } from "@/lib/quiz-actions";
 import { trashAssignment, trashResource, trashModule, trashDay } from "@/lib/trash-actions";
 import HtmlContent from "@/components/ui/HtmlContent";
+import CreateButton from "@/components/ui/CreateButton";
 import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup, DuplicateQuizPopup, DuplicateIcon, type DuplicatedAssignment, type DuplicatedModule, type DuplicatedResource, type DuplicatedQuiz } from "@/components/ui/DuplicatePopup";
 
 
@@ -1707,14 +1708,18 @@ function SortableDay({
           id={`day-panel-${day.id}`}
           className="px-4 sm:px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
         >
-          {/* Resources */}
+          {/* Resources — only show if there are resources, or this is a resource-focused day */}
+          {(() => {
+              const nativeResources = resources.filter(r => r.module_day_id === day.id);
+              const crossPostedResources = resources.filter(r => r.linked_day_id === day.id);
+              const isResourceDay = ['Resources', 'Wiki'].includes(day.day_name ?? '');
+              if (!isResourceDay && nativeResources.length === 0 && crossPostedResources.length === 0 && !showAddResource) return null;
+              return (
           <div className="bg-surface/60 rounded-xl p-3">
             <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
               Resources
             </p>
             {(() => {
-              const nativeResources = resources.filter(r => r.module_day_id === day.id);
-              const crossPostedResources = resources.filter(r => r.linked_day_id === day.id);
               return (
                 <>
                   <DndContext
@@ -1843,6 +1848,8 @@ function SortableDay({
               )
             )}
           </div>
+              );
+          })()}
 
           {/* Assignments — hidden for resource-only days */}
           {day.day_name !== "Resources" && day.day_name !== "Wiki" && (
@@ -2179,6 +2186,11 @@ function SortableModule({
           >
             {module.published ? "Published" : "Draft"}
           </button>
+        )}
+        {!readOnly && (
+          <span onClick={e => e.stopPropagation()}>
+            <CreateButton courseId={courseId} compact defaultModuleId={module.id} />
+          </span>
         )}
         <button
           onClick={onToggleExpand}

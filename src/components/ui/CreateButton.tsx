@@ -25,9 +25,12 @@ const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
 
 interface Props {
   courseId: string
+  compact?: boolean
+  defaultType?: CreateType
+  defaultModuleId?: string
 }
 
-export default function CreateButton({ courseId }: Props) {
+export default function CreateButton({ courseId, compact, defaultType, defaultModuleId }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -164,13 +167,14 @@ export default function CreateButton({ courseId }: Props) {
       return
     }
     const mods = (data ?? []).filter((m: Module) => m.title && !m.title.includes('DO NOT PUBLISH'))
-    // Default module: first coding module, falling back to any module
+    // Default module: use defaultModuleId if provided, else first coding module
     const firstCodingMod = mods.find(m => m.category !== 'career' && m.category !== 'level_up')
+    const resolvedModuleId = defaultModuleId ?? firstCodingMod?.id ?? ''
     setModules(mods)
     setSection('coding')
-    setModuleId(firstCodingMod?.id ?? '')
+    setModuleId(resolvedModuleId)
     setDayId('')
-    setCreateType('assignment')
+    setCreateType(defaultType ?? 'assignment')
     setResType('link')
     setResTitle('')
     setResUrl('')
@@ -296,13 +300,25 @@ export default function CreateButton({ courseId }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="text-xs font-semibold bg-teal-light text-teal-primary border border-teal-primary rounded-full px-3 py-1.5 hover:opacity-80 transition-opacity w-full"
-      >
-        + Create
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="text-muted-text hover:text-teal-primary transition-colors text-base leading-none px-1"
+          title="Create assignment, resource, or quiz"
+          aria-label="Create"
+        >
+          +
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="text-xs font-semibold bg-teal-light text-teal-primary border border-teal-primary rounded-full px-3 py-1.5 hover:opacity-80 transition-opacity w-full"
+        >
+          + Create
+        </button>
+      )}
 
       {open && (
         <Modal title="Create" onClose={() => setOpen(false)}>
