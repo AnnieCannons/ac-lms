@@ -412,7 +412,22 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       {/* Checklist */}
       <div>
         <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-          <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">Grading Checklist</label>
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">Grading Checklist</label>
+            {checklist.length > 0 && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm('Clear all checklist items?')) return
+                  await supabase.from('checklist_items').delete().eq('assignment_id', assignment.id)
+                  setChecklist([])
+                }}
+                className="text-xs text-red-400 hover:text-red-500 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {checklist.length > 0 && !showSaveTemplate && (
               <button
@@ -458,16 +473,6 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             </button>
             <button type="button" onClick={() => { setShowSaveTemplate(false); setTemplateName('') }}
               className="text-xs text-muted-text hover:text-dark-text">Cancel</button>
-          </div>
-        )}
-        {customTemplates.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {customTemplates.map(t => (
-              <span key={t.id} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-border bg-surface text-muted-text">
-                {t.name}
-                <button type="button" onClick={() => deleteCustomTemplate(t.id)} className="hover:text-red-500 transition-colors ml-0.5">✕</button>
-              </span>
-            ))}
           </div>
         )}
         <div className="flex flex-col gap-2 mb-4">
