@@ -339,7 +339,7 @@ export default async function GradingPage({
             <Link href={`/instructor/courses/${id}/roster/${studentId}`} className="text-2xl font-bold text-dark-text hover:text-teal-primary transition-colors">
               {student?.name ?? 'Student'}
             </Link>
-            <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-base font-semibold text-dark-text mt-1 truncate max-w-md hover:text-teal-primary transition-colors block">{assignment.title}</Link>
+            <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-base font-semibold text-teal-primary hover:underline transition-colors block truncate max-w-md">{assignment.title}</Link>
             <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
           </div>
           {submission && (
