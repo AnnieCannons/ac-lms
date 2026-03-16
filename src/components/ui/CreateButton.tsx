@@ -430,6 +430,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                     </button>
                     {modules.length > 0 && (
                       <button type="button" onClick={() => { setShowNewModule(false); setNewModuleTitle('') }}
+                        aria-label="Cancel new module"
                         className="text-sm text-muted-text hover:text-dark-text px-2">✕</button>
                     )}
                   </div>
@@ -500,6 +501,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                       <button type="button" onClick={addAssignmentCustomTag} disabled={!assignmentCustomTagInput.trim()}
                         className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">Add</button>
                       <button type="button" onClick={() => { setShowAssignmentCustomTag(false); setAssignmentCustomTagInput('') }}
+                        aria-label="Cancel custom tag"
                         className="text-xs text-muted-text hover:text-dark-text">✕</button>
                     </div>
                   )}
@@ -538,6 +540,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                       <button type="button" onClick={addCustomTag} disabled={!customTagInput.trim()}
                         className="text-xs font-semibold bg-teal-primary text-white px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50">Add</button>
                       <button type="button" onClick={() => { setShowCustomTag(false); setCustomTagInput('') }}
+                        aria-label="Cancel custom tag"
                         className="text-xs text-muted-text hover:text-dark-text">✕</button>
                     </div>
                   )}

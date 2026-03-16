@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { normalizeUrl } from '@/lib/url'
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i
@@ -11,6 +11,13 @@ interface Props {
 export default function SubmissionFilePreview({ content }: Props) {
   const [open, setOpen] = useState(false)
   const isImage = IMAGE_RE.test(content)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
 
   if (!isImage) {
     return (
@@ -25,7 +32,8 @@ export default function SubmissionFilePreview({ content }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="block focus:outline-none rounded-lg overflow-hidden border border-border hover:opacity-90 transition-opacity"
+        aria-label="View submission image fullscreen"
+        className="block rounded-lg overflow-hidden border border-border hover:opacity-90 transition-opacity focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:outline-none"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={content} alt="Submission" className="max-h-48 object-contain bg-background" />

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
+import { saveStudentComment } from "@/lib/grade-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 
@@ -102,7 +103,7 @@ export default function SubmissionForm({
   const saveComment = async (comment: string) => {
     if (isStudentPreview || !saved) return;
     setSavingComment(true);
-    await supabase.from('submissions').update({ student_comment: comment || null }).eq('id', saved.id);
+    await saveStudentComment(saved.id, comment);
     setSavingComment(false);
     setCommentSaved(true);
     setTimeout(() => setCommentSaved(false), 2000);

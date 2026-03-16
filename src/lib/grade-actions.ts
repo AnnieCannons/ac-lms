@@ -91,3 +91,23 @@ export async function saveGrade(
 
   return {}
 }
+
+// Student saves a comment on their own submission — scoped to auth.uid()
+export async function saveStudentComment(
+  submissionId: string,
+  comment: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // RLS + explicit student_id filter ensures students can only update their own submissions
+  const { error } = await supabase
+    .from('submissions')
+    .update({ student_comment: comment.trim() || null })
+    .eq('id', submissionId)
+    .eq('student_id', user.id)
+
+  if (error) return { error: error.message }
+  return {}
+}
