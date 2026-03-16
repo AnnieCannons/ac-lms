@@ -29,6 +29,7 @@ type Submission = {
   status: SubmissionStatus;
   grade: 'complete' | 'incomplete' | null;
   submitted_at: string;
+  student_comment?: string | null;
 };
 
 type HistoryEntry = {
@@ -94,6 +95,19 @@ export default function SubmissionForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [studentComment, setStudentComment] = useState(existingSubmission?.student_comment ?? '');
+  const [savingComment, setSavingComment] = useState(false);
+  const [commentSaved, setCommentSaved] = useState(false);
+
+  const saveComment = async (comment: string) => {
+    if (isStudentPreview || !saved) return;
+    setSavingComment(true);
+    await supabase.from('submissions').update({ student_comment: comment || null }).eq('id', saved.id);
+    setSavingComment(false);
+    setCommentSaved(true);
+    setTimeout(() => setCommentSaved(false), 2000);
+  };
+
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
     if (tab === "text") return textContent.trim();
@@ -144,6 +158,7 @@ export default function SubmissionForm({
       content,
       status,
       submitted_at: new Date().toISOString(),
+      student_comment: studentComment.trim() || null,
       ...(status === "submitted" ? { grade: null, graded_at: null, graded_by: null } : {}),
     };
 
@@ -352,6 +367,35 @@ export default function SubmissionForm({
             )}
           </div>
 
+          {/* Student comment — always editable in view mode */}
+          {!isObserver && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                Note to instructor <span className="normal-case font-normal">(optional)</span>
+              </label>
+              <textarea
+                placeholder="Add a note for your instructor…"
+                value={studentComment}
+                onChange={e => { setStudentComment(e.target.value); setCommentSaved(false); }}
+                onBlur={e => saveComment(e.target.value)}
+                rows={2}
+                disabled={isStudentPreview}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-y disabled:opacity-50"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => saveComment(studentComment)}
+                  disabled={savingComment || isStudentPreview}
+                  className="text-xs text-teal-primary hover:underline disabled:opacity-50"
+                >
+                  {savingComment ? 'Saving…' : 'Save note'}
+                </button>
+                {commentSaved && <span className="text-xs text-teal-primary">Saved ✓</span>}
+              </div>
+            </div>
+          )}
+
           {saved?.grade === "incomplete" && (
             <p className="text-sm text-red-500">
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
@@ -520,6 +564,20 @@ export default function SubmissionForm({
               onError={setError}
             />
           )}
+
+          {/* Note to instructor */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+              Note to instructor <span className="normal-case font-normal">(optional)</span>
+            </label>
+            <textarea
+              placeholder="Add a note for your instructor…"
+              value={studentComment}
+              onChange={e => setStudentComment(e.target.value)}
+              rows={2}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-y"
+            />
+          </div>
 
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 

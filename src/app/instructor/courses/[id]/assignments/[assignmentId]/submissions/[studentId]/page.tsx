@@ -175,7 +175,7 @@ export default async function GradingPage({
 
   let { data: submission } = await admin
     .from('submissions')
-    .select('id, submission_type, content, status, grade, graded_at, submitted_at')
+    .select('id, submission_type, content, status, grade, graded_at, submitted_at, student_comment')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
@@ -185,7 +185,7 @@ export default async function GradingPage({
     const { data: created } = await admin
       .from('submissions')
       .insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })
-      .select('id, submission_type, content, status, grade, graded_at, submitted_at')
+      .select('id, submission_type, content, status, grade, graded_at, submitted_at, student_comment')
       .single()
     submission = created ?? null
   }
@@ -397,6 +397,12 @@ export default async function GradingPage({
                     type={submission.submission_type as SubmissionType}
                     content={submission.content}
                   />
+                  {submission.student_comment && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Note from student</p>
+                      <p className="text-sm text-dark-text whitespace-pre-wrap">{submission.student_comment}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* History */}
