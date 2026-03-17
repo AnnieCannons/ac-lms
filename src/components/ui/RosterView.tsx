@@ -83,9 +83,10 @@ function popoverCoords(rect: DOMRect, width: number, estimatedHeight: number): {
 function isCameraOffActive(acc: Accommodation | null): boolean {
   if (!acc?.cameraOff) return false
   if (!acc.cameraOffEnd) return true
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return new Date(acc.cameraOffEnd) >= today
+  // Compare YYYY-MM-DD strings in local time to avoid UTC timezone shift
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return acc.cameraOffEnd >= todayStr
 }
 
 function CameraDatePopover({
