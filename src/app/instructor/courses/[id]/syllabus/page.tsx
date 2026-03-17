@@ -48,16 +48,44 @@ export default async function InstructorSyllabusPage({
   }));
 
   const admin = createServiceSupabaseClient();
-  const { data: quizzesData } = await admin
-    .from("quizzes")
-    .select("id, title, questions, published, module_title, day_title")
-    .eq("course_id", id)
-    .is("deleted_at", null)
-    .not("day_title", "is", null);
+  const [{ data: quizzesData }] = await Promise.all([
+    admin
+      .from("quizzes")
+      .select("id, title, questions, published, module_title, day_title")
+      .eq("course_id", id)
+      .is("deleted_at", null)
+      .not("day_title", "is", null),
+  ]);
 
   const courseQuizzes = (quizzesData ?? []) as Array<{
     id: string; title: string; questions: unknown[]; published: boolean; module_title: string; day_title: string;
   }>;
+
+  // Fetch wikis for all modules and days
+  const moduleIds = modules.map(m => m.id)
+  const dayIds = modules.flatMap(m => m.module_days.map((d: { id: string }) => d.id))
+  type WikiRow = { id: string; title: string; content: string; published: boolean; order: number; module_id: string | null; module_day_id: string | null }
+  let wikisData: WikiRow[] = []
+  if (moduleIds.length > 0 || dayIds.length > 0) {
+    const orParts: string[] = []
+    if (moduleIds.length > 0) orParts.push(`module_id.in.(${moduleIds.join(',')})`)
+    if (dayIds.length > 0) orParts.push(`module_day_id.in.(${dayIds.join(',')})`)
+    const { data: wRows } = await admin
+      .from('wikis')
+      .select('id, title, content, published, order, module_id, module_day_id')
+      .or(orParts.join(','))
+      .order('order', { ascending: true })
+    wikisData = (wRows ?? []) as WikiRow[]
+  }
+
+  const modulesWithWikis = modules.map(m => ({
+    ...m,
+    wikis: wikisData.filter(w => w.module_id === m.id),
+    module_days: m.module_days.map((d: { id: string }) => ({
+      ...d,
+      wikis: wikisData.filter(w => w.module_day_id === d.id),
+    })),
+  }))
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +108,7 @@ export default async function InstructorSyllabusPage({
               )}
             </div>
 
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="syllabus" courseQuizzes={courseQuizzes} readOnly={isTa} />
+            <CourseEditor course={course} initialModules={modulesWithWikis} filterCategory="syllabus" courseQuizzes={courseQuizzes} readOnly={isTa} />
           </main>
         </div>
       </div>
