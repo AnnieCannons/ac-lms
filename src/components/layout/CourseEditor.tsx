@@ -1903,7 +1903,7 @@ function SortableDay({
           })()}
 
           {/* Assignments — hidden for resource-only days */}
-          {day.day_name !== "Resources" && day.day_name !== "Wiki" && (
+          {!/resource/i.test(day.day_name) && day.day_name !== "Wiki" && (
             <AssignmentDropZone
               day={day}
               weekNumber={weekNumber}
