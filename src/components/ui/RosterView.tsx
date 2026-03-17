@@ -302,7 +302,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
   const addBtnRectRef = useRef<DOMRect | null>(null)
 
   const hasAnyAccommodation = (s: Student) =>
-    isCameraOffActive(s.accommodation) || s.accommodation?.notes
+    s.accommodation?.cameraOff || s.accommodation?.notes
 
   const activeStudents = students.filter(s => s.enrollmentRole !== 'observer')
   const observers = students.filter(s => s.enrollmentRole === 'observer')
@@ -324,8 +324,8 @@ export default function RosterView({ courses, currentCourseId, students }: Props
         <td className="px-4 py-3 text-muted-text">{student.email}</td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Camera Off badge */}
-            {isCameraOffActive(student.accommodation) && (
+            {/* Camera Off badge — always shown when cameraOff=true; dimmed if not currently active */}
+            {student.accommodation?.cameraOff && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -334,8 +334,12 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                   if (isOpening) setCameraPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 288, 290))
                   setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)
                 }}
-                className="inline-flex items-center justify-center text-white bg-red-500 w-7 h-7 rounded-full hover:bg-red-600 transition-colors"
-                title="Camera Off"
+                className={`inline-flex items-center justify-center text-white w-7 h-7 rounded-full transition-colors ${
+                  isCameraOffActive(student.accommodation)
+                    ? 'bg-red-500 hover:bg-red-600'
+                    : 'bg-red-300 hover:bg-red-400'
+                }`}
+                title={isCameraOffActive(student.accommodation) ? 'Camera Off (active)' : 'Camera Off (scheduled)'}
               >
                 <CameraOffIcon size={13} />
               </button>
