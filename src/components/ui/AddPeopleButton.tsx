@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { bulkAddPeopleToCourse } from '@/lib/people-actions'
 import Modal from './Modal'
 
-type InviteRole = 'student' | 'instructor' | 'admin'
+type InviteRole = 'student' | 'instructor' | 'admin' | 'ta'
 
 interface BulkResult {
   email: string
@@ -19,6 +19,12 @@ const INVITE_TYPES: { role: InviteRole; label: string; description: string; colo
     label: 'Students',
     description: 'Enroll learners in a specific course',
     color: 'border-teal-primary/40 hover:border-teal-primary hover:bg-teal-light/50',
+  },
+  {
+    role: 'ta',
+    label: 'Teaching Assistants',
+    description: 'Former students returning to help for a term — course-scoped access',
+    color: 'border-blue-400/40 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40',
   },
   {
     role: 'instructor',
@@ -94,7 +100,7 @@ export default function AddPeopleButton({
     setBulkResults(null)
     const emails = parseEmails(emailsRaw)
     if (emails.length === 0) return
-    const targetCourseId = inviteRole === 'student' ? selectedCourseId : courseId
+    const targetCourseId = (inviteRole === 'student' || inviteRole === 'ta') ? selectedCourseId : courseId
     setAdding(true)
     const results = await bulkAddPeopleToCourse(targetCourseId, emails, inviteRole)
     setAdding(false)
@@ -137,7 +143,7 @@ export default function AddPeopleButton({
             </div>
           ) : (
             <form onSubmit={handleAdd} className="flex flex-col gap-4 pt-1">
-              {inviteRole === 'student' ? (
+              {inviteRole === 'student' || inviteRole === 'ta' ? (
                 <div>
                   <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1.5">
                     Course
@@ -177,7 +183,7 @@ export default function AddPeopleButton({
                 <div className="border border-border rounded-lg overflow-hidden" role="status" aria-live="polite">
                   <div className="bg-surface border-b border-border px-4 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">
                     {bulkResults.filter(r => !r.error).length} of {bulkResults.length} added
-                    {inviteRole === 'student' && ` to ${selectedCourseName}`}
+                    {(inviteRole === 'student' || inviteRole === 'ta') && ` to ${selectedCourseName}`}
                   </div>
                   <ul className="divide-y divide-border max-h-40 overflow-y-auto">
                     {bulkResults.map((r) => (
