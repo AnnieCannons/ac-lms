@@ -102,9 +102,9 @@ export default async function InstructorSyllabusPage({
             <div className="flex items-center gap-3 flex-wrap mt-6 mb-6">
               <h2 className="text-xl font-bold text-dark-text">Course Outline</h2>
               {currentWeek && (
-                <span className="text-sm font-semibold bg-purple-light text-purple-primary px-3 py-1 rounded-full">
+                <a href={`#week-${currentWeek}`} className="text-sm font-semibold bg-purple-light text-purple-primary px-3 py-1 rounded-full hover:opacity-80 transition-opacity">
                   Week {currentWeek} this week
-                </span>
+                </a>
               )}
             </div>
 

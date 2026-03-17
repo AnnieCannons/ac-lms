@@ -81,9 +81,9 @@ export default function CourseNameEditor({
         <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-xl sm:text-2xl font-bold text-dark-text">{name}</h2>
           {currentWeek && (
-            <span className="text-sm font-semibold bg-purple-light text-purple-primary px-3 py-1 rounded-full">
+            <a href={`#week-${currentWeek}`} className="text-sm font-semibold bg-purple-light text-purple-primary px-3 py-1 rounded-full hover:opacity-80 transition-opacity">
               Week {currentWeek} this week
-            </span>
+            </a>
           )}
         </div>
         {code && <p className="text-muted-text text-sm mt-0.5">{code}</p>}

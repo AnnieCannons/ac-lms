@@ -175,9 +175,9 @@ export default async function StudentCourseDetailPage({
                     </p>
                   )}
                   {currentWeek && (
-                    <span className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full">
+                    <a href={`#week-${currentWeek}`} className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full hover:opacity-80 transition-opacity">
                       Week {currentWeek} this week
-                    </span>
+                    </a>
                   )}
                 </div>
               </div>

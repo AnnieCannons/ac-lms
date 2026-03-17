@@ -2165,6 +2165,7 @@ function SortableModule({
     <div
       ref={setNodeRef}
       style={style}
+      id={module.week_number ? `week-${module.week_number}` : undefined}
       className={`bg-surface rounded-2xl border border-border overflow-hidden transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
     >
       <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4 cursor-pointer select-none" onClick={onToggleExpand}>

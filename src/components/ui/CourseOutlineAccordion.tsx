@@ -559,6 +559,7 @@ export default function CourseOutlineAccordion({
           return (
             <div
               key={module.id}
+              id={module.week_number ? `week-${module.week_number}` : undefined}
               className={`bg-surface rounded-2xl border transition-colors ${
                 isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
               }`}
