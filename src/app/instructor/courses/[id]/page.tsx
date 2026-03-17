@@ -55,11 +55,12 @@ export default async function CoursePage({
     const orParts: string[] = []
     if (moduleIds.length > 0) orParts.push(`module_id.in.(${moduleIds.join(',')})`)
     if (dayIds.length > 0) orParts.push(`module_day_id.in.(${dayIds.join(',')})`)
-    const { data: wRows } = await admin
+    const { data: wRows, error: wikiErr } = await admin
       .from('wikis')
       .select('id, title, content, published, order, module_id, module_day_id')
       .or(orParts.join(','))
       .order('order', { ascending: true })
+    if (wikiErr) console.error('[page] wiki fetch error:', wikiErr.message)
     wikisData = (wRows ?? []) as WikiRow[]
   }
 

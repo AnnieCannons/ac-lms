@@ -1748,6 +1748,7 @@ function SortableDay({
                   type="button"
                   onClick={async () => {
                     const result = await createWiki({ moduleDayId: day.id, title: 'New Wiki' })
+                    if (result.error) { alert(`Failed to create wiki: ${result.error}`); return }
                     if (result.data) onWikiCreated(result.data)
                   }}
                   className="text-xs text-teal-primary hover:underline text-left"
@@ -2323,6 +2324,7 @@ function SortableModule({
                   type="button"
                   onClick={async () => {
                     const result = await createWiki({ moduleId: module.id, title: 'New Wiki' })
+                    if (result.error) { alert(`Failed to create wiki: ${result.error}`); return }
                     if (result.data) onWikiCreated(result.data)
                   }}
                   className="text-xs text-teal-primary hover:underline text-left"

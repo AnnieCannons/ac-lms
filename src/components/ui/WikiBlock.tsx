@@ -22,10 +22,10 @@ interface Props {
 }
 
 export default function WikiBlock({ wiki, onUpdate, onTogglePublished, onDelete }: Props) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(!wiki.content) // auto-open if freshly created
   const [title, setTitle] = useState(wiki.title)
   const [content, setContent] = useState(wiki.content)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [published, setPublished] = useState(wiki.published)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestRef = useRef({ title, content })
@@ -42,9 +42,9 @@ export default function WikiBlock({ wiki, onUpdate, onTogglePublished, onDelete 
       if (!result.error) {
         setSaveStatus('saved')
         onUpdate(wiki.id, newTitle, newContent)
-        setTimeout(() => setSaveStatus('idle'), 1500)
+        setTimeout(() => setSaveStatus('idle'), 2000)
       } else {
-        setSaveStatus('idle')
+        setSaveStatus('error')
         console.error('Failed to save wiki:', result.error)
       }
     }, 800)
@@ -109,12 +109,21 @@ export default function WikiBlock({ wiki, onUpdate, onTogglePublished, onDelete 
           </button>
         )}
 
-        {/* Save indicator */}
-        {saveStatus === 'saving' && (
-          <span className="text-xs text-muted-text shrink-0">Saving…</span>
-        )}
-        {saveStatus === 'saved' && (
-          <span className="text-xs text-teal-primary shrink-0">Saved</span>
+        {/* Save indicator / button */}
+        {saveStatus === 'saving' && <span className="text-xs text-muted-text shrink-0">Saving…</span>}
+        {saveStatus === 'saved' && <span className="text-xs text-teal-primary shrink-0">Saved ✓</span>}
+        {saveStatus === 'error' && <span className="text-xs text-red-400 shrink-0">Save failed</span>}
+        {saveStatus === 'idle' && open && (
+          <button
+            type="button"
+            onClick={() => {
+              if (debounceRef.current) clearTimeout(debounceRef.current)
+              scheduleSave(title, content)
+            }}
+            className="text-xs text-teal-primary hover:underline shrink-0"
+          >
+            Save
+          </button>
         )}
 
         {/* Publish toggle */}
