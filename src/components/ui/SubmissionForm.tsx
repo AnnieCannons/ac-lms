@@ -368,24 +368,6 @@ export default function SubmissionForm({
             )}
           </div>
 
-          {/* Note for instructor — always editable after submission */}
-          {!isObserver && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">Note for your instructor <span className="font-normal normal-case">(optional)</span></label>
-              <textarea
-                value={studentComment}
-                onChange={e => setStudentComment(e.target.value)}
-                onBlur={e => saveComment(e.target.value)}
-                placeholder="Anything you want your instructor to know…"
-                rows={2}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-              />
-              {(savingComment || commentSaved) && (
-                <p className="text-xs text-muted-text">{savingComment ? 'Saving…' : 'Saved ✓'}</p>
-              )}
-            </div>
-          )}
-
           {saved?.grade === "incomplete" && (
             <p className="text-sm text-red-500">
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
@@ -556,18 +538,6 @@ export default function SubmissionForm({
           )}
 
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
-
-          {/* Note for instructor */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-muted-text uppercase tracking-wide">Note for your instructor <span className="font-normal normal-case">(optional)</span></label>
-            <textarea
-              value={studentComment}
-              onChange={e => setStudentComment(e.target.value)}
-              placeholder="Anything you want your instructor to know about this submission…"
-              rows={2}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-            />
-          </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             <button
