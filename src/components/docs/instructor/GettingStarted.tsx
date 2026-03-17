@@ -91,6 +91,21 @@ export default function GettingStarted() {
         name and change your password — use the eye icon to show or hide the password field as you type.
       </DocP>
 
+      <DocH2>Password Requirements</DocH2>
+      <DocP>
+        All passwords — for new accounts and password changes — must meet these requirements:
+      </DocP>
+      <DocList>
+        <li>At least <strong>12 characters</strong> long</li>
+        <li>At least one <strong>uppercase</strong> letter (A–Z)</li>
+        <li>At least one <strong>lowercase</strong> letter (a–z)</li>
+        <li>At least one <strong>number</strong> (0–9)</li>
+        <li>At least one <strong>symbol</strong> (e.g. !, @, #, $)</li>
+      </DocList>
+      <DocNote>
+        Invite links sent to new users expire after <strong>24 hours</strong>. If a student or TA doesn&apos;t accept in time, resend the invite from the Users page.
+      </DocNote>
+
       <DocH2>Your Role</DocH2>
       <DocP>
         Instructors have full access to all courses they&apos;re assigned to. Admins have access to all courses across the

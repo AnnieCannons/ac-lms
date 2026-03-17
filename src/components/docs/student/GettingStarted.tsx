@@ -8,13 +8,27 @@ export default function GettingStarted() {
 
       <DocH2>Logging In</DocH2>
       <DocP>
-        Navigate to your LMS URL and enter your email and password on the login page. Your instructor or program coordinator
-        will have provided your credentials when you enrolled.
+        You&apos;ll receive an invite email when you&apos;re enrolled. Click the link in that email within <strong>24 hours</strong> — it expires after that. The link takes you to a page where you set your password and activate your account.
       </DocP>
       <DocTip>
         Use the <strong>show/hide password</strong> eye icon on the login page to reveal your password as you type — useful
         if you want to double-check what you&apos;ve entered. Bookmark the login page so you can return quickly. If you
         forget your password, contact your instructor or admin.
+      </DocTip>
+
+      <DocH2>Password Requirements</DocH2>
+      <DocP>
+        When setting or changing your password, it must meet the following requirements:
+      </DocP>
+      <DocList>
+        <li>At least <strong>12 characters</strong> long</li>
+        <li>At least one <strong>uppercase</strong> letter (A–Z)</li>
+        <li>At least one <strong>lowercase</strong> letter (a–z)</li>
+        <li>At least one <strong>number</strong> (0–9)</li>
+        <li>At least one <strong>symbol</strong> (e.g. !, @, #, $)</li>
+      </DocList>
+      <DocTip>
+        Example of a strong password: <em>Sunrise42!</em> — or use a passphrase like <em>Coffee&amp;Code2026!</em> that&apos;s easy to remember but hard to guess.
       </DocTip>
 
       <DocH2>Your Course List</DocH2>
@@ -58,6 +72,7 @@ export default function GettingStarted() {
       <DocList>
         <li>Update your display name</li>
         <li>Change your password — use the <strong>eye icon</strong> to show or hide what you&apos;re typing</li>
+        <li>Passwords must be at least <strong>12 characters</strong> and include uppercase letters, lowercase letters, a number, and a symbol (e.g. <em>MyPassword1!</em>)</li>
         <li>Adjust <strong>Accessibility</strong> settings: dark mode, high contrast, and dyslexia-friendly font</li>
       </DocList>
 
