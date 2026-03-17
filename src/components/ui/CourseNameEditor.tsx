@@ -8,10 +8,12 @@ export default function CourseNameEditor({
   courseId,
   initialName,
   initialCode,
+  currentWeek,
 }: {
   courseId: string;
   initialName: string;
   initialCode: string | null;
+  currentWeek?: number | null;
 }) {
   const supabase = createClient();
   const [editing, setEditing] = useState(false);
@@ -76,7 +78,14 @@ export default function CourseNameEditor({
   return (
     <div className="flex items-start gap-3 mb-8 group">
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-dark-text">{name}</h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-xl sm:text-2xl font-bold text-dark-text">{name}</h2>
+          {currentWeek && (
+            <span className="text-sm font-semibold bg-purple-light text-purple-primary px-3 py-1 rounded-full">
+              Week {currentWeek} this week
+            </span>
+          )}
+        </div>
         {code && <p className="text-muted-text text-sm mt-0.5">{code}</p>}
       </div>
       <button

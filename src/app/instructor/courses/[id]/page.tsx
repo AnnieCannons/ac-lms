@@ -33,6 +33,14 @@ export default async function CoursePage({
 
   if (!course) redirect("/instructor/courses");
 
+  function getCurrentWeek(startDate: string | null): number | null {
+    if (!startDate) return null
+    const diffMs = Date.now() - new Date(startDate).getTime()
+    if (diffMs < 0) return null
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
+  }
+  const currentWeek = getCurrentWeek(course.start_date ?? null)
+
   // Filter out soft-deleted nested items
   const filteredModules = (modules ?? []).map(m => ({
     ...m,
@@ -100,6 +108,7 @@ export default async function CoursePage({
               courseId={course.id}
               initialName={course.name}
               initialCode={course.code}
+              currentWeek={currentWeek}
             />
 
             <CourseEditor course={course} initialModules={filteredModulesWithWikis} courseQuizzes={courseQuizzes} readOnly={isTa} />
