@@ -20,7 +20,7 @@ export default function SubmissionComments({
   currentUserRole,
   isObserver,
 }: {
-  submissionId: string;
+  submissionId: string | null;
   initialComments: CommentEntry[];
   currentUserId: string;
   currentUserName: string;
@@ -33,7 +33,7 @@ export default function SubmissionComments({
   const [sending, setSending] = useState(false);
 
   const send = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !submissionId) return;
     setSending(true);
     const { data } = await supabase
       .from("submission_comments")
@@ -113,15 +113,18 @@ export default function SubmissionComments({
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
             }}
-            placeholder="Add a comment… (⌘↵ to send)"
+            placeholder="Add a comment for your instructor…"
             rows={3}
             className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
           />
-          <div className="flex justify-end mt-2">
+          <div className="flex items-center justify-between mt-2 gap-3">
+            {!submissionId && (
+              <p className="text-xs text-muted-text">Submit your assignment first to send a comment.</p>
+            )}
             <button
               onClick={send}
-              disabled={sending || !text.trim()}
-              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              disabled={sending || !text.trim() || !submissionId}
+              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity ml-auto"
             >
               {sending ? "Sending…" : "Send"}
             </button>

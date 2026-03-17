@@ -586,11 +586,11 @@ export default function SubmissionForm({
       )}
     </div>
 
-    {/* Comments — always visible once there's a submission */}
-    {saved && (
+    {/* Comments — always visible; send is gated on having a submission */}
+    {!isStudentPreview && (
       <SubmissionComments
-        key={saved.id}
-        submissionId={saved.id}
+        key={saved?.id ?? 'no-submission'}
+        submissionId={saved?.id ?? null}
         initialComments={initialComments}
         currentUserId={studentId}
         currentUserName={currentUserName}
