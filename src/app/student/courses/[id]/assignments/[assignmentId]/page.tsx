@@ -314,7 +314,7 @@ export default async function StudentAssignmentPage({
                   const checked = instructorResponseMap.get(item.id) === true
                   return (
                     <div key={item.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${checked ? 'border-teal-primary bg-teal-light/30' : 'border-border bg-background'}`}>
-                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-gray-400'}`}>
+                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-muted-text'}`}>
                         {checked && (
                           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
