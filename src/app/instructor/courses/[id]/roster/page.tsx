@@ -109,6 +109,7 @@ export default async function RosterPage({
               courses={courses}
               currentCourseId={id}
               students={students}
+              readOnly={isTa}
             />
           </main>
         </div>

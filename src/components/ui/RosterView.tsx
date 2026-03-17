@@ -31,6 +31,7 @@ interface Props {
   courses: CourseTab[]
   currentCourseId: string
   students: Student[]
+  readOnly?: boolean
 }
 
 function CameraOffIcon({ size = 14 }: { size?: number }) {
@@ -91,7 +92,7 @@ function isCameraOffActive(acc: Accommodation | null): boolean {
 }
 
 function CameraDatePopover({
-  start, end, onClose, onSave, onRemove, fixedPos,
+  start, end, onClose, onSave, onRemove, fixedPos, readOnly,
 }: {
   start: string | null
   end: string | null
@@ -99,6 +100,7 @@ function CameraDatePopover({
   onSave: (start: string, end: string) => Promise<void>
   onRemove?: () => Promise<void>
   fixedPos: { top: number; left: number }
+  readOnly?: boolean
 }) {
   const [editStart, setEditStart] = useState(start ?? '')
   const [editEnd, setEditEnd] = useState(end ?? '')
@@ -132,6 +134,10 @@ function CameraDatePopover({
     setRemoving(false)
   }
 
+  const fmt = (d: string | null) => d
+    ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—'
+
   return createPortal(
     <div
       ref={ref}
@@ -141,51 +147,69 @@ function CameraDatePopover({
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
         <CalendarIcon size={11} /> Camera Off Dates
       </p>
-      {noDatesSet && (
-        <p className="text-xs text-muted-text italic bg-border/30 rounded-lg px-2.5 py-1.5">
-          No dates set yet
-        </p>
-      )}
-      <div className="flex flex-col gap-2">
-        <DatePickerField
-          label="Start date"
-          value={editStart}
-          onChange={setEditStart}
-          placeholder="Pick a start date"
-          className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
-        />
-        <DatePickerField
-          label="End date"
-          value={editEnd}
-          onChange={setEditEnd}
-          placeholder="Pick an end date"
-          className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
-        />
-      </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={handleSave}
-          disabled={saving || removing}
-          className="text-xs font-semibold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          {saving ? 'Saving…' : 'Save dates'}
-        </button>
-        <div className="flex items-center gap-3">
-          {onRemove && (
-            <button
-              onClick={handleRemove}
-              disabled={saving || removing}
-              className="text-xs text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-            >
-              {removing ? 'Removing…' : 'Remove'}
-            </button>
+      {readOnly ? (
+        <div className="flex flex-col gap-1.5">
+          {noDatesSet ? (
+            <p className="text-xs text-muted-text italic">No dates set.</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-text">Start: <span className="text-dark-text font-medium">{fmt(start)}</span></p>
+              <p className="text-xs text-muted-text">End: <span className="text-dark-text font-medium">{fmt(end)}</span></p>
+            </>
           )}
-          <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
-            Cancel
+          <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors mt-1 text-left">
+            Close
           </button>
         </div>
-      </div>
+      ) : (
+        <>
+          {noDatesSet && (
+            <p className="text-xs text-muted-text italic bg-border/30 rounded-lg px-2.5 py-1.5">
+              No dates set yet
+            </p>
+          )}
+          <div className="flex flex-col gap-2">
+            <DatePickerField
+              label="Start date"
+              value={editStart}
+              onChange={setEditStart}
+              placeholder="Pick a start date"
+              className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
+            />
+            <DatePickerField
+              label="End date"
+              value={editEnd}
+              onChange={setEditEnd}
+              placeholder="Pick an end date"
+              className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
+            />
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleSave}
+              disabled={saving || removing}
+              className="text-xs font-semibold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {saving ? 'Saving…' : 'Save dates'}
+            </button>
+            <div className="flex items-center gap-3">
+              {onRemove && (
+                <button
+                  onClick={handleRemove}
+                  disabled={saving || removing}
+                  className="text-xs text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+                >
+                  {removing ? 'Removing…' : 'Remove'}
+                </button>
+              )}
+              <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>,
     document.body
   )
@@ -196,11 +220,13 @@ function NotesEditPopover({
   onClose,
   onSave,
   fixedPos,
+  readOnly,
 }: {
   notes: string
   onClose: () => void
   onSave: (notes: string) => Promise<void>
   fixedPos: { top: number; left: number }
+  readOnly?: boolean
 }) {
   const [text, setText] = useState(initialNotes)
   const [saving, setSaving] = useState(false)
@@ -226,24 +252,38 @@ function NotesEditPopover({
       className="bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-96"
     >
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Other Accommodations</p>
-      <RichTextEditor
-        content={text}
-        onChange={setText}
-        placeholder="e.g. Extended time, quiet testing room, screen reader…"
-      />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="text-xs font-semibold bg-teal-primary text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
-          Cancel
-        </button>
-      </div>
+      {readOnly ? (
+        <>
+          <div
+            className="text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-bold"
+            dangerouslySetInnerHTML={{ __html: initialNotes }}
+          />
+          <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors text-left">
+            Close
+          </button>
+        </>
+      ) : (
+        <>
+          <RichTextEditor
+            content={text}
+            onChange={setText}
+            placeholder="e.g. Extended time, quiet testing room, screen reader…"
+          />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="text-xs font-semibold bg-teal-primary text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
     </div>,
     document.body
   )
@@ -291,7 +331,7 @@ function AddAccommodationMenu({
   )
 }
 
-export default function RosterView({ courses, currentCourseId, students }: Props) {
+export default function RosterView({ courses, currentCourseId, students, readOnly }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [openPopover, setOpenPopover] = useState<string | null>(null)
@@ -349,6 +389,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                 start={student.accommodation?.cameraOffStart ?? null}
                 end={student.accommodation?.cameraOffEnd ?? null}
                 fixedPos={cameraPos}
+                readOnly={readOnly}
                 onClose={() => { setOpenPopover(null); setCameraPos(null) }}
                 onSave={async (start, end) => {
                   const result = await upsertAccommodation(
@@ -400,6 +441,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
               <NotesEditPopover
                 notes={student.accommodation.notes}
                 fixedPos={notesPos}
+                readOnly={readOnly}
                 onClose={() => { setOpenPopover(null); setNotesPos(null) }}
                 onSave={async (newNotes) => {
                   const result = await upsertAccommodation(
@@ -421,6 +463,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
           </div>
         </td>
         <td className="px-4 py-3 text-right">
+          {!readOnly && (
           <button
             type="button"
             onClick={(e) => {
@@ -435,6 +478,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
           >
             +
           </button>
+          )}
           {addMenuOpen === student.userId && addMenuPos && (
             <AddAccommodationMenu
               hasCameraOff={!!student.accommodation?.cameraOff}
