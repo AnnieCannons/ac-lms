@@ -37,7 +37,7 @@ export default function NewCoursePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
@@ -45,14 +45,14 @@ export default function NewCoursePage() {
 
       <main className="max-w-2xl mx-auto px-8 py-12">
         <div className="flex items-center gap-3 mb-8">
-          <Link href="/instructor/courses" className="text-gray-400 hover:text-teal-primary text-sm">
+          <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
             ← Courses
           </Link>
-          <span className="text-gray-300">/</span>
+          <span className="text-border">/</span>
           <h2 className="text-2xl font-bold text-dark-text">New Course</h2>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-8">
           {error && (
             <div className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">{error}</div>
           )}
@@ -64,7 +64,7 @@ export default function NewCoursePage() {
                 placeholder="e.g. Intro to Web Development"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 required
               />
             </div>
@@ -75,7 +75,7 @@ export default function NewCoursePage() {
                 placeholder="e.g. WEB101"
                 value={code}
                 onChange={e => setCode(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 required
               />
             </div>
@@ -90,7 +90,7 @@ export default function NewCoursePage() {
                 value={syllabus}
                 onChange={e => setSyllabus(e.target.value)}
                 rows={5}
-                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+                className="w-full bg-background border border-border rounded-lg p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
               />
             </div>
             <div>
@@ -101,11 +101,11 @@ export default function NewCoursePage() {
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors w-full ${
                   paidLearners
                     ? 'border-teal-primary bg-teal-light text-teal-primary'
-                    : 'border-gray-200 text-muted-text hover:border-gray-300'
+                    : 'border-border text-muted-text hover:border-teal-primary'
                 }`}
               >
                 <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
-                  paidLearners ? 'bg-teal-primary border-teal-primary' : 'border-gray-400'
+                  paidLearners ? 'bg-teal-primary border-teal-primary' : 'border-border'
                 }`}>
                   {paidLearners && (
                     <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
