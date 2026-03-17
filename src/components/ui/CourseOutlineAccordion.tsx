@@ -377,10 +377,18 @@ function DayModal({
   )
 }
 
+type SearchResult =
+  | { kind: 'module'; module: Module }
+  | { kind: 'day'; module: Module; day: Day }
+  | { kind: 'assignment'; module: Module; day: Day; assignment: Assignment }
+  | { kind: 'resource'; module: Module; day: Day; resource: Resource }
+  | { kind: 'quiz'; quiz: Quiz }
+
 export default function CourseOutlineAccordion({
   modules, courseId, currentWeek, todayName, submissionMap,
   initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes,
 }: Props) {
+  const [search, setSearch] = useState('')
   const [openDay, setOpenDay] = useState<{ day: Day; module: Module } | null>(null)
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
   const toggleModule = (id: string) =>
@@ -411,8 +419,118 @@ export default function CourseOutlineAccordion({
     }
   }
 
+  const query = search.trim().toLowerCase()
+  const searchResults: SearchResult[] | null = query ? (() => {
+    const results: SearchResult[] = []
+    for (const module of modules) {
+      if (module.title.toLowerCase().includes(query)) results.push({ kind: 'module', module })
+      for (const day of [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)) {
+        if (day.day_name.toLowerCase().includes(query)) results.push({ kind: 'day', module, day })
+        for (const a of day.assignments ?? []) {
+          if (a.published && a.title.toLowerCase().includes(query)) results.push({ kind: 'assignment', module, day, assignment: a })
+        }
+        for (const r of day.resources ?? []) {
+          if (r.title.toLowerCase().includes(query)) results.push({ kind: 'resource', module, day, resource: r })
+        }
+      }
+    }
+    for (const quiz of quizzes ?? []) {
+      const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title
+      if (displayTitle.toLowerCase().includes(query)) results.push({ kind: 'quiz', quiz })
+    }
+    return results
+  })() : null
+
   return (
     <>
+      {/* Search bar */}
+      <div className="relative mb-3">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input
+          type="search"
+          placeholder="Search modules, days, assignments, resources…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        />
+      </div>
+
+      {/* Search results */}
+      {searchResults !== null ? (
+        <div className="flex flex-col gap-2">
+          {searchResults.length === 0 ? (
+            <p className="text-sm text-muted-text text-center py-10">No results for &ldquo;{search}&rdquo;</p>
+          ) : (
+            searchResults.map((result, i) => {
+              if (result.kind === 'module') return (
+                <div key={`m-${result.module.id}-${i}`} className="bg-surface rounded-2xl border border-border px-6 py-4">
+                  <p className="text-xs text-muted-text uppercase tracking-wide font-semibold mb-0.5">Module</p>
+                  <p className="font-semibold text-dark-text">{result.module.title}</p>
+                </div>
+              )
+              if (result.kind === 'day') return (
+                <button key={`d-${result.day.id}-${i}`} type="button"
+                  onClick={() => setOpenDay({ day: result.day, module: result.module })}
+                  className="bg-surface rounded-xl border border-border px-4 py-3 text-left hover:border-teal-primary/40 hover:bg-teal-light/20 transition-colors w-full"
+                >
+                  <p className="text-xs text-muted-text mb-0.5">{result.module.title}</p>
+                  <p className="text-sm font-medium text-dark-text">{result.day.day_name}</p>
+                </button>
+              )
+              if (result.kind === 'assignment') return (
+                <div key={`a-${result.assignment.id}-${i}`} className="bg-surface rounded-xl border border-border px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-text mb-0.5">{result.module.title} · {result.day.day_name}</p>
+                    <p className="text-sm font-medium text-dark-text truncate">{result.assignment.title}</p>
+                  </div>
+                  <Link href={`/student/courses/${courseId}/assignments/${result.assignment.id}`}
+                    className="text-sm text-teal-primary font-semibold hover:underline shrink-0">
+                    View →
+                  </Link>
+                </div>
+              )
+              if (result.kind === 'resource') return (
+                <div key={`r-${result.resource.id}-${i}`} className="bg-surface rounded-xl border border-border px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-text mb-0.5">{result.module.title} · {result.day.day_name}</p>
+                    <p className="text-sm font-medium text-dark-text truncate">{result.resource.title}</p>
+                  </div>
+                  {result.resource.content ? (
+                    <a href={result.resource.content} target="_blank" rel="noopener noreferrer"
+                      className="text-sm text-teal-primary font-semibold hover:underline shrink-0">
+                      Open ↗
+                    </a>
+                  ) : (
+                    <button type="button" onClick={() => setOpenDay({ day: result.day, module: result.module })}
+                      className="text-sm text-teal-primary font-semibold hover:underline shrink-0">
+                      View →
+                    </button>
+                  )}
+                </div>
+              )
+              if (result.kind === 'quiz') {
+                const displayTitle = result.quiz.title.startsWith('Quiz: ') ? result.quiz.title.slice(6) : result.quiz.title
+                return (
+                  <div key={`q-${result.quiz.id}-${i}`} className="bg-surface rounded-xl border border-border px-4 py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-text mb-0.5">Quiz</p>
+                      <p className="text-sm font-medium text-dark-text truncate">{displayTitle}</p>
+                    </div>
+                    <Link href={`/student/courses/${courseId}/quizzes/${result.quiz.id}`}
+                      className="text-sm text-teal-primary font-semibold hover:underline shrink-0">
+                      Take →
+                    </Link>
+                  </div>
+                )
+              }
+              return null
+            })
+          )}
+        </div>
+      ) : (
+      <>
       {modules.length > 1 && (
         <div className="flex justify-end gap-2 mb-2">
           <button type="button" onClick={expandAll} className="text-xs text-muted-text hover:text-dark-text transition-colors">Expand all</button>
@@ -505,6 +623,8 @@ export default function CourseOutlineAccordion({
           )
         })}
       </div>
+      </>
+      )}
 
       {openDay && (
         <DayModal
