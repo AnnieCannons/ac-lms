@@ -192,17 +192,15 @@ export default function InstructorCourseNav({
       </div>
 
       {!isTa && (
-        <>
-          <div className="mt-6 pt-4 border-t border-border">
-            <InstructorGlobalNav courseId={courseId} />
-          </div>
-
-          <div className="mt-auto pt-6 px-3 flex flex-col gap-2">
-            <StudentViewButton courseId={courseId} />
-            <LaunchSetupButton courseId={courseId} />
-          </div>
-        </>
+        <div className="mt-6 pt-4 border-t border-border">
+          <InstructorGlobalNav courseId={courseId} />
+        </div>
       )}
+
+      <div className="mt-auto pt-6 px-3 flex flex-col gap-2">
+        <StudentViewButton courseId={courseId} />
+        {!isTa && <LaunchSetupButton courseId={courseId} />}
+      </div>
 
       {graderOpen && (
         <LaunchGraderModal
