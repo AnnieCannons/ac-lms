@@ -34,21 +34,24 @@ export default function WikiBlock({ wiki, onUpdate, onTogglePublished, onDelete 
     latestRef.current = { title, content }
   }, [title, content])
 
+  const doSave = useCallback(async (newTitle: string, newContent: string) => {
+    setSaveStatus('saving')
+    const result = await updateWiki(wiki.id, { title: newTitle, content: newContent })
+    if (!result.error) {
+      setSaveStatus('saved')
+      onUpdate(wiki.id, newTitle, newContent)
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    } else {
+      setSaveStatus('error')
+      console.error('Failed to save wiki:', result.error)
+    }
+  }, [wiki.id, onUpdate])
+
   const scheduleSave = useCallback((newTitle: string, newContent: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     setSaveStatus('saving')
-    debounceRef.current = setTimeout(async () => {
-      const result = await updateWiki(wiki.id, { title: newTitle, content: newContent })
-      if (!result.error) {
-        setSaveStatus('saved')
-        onUpdate(wiki.id, newTitle, newContent)
-        setTimeout(() => setSaveStatus('idle'), 2000)
-      } else {
-        setSaveStatus('error')
-        console.error('Failed to save wiki:', result.error)
-      }
-    }, 800)
-  }, [wiki.id, onUpdate])
+    debounceRef.current = setTimeout(() => doSave(newTitle, newContent), 800)
+  }, [doSave])
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle)
@@ -118,7 +121,7 @@ export default function WikiBlock({ wiki, onUpdate, onTogglePublished, onDelete 
             type="button"
             onClick={() => {
               if (debounceRef.current) clearTimeout(debounceRef.current)
-              scheduleSave(title, content)
+              doSave(title, content)
             }}
             className="text-xs text-teal-primary hover:underline shrink-0"
           >

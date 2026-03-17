@@ -2162,11 +2162,12 @@ function SortableModule({
       style={style}
       className={`bg-surface rounded-2xl border border-border overflow-hidden transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
     >
-      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4 cursor-pointer select-none" onClick={onToggleExpand}>
         {!readOnly && (
           <button
             {...attributes}
             {...listeners}
+            onClick={(e) => e.stopPropagation()}
             className="hidden sm:block text-border hover:text-muted-text cursor-grab text-lg focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
             aria-label={`Drag module ${module.title}`}
             type="button"
@@ -2187,8 +2188,7 @@ function SortableModule({
           ) : (
             <div className="flex items-center gap-1.5 min-w-0">
               <h3
-                className="font-semibold text-dark-text truncate cursor-pointer hover:text-teal-primary transition-colors"
-                onClick={onToggleExpand}
+                className="font-semibold text-dark-text truncate"
               >
                 {module.title}
               </h3>
@@ -2262,7 +2262,7 @@ function SortableModule({
           </span>
         )}
         <button
-          onClick={onToggleExpand}
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
           className="text-muted-text hover:text-teal-primary text-sm px-3"
           aria-label={expanded ? "Collapse module" : "Expand module"}
           type="button"
@@ -2295,7 +2295,7 @@ function SortableModule({
         )}
         {!readOnly && (
           <button
-            onClick={() => onDelete(module.id, module.title)}
+            onClick={(e) => { e.stopPropagation(); onDelete(module.id, module.title); }}
             className="text-muted-text hover:text-red-400"
             aria-label={`Delete module ${module.title}`}
             type="button"
