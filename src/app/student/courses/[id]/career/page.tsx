@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -70,6 +70,18 @@ export default async function StudentCareerPage({
         })),
     }))
 
+  const moduleIds = modules.map(m => m.id)
+  const admin = createServiceSupabaseClient()
+  const { data: wikisData } = moduleIds.length > 0
+    ? await admin.from('wikis').select('id, title, content, module_id').in('module_id', moduleIds).eq('published', true).order('order', { ascending: true })
+    : { data: [] }
+  const wikis = (wikisData ?? []) as Array<{ id: string; title: string; content: string; module_id: string | null }>
+
+  const modulesWithWikis = modules.map(m => ({
+    ...m,
+    wikis: wikis.filter(w => w.module_id === m.id),
+  }))
+
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
@@ -95,7 +107,7 @@ export default async function StudentCareerPage({
 
             {modules.length > 0 ? (
               <CourseOutlineAccordion
-                modules={modules as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
+                modules={modulesWithWikis as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
                 courseId={id}
                 currentWeek={null}
                 todayName=""

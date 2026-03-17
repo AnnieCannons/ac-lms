@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -79,6 +79,18 @@ export default async function StudentLevelUpPage({
         })),
     }))
 
+  const moduleIds = modules.map(m => m.id)
+  const admin = createServiceSupabaseClient()
+  const { data: wikisData } = moduleIds.length > 0
+    ? await admin.from('wikis').select('id, title, content, module_id').in('module_id', moduleIds).eq('published', true).order('order', { ascending: true })
+    : { data: [] }
+  const wikis = (wikisData ?? []) as Array<{ id: string; title: string; content: string; module_id: string | null }>
+
+  const modulesWithWikis = modules.map(m => ({
+    ...m,
+    wikis: wikis.filter(w => w.module_id === m.id),
+  }))
+
   // Filter bonus assignments to this course and non-level_up modules
   type BonusAssignment = { id: string; title: string; due_date: string | null; skill_tags: string[] | null }
   const bonusAssignments: BonusAssignment[] = ((bonusAssignmentsRaw ?? []) as unknown as Array<{
@@ -118,7 +130,7 @@ export default async function StudentLevelUpPage({
               <div className="flex flex-col gap-10">
                 {modules.length > 0 && (
                   <LevelUpFilter
-                    modules={modules as Parameters<typeof LevelUpFilter>[0]['modules']}
+                    modules={modulesWithWikis as Parameters<typeof LevelUpFilter>[0]['modules']}
                     courseId={id}
                   />
                 )}
