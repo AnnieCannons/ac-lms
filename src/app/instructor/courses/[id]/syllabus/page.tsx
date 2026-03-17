@@ -25,6 +25,14 @@ export default async function InstructorSyllabusPage({
 
   if (!course) redirect("/instructor/courses");
 
+  function getCurrentWeek(startDate: string | null): number | null {
+    if (!startDate) return null
+    const diffMs = Date.now() - new Date(startDate).getTime()
+    if (diffMs < 0) return null
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
+  }
+  const currentWeek = getCurrentWeek(course.start_date ?? null)
+
   const { data: rawModules } = await supabase
     .from("modules")
     .select("*, module_days(*, deleted_at, assignments!module_day_id(*, deleted_at))")
@@ -63,7 +71,14 @@ export default async function InstructorSyllabusPage({
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>
-            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Course Outline</h2>
+            <div className="flex items-center gap-3 flex-wrap mt-6 mb-6">
+              <h2 className="text-xl font-bold text-dark-text">Course Outline</h2>
+              {currentWeek && (
+                <span className="text-sm font-semibold bg-purple-light text-purple-primary px-3 py-1 rounded-full">
+                  Week {currentWeek} this week
+                </span>
+              )}
+            </div>
 
             <CourseEditor course={course} initialModules={modules || []} filterCategory="syllabus" courseQuizzes={courseQuizzes} readOnly={isTa} />
           </main>
