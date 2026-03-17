@@ -5,6 +5,8 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import DeleteCourseButton from '@/components/ui/DeleteCourseButton'
 import DuplicateCourseButton from '@/components/ui/DuplicateCourseButton'
 import EditCourseDatesButton from '@/components/ui/EditCourseDatesButton'
+import ArchiveCourseButton from '@/components/ui/ArchiveCourseButton'
+import PastClassesSection from '@/components/ui/PastClassesSection'
 
 export default async function CoursesPage() {
   const supabase = await createServerSupabaseClient()
@@ -126,11 +128,14 @@ export default async function CoursesPage() {
     return Date.now() >= start && Date.now() <= end
   }
 
-  const courses = [...(rawCourses ?? [])].sort((a, b) => {
+  const allCourses = rawCourses ?? []
+  const archivedCourses = allCourses.filter(c => c.archived)
+  const activeCourses = [...allCourses.filter(c => !c.archived)].sort((a, b) => {
     const aC = isCurrentCourse(a.start_date, a.is_template, a.end_date) ? 0 : 1
     const bC = isCurrentCourse(b.start_date, b.is_template, b.end_date) ? 0 : 1
     return aC - bC
   })
+  const courses = activeCourses
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,7 +172,7 @@ export default async function CoursesPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <Link href={`/instructor/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
                     Manage →
                   </Link>
@@ -183,6 +188,11 @@ export default async function CoursesPage() {
                     courseStartDate={course.start_date ?? null}
                   />
                   <DeleteCourseButton courseId={course.id} courseName={course.name} />
+                  <ArchiveCourseButton
+                    courseId={course.id}
+                    courseName={course.name}
+                    endDate={course.end_date ?? null}
+                  />
                 </div>
               </div>
             ))}
@@ -198,6 +208,8 @@ export default async function CoursesPage() {
             </Link>
           </div>
         )}
+
+        <PastClassesSection courses={archivedCourses} />
       </main>
     </div>
   )

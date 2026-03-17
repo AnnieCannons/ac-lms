@@ -40,3 +40,43 @@ export async function updateCourseDates(
   if (error) return { error: error.message }
   return {}
 }
+
+export async function archiveCourse(
+  courseId: string,
+  archived: boolean,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+    return { error: 'Not authorized' }
+  }
+
+  if (profile?.role !== 'admin') {
+    const { data: enrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .maybeSingle()
+    if (enrollment?.role !== 'instructor') return { error: 'Not authorized' }
+  }
+
+  const { error } = await supabase
+    .from('courses')
+    .update({ archived })
+    .eq('id', courseId)
+
+  if (error) return { error: error.message }
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/instructor/courses')
+  return {}
+}
