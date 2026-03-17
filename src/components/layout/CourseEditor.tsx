@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { localDate, formatDueDate } from "@/lib/date-utils";
+import InlineDueDatePicker from "@/components/ui/InlineDueDatePicker";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -507,6 +508,7 @@ function AssignmentFullView({
   const [editDueDate, setEditDueDate] = useState(
     assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : ""
   );
+  const [viewDueDate, setViewDueDate] = useState(assignment?.due_date ?? null);
 
   // ── Checklist state ──
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
@@ -680,7 +682,7 @@ function AssignmentFullView({
             className="flex items-center gap-1.5 text-sm text-muted-text hover:text-dark-text transition-colors"
             type="button"
           >
-            ← Back to assignments
+            ← Back to Module
           </button>
           <div className="flex items-center gap-3">
             {view.mode === "view" && !editing && assignment && (
@@ -801,12 +803,16 @@ function AssignmentFullView({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-dark-text">{decodeHtml(assignment!.title)}</h1>
-                  <p className="text-sm text-muted-text mt-1">
-                    Due:{" "}
-                    {assignment!.due_date
-                      ? formatDueDate(assignment!.due_date, { weekday: "long", year: "numeric", month: "long", day: "numeric" })
-                      : "No due date"}
-                  </p>
+                  <div className="mt-1">
+                    <InlineDueDatePicker
+                      assignmentId={assignment!.id}
+                      dueDate={viewDueDate}
+                      onSaved={(d) => {
+                        setViewDueDate(d)
+                        onEdit(assignment!.id, { due_date: d })
+                      }}
+                    />
+                  </div>
                   {ctx && view.mode === "view" && (
                     <div className="flex items-center gap-2 mt-2">
                       <select
