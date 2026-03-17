@@ -42,7 +42,7 @@ export default async function MyWorkPage({
     .select('id')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .eq('role', 'student')
+    .in('role', ['student', 'ta'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')

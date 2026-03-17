@@ -50,7 +50,7 @@ export default async function StudentQuizzesPage({
       .select("id, role")
       .eq("user_id", user.id)
       .eq("course_id", id)
-      .in("role", ["student", "observer"])
+      .in("role", ["student", "observer", "ta"])
       .maybeSingle();
 
     if (!enrollment) redirect("/student/courses");

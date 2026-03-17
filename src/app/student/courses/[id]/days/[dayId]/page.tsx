@@ -50,7 +50,7 @@ export default async function StudentDayDetailPage({
     .select('id, role')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .in('role', ['student', 'observer'])
+    .in('role', ['student', 'observer', 'ta'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')
