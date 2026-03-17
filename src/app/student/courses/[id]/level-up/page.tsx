@@ -156,7 +156,7 @@ export default async function StudentLevelUpPage({
                               )}
                               {a.due_date && (
                                 <p className="text-xs text-muted-text mt-1.5">
-                                  Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                  Due {new Date(`${a.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                                 </p>
                               )}
                             </div>

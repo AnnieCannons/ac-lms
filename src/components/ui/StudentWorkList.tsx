@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { formatDueDate } from "@/lib/date-utils";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
@@ -75,13 +76,13 @@ export default function StudentWorkList({
         {filter === "all" ? (
           a.due_date && (
             <p className={`text-xs mt-0.5 ${a.isLate && !a.status && !a.grade ? "text-amber-600" : "text-muted-text"}`}>
-              Due {new Date(a.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              Due {formatDueDate(a.due_date, { month: "short", day: "numeric" })}
             </p>
           )
         ) : (
           <p className="text-xs mt-0.5 text-muted-text">
             {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ""}
-            {a.due_date && ` · Due ${new Date(a.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+            {a.due_date && ` · Due ${formatDueDate(a.due_date, { month: "short", day: "numeric" })}`}
           </p>
         )}
       </div>

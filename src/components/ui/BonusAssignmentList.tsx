@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { formatDueDate } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
 
 type BonusAssignment = {
@@ -65,7 +66,7 @@ export default function BonusAssignmentList({
                 )}
                 {a.due_date && (
                   <p className="text-xs text-muted-text mt-0.5">
-                    Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    Due {formatDueDate(a.due_date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 )}
               </div>

@@ -212,7 +212,7 @@ export default async function InstructorSubmissionsPage({
         </div>
         {assignment.due_date && (
           <p className="text-xs text-muted-text mt-1">
-            Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
+            Due {new Date(`${assignment.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
             })}
           </p>

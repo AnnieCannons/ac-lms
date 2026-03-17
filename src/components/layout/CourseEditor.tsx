@@ -337,7 +337,7 @@ function AssignmentCard({
           </p>
           <p className="text-xs text-muted-text">
             Due:{" "}
-            {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
+            {assignment.due_date ? new Date(`${assignment.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString() : "None"}
           </p>
         </button>
         {!readOnly && ctx && (
@@ -803,7 +803,7 @@ function AssignmentFullView({
                   <p className="text-sm text-muted-text mt-1">
                     Due:{" "}
                     {assignment!.due_date
-                      ? new Date(assignment!.due_date).toLocaleDateString("en-US", {
+                      ? new Date(`${assignment!.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", {
                           weekday: "long", year: "numeric", month: "long", day: "numeric",
                         })
                       : "No due date"}

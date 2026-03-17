@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { formatDueDate } from '@/lib/date-utils'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import WikiView from '@/components/ui/WikiView'
@@ -306,7 +307,7 @@ function DayModal({
                       )}
                       {a.due_date && (
                         <p className="text-xs text-muted-text mt-0.5">
-                          Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          Due {formatDueDate(a.due_date)}
                         </p>
                       )}
                     </div>

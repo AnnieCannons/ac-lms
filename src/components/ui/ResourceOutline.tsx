@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { formatDueDate, localDate } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import { trashResource } from '@/lib/trash-actions'
@@ -716,7 +717,7 @@ export default function ResourceOutline({
                                   </div>
                                   {a.due_date && (
                                     <p className="text-xs text-muted-text mt-0.5">
-                                      Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                      Due {formatDueDate(a.due_date)}
                                     </p>
                                   )}
                                 </div>
@@ -745,12 +746,12 @@ export default function ResourceOutline({
                                 <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
                                   {a.due_date && (() => {
-                                    const isPast = new Date(a.due_date) < new Date()
+                                    const isPast = localDate(a.due_date) < new Date()
                                     const info = submissionMap?.[a.id]
                                     const isResolved = info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
                                     return (
                                       <p className={`text-xs font-medium mt-0.5 ${isPast && !isResolved ? 'text-amber-600' : 'text-muted-text'}`}>
-                                        Due {new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                        Due {formatDueDate(a.due_date)}
                                       </p>
                                     )
                                   })()}

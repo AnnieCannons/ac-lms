@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { DayPicker } from 'react-day-picker'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import HtmlContent from './HtmlContent'
 import AssignmentEditor from './AssignmentEditor'
 import { updateAssignmentDueDate } from '@/lib/assignment-actions'
@@ -103,9 +103,11 @@ function InlineDueDatePicker({ assignmentId, dueDate, onSaved }: {
     setSaving(false)
   }
 
-  const selected = dueDate ? parseISO(dueDate) : undefined
-  const label = dueDate
-    ? `Due ${new Date(dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`
+  // Slice to YYYY-MM-DD then add T12:00:00 to treat as local noon, not UTC midnight
+  const dateStr = dueDate ? dueDate.slice(0, 10) : null
+  const selected = dateStr ? new Date(`${dateStr}T12:00:00`) : undefined
+  const label = dateStr
+    ? `Due ${new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`
     : 'Add due date'
 
   return (

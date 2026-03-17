@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { formatDueDate, localDate } from '@/lib/date-utils'
 import { saveGrade } from '@/lib/grade-actions'
 
 interface Assignment {
@@ -88,7 +89,7 @@ export default function CourseGradesView({
       for (const a of assignments) {
         const sub = subMap.get(`${student.id}-${a.id}`)
         if (!sub || sub.status === 'draft') {
-          if (a.due_date && new Date(a.due_date) < now) late.push(a)
+          if (a.due_date && localDate(a.due_date) < now) late.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)
         } else if (sub.status === 'graded') {
@@ -307,9 +308,7 @@ function SpeedGrader({
                         <span>{assignment.moduleTitle}</span>
                         {assignment.due_date && (
                           <span>
-                            · Due {new Date(assignment.due_date).toLocaleDateString('en-US', {
-                              month: 'short', day: 'numeric', year: 'numeric',
-                            })}
+                            · Due {formatDueDate(assignment.due_date, { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         )}
                       </div>
@@ -452,9 +451,7 @@ function AssignmentsTab({
                       <div className="flex items-center gap-4 text-xs text-muted-text flex-wrap">
                         {a.due_date && (
                           <span>
-                            Due {new Date(a.due_date).toLocaleDateString('en-US', {
-                              month: 'short', day: 'numeric', year: 'numeric',
-                            })}
+                            Due {formatDueDate(a.due_date, { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         )}
                         {stats ? (
