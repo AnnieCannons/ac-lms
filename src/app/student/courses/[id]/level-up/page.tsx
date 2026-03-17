@@ -6,6 +6,7 @@ import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import LevelUpFilter from '@/components/ui/LevelUpFilter'
 import { isStudentPreview } from '@/lib/student-preview'
+import { formatDueDate } from '@/lib/date-utils'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
 export default async function StudentLevelUpPage({
@@ -156,7 +157,7 @@ export default async function StudentLevelUpPage({
                               )}
                               {a.due_date && (
                                 <p className="text-xs text-muted-text mt-1.5">
-                                  Due {new Date(`${a.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                  Due {formatDueDate(a.due_date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                                 </p>
                               )}
                             </div>

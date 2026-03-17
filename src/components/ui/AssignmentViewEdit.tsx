@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import HtmlContent from './HtmlContent'
 import AssignmentEditor from './AssignmentEditor'
 import { updateAssignmentDueDate } from '@/lib/assignment-actions'
+import { localDate, formatDueDate } from '@/lib/date-utils'
 
 interface ChecklistItem {
   id: string
@@ -103,11 +104,9 @@ function InlineDueDatePicker({ assignmentId, dueDate, onSaved }: {
     setSaving(false)
   }
 
-  // Slice to YYYY-MM-DD then add T12:00:00 to treat as local noon, not UTC midnight
-  const dateStr = dueDate ? dueDate.slice(0, 10) : null
-  const selected = dateStr ? new Date(`${dateStr}T12:00:00`) : undefined
-  const label = dateStr
-    ? `Due ${new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`
+  const selected = dueDate ? localDate(dueDate) : undefined
+  const label = dueDate
+    ? `Due ${formatDueDate(dueDate, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`
     : 'Add due date'
 
   return (
@@ -226,7 +225,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
       {/* Header row */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          <h1 className="text-2xl font-bold text-dark-text">{decodeHtml(assignment.title)}</h1>
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${assignment.published ? 'border-teal-primary text-teal-primary' : 'border-border text-muted-text'}`}>
               {assignment.published ? '● Published' : '○ Draft'}

@@ -6,6 +6,7 @@ import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsLis
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { formatDueDate } from '@/lib/date-utils'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -212,9 +213,7 @@ export default async function InstructorSubmissionsPage({
         </div>
         {assignment.due_date && (
           <p className="text-xs text-muted-text mt-1">
-            Due {new Date(`${assignment.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', {
-              weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-            })}
+            Due {formatDueDate(assignment.due_date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         )}
         <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />

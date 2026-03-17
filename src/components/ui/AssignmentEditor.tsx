@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatDueDate } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from './RichTextEditor'
 import Link from 'next/link'
@@ -761,7 +762,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
                   {o.excused ? (
                     <span className="badge-amber text-xs font-medium border rounded-full px-2 py-0.5">Excused</span>
                   ) : o.due_date ? (
-                    <span className="text-xs text-muted-text">Due {new Date(o.due_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    <span className="text-xs text-muted-text">Due {formatDueDate(o.due_date)}</span>
                   ) : (
                     <span className="text-xs text-muted-text">No due date</span>
                   )}
