@@ -4,7 +4,7 @@ import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import HtmlContent from '@/components/ui/HtmlContent'
 import SubmissionForm from '@/components/ui/SubmissionForm'
-import SubmissionComments, { type CommentEntry } from '@/components/ui/SubmissionComments'
+import { type CommentEntry } from '@/components/ui/SubmissionComments'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
@@ -286,6 +286,9 @@ export default async function StudentAssignmentPage({
               initialChecked={initialChecked}
               isObserver={isObserver}
               isStudentPreview={preview}
+              initialComments={initialComments}
+              currentUserName={profile?.name ?? 'Student'}
+              currentUserRole={profile?.role ?? 'student'}
             />
           ) : (
             <div className="bg-surface rounded-2xl border border-border p-6">
@@ -334,19 +337,6 @@ export default async function StudentAssignmentPage({
             </div>
           )}
 
-          {/* Comments (only shown once there's a submission) */}
-          {existingSubmission && (
-            <div id="comments">
-              <SubmissionComments
-                submissionId={existingSubmission.id}
-                initialComments={initialComments}
-                currentUserId={user.id}
-                currentUserName={profile?.name ?? 'Student'}
-                currentUserRole={profile?.role ?? 'student'}
-                isObserver={isObserver}
-              />
-            </div>
-          )}
         </div>
       </main>
         </div>

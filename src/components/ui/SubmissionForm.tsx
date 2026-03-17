@@ -7,6 +7,7 @@ import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
 import { saveStudentComment } from "@/lib/grade-actions";
+import SubmissionComments, { type CommentEntry } from "@/components/ui/SubmissionComments";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 
@@ -55,6 +56,9 @@ export default function SubmissionForm({
   initialChecked,
   isObserver,
   isStudentPreview,
+  initialComments = [],
+  currentUserName = 'Student',
+  currentUserRole = 'student',
 }: {
   assignmentId: string;
   studentId: string;
@@ -65,6 +69,9 @@ export default function SubmissionForm({
   initialChecked?: Record<string, boolean>;
   isObserver?: boolean;
   isStudentPreview?: boolean;
+  initialComments?: CommentEntry[];
+  currentUserName?: string;
+  currentUserRole?: string;
 }) {
   const supabase = createClient();
 
@@ -578,6 +585,19 @@ export default function SubmissionForm({
         </>
       )}
     </div>
+
+    {/* Comments — always visible once there's a submission */}
+    {saved && (
+      <SubmissionComments
+        key={saved.id}
+        submissionId={saved.id}
+        initialComments={initialComments}
+        currentUserId={studentId}
+        currentUserName={currentUserName}
+        currentUserRole={currentUserRole}
+        isObserver={isObserver}
+      />
+    )}
     </>
   );
 }
