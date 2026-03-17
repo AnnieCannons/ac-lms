@@ -7,6 +7,7 @@ import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import DayResourceList from '@/components/ui/DayResourceList'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import WikiView from '@/components/ui/WikiView'
 
 function stripHtml(html: string): string {
   return html
@@ -70,10 +71,12 @@ export default async function StudentDayDetailPage({
 
   if (!day) redirect(`/student/courses/${id}`)
 
-  const [{ data: resources }, { data: stars }, { data: completions }] = await Promise.all([
+  const admin2 = createServiceSupabaseClient()
+  const [{ data: resources }, { data: stars }, { data: completions }, { data: dayWikis }] = await Promise.all([
     supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).order('order', { ascending: true }),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+    admin2.from('wikis').select('id, title, content').eq('module_day_id', dayId).eq('published', true).order('order', { ascending: true }),
   ])
 
   const starredIds = (stars ?? []).map(s => s.resource_id)
@@ -170,6 +173,18 @@ export default async function StudentDayDetailPage({
         )}
 
         <div className="flex flex-col gap-8">
+          {/* Wikis */}
+          {dayWikis && dayWikis.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Wikis</h3>
+              <div className="flex flex-col gap-2">
+                {dayWikis.map(wiki => (
+                  <WikiView key={wiki.id} wiki={wiki} />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Resources */}
           <section>
             <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Resources</h3>

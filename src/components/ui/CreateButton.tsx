@@ -5,8 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import Modal from './Modal'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { parseQuizText } from '@/lib/quiz-parser'
+import { createWiki } from '@/lib/wiki-actions'
 
-type CreateType = 'assignment' | 'resource' | 'quiz'
+type CreateType = 'assignment' | 'resource' | 'quiz' | 'wiki'
 type SectionType = 'coding' | 'career' | 'level_up'
 type ResourceType = 'video' | 'reading' | 'link' | 'file'
 type Day = { id: string; day_name: string; order: number }
@@ -71,6 +72,9 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   // Quiz fields
   const [quizTitle, setQuizTitle] = useState('')
   const [quizText, setQuizText] = useState('')
+
+  // Wiki fields
+  const [wikiTitle, setWikiTitle] = useState('')
 
   // Cross-post (career dev only)
   const [crossPost, setCrossPost] = useState(false)
@@ -150,6 +154,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
       setResUrl('')
       setQuizTitle('')
       setQuizText('')
+      setWikiTitle('')
       setCrossPost(false)
       setCrossModuleId('')
       setCrossDayId('')
@@ -182,6 +187,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     setResUrl('')
     setQuizTitle('')
     setQuizText('')
+    setWikiTitle('')
     setCrossPost(false)
     setCrossModuleId('')
     setCrossDayId('')
@@ -295,10 +301,29 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         setCreating(false)
         setError(e instanceof Error ? e.message : 'Failed to create quiz')
       }
+    } else if (createType === 'wiki') {
+      const title = wikiTitle.trim() || 'New Wiki'
+      try {
+        const wikiParams: { moduleId?: string; moduleDayId?: string; title: string } = { title }
+        if (dayId) {
+          wikiParams.moduleDayId = dayId
+        } else {
+          wikiParams.moduleId = resolvedModuleId
+        }
+        const result = await createWiki(wikiParams)
+        setCreating(false)
+        if (result.error) { setError(result.error); return }
+        setOpen(false)
+        router.refresh()
+      } catch (e) {
+        setCreating(false)
+        setError(e instanceof Error ? e.message : 'Failed to create wiki')
+      }
     }
   }
 
-  const isValid = (!!moduleId || !!newModuleTitle.trim()) && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId)
+  const hasModule = !!moduleId || !!newModuleTitle.trim()
+  const isValid = hasModule && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId)
 
   return (
     <>
@@ -336,8 +361,8 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
             {/* Type selector */}
             <div>
               <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">What would you like to create?</label>
-              <div className="flex gap-2">
-                {(['assignment', 'resource', 'quiz'] as CreateType[]).map(t => (
+              <div className="flex gap-2 flex-wrap">
+                {(['assignment', 'resource', 'quiz', 'wiki'] as CreateType[]).map(t => (
                   <button
                     key={t}
                     type="button"
@@ -348,7 +373,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                         : 'border-border text-muted-text hover:text-dark-text hover:border-dark-text/40'
                     }`}
                   >
-                    {t === 'assignment' ? 'Assignment' : t === 'resource' ? 'Resource' : 'Quiz'}
+                    {t === 'assignment' ? 'Assignment' : t === 'resource' ? 'Resource' : t === 'quiz' ? 'Quiz' : 'Wiki'}
                   </button>
                 ))}
               </div>
@@ -633,6 +658,21 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
               </>
             )}
 
+            {/* Wiki-specific fields */}
+            {createType === 'wiki' && (
+              <div>
+                <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Wiki Title</label>
+                <input
+                  type="text"
+                  value={wikiTitle}
+                  onChange={e => setWikiTitle(e.target.value)}
+                  placeholder="New Wiki"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
+                <p className="text-xs text-muted-text mt-1">The wiki will be created inline in the course editor where you can edit the content.</p>
+              </div>
+            )}
+
             {/* Quiz-specific fields */}
             {createType === 'quiz' && (
               <>
@@ -674,7 +714,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
               disabled={!isValid || creating}
               className="text-sm font-semibold bg-teal-primary text-white px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {creating ? 'Creating…' : createType === 'assignment' ? 'Create & Edit →' : 'Create →'}
+              {creating ? 'Creating…' : createType === 'assignment' ? 'Create & Edit →' : createType === 'wiki' ? 'Create Wiki →' : 'Create →'}
             </button>
           </div>
         </Modal>

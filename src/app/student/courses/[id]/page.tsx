@@ -87,7 +87,9 @@ export default async function StudentCourseDetailPage({
   const dayIds = modules.flatMap(m => (m.module_days ?? []).map((d: { id: string }) => d.id))
 
   const admin = createServiceSupabaseClient()
-  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }] = await Promise.all([
+  const moduleIds = modules.map(m => m.id)
+
+  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }, { data: moduleWikisData }] = await Promise.all([
     supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
@@ -98,6 +100,9 @@ export default async function StudentCourseDetailPage({
     dayIds.length > 0
       ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
+    moduleIds.length > 0
+      ? admin.from('wikis').select('id, title, content, module_id').in('module_id', moduleIds).eq('published', true).order('order', { ascending: true })
+      : Promise.resolve({ data: [] }),
   ])
 
   type CourseQuiz = { id: string; title: string; module_title: string; day_title: string | null; linked_day_id: string | null; max_attempts: number | null; due_at: string | null; questions: unknown[] }
@@ -107,9 +112,13 @@ export default async function StudentCourseDetailPage({
   const crossAssignmentsArr = (crossAssignments ?? []) as Array<{ id: string; title: string; due_date: string | null; published: boolean; module_day_id: string; linked_day_id: string | null }>
   const crossResourcesArr = (crossResources ?? []) as Array<{ id: string; type: string; title: string; content: string | null; description: string | null; order: number; linked_day_id: string | null }>
 
-  // Build a mutable copy of modules to inject cross-posted data
+  type ModuleWikiRow = { id: string; title: string; content: string; module_id: string | null }
+  const moduleWikis = (moduleWikisData ?? []) as ModuleWikiRow[]
+
+  // Build a mutable copy of modules to inject cross-posted data and wikis
   const modulesWithCross = modules.map(m => ({
     ...m,
+    wikis: moduleWikis.filter(w => w.module_id === m.id),
     module_days: (m.module_days ?? []).map((d: { id: string; day_name: string; order: number; assignments?: unknown[]; resources?: unknown[] }) => {
       const extraAssignments = crossAssignmentsArr
         .filter(a => a.linked_day_id === d.id)

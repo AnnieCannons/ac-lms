@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
+import WikiView from '@/components/ui/WikiView'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -125,12 +126,19 @@ interface Day {
   resources: Resource[]
 }
 
+interface WikiItem {
+  id: string
+  title: string
+  content: string
+}
+
 interface Module {
   id: string
   title: string
   week_number: number | null
   order: number
   module_days: Day[]
+  wikis?: WikiItem[]
 }
 
 type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
@@ -569,6 +577,14 @@ export default function CourseOutlineAccordion({
                 </div>
                 <span className={`text-xs text-muted-text transition-transform duration-150 shrink-0 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
               </button>
+
+              {!moduleCollapsed && (module.wikis ?? []).length > 0 && (
+                <div className="flex flex-col gap-2 px-6 pb-2">
+                  {(module.wikis ?? []).map(wiki => (
+                    <WikiView key={wiki.id} wiki={wiki} />
+                  ))}
+                </div>
+              )}
 
               {!moduleCollapsed && sortedDays.length > 0 && (
                 <div className="flex flex-col gap-2 px-6 pb-6">

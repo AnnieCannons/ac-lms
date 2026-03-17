@@ -35,6 +35,8 @@ import { trashAssignment, trashResource, trashModule, trashDay } from "@/lib/tra
 import HtmlContent from "@/components/ui/HtmlContent";
 import CreateButton from "@/components/ui/CreateButton";
 import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup, DuplicateQuizPopup, DuplicateIcon, type DuplicatedAssignment, type DuplicatedModule, type DuplicatedResource, type DuplicatedQuiz } from "@/components/ui/DuplicatePopup";
+import WikiBlock from "@/components/ui/WikiBlock";
+import { createWiki } from "@/lib/wiki-actions";
 
 
 type Assignment = {
@@ -161,6 +163,16 @@ type QuizEntry = {
   linked_day_id?: string | null;
 };
 
+type Wiki = {
+  id: string;
+  title: string;
+  content: string;
+  published: boolean;
+  order: number;
+  module_id: string | null;
+  module_day_id: string | null;
+};
+
 type Day = {
   id: string;
   day_name: string;
@@ -168,6 +180,7 @@ type Day = {
   module_id: string;
   assignments?: Assignment[];
   resources?: Resource[];
+  wikis?: Wiki[];
 };
 
 type Module = {
@@ -179,6 +192,7 @@ type Module = {
   category: string | null;
   published: boolean;
   module_days: Day[];
+  wikis?: Wiki[];
 };
 
 const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -1464,6 +1478,10 @@ function SortableDay({
   courseId,
   quizzesForDay,
   forceOpen,
+  onWikiCreated,
+  onWikiUpdated,
+  onWikiPublishToggled,
+  onWikiDeleted,
 }: {
   day: Day;
   weekNumber: number | null;
@@ -1477,6 +1495,10 @@ function SortableDay({
   courseId: string;
   quizzesForDay: QuizEntry[];
   forceOpen?: number;
+  onWikiCreated: (wiki: Wiki) => void;
+  onWikiUpdated: (wikiId: string, title: string, content: string) => void;
+  onWikiPublishToggled: (wikiId: string, published: boolean) => void;
+  onWikiDeleted: (wikiId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1709,6 +1731,33 @@ function SortableDay({
           id={`day-panel-${day.id}`}
           className="px-4 sm:px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
         >
+          {/* Day Wikis */}
+          {((day.wikis ?? []).length > 0 || !readOnly) && (
+            <div className="flex flex-col gap-2">
+              {(day.wikis ?? []).map(wiki => (
+                <WikiBlock
+                  key={wiki.id}
+                  wiki={wiki}
+                  onUpdate={onWikiUpdated}
+                  onTogglePublished={onWikiPublishToggled}
+                  onDelete={onWikiDeleted}
+                />
+              ))}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const result = await createWiki({ moduleDayId: day.id, title: 'New Wiki' })
+                    if (result.data) onWikiCreated(result.data)
+                  }}
+                  className="text-xs text-teal-primary hover:underline text-left"
+                >
+                  + Add Wiki
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Resources — only show if there are resources, or this is a resource-focused day */}
           {(() => {
               const nativeResources = resources.filter(r => r.module_day_id === day.id);
@@ -2018,6 +2067,10 @@ function SortableModule({
   isDraggingOverlay = false,
   allQuizzes,
   expandDays,
+  onWikiCreated,
+  onWikiUpdated,
+  onWikiPublishToggled,
+  onWikiDeleted,
 }: {
   module: Module;
   courseId: string;
@@ -2040,6 +2093,10 @@ function SortableModule({
   isDraggingOverlay?: boolean;
   allQuizzes: QuizEntry[];
   expandDays?: number;
+  onWikiCreated: (wiki: Wiki) => void;
+  onWikiUpdated: (wikiId: string, title: string, content: string) => void;
+  onWikiPublishToggled: (wikiId: string, published: boolean) => void;
+  onWikiDeleted: (wikiId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -2249,6 +2306,33 @@ function SortableModule({
 
       {expanded && (
         <div className="px-6 pb-4 flex flex-col gap-2 border-t border-border pt-4">
+          {/* Module-level wikis */}
+          {((module.wikis ?? []).length > 0 || !readOnly) && (
+            <div className="flex flex-col gap-2 mb-2">
+              {(module.wikis ?? []).map(wiki => (
+                <WikiBlock
+                  key={wiki.id}
+                  wiki={wiki}
+                  onUpdate={onWikiUpdated}
+                  onTogglePublished={onWikiPublishToggled}
+                  onDelete={onWikiDeleted}
+                />
+              ))}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const result = await createWiki({ moduleId: module.id, title: 'New Wiki' })
+                    if (result.data) onWikiCreated(result.data)
+                  }}
+                  className="text-xs text-teal-primary hover:underline text-left"
+                >
+                  + Add Wiki
+                </button>
+              )}
+            </div>
+          )}
+
           <SortableContext
             items={[...module.module_days]
               .sort((a, b) => a.order - b.order)
@@ -2271,6 +2355,10 @@ function SortableModule({
                   onDuplicatedAssignment={onDuplicatedAssignment}
                   courseId={courseId}
                   forceOpen={expandDays}
+                  onWikiCreated={onWikiCreated}
+                  onWikiUpdated={onWikiUpdated}
+                  onWikiPublishToggled={onWikiPublishToggled}
+                  onWikiDeleted={onWikiDeleted}
                   quizzesForDay={allQuizzes.filter(q => {
                     if (q.linked_day_id === day.id) return true;
                     if (q.day_title?.trim() !== day.day_name?.trim()) return false;
@@ -3193,6 +3281,58 @@ export default function CourseEditor({
     setModules((prev) => [...prev, newModule as unknown as Module]);
   };
 
+  // ── Wiki state management ──────────────────────────────────────────────────
+
+  const handleWikiCreated = (wiki: Wiki) => {
+    setModules(prev => prev.map(m => {
+      // Module-level wiki
+      if (wiki.module_id === m.id) {
+        return { ...m, wikis: [...(m.wikis ?? []), wiki] };
+      }
+      // Day-level wiki
+      const updatedDays = m.module_days.map(d => {
+        if (wiki.module_day_id === d.id) {
+          return { ...d, wikis: [...(d.wikis ?? []), wiki] };
+        }
+        return d;
+      });
+      return { ...m, module_days: updatedDays };
+    }));
+  };
+
+  const handleWikiUpdated = (wikiId: string, title: string, content: string) => {
+    setModules(prev => prev.map(m => ({
+      ...m,
+      wikis: (m.wikis ?? []).map(w => w.id === wikiId ? { ...w, title, content } : w),
+      module_days: m.module_days.map(d => ({
+        ...d,
+        wikis: (d.wikis ?? []).map(w => w.id === wikiId ? { ...w, title, content } : w),
+      })),
+    })));
+  };
+
+  const handleWikiPublishToggled = (wikiId: string, published: boolean) => {
+    setModules(prev => prev.map(m => ({
+      ...m,
+      wikis: (m.wikis ?? []).map(w => w.id === wikiId ? { ...w, published } : w),
+      module_days: m.module_days.map(d => ({
+        ...d,
+        wikis: (d.wikis ?? []).map(w => w.id === wikiId ? { ...w, published } : w),
+      })),
+    })));
+  };
+
+  const handleWikiDeleted = (wikiId: string) => {
+    setModules(prev => prev.map(m => ({
+      ...m,
+      wikis: (m.wikis ?? []).filter(w => w.id !== wikiId),
+      module_days: m.module_days.map(d => ({
+        ...d,
+        wikis: (d.wikis ?? []).filter(w => w.id !== wikiId),
+      })),
+    })));
+  };
+
   const updateAssignment = async (
     assignmentId: string,
     updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>
@@ -3411,6 +3551,10 @@ export default function CourseEditor({
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
                   allQuizzes={courseQuizzes}
                   expandDays={expandDaysTriggers[module.id]}
+                  onWikiCreated={handleWikiCreated}
+                  onWikiUpdated={handleWikiUpdated}
+                  onWikiPublishToggled={handleWikiPublishToggled}
+                  onWikiDeleted={handleWikiDeleted}
                 />
               ))}
             </SortableContext>
