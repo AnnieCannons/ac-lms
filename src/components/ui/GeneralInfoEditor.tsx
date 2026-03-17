@@ -581,6 +581,7 @@ export default function GeneralInfoEditor({ courseId, initialSections, readOnly 
   const [newTitle, setNewTitle] = useState('')
   const [addSaving, setAddSaving] = useState(false)
   const [addError, setAddError] = useState('')
+  const [globalTemplates, setGlobalTemplates] = useState<{ slug: string; title: string }[]>([])
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
 
   const toggleCollapse = (id: string) => setCollapsedSections(prev => {
@@ -605,6 +606,12 @@ export default function GeneralInfoEditor({ courseId, initialSections, readOnly 
     await Promise.all(reordered.map(s => supabase.from('course_sections').update({ order: s.order }).eq('id', s.id)))
   }
 
+  const openAdd = async () => {
+    setAdding(true)
+    const { data } = await supabase.from('global_content').select('slug, title').order('title')
+    setGlobalTemplates(data ?? [])
+  }
+
   const addSection = async () => {
     if (!newTitle.trim()) return
     setAddSaving(true)
@@ -616,6 +623,18 @@ export default function GeneralInfoEditor({ courseId, initialSections, readOnly 
     setAddSaving(false)
     if (error) { setAddError(error.message); return }
     if (data) { setSections(prev => [...prev, data as CourseSection]); setNewTitle(''); setAdding(false) }
+  }
+
+  const addGlobalSection = async (slug: string, title: string) => {
+    setAddSaving(true)
+    setAddError('')
+    const { data, error } = await supabase
+      .from('course_sections')
+      .insert({ course_id: courseId, title, content: null, order: sections.length, type: `global:${slug}`, published: false })
+      .select().single()
+    setAddSaving(false)
+    if (error) { setAddError(error.message); return }
+    if (data) { setSections(prev => [...prev, data as CourseSection]); setAdding(false) }
   }
 
   const updateSection = async (id: string, updates: Partial<CourseSection>) => {
@@ -674,16 +693,44 @@ export default function GeneralInfoEditor({ courseId, initialSections, readOnly 
       )}
 
       {!readOnly && (adding ? (
-        <div className="bg-surface rounded-2xl border border-border p-5 flex flex-col gap-3">
-          <input
-            type="text"
-            placeholder="Section title (e.g. Additional Resources…)"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            autoFocus
-            onKeyDown={e => { if (e.key === 'Enter') addSection() }}
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-          />
+        <div className="bg-surface rounded-2xl border border-border p-5 flex flex-col gap-4">
+          {/* Global templates */}
+          {globalTemplates.filter(t => !sections.some(s => s.type === `global:${t.slug}`)).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Add from global template</p>
+              <div className="flex flex-col gap-1">
+                {globalTemplates
+                  .filter(t => !sections.some(s => s.type === `global:${t.slug}`))
+                  .map(t => (
+                    <button
+                      key={t.slug}
+                      type="button"
+                      onClick={() => addGlobalSection(t.slug, t.title)}
+                      disabled={addSaving}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg border border-border hover:border-teal-primary hover:bg-teal-light/20 transition-colors text-sm text-dark-text text-left disabled:opacity-50"
+                    >
+                      <span>{t.title}</span>
+                      <span className="text-xs text-teal-primary shrink-0">+ Add</span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* New blank section */}
+          <div>
+            <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">New blank section</p>
+            <input
+              type="text"
+              placeholder="Section title (e.g. Additional Resources…)"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') addSection() }}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+          </div>
+
           <div className="flex items-center gap-3">
             <button onClick={addSection} disabled={!newTitle.trim() || addSaving} className="bg-teal-primary text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity">
               {addSaving ? 'Adding…' : 'Add section'}
@@ -693,7 +740,7 @@ export default function GeneralInfoEditor({ courseId, initialSections, readOnly 
           {addError && <p className="text-xs text-red-500">{addError}</p>}
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} className="flex items-center gap-2 text-sm text-teal-primary font-medium hover:underline py-1 self-start">
+        <button onClick={openAdd} className="flex items-center gap-2 text-sm text-teal-primary font-medium hover:underline py-1 self-start">
           + Add section
         </button>
       ))}
