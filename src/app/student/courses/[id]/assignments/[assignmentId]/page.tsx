@@ -9,6 +9,7 @@ import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
+import { localDate, formatDueDate } from '@/lib/date-utils'
 
 export default async function StudentAssignmentPage({
   params,
@@ -208,7 +209,7 @@ export default async function StudentAssignmentPage({
               Needs Revision
             </span>
           )}
-          {!isExcused && !existingSubmission && effectiveDueDate && new Date(effectiveDueDate) < new Date() && (
+          {!isExcused && !existingSubmission && effectiveDueDate && localDate(effectiveDueDate) < new Date() && (
             <span className="status-late-badge shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Late
             </span>
@@ -224,7 +225,7 @@ export default async function StudentAssignmentPage({
             <p className="text-muted-text text-sm">{module.title}</p>
           )}
           {effectiveDueDate && (() => {
-            const isPast = new Date(effectiveDueDate) < new Date()
+            const isPast = localDate(effectiveDueDate) < new Date()
             const isResolved = existingSubmission?.grade === 'complete' || existingSubmission?.grade === 'incomplete' || existingSubmission?.status === 'submitted'
             return (
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border ${
@@ -235,9 +236,7 @@ export default async function StudentAssignmentPage({
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                Due {new Date(effectiveDueDate).toLocaleDateString('en-US', {
-                  weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-                })}
+                Due {formatDueDate(effectiveDueDate, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
             )
           })()}

@@ -106,6 +106,8 @@ export default function SubmissionForm({
   const [studentComment, setStudentComment] = useState(existingSubmission?.student_comment ?? '');
   const [savingComment, setSavingComment] = useState(false);
   const [commentSaved, setCommentSaved] = useState(false);
+  const [pendingComment, setPendingComment] = useState('');
+  const [extraComments, setExtraComments] = useState<CommentEntry[]>([]);
 
   const saveComment = async (comment: string) => {
     if (isStudentPreview || !saved) return;
@@ -147,15 +149,15 @@ export default function SubmissionForm({
     setMode("edit")
   };
 
-  const doSave = async (status: "draft" | "submitted", content: string, type: SubmissionType) => {
-    if (isStudentPreview) return false;
+  const doSave = async (status: "draft" | "submitted", content: string, type: SubmissionType): Promise<Submission | null> => {
+    if (isStudentPreview) return null;
     if (!content) {
       setError("Please enter your submission before saving.");
-      return false;
+      return null;
     }
     if (type === "link" && !content.startsWith("http")) {
       setError("Please enter a valid URL starting with http:// or https://");
-      return false;
+      return null;
     }
 
     setError(null);
@@ -192,7 +194,7 @@ export default function SubmissionForm({
 
     if (result.error) {
       setError(`Failed to save: ${result.error.message}`);
-      return false;
+      return null;
     }
 
     const newSaved = result.data as Submission;
@@ -217,13 +219,32 @@ export default function SubmissionForm({
       }
     }
 
-    return true;
+    return newSaved;
   };
 
   const handleSubmit = async () => {
     const content = getContent();
-    const ok = await doSave("submitted", content, tab);
-    if (ok) {
+    const newSaved = await doSave("submitted", content, tab);
+    if (newSaved) {
+      // Send any comment the student wrote before submitting
+      if (pendingComment.trim()) {
+        const { data } = await supabase
+          .from('submission_comments')
+          .insert({ submission_id: newSaved.id, author_id: studentId, content: pendingComment.trim() })
+          .select('id, created_at')
+          .single()
+        if (data) {
+          setExtraComments([{
+            id: data.id,
+            content: pendingComment.trim(),
+            created_at: data.created_at,
+            author_id: studentId,
+            author_name: currentUserName,
+            author_role: currentUserRole,
+          }])
+        }
+        setPendingComment('')
+      }
       clearForm();
       setMode("view");
     }
@@ -231,8 +252,8 @@ export default function SubmissionForm({
 
   const handleDraft = async () => {
     const content = getContent();
-    const ok = await doSave("draft", content, tab);
-    if (ok) {
+    const result = await doSave("draft", content, tab);
+    if (result) {
       clearForm();
       setMode("view");
     }
@@ -240,8 +261,8 @@ export default function SubmissionForm({
 
   const handleResubmitSame = async () => {
     if (!saved?.content || !saved?.submission_type) return;
-    const ok = await doSave("submitted", saved.content, saved.submission_type);
-    if (ok) setMode("view");
+    const result = await doSave("submitted", saved.content, saved.submission_type);
+    if (result) setMode("view");
   };
 
   const handleResubmitNew = () => {
@@ -586,12 +607,26 @@ export default function SubmissionForm({
       )}
     </div>
 
-    {/* Comments — always visible once there's a submission */}
+    {/* Comment box — visible in edit mode (before submission) and view mode */}
+    {!saved && !isObserver && mode === 'edit' && (
+      <div className="bg-surface rounded-2xl border border-border p-6">
+        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-4">Comments</p>
+        <textarea
+          value={pendingComment}
+          onChange={e => setPendingComment(e.target.value)}
+          placeholder="Add a comment for your instructor… (sent when you submit)"
+          rows={3}
+          className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+        />
+      </div>
+    )}
+
+    {/* Comments — visible after submission */}
     {saved && (
       <SubmissionComments
         key={saved.id}
         submissionId={saved.id}
-        initialComments={initialComments}
+        initialComments={[...extraComments, ...initialComments]}
         currentUserId={studentId}
         currentUserName={currentUserName}
         currentUserRole={currentUserRole}
