@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import FocusResetter from "@/components/ui/FocusResetter"
 import ThemeSync from "@/components/ui/ThemeSync";
+import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
+        <NextTopLoader color="var(--color-teal-primary)" showSpinner={false} />
         <FocusResetter />
         <ThemeSync />
         {children}
