@@ -80,19 +80,29 @@ function popoverCoords(rect: DOMRect, width: number, estimatedHeight: number): {
   return { top, left }
 }
 
+function isCameraOffActive(acc: Accommodation | null): boolean {
+  if (!acc?.cameraOff) return false
+  if (!acc.cameraOffEnd) return true
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return new Date(acc.cameraOffEnd) >= today
+}
+
 function CameraDatePopover({
-  start, end, onClose, onSave, fixedPos,
+  start, end, onClose, onSave, onRemove, fixedPos,
 }: {
   start: string | null
   end: string | null
   onClose: () => void
   onSave: (start: string, end: string) => Promise<void>
+  onRemove?: () => Promise<void>
   fixedPos: { top: number; left: number }
 }) {
   const [editStart, setEditStart] = useState(start ?? '')
   const [editEnd, setEditEnd] = useState(end ?? '')
   const noDatesSet = !start && !end
   const [saving, setSaving] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   useClickOutside(ref, onClose)
@@ -106,6 +116,18 @@ function CameraDatePopover({
       setError('Failed to save.')
     }
     setSaving(false)
+  }
+
+  const handleRemove = async () => {
+    if (!onRemove) return
+    setRemoving(true)
+    setError(null)
+    try {
+      await onRemove()
+    } catch {
+      setError('Failed to remove.')
+    }
+    setRemoving(false)
   }
 
   return createPortal(
@@ -142,14 +164,25 @@ function CameraDatePopover({
       <div className="flex items-center justify-between">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || removing}
           className="text-xs font-semibold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {saving ? 'Saving…' : 'Save dates'}
         </button>
-        <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
-          Cancel
-        </button>
+        <div className="flex items-center gap-3">
+          {onRemove && (
+            <button
+              onClick={handleRemove}
+              disabled={saving || removing}
+              className="text-xs text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+            >
+              {removing ? 'Removing…' : 'Remove'}
+            </button>
+          )}
+          <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>,
     document.body
@@ -267,7 +300,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
   const addBtnRectRef = useRef<DOMRect | null>(null)
 
   const hasAnyAccommodation = (s: Student) =>
-    s.accommodation?.cameraOff || s.accommodation?.notes
+    isCameraOffActive(s.accommodation) || s.accommodation?.notes
 
   const activeStudents = students.filter(s => s.enrollmentRole !== 'observer')
   const observers = students.filter(s => s.enrollmentRole === 'observer')
@@ -290,13 +323,13 @@ export default function RosterView({ courses, currentCourseId, students }: Props
         <td className="px-4 py-3">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Camera Off badge */}
-            {student.accommodation?.cameraOff && (
+            {isCameraOffActive(student.accommodation) && (
               <button
                 type="button"
                 onClick={(e) => {
                   setAddMenuOpen(null)
                   const isOpening = openPopover !== `${student.userId}:camera`
-                  if (isOpening) setCameraPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 288, 260))
+                  if (isOpening) setCameraPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 288, 290))
                   setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)
                 }}
                 className="inline-flex items-center justify-center text-white bg-red-500 w-7 h-7 rounded-full hover:bg-red-600 transition-colors"
@@ -316,6 +349,20 @@ export default function RosterView({ courses, currentCourseId, students }: Props
                     student.userId, true,
                     student.accommodation?.notes ?? '',
                     start || null, end || null,
+                  )
+                  if (!result.error) {
+                    setOpenPopover(null)
+                    setCameraPos(null)
+                    startTransition(() => router.refresh())
+                  } else {
+                    throw new Error(result.error)
+                  }
+                }}
+                onRemove={async () => {
+                  const result = await upsertAccommodation(
+                    student.userId, false,
+                    student.accommodation?.notes ?? '',
+                    null, null,
                   )
                   if (!result.error) {
                     setOpenPopover(null)
@@ -451,7 +498,7 @@ export default function RosterView({ courses, currentCourseId, students }: Props
   }
 
   function hasCameraOff(s: Student) {
-    return !!s.accommodation?.cameraOff
+    return isCameraOffActive(s.accommodation)
   }
 
   const tableHeader = (
@@ -487,10 +534,10 @@ export default function RosterView({ courses, currentCourseId, students }: Props
       {/* Active student count */}
       <p className="text-sm text-muted-text mb-4">
         {activeStudents.length} {activeStudents.length === 1 ? 'student' : 'students'}
-        {activeStudents.filter(s => s.accommodation?.cameraOff).length > 0 && (
+        {activeStudents.filter(s => isCameraOffActive(s.accommodation)).length > 0 && (
           <span className="ml-3 inline-flex items-center gap-1 text-red-600">
             <CameraOffIcon size={12} />
-            {activeStudents.filter(s => s.accommodation?.cameraOff).length} camera off
+            {activeStudents.filter(s => isCameraOffActive(s.accommodation)).length} camera off
           </span>
         )}
       </p>

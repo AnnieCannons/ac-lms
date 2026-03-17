@@ -353,7 +353,11 @@ Per-student accommodations tracked per user (global, not per-course).
 | `id` | uuid | Primary key |
 | `user_id` | uuid | FK → users, unique |
 | `camera_off` | boolean | Default: false — student has camera-off accommodation |
+| `camera_off_start` | date | Optional start date for camera-off period |
+| `camera_off_end` | date | Optional end date for camera-off period |
 | `notes` | text | Free-text accommodation notes |
+| `updated_at` | timestamptz | When the accommodation was last updated |
+| `updated_by` | uuid | FK → users — who made the last update |
 
 Unique constraint on `user_id`.
 
