@@ -3170,16 +3170,22 @@ export default function CourseEditor({
     );
   };
 
-  const handleDuplicatedAssignment = (assignment: DuplicatedAssignment, targetDayId: string) => {
+  const handleDuplicatedAssignment = (assignment: DuplicatedAssignment, targetDayId: string, newDay?: { id: string; day_name: string; module_id: string; order: number }) => {
     setModules((prev) =>
-      prev.map((m) => ({
-        ...m,
-        module_days: m.module_days.map((d) => {
-          if (d.id !== targetDayId) return d;
-          const existing = d.assignments ?? [];
-          return { ...d, assignments: [...existing, { ...assignment, is_bonus: assignment.is_bonus ?? false, order: existing.length }] };
-        }),
-      }))
+      prev.map((m) => {
+        // If a new day was created and belongs to this module, add it first
+        const days = newDay && newDay.module_id === m.id && !m.module_days.some(d => d.id === newDay.id)
+          ? [...m.module_days, { ...newDay, assignments: [] }]
+          : m.module_days;
+        return {
+          ...m,
+          module_days: days.map((d) => {
+            if (d.id !== targetDayId) return d;
+            const existing = d.assignments ?? [];
+            return { ...d, assignments: [...existing, { ...assignment, is_bonus: assignment.is_bonus ?? false, order: existing.length }] };
+          }),
+        };
+      })
     );
   };
 

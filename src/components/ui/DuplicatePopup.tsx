@@ -50,7 +50,7 @@ interface DuplicateAssignmentProps {
   popupPos: { top: number; left: number }
   popupRef: React.RefObject<HTMLDivElement | null>
   onClose: () => void
-  onDuplicatedInCourse: (assignment: DuplicatedAssignment, targetDayId: string) => void
+  onDuplicatedInCourse: (assignment: DuplicatedAssignment, targetDayId: string, newDay?: { id: string; day_name: string; module_id: string; order: number }) => void
 }
 
 export function DuplicateAssignmentPopup({
@@ -172,6 +172,7 @@ export function DuplicateAssignmentPopup({
       // If the day doesn't exist yet, we need to create it — call the API
       const existingDay = mod.days.includes(sameDay)
       let targetDayId: string | null = null
+      let createdDay: { id: string; day_name: string; module_id: string; order: number } | null = null
       if (existingDay) {
         // Fetch the actual day id from supabase
         const { data } = await supabase.from('module_days')
@@ -181,14 +182,15 @@ export function DuplicateAssignmentPopup({
         // Create the day
         const { data, error: dErr } = await supabase.from('module_days')
           .insert({ module_id: sameModule, day_name: sameDay, order: mod.days.length })
-          .select('id').single()
+          .select('id, day_name, order').single()
         if (dErr || !data) { setError('Failed to create day'); setCopying(false); return }
         targetDayId = data.id
+        createdDay = { id: data.id, day_name: data.day_name, module_id: sameModule, order: data.order }
       }
       if (!targetDayId) { setError('Could not find day'); setCopying(false); return }
       const newA = await copyAssignment(targetDayId)
       if (!newA) { setCopying(false); return }
-      onDuplicatedInCourse(newA, targetDayId)
+      onDuplicatedInCourse(newA, targetDayId, createdDay ?? undefined)
       setSuccess(true)
       setTimeout(onClose, 800)
 
