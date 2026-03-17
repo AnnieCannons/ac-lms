@@ -96,7 +96,7 @@ export default function GettingStarted() {
         All passwords — for new accounts and password changes — must meet these requirements:
       </DocP>
       <DocList>
-        <li>At least <strong>12 characters</strong> long</li>
+        <li>At least <strong>8 characters</strong> long</li>
         <li>At least one <strong>uppercase</strong> letter (A–Z)</li>
         <li>At least one <strong>lowercase</strong> letter (a–z)</li>
         <li>At least one <strong>number</strong> (0–9)</li>

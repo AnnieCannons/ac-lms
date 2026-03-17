@@ -21,7 +21,7 @@ export default function GettingStarted() {
         When setting or changing your password, it must meet the following requirements:
       </DocP>
       <DocList>
-        <li>At least <strong>12 characters</strong> long</li>
+        <li>At least <strong>8 characters</strong> long</li>
         <li>At least one <strong>uppercase</strong> letter (A–Z)</li>
         <li>At least one <strong>lowercase</strong> letter (a–z)</li>
         <li>At least one <strong>number</strong> (0–9)</li>
@@ -72,7 +72,7 @@ export default function GettingStarted() {
       <DocList>
         <li>Update your display name</li>
         <li>Change your password — use the <strong>eye icon</strong> to show or hide what you&apos;re typing</li>
-        <li>Passwords must be at least <strong>12 characters</strong> and include uppercase letters, lowercase letters, a number, and a symbol (e.g. <em>MyPassword1!</em>)</li>
+        <li>Passwords must be at least <strong>8 characters</strong> and include uppercase letters, lowercase letters, a number, and a symbol (e.g. <em>MyPassword1!</em>)</li>
         <li>Adjust <strong>Accessibility</strong> settings: dark mode, high contrast, and dyslexia-friendly font</li>
       </DocList>
 
