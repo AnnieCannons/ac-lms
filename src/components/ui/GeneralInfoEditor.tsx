@@ -126,7 +126,7 @@ export function CourseOutlineView({ content, courseStartDate }: { content: strin
 
 function CourseOutlineCard({
   section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onUpdate, onDelete, onTogglePublish,
+  onUpdate, onDelete, onTogglePublish, onToggleCollapse,
 }: {
   section: CourseSection
   dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
@@ -134,6 +134,7 @@ function CourseOutlineCard({
   onUpdate: (updates: Partial<CourseSection>) => Promise<void>
   onDelete: () => Promise<void>
   onTogglePublish: () => void
+  onToggleCollapse?: () => void
 }) {
   const readOnly = useContext(ReadOnlyCtx)
   const [editing, setEditing] = useState(false)
@@ -161,7 +162,10 @@ function CourseOutlineCard({
       </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
-          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center gap-2 text-left group/title min-w-0">
+            <h3 className="font-semibold text-dark-text">{section.title}</h3>
+            <span className="text-xs text-muted-text opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0">▴</span>
+          </button>
           {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
           {!readOnly && (
             <div className={`flex items-center gap-3 shrink-0 transition-opacity ${editing ? '' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -264,13 +268,14 @@ function CourseOutlineCard({
 // ── Yearly Schedule card (reads from global calendar tables) ──────────────────
 
 function YearlyScheduleGlobalCard({
-  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish,
+  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish, onToggleCollapse,
 }: {
   section: CourseSection
   dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
   onDelete: () => Promise<void>
   onTogglePublish: () => void
+  onToggleCollapse?: () => void
 }) {
   const readOnly = useContext(ReadOnlyCtx)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -281,7 +286,10 @@ function YearlyScheduleGlobalCard({
       </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
-          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center gap-2 text-left group/title min-w-0">
+            <h3 className="font-semibold text-dark-text">{section.title}</h3>
+            <span className="text-xs text-muted-text opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0">▴</span>
+          </button>
           {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
           {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <a href="/instructor/calendar" className="text-xs text-muted-text hover:text-teal-primary transition-colors">
@@ -307,13 +315,14 @@ function YearlyScheduleGlobalCard({
 // ── Daily Schedule card (drag-only, no content editing) ───────────────────────
 
 function DailyScheduleCard({
-  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish,
+  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish, onToggleCollapse,
 }: {
   section: CourseSection
   dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
   dragStyle: React.CSSProperties; dragIsDragging: boolean
   onDelete: () => Promise<void>
   onTogglePublish: () => void
+  onToggleCollapse?: () => void
 }) {
   const readOnly = useContext(ReadOnlyCtx)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -324,7 +333,10 @@ function DailyScheduleCard({
       </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-4">
-          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center gap-2 text-left group/title min-w-0">
+            <h3 className="font-semibold text-dark-text">{section.title}</h3>
+            <span className="text-xs text-muted-text opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0">▴</span>
+          </button>
           {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
           {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {confirmDelete ? (
@@ -348,7 +360,7 @@ function DailyScheduleCard({
 
 function GlobalTextCard({
   section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging,
-  onDelete, onTogglePublish, onRemoveGlobal, slug, editHref,
+  onDelete, onTogglePublish, onRemoveGlobal, onToggleCollapse, slug, editHref,
 }: {
   section: CourseSection
   dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
@@ -356,6 +368,7 @@ function GlobalTextCard({
   onDelete: () => Promise<void>
   onTogglePublish: () => void
   onRemoveGlobal?: () => Promise<void>
+  onToggleCollapse?: () => void
   slug: string
   editHref: string
 }) {
@@ -377,7 +390,10 @@ function GlobalTextCard({
       </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
-          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center gap-2 text-left group/title min-w-0">
+            <h3 className="font-semibold text-dark-text">{section.title}</h3>
+            <span className="text-xs text-muted-text opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0">▴</span>
+          </button>
           {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
           {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <a href={editHref} className="text-xs text-muted-text hover:text-teal-primary transition-colors">
@@ -489,7 +505,10 @@ function TextSectionCard({
       </button>}
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-3 mb-3">
-          <h3 className="font-semibold text-dark-text flex-1">{section.title}</h3>
+          <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center gap-2 text-left group/title min-w-0">
+            <h3 className="font-semibold text-dark-text">{section.title}</h3>
+            <span className="text-xs text-muted-text opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0">▴</span>
+          </button>
           {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
           {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button onClick={() => setEditing(true)} className="text-xs text-muted-text hover:text-teal-primary transition-colors">✎ Edit</button>
