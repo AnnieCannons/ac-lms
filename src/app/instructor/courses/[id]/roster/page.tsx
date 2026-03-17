@@ -47,9 +47,11 @@ export default async function RosterPage({
     : { data: [] }
 
   // Auto-expire: if camera_off_end has passed, clear camera off
-  const today = new Date().toISOString().split('T')[0]
+  // Use Pacific time so the icon lasts through the full local day (not UTC midnight)
+  const nowPT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
+  const todayPT = `${nowPT.getFullYear()}-${String(nowPT.getMonth() + 1).padStart(2, '0')}-${String(nowPT.getDate()).padStart(2, '0')}`
   const expiredIds = (accommodations ?? [])
-    .filter(a => a.camera_off && a.camera_off_end && a.camera_off_end < today)
+    .filter(a => a.camera_off && a.camera_off_end && a.camera_off_end < todayPT)
     .map(a => a.user_id)
 
   if (expiredIds.length > 0) {
