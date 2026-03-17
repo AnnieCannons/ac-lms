@@ -2204,31 +2204,6 @@ function SortableModule({
               )}
             </div>
           )}
-          {module.week_number != null && (
-            !readOnly && editingWeek ? (
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="text-xs text-muted-text">Week</span>
-                <input
-                  autoFocus
-                  type="number"
-                  min="1"
-                  value={weekDraft}
-                  onChange={e => setWeekDraft(e.target.value)}
-                  onBlur={saveWeek}
-                  onKeyDown={e => { if (e.key === 'Enter') saveWeek(); if (e.key === 'Escape') { setWeekDraft(String(module.week_number ?? '')); setEditingWeek(false); } }}
-                  className="w-14 text-xs text-dark-text bg-background border border-teal-primary rounded px-1.5 py-0.5 focus:outline-none"
-                />
-              </div>
-            ) : (
-              <p
-                className={`text-xs text-muted-text mt-0.5${!readOnly ? ' cursor-pointer hover:text-teal-primary transition-colors' : ''}`}
-                onClick={!readOnly ? (e) => { e.stopPropagation(); setWeekDraft(String(module.week_number ?? '')); setEditingWeek(true); } : undefined}
-                title={!readOnly ? 'Click to edit week number' : undefined}
-              >
-                Week {module.week_number}
-              </p>
-            )
-          )}
         </div>
         {!readOnly && (
           <select
