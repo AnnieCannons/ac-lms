@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { toggleChecklistResponse } from "@/lib/grade-actions";
 
 type Item = {
   id: string;
@@ -27,27 +27,25 @@ export default function InstructorChecklist({
   gradedById: string;
   studentCheckedIds: Set<string>;
 }) {
-  const supabase = createClient();
   const [responseMap, setResponseMap] = useState<Map<string, boolean>>(
     new Map(initialResponses.map((r) => [r.checklist_item_id, r.checked]))
   );
   const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const toggle = async (itemId: string) => {
     const newValue = !(responseMap.get(itemId) ?? false);
     setSaving(itemId);
+    setError(null);
+    // Optimistic update
     setResponseMap((prev) => new Map(prev).set(itemId, newValue));
 
-    await supabase.from("checklist_responses").upsert(
-      {
-        submission_id: submissionId,
-        checklist_item_id: itemId,
-        checked: newValue,
-        graded_by: gradedById,
-      },
-      { onConflict: "submission_id,checklist_item_id" }
-    );
-
+    const result = await toggleChecklistResponse(submissionId, itemId, newValue, gradedById);
+    if (result.error) {
+      // Revert on failure
+      setResponseMap((prev) => new Map(prev).set(itemId, !newValue));
+      setError(result.error);
+    }
     setSaving(null);
   };
 
@@ -63,6 +61,7 @@ export default function InstructorChecklist({
           {checkedCount}/{items.length} checked
         </span>
       </div>
+      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
       <ul className="flex flex-col gap-3">
         {items.map((item) => {
           const checked = responseMap.get(item.id) ?? false;

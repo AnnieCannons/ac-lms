@@ -92,6 +92,29 @@ export async function saveGrade(
   return {}
 }
 
+// Toggle a checklist response for a submission (instructors, TAs)
+export async function toggleChecklistResponse(
+  submissionId: string,
+  checklistItemId: string,
+  checked: boolean,
+  gradedById: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = createServiceSupabaseClient()
+  const { error } = await admin
+    .from('checklist_responses')
+    .upsert(
+      { submission_id: submissionId, checklist_item_id: checklistItemId, checked, graded_by: gradedById },
+      { onConflict: 'submission_id,checklist_item_id' }
+    )
+
+  if (error) return { error: error.message }
+  return {}
+}
+
 // Add a threaded comment to a submission (students, instructors, TAs)
 export async function addSubmissionComment(
   submissionId: string,
