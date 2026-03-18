@@ -37,9 +37,9 @@ function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | nul
 
 function getFilterMatch(a: WorkAssignment, filter: Filter): boolean {
   if (filter === "complete") return a.grade === "complete";
-  if (filter === "needs-revision") return a.grade === "incomplete" || (a.isLate && !a.status && !a.grade);
+  if (filter === "needs-revision") return a.grade === "incomplete";
   if (filter === "turned-in") return a.status === "submitted";
-  if (filter === "not-started") return !a.status && !a.grade && !a.isLate;
+  if (filter === "not-started") return !a.status && !a.grade;
   return true;
 }
 
@@ -150,8 +150,8 @@ export default function StudentWorkList({
             </div>
           ))}
         </div>
-      ) : filter === "needs-revision" ? (
-        // Two-section view: Needs Revision (grade incomplete) then Past Due (late + not started)
+      ) : filter === "not-started" ? (
+        // Two-section view: Past Due (late + not started) then Upcoming
         <div className="flex flex-col gap-8">
           {(() => {
             const sortByDue = (arr: WorkAssignment[]) =>
@@ -161,23 +161,23 @@ export default function StudentWorkList({
                 if (!b.due_date) return -1;
                 return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
               });
-            const revision = sortByDue(filtered.filter(a => a.grade === "incomplete"));
-            const pastDue = sortByDue(filtered.filter(a => a.isLate && !a.status && !a.grade));
+            const pastDue = sortByDue(filtered.filter(a => a.isLate));
+            const upcoming = sortByDue(filtered.filter(a => !a.isLate));
             return (
               <>
-                {revision.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Needs Revision</h3>
-                    <div className="flex flex-col gap-2">
-                      {revision.map((a) => <AssignmentRow key={a.id} a={a} />)}
-                    </div>
-                  </div>
-                )}
                 {pastDue.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
                     <div className="flex flex-col gap-2">
                       {pastDue.map((a) => <AssignmentRow key={a.id} a={a} />)}
+                    </div>
+                  </div>
+                )}
+                {upcoming.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Upcoming</h3>
+                    <div className="flex flex-col gap-2">
+                      {upcoming.map((a) => <AssignmentRow key={a.id} a={a} />)}
                     </div>
                   </div>
                 )}

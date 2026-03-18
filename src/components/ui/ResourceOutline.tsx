@@ -375,14 +375,10 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const bonus = isBonusLike(title, isBonus)
   const isLate = !!dueDate && localDate(dueDate) < new Date()
   const notStarted = !info || (info.status === 'draft' && !info.grade)
-  if (filter === 'needs-revision') {
-    if (info?.grade === 'incomplete') return true
-    if (bonus || !dueDate) return false
-    return isLate && notStarted
-  }
+  if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (bonus && (filter === 'late' || filter === 'not-started')) return false
   if (filter === 'late') return isLate && notStarted
-  if (filter === 'not-started') return notStarted && !isLate
+  if (filter === 'not-started') return notStarted
   return true
 }
 
@@ -511,31 +507,27 @@ export default function ResourceOutline({
       ])) as Record<AssignmentFilter, number>
     : null
 
-  // Flat lists for "Needs Revision" two-section student view
-  const needsRevisionFlat = (!instructorView && filter === 'needs-revision' && submissionMap)
-    ? {
-        revision: allPublishedAssignments
-          .filter(a => submissionMap[a.id]?.grade === 'incomplete' && (!searchQ || a.title.toLowerCase().includes(searchQ)))
-          .sort((a, b) => {
-            if (!a.due_date && !b.due_date) return 0
-            if (!a.due_date) return 1
-            if (!b.due_date) return -1
-            return localDate(a.due_date).getTime() - localDate(b.due_date).getTime()
-          }),
-        pastDue: allPublishedAssignments
-          .filter(a => {
-            if (isBonusLike(a.title, undefined) || !a.due_date) return false
-            const info = submissionMap[a.id]
-            const notStarted = !info || (info.status === 'draft' && !info.grade)
-            return localDate(a.due_date) < new Date() && notStarted && (!searchQ || a.title.toLowerCase().includes(searchQ))
-          })
-          .sort((a, b) => {
-            if (!a.due_date && !b.due_date) return 0
-            if (!a.due_date) return 1
-            if (!b.due_date) return -1
-            return localDate(a.due_date).getTime() - localDate(b.due_date).getTime()
-          }),
-      }
+  // Flat two-section view for "Not Started": Past Due (late) at top, then upcoming
+  const sortByDue = (arr: typeof allPublishedAssignments) =>
+    arr.slice().sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0
+      if (!a.due_date) return 1
+      if (!b.due_date) return -1
+      return localDate(a.due_date).getTime() - localDate(b.due_date).getTime()
+    })
+
+  const notStartedFlat = (!instructorView && filter === 'not-started' && submissionMap)
+    ? (() => {
+        const base = allPublishedAssignments.filter(a => {
+          if (isBonusLike(a.title)) return false
+          const info = submissionMap[a.id]
+          const notStarted = !info || (info.status === 'draft' && !info.grade)
+          return notStarted && (!searchQ || a.title.toLowerCase().includes(searchQ))
+        })
+        const pastDue = sortByDue(base.filter(a => !!a.due_date && localDate(a.due_date) < new Date()))
+        const upcoming = sortByDue(base.filter(a => !a.due_date || localDate(a.due_date) >= new Date()))
+        return { pastDue, upcoming }
+      })()
     : null
 
   const skipDays = mode === 'assignments' ? SKIP_DAYS_ASSIGNMENTS : SKIP_DAYS_RESOURCES
@@ -632,23 +624,23 @@ export default function ResourceOutline({
   return (
     <>
       {filterBar}
-      {needsRevisionFlat ? (
+      {notStartedFlat ? (
         <div className="flex flex-col gap-8">
-          {needsRevisionFlat.revision.length === 0 && needsRevisionFlat.pastDue.length === 0 ? (
+          {notStartedFlat.pastDue.length === 0 && notStartedFlat.upcoming.length === 0 ? (
             <div className="bg-surface rounded-2xl border border-border p-12 text-center">
               <p className="text-muted-text text-sm">Nothing here — you&apos;re all caught up!</p>
             </div>
           ) : (
             <>
-              {needsRevisionFlat.revision.length > 0 && (
+              {notStartedFlat.pastDue.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Needs Revision</h3>
+                  <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
                   <div className="flex flex-col gap-2">
-                    {needsRevisionFlat.revision.map(a => (
+                    {notStartedFlat.pastDue.map(a => (
                       <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
                         <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                          <p className="text-xs text-muted-text mt-0.5">
+                          <p className="text-xs text-amber-600 mt-0.5">
                             {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
                             {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
                           </p>
@@ -659,15 +651,15 @@ export default function ResourceOutline({
                   </div>
                 </div>
               )}
-              {needsRevisionFlat.pastDue.length > 0 && (
+              {notStartedFlat.upcoming.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
+                  <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Upcoming</h3>
                   <div className="flex flex-col gap-2">
-                    {needsRevisionFlat.pastDue.map(a => (
+                    {notStartedFlat.upcoming.map(a => (
                       <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
                         <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                          <p className="text-xs text-amber-600 mt-0.5">
+                          <p className="text-xs text-muted-text mt-0.5">
                             {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
                             {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
                           </p>
