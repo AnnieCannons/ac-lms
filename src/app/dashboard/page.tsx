@@ -21,10 +21,10 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
-      <nav className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <nav className="bg-surface border-b border-border px-8 py-4 flex items-center justify-between">
         <h1 className="text-xl font-extrabold text-dark-text">AC<span className="text-teal-primary">*</span></h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-muted-text">
             {profile?.name} · <span className="text-teal-primary font-medium capitalize">{profile?.role}</span>
           </span>
           <LogoutButton />
@@ -36,16 +36,16 @@ export default async function DashboardPage() {
         <h2 className="text-2xl font-bold text-dark-text mb-2">
           Welcome back, {profile?.name}!
         </h2>
-        <p className="text-gray-500 mb-8">Here's what's happening in your learning space.</p>
+        <p className="text-muted-text mb-8">Here&apos;s what&apos;s happening in your learning space.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Role card */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
             <div className="w-10 h-10 bg-teal-light rounded-full flex items-center justify-center mb-4">
               <span className="text-teal-primary font-bold text-lg">*</span>
             </div>
             <h3 className="font-semibold text-dark-text mb-1">Your Role</h3>
-            <p className="text-gray-500 text-sm capitalize">{profile?.role}</p>
+            <p className="text-muted-text text-sm capitalize">{profile?.role}</p>
           </div>
 
           {/* Quick action card */}
