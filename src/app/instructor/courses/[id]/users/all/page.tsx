@@ -69,7 +69,7 @@ export default async function AllUsersPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name, href: `/instructor/courses/${id}` }, { label: 'Users', href: `/instructor/courses/${id}/users` }, { label: 'All Users' }]} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />

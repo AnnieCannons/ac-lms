@@ -126,7 +126,7 @@ export default async function StudentDetailPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name, href: `/instructor/courses/${courseId}` }, { label: 'Roster', href: `/instructor/courses/${courseId}/roster` }, { label: student.name ?? '' }]} />
 
       <div className="flex">
         <InstructorSidebar courseId={courseId} courseName={course.name} />

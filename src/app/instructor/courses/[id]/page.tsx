@@ -1,7 +1,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import InstructorTopNav from "@/components/ui/InstructorTopNav";
+import InstructorTopNav, { type Breadcrumb } from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
@@ -88,7 +88,7 @@ export default async function CoursePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name }]} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />

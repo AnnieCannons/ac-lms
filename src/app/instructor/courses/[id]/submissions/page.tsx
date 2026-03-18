@@ -123,7 +123,7 @@ export default async function CourseSubmissionsPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name, href: `/instructor/courses/${id}` }, { label: 'All Submissions' }]} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />

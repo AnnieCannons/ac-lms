@@ -88,7 +88,7 @@ export default async function ConductQuizPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name, href: `/instructor/courses/${id}` }, { label: 'Quizzes', href: `/instructor/courses/${id}/quizzes` }, { label: quiz.title }]} />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />

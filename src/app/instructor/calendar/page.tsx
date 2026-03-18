@@ -25,7 +25,7 @@ export default async function InstructorCalendarPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
+      <InstructorTopNav name={profile?.name} role={profile?.role} breadcrumbs={[{ label: 'Calendar' }]} />
 
       <div className="flex">
         {course

@@ -5,11 +5,16 @@ import DocsHelpLink from '@/components/ui/DocsHelpLink'
 
 const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
 
-export default function InstructorTopNav({ name, role, isTa }: { name?: string | null; role?: string | null; isTa?: boolean }) {
+export interface Breadcrumb {
+  label: string
+  href?: string
+}
+
+export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { name?: string | null; role?: string | null; isTa?: boolean; breadcrumbs?: Breadcrumb[] }) {
   const displayRole = isTa ? 'TA' : role
   return (
-    <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center gap-4">
+      <div className="flex items-center gap-3 shrink-0">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
         </Link>
@@ -20,8 +25,24 @@ export default function InstructorTopNav({ name, role, isTa }: { name?: string |
         )}
       </div>
 
+      {/* Breadcrumb — center */}
+      <div className="flex-1 flex items-center gap-1 min-w-0 overflow-hidden">
+        {(breadcrumbs ?? []).map((crumb, i) => (
+          <span key={i} className="flex items-center gap-1 min-w-0">
+            {i > 0 && <span className="text-border shrink-0 select-none">›</span>}
+            {crumb.href ? (
+              <Link href={crumb.href} className="text-sm text-muted-text hover:text-dark-text transition-colors truncate max-w-[180px]">
+                {crumb.label}
+              </Link>
+            ) : (
+              <span className="text-sm text-dark-text font-medium truncate max-w-[200px]">{crumb.label}</span>
+            )}
+          </span>
+        ))}
+      </div>
+
       {/* Desktop right side */}
-      <div className="hidden sm:flex items-center gap-5">
+      <div className="hidden sm:flex items-center gap-5 shrink-0">
         <a
           href={ATTENDANCE_URL}
           target="_blank"
