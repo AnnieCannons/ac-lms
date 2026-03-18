@@ -288,12 +288,15 @@ export async function removeStudentUser(
   const admin = createServiceSupabaseClient()
 
   // Remove all course enrollments
-  const { error } = await admin
-    .from('course_enrollments')
-    .delete()
-    .eq('user_id', targetUserId)
+  await admin.from('course_enrollments').delete().eq('user_id', targetUserId)
 
+  // Delete from users table
+  await admin.from('users').delete().eq('id', targetUserId)
+
+  // Delete from Supabase auth
+  const { error } = await admin.auth.admin.deleteUser(targetUserId)
   if (error) return { error: error.message }
+
   return {}
 }
 
