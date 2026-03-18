@@ -97,16 +97,40 @@ export default function People() {
 
       <DocH2>Removing Someone from a Course</DocH2>
       <DocP>
-        Click the <strong>trash icon</strong> next to a person to unenroll them from the course. Their submission
-        history and grades are preserved in the database, but they will no longer see the course on their My Courses
-        page.
+        On the <strong>Current Class</strong> tab, click the <strong>trash icon</strong> next to a person to remove
+        them from this course only. Their account remains active, and any other course enrollments are unaffected.
+        Their submission history and grades for this course are preserved in the database.
+      </DocP>
+      <DocNote>
+        This only removes the enrollment — it does not delete the person&apos;s account. To permanently delete an
+        account, use the trash icon on the <strong>All Users</strong> tab (admins only).
+      </DocNote>
+
+      <DocH2>All Users Tab</DocH2>
+      <DocP>
+        Switch to the <strong>All Users</strong> tab to see every student enrolled across all courses in a single
+        alphabetical list. Each row shows the student&apos;s name, email, and the course(s) they are enrolled in.
       </DocP>
 
-      <DocH2>All Users (Admins)</DocH2>
+      <DocH3>Deleting an Account</DocH3>
       <DocP>
-        Admins can switch to the <strong>All Users</strong> tab to see every user enrolled across all courses. This view is
-        useful for finding a user&apos;s email, managing users across multiple courses, or checking enrollment status
-        system-wide.
+        Click the <strong>trash icon</strong> on the All Users tab to permanently delete that person&apos;s account.
+        A confirmation dialog appears before anything is deleted. Deleting an account:
+      </DocP>
+      <DocList>
+        <li>Removes the user from all course enrollments</li>
+        <li>Deletes their user profile</li>
+        <li>Deletes their login credentials — they will not be able to log in</li>
+      </DocList>
+      <DocNote>
+        Account deletion is permanent and cannot be undone. Use <strong>Current Class → trash</strong> if you only
+        want to unenroll someone from a single course while keeping their account.
+      </DocNote>
+
+      <DocH3>Deleting Staff (Admins Only)</DocH3>
+      <DocP>
+        Admins can also delete instructor and admin accounts from the Instructors &amp; Admins table on the All Users
+        tab. The same confirmation dialog applies. A deleted staff member loses access to all courses immediately.
       </DocP>
     </>
   )

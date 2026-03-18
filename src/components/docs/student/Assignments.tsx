@@ -16,20 +16,31 @@ export default function Assignments() {
 
       <DocH2>Your Assignments List</DocH2>
       <DocP>
-        The <strong>Assignments</strong> page in the sidebar shows every assignment in the course, grouped by module, each with a status badge so you can see at a glance where you stand:
+        The <strong>Assignments</strong> page in the sidebar shows every assignment in the course with a status badge so you can see at a glance where you stand:
       </DocP>
       <DocList>
         <li><strong>Not started</strong> (grey) — you haven&apos;t begun this assignment yet</li>
-        <li><strong>Draft</strong> (yellow) — you&apos;ve saved a draft but haven&apos;t submitted yet</li>
+        <li><strong>Draft</strong> — you&apos;ve saved a draft but haven&apos;t submitted yet</li>
         <li><strong>Turned in</strong> (teal) — you submitted and your instructor hasn&apos;t graded it yet</li>
         <li><strong>Complete ✓</strong> (green) — your instructor graded it as complete</li>
         <li><strong>Needs Revision</strong> (red) — your instructor has feedback; read their comments and resubmit</li>
-        <li><strong>Late</strong> (amber) — the due date has passed and no submission was recorded</li>
-        <li><strong>Excused</strong> (amber) — your instructor has excused you from this assignment; no submission is needed and it will not count as late</li>
+        <li><strong>Late</strong> (amber) — shown alongside the status badge when the due date has passed</li>
+      </DocList>
+
+      <DocH3>Filtering Your Assignments</DocH3>
+      <DocP>
+        Use the filter tabs at the top of the Assignments page to focus on what needs attention:
+      </DocP>
+      <DocList>
+        <li><strong>All</strong> — every assignment, grouped by module</li>
+        <li><strong>Needs Revision</strong> — assignments your instructor graded as needing revision; read their feedback and resubmit</li>
+        <li><strong>Not Started</strong> — assignments you haven&apos;t touched yet, split into two sections: <em>Past Due</em> (overdue) at the top, then <em>Upcoming</em> below</li>
+        <li><strong>Turned In</strong> — submitted work waiting to be graded</li>
+        <li><strong>Complete</strong> — everything you&apos;ve finished</li>
       </DocList>
       <DocTip>
-        Check the Assignments list regularly — especially the <strong>Needs Revision</strong> filter — so you never miss
-        feedback that&apos;s waiting for you.
+        Start your day by checking <strong>Needs Revision</strong> first, then <strong>Not Started → Past Due</strong>.
+        These are the two places where action is needed most.
       </DocTip>
 
       <DocH2>Reading Instructions</DocH2>
