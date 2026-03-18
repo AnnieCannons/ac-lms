@@ -351,10 +351,10 @@ type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-re
 
 const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'all', label: 'All' },
+  { key: 'needs-revision', label: 'Needs Revision' },
   { key: 'not-started', label: 'Not Started' },
   { key: 'late', label: 'Late' },
   { key: 'turned-in', label: 'Turned In' },
-  { key: 'needs-revision', label: 'Needs Revision' },
   { key: 'complete', label: 'Complete ✓' },
 ]
 
@@ -371,16 +371,18 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const info = map[id]
   if (filter === 'all') return true
   if (filter === 'complete') return info?.grade === 'complete'
-  if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
-  // Bonus/no-due-date assignments can't be Late or Not Started
-  if (isBonusLike(title, isBonus) && (filter === 'late' || filter === 'not-started')) return false
+  const bonus = isBonusLike(title, isBonus)
   const isLate = !!dueDate && localDate(dueDate) < new Date()
-  if (filter === 'late') return isLate && (!info || (info.status === 'draft' && !info.grade))
-  if (filter === 'not-started') {
-    if (!info) return true
-    return info.status === 'draft' && !info.grade
+  const notStarted = !info || (info.status === 'draft' && !info.grade)
+  if (filter === 'needs-revision') {
+    if (info?.grade === 'incomplete') return true
+    if (bonus || !dueDate) return false
+    return isLate && notStarted
   }
+  if (bonus && (filter === 'late' || filter === 'not-started')) return false
+  if (filter === 'late') return isLate && notStarted
+  if (filter === 'not-started') return notStarted && !isLate
   return true
 }
 
@@ -490,7 +492,11 @@ export default function ResourceOutline({
   const searchQ = search.trim().toLowerCase()
 
   const allPublishedAssignments = sorted.flatMap(m =>
-    m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published))
+    m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published).map(a => ({
+      ...a,
+      moduleTitle: m.title as string,
+      weekNumber: m.week_number as number | null,
+    })))
   )
 
   const filterCounts = submissionMap
@@ -503,6 +509,33 @@ export default function ResourceOutline({
               (!searchQ || a.title.toLowerCase().includes(searchQ))
             ).length,
       ])) as Record<AssignmentFilter, number>
+    : null
+
+  // Flat lists for "Needs Revision" two-section student view
+  const needsRevisionFlat = (!instructorView && filter === 'needs-revision' && submissionMap)
+    ? {
+        revision: allPublishedAssignments
+          .filter(a => submissionMap[a.id]?.grade === 'incomplete' && (!searchQ || a.title.toLowerCase().includes(searchQ)))
+          .sort((a, b) => {
+            if (!a.due_date && !b.due_date) return 0
+            if (!a.due_date) return 1
+            if (!b.due_date) return -1
+            return localDate(a.due_date).getTime() - localDate(b.due_date).getTime()
+          }),
+        pastDue: allPublishedAssignments
+          .filter(a => {
+            if (isBonusLike(a.title, undefined) || !a.due_date) return false
+            const info = submissionMap[a.id]
+            const notStarted = !info || (info.status === 'draft' && !info.grade)
+            return localDate(a.due_date) < new Date() && notStarted && (!searchQ || a.title.toLowerCase().includes(searchQ))
+          })
+          .sort((a, b) => {
+            if (!a.due_date && !b.due_date) return 0
+            if (!a.due_date) return 1
+            if (!b.due_date) return -1
+            return localDate(a.due_date).getTime() - localDate(b.due_date).getTime()
+          }),
+      }
     : null
 
   const skipDays = mode === 'assignments' ? SKIP_DAYS_ASSIGNMENTS : SKIP_DAYS_RESOURCES
@@ -599,17 +632,68 @@ export default function ResourceOutline({
   return (
     <>
       {filterBar}
-      <div className="flex justify-end mb-4">
-        <button
-          type="button"
-          onClick={allExpanded ? collapseAll : expandAll}
-          className="text-xs font-medium text-muted-text hover:text-teal-primary transition-colors"
-        >
-          {allExpanded ? 'Collapse All ▴' : 'Expand All ▾'}
-        </button>
-      </div>
-      <div className="flex flex-col gap-6">
-        {modulesWithContent.map(module => {
+      {needsRevisionFlat ? (
+        <div className="flex flex-col gap-8">
+          {needsRevisionFlat.revision.length === 0 && needsRevisionFlat.pastDue.length === 0 ? (
+            <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+              <p className="text-muted-text text-sm">Nothing here — you&apos;re all caught up!</p>
+            </div>
+          ) : (
+            <>
+              {needsRevisionFlat.revision.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Needs Revision</h3>
+                  <div className="flex flex-col gap-2">
+                    {needsRevisionFlat.revision.map(a => (
+                      <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                        <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                          <p className="text-xs text-muted-text mt-0.5">
+                            {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
+                            {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                          </p>
+                        </Link>
+                        <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {needsRevisionFlat.pastDue.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
+                  <div className="flex flex-col gap-2">
+                    {needsRevisionFlat.pastDue.map(a => (
+                      <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                        <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                          <p className="text-xs text-amber-600 mt-0.5">
+                            {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
+                            {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                          </p>
+                        </Link>
+                        <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-end mb-4">
+            <button
+              type="button"
+              onClick={allExpanded ? collapseAll : expandAll}
+              className="text-xs font-medium text-muted-text hover:text-teal-primary transition-colors"
+            >
+              {allExpanded ? 'Collapse All ▴' : 'Expand All ▾'}
+            </button>
+          </div>
+          <div className="flex flex-col gap-6">
+            {modulesWithContent.map(module => {
           const moduleCollapsed = collapsedModules.has(module.id)
           const days = [...module.module_days]
             .sort((a, b) => a.order - b.order)
@@ -801,7 +885,9 @@ export default function ResourceOutline({
             </div>
           )
         })}
-      </div>
+          </div>
+        </>
+      )}
 
       {editingResource && (
         <EditResourceModal

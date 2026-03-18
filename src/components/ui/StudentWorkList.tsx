@@ -6,7 +6,7 @@ import { formatDueDate } from "@/lib/date-utils";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
-type Filter = "all" | "complete" | "incomplete" | "turned-in" | "not-started";
+type Filter = "all" | "complete" | "needs-revision" | "turned-in" | "not-started";
 
 export type WorkAssignment = {
   id: string;
@@ -37,18 +37,18 @@ function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | nul
 
 function getFilterMatch(a: WorkAssignment, filter: Filter): boolean {
   if (filter === "complete") return a.grade === "complete";
-  if (filter === "incomplete") return a.grade === "incomplete";
+  if (filter === "needs-revision") return a.grade === "incomplete" || (a.isLate && !a.status && !a.grade);
   if (filter === "turned-in") return a.status === "submitted";
-  if (filter === "not-started") return !a.status && !a.grade;
+  if (filter === "not-started") return !a.status && !a.grade && !a.isLate;
   return true;
 }
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "complete", label: "Complete" },
-  { key: "incomplete", label: "Needs Revision" },
-  { key: "turned-in", label: "Turned In" },
+  { key: "needs-revision", label: "Needs Revision" },
   { key: "not-started", label: "Not Started" },
+  { key: "turned-in", label: "Turned In" },
+  { key: "complete", label: "Complete" },
 ];
 
 export default function StudentWorkList({
@@ -103,13 +103,13 @@ export default function StudentWorkList({
             onClick={() => setFilter(f.key)}
             className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
               filter === f.key
-                ? f.key === "complete"   ? "bg-green-600 text-white border-green-600"
-                : f.key === "incomplete" ? "bg-red-500 text-white border-red-500"
-                : f.key === "turned-in"  ? "bg-teal-primary text-white border-teal-primary"
+                ? f.key === "complete"        ? "bg-green-600 text-white border-green-600"
+                : f.key === "needs-revision"  ? "bg-red-500 text-white border-red-500"
+                : f.key === "turned-in"       ? "bg-teal-primary text-white border-teal-primary"
                 : "bg-dark-text text-white border-dark-text"
-                : f.key === "complete"   ? "bg-green-50 text-green-700 border-green-600"
-                : f.key === "incomplete" ? "bg-red-50 text-red-500 border-red-500"
-                : f.key === "turned-in"  ? "bg-teal-light text-teal-primary border-teal-primary"
+                : f.key === "complete"        ? "bg-green-50 text-green-700 border-green-600"
+                : f.key === "needs-revision"  ? "bg-red-50 text-red-500 border-red-500"
+                : f.key === "turned-in"       ? "bg-teal-light text-teal-primary border-teal-primary"
                 : "bg-background text-muted-text border-border"
             }`}
           >
@@ -150,16 +150,47 @@ export default function StudentWorkList({
             </div>
           ))}
         </div>
+      ) : filter === "needs-revision" ? (
+        // Two-section view: Needs Revision (grade incomplete) then Past Due (late + not started)
+        <div className="flex flex-col gap-8">
+          {(() => {
+            const sortByDue = (arr: WorkAssignment[]) =>
+              arr.slice().sort((a, b) => {
+                if (!a.due_date && !b.due_date) return 0;
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+              });
+            const revision = sortByDue(filtered.filter(a => a.grade === "incomplete"));
+            const pastDue = sortByDue(filtered.filter(a => a.isLate && !a.status && !a.grade));
+            return (
+              <>
+                {revision.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Needs Revision</h3>
+                    <div className="flex flex-col gap-2">
+                      {revision.map((a) => <AssignmentRow key={a.id} a={a} />)}
+                    </div>
+                  </div>
+                )}
+                {pastDue.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
+                    <div className="flex flex-col gap-2">
+                      {pastDue.map((a) => <AssignmentRow key={a.id} a={a} />)}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
       ) : (
-        // Flat list: late items first (in not-started view), then by due date
+        // Flat list: by due date
         <div className="flex flex-col gap-2">
           {filtered
             .slice()
             .sort((a, b) => {
-              if (filter === "not-started") {
-                if (a.isLate && !b.isLate) return -1;
-                if (!a.isLate && b.isLate) return 1;
-              }
               if (!a.due_date && !b.due_date) return 0;
               if (!a.due_date) return 1;
               if (!b.due_date) return -1;
