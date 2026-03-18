@@ -59,6 +59,8 @@ export default function StudentWorkList({
   currentWeek: number | null;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [collapsedPastDue, setCollapsedPastDue] = useState(false);
+  const [collapsedUpcoming, setCollapsedUpcoming] = useState(false);
 
   const counts = Object.fromEntries(
     FILTERS.map((f) => [f.key, f.key === "all" ? assignments.length : assignments.filter((a) => getFilterMatch(a, f.key)).length])
@@ -167,18 +169,38 @@ export default function StudentWorkList({
               <>
                 {pastDue.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
-                    <div className="flex flex-col gap-2">
-                      {pastDue.map((a) => <AssignmentRow key={a.id} a={a} />)}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCollapsedPastDue(p => !p)}
+                      className="flex items-center gap-2 w-full text-left mb-3 pb-2 border-b border-amber-500/30 group"
+                    >
+                      <h3 className="text-sm font-semibold text-amber-700">Past Due</h3>
+                      <span className="text-xs text-amber-600/70">({pastDue.length})</span>
+                      <span className="ml-auto text-amber-600/60 group-hover:text-amber-700 transition-colors text-xs">{collapsedPastDue ? "▾" : "▴"}</span>
+                    </button>
+                    {!collapsedPastDue && (
+                      <div className="flex flex-col gap-2">
+                        {pastDue.map((a) => <AssignmentRow key={a.id} a={a} />)}
+                      </div>
+                    )}
                   </div>
                 )}
                 {upcoming.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Upcoming</h3>
-                    <div className="flex flex-col gap-2">
-                      {upcoming.map((a) => <AssignmentRow key={a.id} a={a} />)}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCollapsedUpcoming(p => !p)}
+                      className="flex items-center gap-2 w-full text-left mb-3 pb-2 border-b border-border group"
+                    >
+                      <h3 className="text-sm font-semibold text-dark-text">Upcoming</h3>
+                      <span className="text-xs text-muted-text">({upcoming.length})</span>
+                      <span className="ml-auto text-muted-text group-hover:text-dark-text transition-colors text-xs">{collapsedUpcoming ? "▾" : "▴"}</span>
+                    </button>
+                    {!collapsedUpcoming && (
+                      <div className="flex flex-col gap-2">
+                        {upcoming.map((a) => <AssignmentRow key={a.id} a={a} />)}
+                      </div>
+                    )}
                   </div>
                 )}
               </>

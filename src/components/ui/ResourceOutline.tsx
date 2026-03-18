@@ -412,6 +412,8 @@ export default function ResourceOutline({
   })
   const [filter, setFilter] = useState<AssignmentFilter>('all')
   const [search, setSearch] = useState('')
+  const [collapsedPastDue, setCollapsedPastDue] = useState(false)
+  const [collapsedUpcoming, setCollapsedUpcoming] = useState(false)
 
   // Save whenever collapse state changes
   useEffect(() => {
@@ -634,40 +636,60 @@ export default function ResourceOutline({
             <>
               {notStartedFlat.pastDue.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-amber-700 mb-3 pb-2 border-b border-amber-500/30">Past Due</h3>
-                  <div className="flex flex-col gap-2">
-                    {notStartedFlat.pastDue.map(a => (
-                      <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
-                        <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                          <p className="text-xs text-amber-600 mt-0.5">
-                            {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
-                            {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
-                          </p>
-                        </Link>
-                        <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedPastDue(p => !p)}
+                    className="flex items-center gap-2 w-full text-left mb-3 pb-2 border-b border-amber-500/30 group"
+                  >
+                    <h3 className="text-sm font-semibold text-amber-700">Past Due</h3>
+                    <span className="text-xs text-amber-600/70">({notStartedFlat.pastDue.length})</span>
+                    <span className="ml-auto text-amber-600/60 group-hover:text-amber-700 transition-colors text-xs">{collapsedPastDue ? '▾' : '▴'}</span>
+                  </button>
+                  {!collapsedPastDue && (
+                    <div className="flex flex-col gap-2">
+                      {notStartedFlat.pastDue.map(a => (
+                        <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                          <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                              {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
+                              {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                            </p>
+                          </Link>
+                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {notStartedFlat.upcoming.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-dark-text mb-3 pb-2 border-b border-border">Upcoming</h3>
-                  <div className="flex flex-col gap-2">
-                    {notStartedFlat.upcoming.map(a => (
-                      <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
-                        <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                          <p className="text-xs text-muted-text mt-0.5">
-                            {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
-                            {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
-                          </p>
-                        </Link>
-                        <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedUpcoming(p => !p)}
+                    className="flex items-center gap-2 w-full text-left mb-3 pb-2 border-b border-border group"
+                  >
+                    <h3 className="text-sm font-semibold text-dark-text">Upcoming</h3>
+                    <span className="text-xs text-muted-text">({notStartedFlat.upcoming.length})</span>
+                    <span className="ml-auto text-muted-text group-hover:text-dark-text transition-colors text-xs">{collapsedUpcoming ? '▾' : '▴'}</span>
+                  </button>
+                  {!collapsedUpcoming && (
+                    <div className="flex flex-col gap-2">
+                      {notStartedFlat.upcoming.map(a => (
+                        <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                          <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                            <p className="text-xs text-muted-text mt-0.5">
+                              {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
+                              {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                            </p>
+                          </Link>
+                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </>
