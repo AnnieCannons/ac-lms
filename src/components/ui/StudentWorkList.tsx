@@ -6,7 +6,7 @@ import { formatDueDate } from "@/lib/date-utils";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
-type Filter = "all" | "complete" | "incomplete" | "turned-in" | "late" | "missing";
+type Filter = "all" | "complete" | "incomplete" | "turned-in" | "not-started";
 
 export type WorkAssignment = {
   id: string;
@@ -24,7 +24,12 @@ export type WorkAssignment = {
 function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean }) {
   if (grade === "complete") return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>;
   if (grade === "incomplete") return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>;
-  if (status === "submitted") return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned in</span>;
+  if (status === "submitted") return (
+    <span className="flex items-center gap-1.5 shrink-0">
+      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border">Late</span>}
+      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned in</span>
+    </span>
+  );
   if (status === "draft") return <span className="status-draft-badge text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">Draft</span>;
   if (isLate) return <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>;
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not started</span>;
@@ -34,8 +39,7 @@ function getFilterMatch(a: WorkAssignment, filter: Filter): boolean {
   if (filter === "complete") return a.grade === "complete";
   if (filter === "incomplete") return a.grade === "incomplete";
   if (filter === "turned-in") return a.status === "submitted";
-  if (filter === "late") return a.isLate;
-  if (filter === "missing") return !a.status && !a.grade;
+  if (filter === "not-started") return !a.status && !a.grade;
   return true;
 }
 
@@ -44,8 +48,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "complete", label: "Complete" },
   { key: "incomplete", label: "Needs Revision" },
   { key: "turned-in", label: "Turned In" },
-  { key: "late", label: "Late" },
-  { key: "missing", label: "Missing" },
+  { key: "not-started", label: "Not Started" },
 ];
 
 export default function StudentWorkList({
@@ -148,11 +151,15 @@ export default function StudentWorkList({
           ))}
         </div>
       ) : (
-        // Flat list sorted by due date
+        // Flat list: late items first (in not-started view), then by due date
         <div className="flex flex-col gap-2">
           {filtered
             .slice()
             .sort((a, b) => {
+              if (filter === "not-started") {
+                if (a.isLate && !b.isLate) return -1;
+                if (!a.isLate && b.isLate) return 1;
+              }
               if (!a.due_date && !b.due_date) return 0;
               if (!a.due_date) return 1;
               if (!b.due_date) return -1;
