@@ -70,13 +70,12 @@ export default async function StudentAssignmentPage({
   let admin: ReturnType<typeof createServiceSupabaseClient> | null = null
   try { admin = createServiceSupabaseClient() } catch { /* service role key not configured */ }
 
-  const { data: checklistItems } = admin
-    ? await admin
-        .from('checklist_items')
-        .select('id, text, description, order, required')
-        .eq('assignment_id', assignmentId)
-        .order('order', { ascending: true })
-    : { data: [] }
+  // checklist_items are readable by all authenticated users — use regular client (same as instructor page)
+  const { data: checklistItems } = await supabase
+    .from('checklist_items')
+    .select('id, text, description, order, required')
+    .eq('assignment_id', assignmentId)
+    .order('order', { ascending: true })
 
   const { data: course } = await supabase
     .from('courses')
