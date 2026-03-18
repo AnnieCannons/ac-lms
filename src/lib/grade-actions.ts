@@ -74,8 +74,13 @@ export async function markCompleteNoSubmission(
     .eq('id', submissionId)
 
   if (error) return { error: error.message }
-  if (courseId) revalidatePath(`/instructor/courses/${courseId}`)
-  else revalidatePath('/instructor/courses', 'layout')
+  if (courseId) {
+    revalidatePath(`/instructor/courses/${courseId}`)
+    revalidatePath(`/student/courses/${courseId}`, 'layout')
+  } else {
+    revalidatePath('/instructor/courses', 'layout')
+    revalidatePath('/student/courses', 'layout')
+  }
   return {}
 }
 
@@ -110,8 +115,13 @@ export async function saveGrade(
 
   if (error) return { error: error.message }
 
-  if (courseId) revalidatePath(`/instructor/courses/${courseId}`)
-  else revalidatePath('/instructor/courses', 'layout')
+  if (courseId) {
+    revalidatePath(`/instructor/courses/${courseId}`)
+    revalidatePath(`/student/courses/${courseId}`, 'layout')
+  } else {
+    revalidatePath('/instructor/courses', 'layout')
+    revalidatePath('/student/courses', 'layout')
+  }
 
   return {}
 }

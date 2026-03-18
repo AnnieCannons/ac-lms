@@ -89,12 +89,19 @@ export default async function StudentAssignmentPage({
     .eq('id', id)
     .single()
 
-  const { data: existingSubmission } = await supabase
-    .from('submissions')
-    .select('id, submission_type, content, status, grade, submitted_at')
-    .eq('assignment_id', assignmentId)
-    .eq('student_id', user.id)
-    .maybeSingle()
+  const { data: existingSubmission } = admin
+    ? await admin
+        .from('submissions')
+        .select('id, submission_type, content, status, grade, submitted_at, student_comment')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', user.id)
+        .maybeSingle()
+    : await supabase
+        .from('submissions')
+        .select('id, submission_type, content, status, grade, submitted_at')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', user.id)
+        .maybeSingle()
 
   const { data: submissionHistory } = await supabase
     .from('submission_history')
