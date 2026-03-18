@@ -313,20 +313,30 @@ export default async function StudentAssignmentPage({
               </div>
               <div className="flex flex-col gap-2">
                 {checklistItems.map(item => {
-                  const checked = instructorResponseMap.get(item.id) === true
+                  const instructorValue = instructorResponseMap.get(item.id)
+                  const checked = instructorValue === true
+                  const failed = instructorValue === false
                   return (
-                    <div key={item.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${checked ? 'border-teal-primary bg-teal-light/30' : 'border-border bg-background'}`}>
-                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : 'border-muted-text'}`}>
+                    <div key={item.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${checked ? 'border-teal-primary bg-teal-light/30' : failed ? 'border-red-400 bg-red-50 dark:bg-red-950/20' : 'border-border bg-background'}`}>
+                      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${checked ? 'bg-teal-primary border-teal-primary' : failed ? 'bg-red-500 border-red-500' : 'border-muted-text'}`}>
                         {checked && (
                           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
                           </svg>
                         )}
+                        {failed && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 2l8 8M10 2l-8 8" />
+                          </svg>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${checked ? 'text-dark-text' : 'text-muted-text'}`}>{item.text}</p>
+                        <p className={`text-sm font-medium ${checked ? 'text-dark-text' : failed ? 'text-red-600 dark:text-red-400' : 'text-muted-text'}`}>{item.text}</p>
                         {item.description && (
                           <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
+                        )}
+                        {failed && (
+                          <p className="text-xs text-red-500 mt-1 font-medium">Needs revision</p>
                         )}
                       </div>
                     </div>
