@@ -59,6 +59,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string; type: 'student' | 'staff' } | null>(null)
+  const [confirmTyped, setConfirmTyped] = useState('')
 
   async function handleRoleChange(userId: string, newRole: Role) {
     setSavingRole(true)
@@ -77,6 +78,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
     setRemoveError(null)
     setRemovingId(userId)
     setConfirmRemove(null)
+    setConfirmTyped('')
     const result = await removeStudentUser(userId)
     setRemovingId(null)
     if (result.error) {
@@ -114,17 +116,27 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
     <div className="space-y-10">
       {/* Confirm dialog modal */}
       {confirmRemove && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-surface rounded-2xl border border-border shadow-xl p-6 max-w-sm w-full mx-4">
-            <h3 className="text-base font-semibold text-dark-text mb-2">Remove {confirmRemove.name}?</h3>
-            <p className="text-sm text-muted-text mb-6">
-              {confirmRemove.type === 'student'
-                ? 'This will permanently delete their account and remove them from all courses. This cannot be undone.'
-                : 'This will permanently delete their staff account and all course enrollments. This cannot be undone.'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-surface rounded-2xl border border-red-500/40 shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-red-500 text-lg">⚠</span>
+              <h3 className="text-base font-semibold text-dark-text">Permanently delete {confirmRemove.name}?</h3>
+            </div>
+            <p className="text-sm text-muted-text mb-4">
+              This will <strong className="text-red-500">permanently delete their account</strong> and remove them from all courses. This cannot be undone.
             </p>
+            <p className="text-xs text-muted-text mb-1">Type their name to confirm:</p>
+            <input
+              autoFocus
+              type="text"
+              value={confirmTyped}
+              onChange={e => setConfirmTyped(e.target.value)}
+              placeholder={confirmRemove.name}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-red-500 mb-5"
+            />
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={() => setConfirmRemove(null)}
+                onClick={() => { setConfirmRemove(null); setConfirmTyped('') }}
                 className="text-sm font-medium text-muted-text hover:text-dark-text transition-colors"
               >
                 Cancel
@@ -134,10 +146,10 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
                   ? handleRemoveStudent(confirmRemove.id)
                   : handleDeleteStaff(confirmRemove.id)
                 }
-                disabled={removingId === confirmRemove.id}
-                className="text-sm font-semibold px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                disabled={confirmTyped.trim().toLowerCase() !== confirmRemove.name.toLowerCase() || removingId === confirmRemove.id}
+                className="text-sm font-semibold px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {removingId === confirmRemove.id ? 'Removing…' : 'Yes, remove'}
+                {removingId === confirmRemove.id ? 'Deleting…' : 'Delete account'}
               </button>
             </div>
           </div>
@@ -202,7 +214,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
                     {currentUserRole === 'admin' && (
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => setConfirmRemove({ id: member.id, name: member.name || member.email, type: 'staff' })}
+                          onClick={() => { setConfirmRemove({ id: member.id, name: member.name || member.email, type: 'staff' }); setConfirmTyped('') }}
                           disabled={isPending}
                           aria-label={`Remove ${member.name || member.email}`}
                           className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
@@ -253,7 +265,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
                       <td className="px-4 py-3"><CoursePills courses={student.courses} /></td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => setConfirmRemove({ id: student.userId, name: student.name || student.email, type: 'student' })}
+                          onClick={() => { setConfirmRemove({ id: student.userId, name: student.name || student.email, type: 'student' }); setConfirmTyped('') }}
                           disabled={isPending}
                           aria-label={`Remove ${student.name || student.email}`}
                           className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
@@ -277,7 +289,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
                     <div className="mt-1.5"><CoursePills courses={student.courses} /></div>
                   </div>
                   <button
-                    onClick={() => setConfirmRemove({ id: student.userId, name: student.name || student.email, type: 'student' })}
+                    onClick={() => { setConfirmRemove({ id: student.userId, name: student.name || student.email, type: 'student' }); setConfirmTyped('') }}
                     aria-label={`Remove ${student.name || student.email}`}
                     className="text-muted-text hover:text-red-500 transition-colors shrink-0 mt-0.5"
                   >
