@@ -230,7 +230,13 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
           <>
             {/* Desktop table */}
             <div className="hidden sm:block border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-fixed">
+                <colgroup>
+                  <col className="w-[20%]" />
+                  <col className="w-[30%]" />
+                  <col className="w-[44%]" />
+                  <col className="w-[6%]" />
+                </colgroup>
                 <thead>
                   <tr className="bg-surface border-b border-border">
                     <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
@@ -242,8 +248,8 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
                 <tbody className="divide-y divide-border">
                   {allStudents.map((student) => (
                     <tr key={student.userId} className="bg-background">
-                      <td className="px-4 py-3 text-dark-text">{student.name || '—'}</td>
-                      <td className="px-4 py-3 text-muted-text">{student.email}</td>
+                      <td className="px-4 py-3 text-dark-text truncate">{student.name || '—'}</td>
+                      <td className="px-4 py-3 text-muted-text truncate">{student.email}</td>
                       <td className="px-4 py-3"><CoursePills courses={student.courses} /></td>
                       <td className="px-4 py-3 text-right">
                         <button
