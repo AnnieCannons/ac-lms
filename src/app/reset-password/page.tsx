@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -9,8 +9,22 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
   const supabase = createClient()
   const router = useRouter()
+
+  // Supabase embeds the recovery token in the URL hash.
+  // We must wait for PASSWORD_RECOVERY event before updateUser will work.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setSessionReady(true)
+    })
+    // If already logged in via a valid session (e.g. coming from account page), allow immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSessionReady(true)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +52,14 @@ export default function ResetPasswordPage() {
             <div className="text-center flex flex-col gap-3">
               <p className="text-dark-text font-medium">Password updated!</p>
               <p className="text-sm text-muted-text">Redirecting you to your dashboard…</p>
+            </div>
+          ) : !sessionReady ? (
+            <div className="text-center flex flex-col gap-3">
+              <p className="text-sm text-muted-text">Verifying your reset link…</p>
+              <p className="text-xs text-muted-text">
+                If this takes more than a few seconds, your link may have expired.{' '}
+                <a href="/forgot-password" className="text-teal-primary hover:underline">Request a new one.</a>
+              </p>
             </div>
           ) : (
             <>
