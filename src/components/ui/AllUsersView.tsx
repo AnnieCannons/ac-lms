@@ -119,8 +119,8 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
             <h3 className="text-base font-semibold text-dark-text mb-2">Remove {confirmRemove.name}?</h3>
             <p className="text-sm text-muted-text mb-6">
               {confirmRemove.type === 'student'
-                ? 'This will remove them from all courses. Their account will remain.'
-                : 'This will remove their staff account and all course enrollments. This cannot be undone.'}
+                ? 'This will permanently delete their account and remove them from all courses. This cannot be undone.'
+                : 'This will permanently delete their staff account and all course enrollments. This cannot be undone.'}
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
