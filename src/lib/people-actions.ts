@@ -64,12 +64,25 @@ export async function bulkAddPeopleToCourse(
       return { email, added: true }
     }
 
-    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       data: { course_id: courseId, role },
       redirectTo: `${appUrl}/accept-invite`,
     })
 
     if (inviteError) return { email, error: inviteError.message }
+
+    // Immediately enroll using the invited user's ID
+    const invitedUserId = inviteData?.user?.id
+    if (invitedUserId) {
+      await admin.from('users').upsert(
+        { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'admin') ? role : 'student' },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+      await admin.from('course_enrollments').upsert(
+        { course_id: courseId, user_id: invitedUserId, role },
+        { onConflict: 'course_id,user_id' }
+      )
+    }
 
     const { error: insertError } = await admin
       .from('invitations')
@@ -126,12 +139,27 @@ export async function addPersonToCourse(
 
   // New user — send invite
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { course_id: courseId, role },
     redirectTo: `${appUrl}/accept-invite`,
   })
 
   if (inviteError) return { error: inviteError.message }
+
+  // Immediately enroll using the invited user's ID so enrollment doesn't
+  // depend on the user accepting first (the trigger may not have run yet,
+  // so upsert the users row too).
+  const invitedUserId = inviteData?.user?.id
+  if (invitedUserId) {
+    await admin.from('users').upsert(
+      { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'admin') ? role : 'student' },
+      { onConflict: 'id', ignoreDuplicates: true }
+    )
+    await admin.from('course_enrollments').upsert(
+      { course_id: courseId, user_id: invitedUserId, role },
+      { onConflict: 'course_id,user_id' }
+    )
+  }
 
   const { error: insertError } = await admin
     .from('invitations')
