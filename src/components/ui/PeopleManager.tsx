@@ -241,6 +241,9 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   // Per-row action status
   const [actionStatus, setActionStatus] = useState<{ id: string; type: 'success' | 'error'; message: string } | null>(null)
 
+  // Remove confirmation
+  const [confirmRemove, setConfirmRemove] = useState<{ userId: string; name: string } | null>(null)
+
   // Role editing
   const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null)
   const [savingRole, setSavingRole] = useState(false)
@@ -286,7 +289,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
         </td>
         <td className="px-4 py-3 text-right">
           <button
-            onClick={() => handleRemove(member.userId)}
+            onClick={() => setConfirmRemove({ userId: member.userId, name: member.name || member.email })}
             disabled={isPending}
             aria-label={`Remove ${member.name || member.email} from course`}
             className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
@@ -361,6 +364,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
 
   async function handleRemove(userId: string) {
     setActionStatus(null)
+    setConfirmRemove(null)
     const result = await removePersonFromCourse(courseId, userId)
     if (result.error) {
       setActionStatus({ id: userId, type: 'error', message: result.error })
@@ -371,6 +375,33 @@ export default function PeopleManager({ courseId, members, invitations, currentU
 
   return (
     <div className="space-y-10">
+      {/* Remove from course confirmation modal */}
+      {confirmRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-surface rounded-2xl border border-border shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-dark-text mb-2">Remove {confirmRemove.name}?</h3>
+            <p className="text-sm text-muted-text mb-6">
+              This will remove them from this course only. Their account and any other course enrollments will remain untouched.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="text-sm font-medium text-muted-text hover:text-dark-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemove(confirmRemove.userId)}
+                disabled={isPending}
+                className="text-sm font-semibold px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                Yes, remove from course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Learners */}
       <section>

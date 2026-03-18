@@ -35,31 +35,29 @@ export default async function AllUsersPage({
 
   const admin = createServiceSupabaseClient()
 
-  // All courses with their enrolled students
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id, name')
-    .order('created_at', { ascending: false })
+  // Fetch all students from users table (source of truth — not just enrolled ones)
+  const [{ data: allStudentUsers }, { data: courses }, { data: allEnrollments }] = await Promise.all([
+    admin.from('users').select('id, name, email').eq('role', 'student').order('name', { ascending: true }),
+    admin.from('courses').select('id, name').order('created_at', { ascending: false }),
+    admin.from('course_enrollments').select('course_id, user_id').eq('role', 'student'),
+  ])
 
-  const { data: allEnrollments } = await admin
-    .from('course_enrollments')
-    .select('course_id, user_id, role, users(id, name, email, role)')
-
-  // Build flat student list (deduplicated) with all enrolled courses per student
+  // Build courses-per-student map from enrollments
   const courseNameMap = Object.fromEntries((courses ?? []).map(c => [c.id, c.name]))
-  const studentMap = new Map<string, { userId: string; name: string; email: string; courses: { id: string; name: string }[] }>()
-  for (const enrollment of allEnrollments ?? []) {
-    if (enrollment.role !== 'student') continue
-    const u = Array.isArray(enrollment.users) ? enrollment.users[0] : enrollment.users
-    if (!u) continue
-    if (!studentMap.has(enrollment.user_id)) {
-      studentMap.set(enrollment.user_id, { userId: enrollment.user_id, name: u.name ?? '', email: u.email ?? '', courses: [] })
-    }
-    if (courseNameMap[enrollment.course_id]) {
-      studentMap.get(enrollment.user_id)!.courses.push({ id: enrollment.course_id, name: courseNameMap[enrollment.course_id] })
+  const enrollmentsByCourseStudent = new Map<string, { id: string; name: string }[]>()
+  for (const e of allEnrollments ?? []) {
+    if (!enrollmentsByCourseStudent.has(e.user_id)) enrollmentsByCourseStudent.set(e.user_id, [])
+    if (courseNameMap[e.course_id]) {
+      enrollmentsByCourseStudent.get(e.user_id)!.push({ id: e.course_id, name: courseNameMap[e.course_id] })
     }
   }
-  const allStudents = Array.from(studentMap.values()).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
+
+  const allStudents = (allStudentUsers ?? []).map(u => ({
+    userId: u.id,
+    name: u.name ?? '',
+    email: u.email ?? '',
+    courses: enrollmentsByCourseStudent.get(u.id) ?? [],
+  }))
 
   // All instructors/admins (deduplicated from users table)
   const { data: staffUsers } = await admin
