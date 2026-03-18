@@ -70,13 +70,9 @@ export default async function StudentCoursesPage() {
               const isTa = enrollmentRole === 'ta'
               const current = isCurrent(course.start_date, course.end_date)
               return (
-                <Link
-                  key={course.id}
-                  href={`/student/courses/${course.id}`}
-                  className="relative block bg-surface rounded-2xl border border-border p-4 sm:p-6 hover:border-teal-primary transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
+                <div key={course.id} className="relative bg-surface rounded-2xl border border-border hover:border-teal-primary transition-colors">
+                  <div className="flex items-center justify-between gap-4 p-4 sm:p-6">
+                    <Link href={`/student/courses/${course.id}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-dark-text truncate">{course.name}</h3>
                         {current && (
@@ -93,23 +89,19 @@ export default async function StudentCoursesPage() {
                           {course.end_date && ` – ${new Date(course.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
                         </p>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex items-center gap-3 shrink-0">
                       {isTa && (
-                        <Link
-                          href={`/instructor/courses/${course.id}`}
-                          className="relative z-10 text-blue-700 text-sm font-medium hover:underline"
-                          onClick={e => e.stopPropagation()}
-                        >
+                        <Link href={`/instructor/courses/${course.id}`} className="text-blue-700 text-sm font-medium hover:underline">
                           Instructor View →
                         </Link>
                       )}
-                      <span className="text-teal-primary text-sm font-medium">
+                      <Link href={`/student/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
                         {isTa ? 'Student View →' : 'View →'}
-                      </span>
+                      </Link>
                     </div>
                   </div>
-                </Link>
+                </div>
               )
             })}
           </div>
