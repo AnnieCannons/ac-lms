@@ -348,6 +348,7 @@ export default async function GradingPage({
               initialGrade={currentGrade}
               initialGradedAt={submission.graded_at ?? null}
               gradedById={user.id}
+              courseId={id}
               nextUrl={
                 nextUngradedStudent
                   ? `${subBase}/${nextUngradedStudent.id}${graderSuffix}`

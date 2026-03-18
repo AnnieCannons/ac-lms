@@ -92,6 +92,26 @@ export async function saveGrade(
   return {}
 }
 
+// Add a threaded comment to a submission (students, instructors, TAs)
+export async function addSubmissionComment(
+  submissionId: string,
+  content: string,
+): Promise<{ id: string; created_at: string } | { error: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = createServiceSupabaseClient()
+  const { data, error } = await admin
+    .from('submission_comments')
+    .insert({ submission_id: submissionId, author_id: user.id, content: content.trim() })
+    .select('id, created_at')
+    .single()
+
+  if (error || !data) return { error: error?.message ?? 'Failed to save' }
+  return { id: data.id, created_at: data.created_at }
+}
+
 // Student saves a comment on their own submission — scoped to auth.uid()
 export async function saveStudentComment(
   submissionId: string,

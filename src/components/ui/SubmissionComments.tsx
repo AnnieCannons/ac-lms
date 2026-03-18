@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { addSubmissionComment } from "@/lib/grade-actions";
 
 export type CommentEntry = {
   id: string;
@@ -27,38 +27,32 @@ export default function SubmissionComments({
   currentUserRole: string;
   isObserver?: boolean;
 }) {
-  const supabase = createClient();
   const [comments, setComments] = useState<CommentEntry[]>(initialComments);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const send = async () => {
     if (!text.trim() || !submissionId) return;
     setSending(true);
-    const { data } = await supabase
-      .from("submission_comments")
-      .insert({
-        submission_id: submissionId,
-        author_id: currentUserId,
-        content: text.trim(),
-      })
-      .select("id, created_at")
-      .single();
-
-    if (data) {
+    setSendError(null);
+    const result = await addSubmissionComment(submissionId, text.trim());
+    if ('error' in result) {
+      setSendError(result.error);
+    } else {
       setComments((prev) => [
         ...prev,
         {
-          id: data.id,
+          id: result.id,
           content: text.trim(),
-          created_at: data.created_at,
+          created_at: result.created_at,
           author_id: currentUserId,
           author_name: currentUserName,
           author_role: currentUserRole,
         },
       ]);
+      setText("");
     }
-    setText("");
     setSending(false);
   };
 
@@ -117,6 +111,7 @@ export default function SubmissionComments({
             rows={3}
             className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
           />
+          {sendError && <p className="text-xs text-red-500 mt-1">{sendError}</p>}
           <div className="flex items-center justify-between mt-2 gap-3">
             {!submissionId && (
               <p className="text-xs text-muted-text">Submit your assignment first to send a comment.</p>
