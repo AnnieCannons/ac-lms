@@ -241,8 +241,9 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   // Per-row action status
   const [actionStatus, setActionStatus] = useState<{ id: string; type: 'success' | 'error'; message: string } | null>(null)
 
-  // Remove confirmation
+  // Remove confirmation + loading state
   const [confirmRemove, setConfirmRemove] = useState<{ userId: string; name: string } | null>(null)
+  const [removing, setRemoving] = useState(false)
 
   // Role editing
   const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null)
@@ -365,16 +366,26 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   async function handleRemove(userId: string) {
     setActionStatus(null)
     setConfirmRemove(null)
+    setRemoving(true)
     const result = await removePersonFromCourse(courseId, userId)
     if (result.error) {
+      setRemoving(false)
       setActionStatus({ id: userId, type: 'error', message: result.error })
     } else {
-      startTransition(() => router.refresh())
+      startTransition(() => { router.refresh(); setRemoving(false) })
     }
   }
 
   return (
     <div className="space-y-10">
+      {/* Top progress bar during remove */}
+      {removing && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-border overflow-hidden">
+          <div className="h-full bg-teal-primary animate-[progress_1.5s_ease-in-out_infinite]" style={{ width: '40%', animation: 'slide 1.2s ease-in-out infinite' }} />
+          <style>{`@keyframes slide { 0% { transform: translateX(-100%) scaleX(1); } 50% { transform: translateX(100%) scaleX(2); } 100% { transform: translateX(300%) scaleX(1); } }`}</style>
+        </div>
+      )}
+
       {/* Remove from course confirmation modal */}
       {confirmRemove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
