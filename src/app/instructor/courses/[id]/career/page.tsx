@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
@@ -14,6 +14,7 @@ export default async function InstructorCareerPage({
   const { id } = await params;
   const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
+  const admin = createServiceSupabaseClient();
 
   const { data: course } = await supabase
     .from("courses")
@@ -23,7 +24,7 @@ export default async function InstructorCareerPage({
 
   if (!course) redirect("/instructor/courses");
 
-  const { data: modules } = await supabase
+  const { data: modules } = await admin
     .from("modules")
     .select("*, module_days(*, assignments!module_day_id(*))")
     .eq("course_id", id)

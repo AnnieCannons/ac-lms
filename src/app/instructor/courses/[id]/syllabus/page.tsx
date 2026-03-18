@@ -16,6 +16,7 @@ export default async function InstructorSyllabusPage({
   const { id } = await params;
   const { user, profile, isTa } = await getInstructorOrTaAccess(id);
   const supabase = await createServerSupabaseClient();
+  const admin = createServiceSupabaseClient();
 
   const { data: course } = await supabase
     .from("courses")
@@ -33,7 +34,7 @@ export default async function InstructorSyllabusPage({
   }
   const currentWeek = getCurrentWeek(course.start_date ?? null)
 
-  const { data: rawModules } = await supabase
+  const { data: rawModules } = await admin
     .from("modules")
     .select("*, module_days(*, deleted_at, assignments!module_day_id(*, deleted_at))")
     .eq("course_id", id)
@@ -46,8 +47,6 @@ export default async function InstructorSyllabusPage({
       .filter((d: { deleted_at?: string | null }) => !d.deleted_at)
       .map((d: { assignments?: Array<{ deleted_at?: string | null }> }) => ({ ...d, assignments: (d.assignments ?? []).filter(a => !a.deleted_at) })),
   }));
-
-  const admin = createServiceSupabaseClient();
   const [{ data: quizzesData }] = await Promise.all([
     admin
       .from("quizzes")

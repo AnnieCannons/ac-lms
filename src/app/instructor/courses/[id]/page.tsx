@@ -19,7 +19,7 @@ export default async function CoursePage({
 
   const [{ data: course }, { data: modules }, { data: quizzesData }] = await Promise.all([
     supabase.from("courses").select("*").eq("id", id).single(),
-    supabase.from("modules")
+    admin.from("modules")
       .select("*, module_days(*, assignments!module_day_id(*))")
       .eq("course_id", id)
       .is("deleted_at", null)
