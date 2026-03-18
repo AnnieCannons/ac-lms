@@ -340,7 +340,7 @@ export default async function GradingPage({
               {student?.name ?? 'Student'}
             </Link>
             <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-base font-semibold text-teal-primary hover:underline transition-colors block truncate max-w-md">{assignment.title}</Link>
-            <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
+            <AnswerKeyField assignmentId={assignmentId} courseId={id} initialUrl={assignment.answer_key_url ?? null} />
           </div>
           {submission && (
             <GradeButtons

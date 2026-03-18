@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { saveAnswerKey } from '@/lib/grade-actions'
 import { normalizeUrl } from '@/lib/url'
 
 interface Props {
   assignmentId: string
+  courseId: string
   initialUrl: string | null
 }
 
@@ -23,21 +24,20 @@ const ExternalIcon = () => (
   </svg>
 )
 
-export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
-  const supabase = createClient()
+export default function AnswerKeyField({ assignmentId, courseId, initialUrl }: Props) {
   const router = useRouter()
   const [url, setUrl] = useState(initialUrl ?? '')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(initialUrl ?? '')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const save = async () => {
     setSaving(true)
-    await supabase
-      .from('assignments')
-      .update({ answer_key_url: draft.trim() || null })
-      .eq('id', assignmentId)
+    setError(null)
+    const result = await saveAnswerKey(assignmentId, draft.trim() || null, courseId)
     setSaving(false)
+    if (result.error) { setError(result.error); return }
     setUrl(draft.trim())
     setEditing(false)
     router.refresh()
@@ -45,7 +45,9 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
 
   if (editing) {
     return (
-      <div className="flex items-center gap-2 mt-4 p-3 badge-amber border rounded-xl">
+      <div className="flex flex-col gap-1 mt-4">
+      {error && <p className="text-xs text-red-500 px-1">{error}</p>}
+      <div className="flex items-center gap-2 p-3 badge-amber border rounded-xl">
         <KeyIcon />
         <input
           autoFocus
@@ -69,6 +71,7 @@ export default function AnswerKeyField({ assignmentId, initialUrl }: Props) {
         >
           Cancel
         </button>
+      </div>
       </div>
     )
   }

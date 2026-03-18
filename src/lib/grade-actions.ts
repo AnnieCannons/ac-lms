@@ -2,6 +2,30 @@
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
+export async function saveAnswerKey(
+  assignmentId: string,
+  url: string | null,
+  courseId: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Allow instructors/admins globally, or TAs for this course
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+    const { data: enr } = await supabase.from('course_enrollments')
+      .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+    if (enr?.role !== 'ta') return { error: 'Not authorized' }
+  }
+
+  const admin = createServiceSupabaseClient()
+  const { error } = await admin.from('assignments').update({ answer_key_url: url }).eq('id', assignmentId)
+  if (error) return { error: error.message }
+  revalidatePath(`/instructor/courses/${courseId}`)
+  return {}
+}
+
 export async function markCompleteNoSubmission(
   assignmentId: string,
   studentId: string,

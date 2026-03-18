@@ -216,7 +216,7 @@ export default async function InstructorSubmissionsPage({
             Due {formatDueDate(assignment.due_date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         )}
-        <AnswerKeyField assignmentId={assignmentId} initialUrl={assignment.answer_key_url ?? null} />
+        <AnswerKeyField assignmentId={assignmentId} courseId={id} initialUrl={assignment.answer_key_url ?? null} />
 
         {/* Stats */}
         <div className="flex items-center gap-6 mb-8 flex-wrap">
