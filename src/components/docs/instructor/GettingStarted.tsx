@@ -60,7 +60,7 @@ export default function GettingStarted() {
         <li><strong>Career Dev cross-posts</strong> — career dev content exists only in the source course; recreate cross-posts as needed</li>
       </DocList>
       <DocNote>
-        The new course is created with your account as the owner. Add co-instructors from the <strong>Users</strong>
+        The new course is created with your account as the owner. Add co-instructors from the <strong>Users</strong>{' '}
         page after opening the new course.
       </DocNote>
 
