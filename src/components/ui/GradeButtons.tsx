@@ -43,12 +43,7 @@ export default function GradeButtons({
       return;
     }
     setSaving(false);
-    // Auto-advance to next ungraded student when grading for the first time
-    if (wasUngraded && newGrade && nextUrl) {
-      router.push(nextUrl);
-    } else {
-      router.refresh();
-    }
+    router.refresh();
   };
 
   return (
