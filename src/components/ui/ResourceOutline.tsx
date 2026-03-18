@@ -77,10 +77,15 @@ function isBonusLike(title?: string, isBonus?: boolean) {
 }
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
-  const isLate = !!dueDate && new Date(dueDate) < new Date()
+  const isLate = !!dueDate && localDate(dueDate) < new Date()
   if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
   if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
-  if (info?.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
+  if (info?.status === 'submitted') return (
+    <span className="flex items-center gap-1.5 shrink-0">
+      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border">Late</span>}
+      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned In</span>
+    </span>
+  )
   // Bonus assignments: no status badge
   if (isBonusLike(title, isBonus)) return null
   // not started (no submission or draft) — show both Late + Not Started if past due
@@ -370,7 +375,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
   // Bonus/no-due-date assignments can't be Late or Not Started
   if (isBonusLike(title, isBonus) && (filter === 'late' || filter === 'not-started')) return false
-  const isLate = !!dueDate && new Date(dueDate) < new Date()
+  const isLate = !!dueDate && localDate(dueDate) < new Date()
   if (filter === 'late') return isLate && (!info || (info.status === 'draft' && !info.grade))
   if (filter === 'not-started') {
     if (!info) return true
@@ -556,7 +561,7 @@ export default function ResourceOutline({
       {searchBar}
       {filterCounts && (
         <div className="flex gap-2 mb-6 flex-wrap">
-          {FILTERS.map(f => {
+          {FILTERS.filter(f => instructorView || f.key !== 'late').map(f => {
             const active = filter === f.key
             const styles = FILTER_STYLES[f.key]
             return (
@@ -643,13 +648,24 @@ export default function ResourceOutline({
                 <div className="flex flex-col gap-4">
                   {days.map(day => {
                     const dayCollapsed = collapsedDays.has(day.id)
-                    const visibleAssignments = (day.assignments ?? []).filter(a =>
-                      instructorView
-                        ? (!searchQ || a.title.toLowerCase().includes(searchQ))
-                        : (a.published &&
-                           (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
-                           (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title)))
-                    )
+                    const visibleAssignments = (day.assignments ?? [])
+                      .filter(a =>
+                        instructorView
+                          ? (!searchQ || a.title.toLowerCase().includes(searchQ))
+                          : (a.published &&
+                             (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
+                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title)))
+                      )
+                      .sort((a, b) => {
+                        // In not-started view, sort late assignments first
+                        if (!instructorView && filter === 'not-started') {
+                          const aLate = !!a.due_date && localDate(a.due_date) < new Date()
+                          const bLate = !!b.due_date && localDate(b.due_date) < new Date()
+                          if (aLate && !bLate) return -1
+                          if (!aLate && bLate) return 1
+                        }
+                        return 0
+                      })
                     return (
                       <div key={day.id}>
                         <button
