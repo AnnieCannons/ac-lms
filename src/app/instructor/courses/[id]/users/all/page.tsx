@@ -4,6 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import AllUsersView from '@/components/ui/AllUsersView'
+import AddPeopleButton from '@/components/ui/AddPeopleButton'
 
 export default async function AllUsersPage({
   params,
@@ -75,9 +76,16 @@ export default async function AllUsersPage({
 
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-dark-text">Users</h1>
-              <p className="text-sm text-muted-text mt-1">All courses</p>
+            <div className="flex items-center justify-between gap-4 mb-8">
+              <div>
+                <h1 className="text-2xl font-bold text-dark-text">Users</h1>
+                <p className="text-sm text-muted-text mt-1">All courses</p>
+              </div>
+              <AddPeopleButton
+                courseId={id}
+                currentUserRole={profile?.role as 'instructor' | 'admin'}
+                allCourses={courses ?? []}
+              />
             </div>
 
             {/* Tab nav */}
