@@ -279,6 +279,24 @@ export async function deleteStaffMember(
   return {}
 }
 
+export async function removeStudentUser(
+  targetUserId: string
+): Promise<{ error?: string }> {
+  const auth = await getAuthedInstructorOrAdmin()
+  if ('error' in auth) return { error: auth.error }
+
+  const admin = createServiceSupabaseClient()
+
+  // Remove all course enrollments
+  const { error } = await admin
+    .from('course_enrollments')
+    .delete()
+    .eq('user_id', targetUserId)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function toggleInstructorCourse(
   instructorId: string,
   courseId: string,

@@ -45,16 +45,21 @@ export default async function AllUsersPage({
     .from('course_enrollments')
     .select('course_id, user_id, role, users(id, name, email, role)')
 
-  // Build students-by-course map
-  const studentsByCourse = (courses ?? []).map((c) => {
-    const students = (allEnrollments ?? [])
-      .filter((e) => e.course_id === c.id && e.role === 'student')
-      .map((e) => {
-        const u = Array.isArray(e.users) ? e.users[0] : e.users
-        return { userId: e.user_id, name: u?.name ?? '', email: u?.email ?? '' }
-      })
-    return { courseId: c.id, courseName: c.name, students }
-  }).filter((c) => c.students.length > 0)
+  // Build flat student list (deduplicated) with all enrolled courses per student
+  const courseNameMap = Object.fromEntries((courses ?? []).map(c => [c.id, c.name]))
+  const studentMap = new Map<string, { userId: string; name: string; email: string; courses: { id: string; name: string }[] }>()
+  for (const enrollment of allEnrollments ?? []) {
+    if (enrollment.role !== 'student') continue
+    const u = Array.isArray(enrollment.users) ? enrollment.users[0] : enrollment.users
+    if (!u) continue
+    if (!studentMap.has(enrollment.user_id)) {
+      studentMap.set(enrollment.user_id, { userId: enrollment.user_id, name: u.name ?? '', email: u.email ?? '', courses: [] })
+    }
+    if (courseNameMap[enrollment.course_id]) {
+      studentMap.get(enrollment.user_id)!.courses.push({ id: enrollment.course_id, name: courseNameMap[enrollment.course_id] })
+    }
+  }
+  const allStudents = Array.from(studentMap.values()).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
 
   // All instructors/admins (deduplicated from users table)
   const { data: staffUsers } = await admin
@@ -94,7 +99,7 @@ export default async function AllUsersPage({
             </div>
 
             <AllUsersView
-              studentsByCourse={studentsByCourse}
+              allStudents={allStudents}
               staff={staffUsers ?? []}
               currentUserRole={profile?.role as 'instructor' | 'admin'}
             />
