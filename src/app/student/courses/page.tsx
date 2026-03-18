@@ -91,13 +91,11 @@ export default async function StudentCoursesPage() {
                       )}
                     </Link>
                     <div className="flex items-center gap-3 shrink-0">
-                      {isTa && (
-                        <Link href={`/instructor/courses/${course.id}`} className="text-blue-700 text-sm font-medium hover:underline">
-                          Instructor View →
-                        </Link>
-                      )}
-                      <Link href={`/student/courses/${course.id}`} className="text-teal-primary text-sm font-medium">
-                        {isTa ? 'Student View →' : 'View →'}
+                      <Link
+                        href={isTa ? `/instructor/courses/${course.id}` : `/student/courses/${course.id}`}
+                        className="text-teal-primary text-sm font-medium"
+                      >
+                        View →
                       </Link>
                     </div>
                   </div>
