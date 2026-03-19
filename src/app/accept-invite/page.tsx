@@ -43,8 +43,11 @@ function AcceptInviteForm() {
         if (cn) setCourseName(cn)
       }
 
-      if (tokenHash && type === 'invite') {
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'invite' })
+      if (tokenHash && (type === 'invite' || type === 'recovery')) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: type as 'invite' | 'recovery',
+        })
         if (error) {
           setSessionError(error.message)
           return

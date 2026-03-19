@@ -352,12 +352,30 @@ export async function sendInviteToEnrolledUser(
     .single()
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const courseMeta = { course_id: courseId, role: 'student', course_name: course?.name ?? '' }
+
   const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(userRecord.email, {
-    data: { course_id: courseId, role: 'student', course_name: course?.name ?? '' },
+    data: courseMeta,
     redirectTo: `${appUrl}/accept-invite`,
   })
 
-  if (inviteError) return { error: inviteError.message }
+  if (inviteError) {
+    // Already a confirmed account — use password recovery flow instead
+    const alreadyRegistered =
+      inviteError.message.toLowerCase().includes('already been registered') ||
+      inviteError.status === 422
+
+    if (!alreadyRegistered) return { error: inviteError.message }
+
+    // Stamp course metadata onto their auth user so /accept-invite can read it
+    await admin.auth.admin.updateUserById(userId, { user_metadata: courseMeta })
+
+    // Send a password-reset email that redirects to our setup page
+    const { error: resetError } = await admin.auth.resetPasswordForEmail(userRecord.email, {
+      redirectTo: `${appUrl}/accept-invite`,
+    })
+    if (resetError) return { error: resetError.message }
+  }
 
   await admin
     .from('invitations')
