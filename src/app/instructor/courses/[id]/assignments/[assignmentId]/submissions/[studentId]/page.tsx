@@ -459,6 +459,7 @@ export default async function GradingPage({
               initialResponses={checklistResponses ?? []}
               submissionId={submission.id}
               gradedById={user.id}
+              courseId={id}
               studentCheckedIds={studentCheckedIds}
             />
           )}

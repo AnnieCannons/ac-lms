@@ -19,12 +19,14 @@ export default function InstructorChecklist({
   initialResponses,
   submissionId,
   gradedById,
+  courseId,
   studentCheckedIds,
 }: {
   items: Item[];
   initialResponses: Response[];
   submissionId: string;
   gradedById: string;
+  courseId: string;
   studentCheckedIds: Set<string>;
 }) {
   const [responseMap, setResponseMap] = useState<Map<string, boolean>>(
@@ -40,7 +42,7 @@ export default function InstructorChecklist({
     // Optimistic update
     setResponseMap((prev) => new Map(prev).set(itemId, newValue));
 
-    const result = await toggleChecklistResponse(submissionId, itemId, newValue, gradedById);
+    const result = await toggleChecklistResponse(submissionId, itemId, newValue, gradedById, courseId);
     if (result.error) {
       // Revert on failure
       setResponseMap((prev) => new Map(prev).set(itemId, !newValue));
