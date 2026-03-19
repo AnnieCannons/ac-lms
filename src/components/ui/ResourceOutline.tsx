@@ -848,7 +848,7 @@ export default function ResourceOutline({
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <Link
-                                    href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                                    href={`/instructor/courses/${courseId}/assignments/${a.id}?edit=1`}
                                     className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-muted-text hover:border-dark-text hover:text-dark-text transition-colors"
                                     prefetch={true}
                                   >
