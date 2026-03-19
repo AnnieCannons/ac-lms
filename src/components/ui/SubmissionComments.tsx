@@ -19,7 +19,7 @@ export default function SubmissionComments({
   currentUserName,
   currentUserRole,
   isObserver,
-  text,
+  text: externalText,
   onTextChange,
 }: {
   submissionId: string | null;
@@ -28,10 +28,13 @@ export default function SubmissionComments({
   currentUserName: string;
   currentUserRole: string;
   isObserver?: boolean;
-  text: string;
-  onTextChange: (t: string) => void;
+  text?: string;
+  onTextChange?: (t: string) => void;
 }) {
   const [comments, setComments] = useState<CommentEntry[]>(initialComments);
+  const [localText, setLocalText] = useState('');
+  const text = externalText !== undefined ? externalText : localText;
+  const setText = (t: string) => { onTextChange ? onTextChange(t) : setLocalText(t); };
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -54,7 +57,7 @@ export default function SubmissionComments({
           author_role: currentUserRole,
         },
       ]);
-      onTextChange("");
+      setText("");
     }
     setSending(false);
   };
@@ -106,7 +109,7 @@ export default function SubmissionComments({
         <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
           <textarea
             value={text}
-            onChange={(e) => onTextChange(e.target.value)}
+            onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
             }}
