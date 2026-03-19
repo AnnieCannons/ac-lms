@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { formatDueDate, localDate } from '@/lib/date-utils'
+import { formatDueDate, localDate, todayLocal } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import { trashResource } from '@/lib/trash-actions'
@@ -77,7 +77,7 @@ function isBonusLike(title?: string, isBonus?: boolean) {
 }
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
-  const isLate = !!dueDate && localDate(dueDate) < new Date()
+  const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
   if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
   if (info?.status === 'submitted') return (
@@ -373,7 +373,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   if (filter === 'complete') return info?.grade === 'complete'
   if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
   const bonus = isBonusLike(title, isBonus)
-  const isLate = !!dueDate && localDate(dueDate) < new Date()
+  const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (bonus && (filter === 'late' || filter === 'not-started')) return false
@@ -537,8 +537,8 @@ export default function ResourceOutline({
           const notStarted = !info || (info.status === 'draft' && !info.grade)
           return notStarted && (!searchQ || a.title.toLowerCase().includes(searchQ))
         })
-        const pastDue = sortByDue(base.filter(a => !!a.due_date && localDate(a.due_date) < new Date()))
-        const upcoming = sortByDue(base.filter(a => !a.due_date || localDate(a.due_date) >= new Date()))
+        const pastDue = sortByDue(base.filter(a => !!a.due_date && localDate(a.due_date) < todayLocal()))
+        const upcoming = sortByDue(base.filter(a => !a.due_date || localDate(a.due_date) >= todayLocal()))
         return { pastDue, upcoming }
       })()
     : null
@@ -768,8 +768,8 @@ export default function ResourceOutline({
                       .sort((a, b) => {
                         // In not-started view, sort late assignments first
                         if (!instructorView && filter === 'not-started') {
-                          const aLate = !!a.due_date && localDate(a.due_date) < new Date()
-                          const bLate = !!b.due_date && localDate(b.due_date) < new Date()
+                          const aLate = !!a.due_date && localDate(a.due_date) < todayLocal()
+                          const bLate = !!b.due_date && localDate(b.due_date) < todayLocal()
                           if (aLate && !bLate) return -1
                           if (!aLate && bLate) return 1
                         }
@@ -871,7 +871,7 @@ export default function ResourceOutline({
                                 <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
                                   {a.due_date && (() => {
-                                    const isPast = localDate(a.due_date) < new Date()
+                                    const isPast = localDate(a.due_date) < todayLocal()
                                     const info = submissionMap?.[a.id]
                                     const isResolved = info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
                                     return (

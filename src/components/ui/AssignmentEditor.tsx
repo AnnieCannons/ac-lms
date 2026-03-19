@@ -65,12 +65,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [title, setTitle] = useState(assignment.title)
   const [description, setDescription] = useState(assignment.description ?? '')
   const [howToTurnIn, setHowToTurnIn] = useState(assignment.how_to_turn_in ?? '')
-  const [dueDate, setDueDate] = useState(() => {
-    if (!assignment.due_date) return ''
-    // Convert stored UTC to PST (UTC-8) date string
-    const d = new Date(new Date(assignment.due_date).getTime() - 8 * 60 * 60 * 1000)
-    return d.toISOString().slice(0, 10)
-  })
+  const [dueDate, setDueDate] = useState(() => assignment.due_date?.slice(0, 10) ?? '')
   const [published, setPublished] = useState(assignment.published)
   const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
   const [isBonus, setIsBonus] = useState(assignment.is_bonus)
@@ -224,7 +219,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         title,
         description: description || null,
         how_to_turn_in: howToTurnIn || null,
-        due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null,
+        due_date: dueDate || null,
         published,
         submission_required: submissionRequired,
         is_bonus: isBonus,
@@ -237,7 +232,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setIsDirty(false)
     if (onSaved) {
       onSaved(
-        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null, published, submission_required: submissionRequired, is_bonus: isBonus, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
+        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
         checklist
       )
     }

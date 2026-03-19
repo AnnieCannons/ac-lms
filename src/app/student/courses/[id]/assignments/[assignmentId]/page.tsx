@@ -9,7 +9,7 @@ import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
-import { localDate, formatDueDate } from '@/lib/date-utils'
+import { localDate, formatDueDate, todayLocal } from '@/lib/date-utils'
 
 export default async function StudentAssignmentPage({
   params,
@@ -231,7 +231,7 @@ export default async function StudentAssignmentPage({
               Needs Revision
             </span>
           )}
-          {!isExcused && !existingSubmission && effectiveDueDate && localDate(effectiveDueDate) < new Date() && (
+          {!isExcused && !existingSubmission && effectiveDueDate && localDate(effectiveDueDate) < todayLocal() && (
             <span className="status-late-badge shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Late
             </span>
@@ -247,7 +247,7 @@ export default async function StudentAssignmentPage({
             <p className="text-muted-text text-sm">{module.title}</p>
           )}
           {effectiveDueDate && (() => {
-            const isPast = localDate(effectiveDueDate) < new Date()
+            const isPast = localDate(effectiveDueDate) < todayLocal()
             const isResolved = existingSubmission?.grade === 'complete' || existingSubmission?.grade === 'incomplete' || existingSubmission?.status === 'submitted'
             return (
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border ${
