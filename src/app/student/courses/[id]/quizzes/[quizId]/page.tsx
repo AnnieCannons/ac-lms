@@ -133,9 +133,9 @@ export default async function TakeQuizPage({
   // Shuffle choices deterministically per student + quiz + attempt number.
   // True/false questions are left in their original order.
   const currentAttempt = attemptCount + 1; // 1 for first take, 2 for first retake, etc.
-  const questions = rawQuestions.map(q => {
+  const questions = rawQuestions.map((q, i) => {
     if (q.question_type === 'true_false') return q;
-    const seed = `${user.id}-${quizId}-${currentAttempt}-${q.ident}`;
+    const seed = `${user.id}-${quizId}-${currentAttempt}-${i}`;
     return { ...q, choices: seededShuffle(q.choices, seed) };
   });
   const outOfAttempts = maxAttempts !== null && attemptCount >= maxAttempts;
