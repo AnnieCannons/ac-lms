@@ -328,6 +328,45 @@ export async function removeStudentUser(
   return {}
 }
 
+export async function sendInviteToEnrolledUser(
+  userId: string,
+  courseId: string,
+): Promise<{ error?: string }> {
+  const auth = await getAuthedInstructorOrAdmin()
+  if ('error' in auth) return { error: auth.error }
+
+  const admin = createServiceSupabaseClient()
+
+  const { data: userRecord } = await admin
+    .from('users')
+    .select('email')
+    .eq('id', userId)
+    .single()
+
+  if (!userRecord?.email) return { error: 'User not found.' }
+
+  const { data: course } = await admin
+    .from('courses')
+    .select('name')
+    .eq('id', courseId)
+    .single()
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(userRecord.email, {
+    data: { course_id: courseId, role: 'student', course_name: course?.name ?? '' },
+    redirectTo: `${appUrl}/accept-invite`,
+  })
+
+  if (inviteError) return { error: inviteError.message }
+
+  await admin
+    .from('invitations')
+    .insert({ course_id: courseId, email: userRecord.email, role: 'student', invited_by: auth.user.id })
+    .select()
+
+  return {}
+}
+
 export async function toggleInstructorCourse(
   instructorId: string,
   courseId: string,

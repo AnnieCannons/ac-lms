@@ -22,6 +22,7 @@ function AcceptInviteForm() {
   const [sessionReady, setSessionReady] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
 
+  const [courseName, setCourseName] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -36,12 +37,19 @@ function AcceptInviteForm() {
       const tokenHash = searchParams.get('token_hash')
       const type = searchParams.get('type')
 
+      async function readCourseName() {
+        const { data: { user } } = await supabase.auth.getUser()
+        const cn = user?.user_metadata?.course_name as string | undefined
+        if (cn) setCourseName(cn)
+      }
+
       if (tokenHash && type === 'invite') {
         const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'invite' })
         if (error) {
           setSessionError(error.message)
           return
         }
+        await readCourseName()
         setSessionReady(true)
         return
       }
@@ -58,6 +66,7 @@ function AcceptInviteForm() {
             setSessionError(error.message)
             return
           }
+          await readCourseName()
           setSessionReady(true)
           return
         }
@@ -68,6 +77,7 @@ function AcceptInviteForm() {
       // Check if already in a session (e.g. page reload after OTP)
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
+        await readCourseName()
         setSessionReady(true)
         return
       }
@@ -116,6 +126,11 @@ function AcceptInviteForm() {
             AC<span className="text-teal-primary">*</span>
           </h1>
           <p className="mt-2 text-lg font-semibold text-dark-text">Welcome! Set up your account</p>
+          {courseName && (
+            <p className="mt-1 text-sm text-muted-text">
+              You&apos;re joining <span className="font-semibold text-dark-text">{courseName}</span>
+            </p>
+          )}
         </div>
 
         {sessionError && (

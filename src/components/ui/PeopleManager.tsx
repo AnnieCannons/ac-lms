@@ -1,7 +1,7 @@
 'use client'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse, deleteStaffMember } from '@/lib/people-actions'
+import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse, deleteStaffMember, sendInviteToEnrolledUser } from '@/lib/people-actions'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
@@ -54,6 +54,16 @@ function TrashIcon() {
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
       <path d="M10 11v6M14 11v6" />
       <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  )
+}
+
+function MailIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M2 7l10 7 10-7" />
     </svg>
   )
 }
@@ -249,6 +259,22 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null)
   const [savingRole, setSavingRole] = useState(false)
 
+  // Per-student invite state
+  const [inviteState, setInviteState] = useState<Record<string, 'sending' | 'sent' | 'error'>>({})
+
+  async function handleSendInvite(userId: string, name: string) {
+    setInviteState(s => ({ ...s, [userId]: 'sending' }))
+    const result = await sendInviteToEnrolledUser(userId, courseId)
+    if (result.error) {
+      setInviteState(s => ({ ...s, [userId]: 'error' }))
+      setActionStatus({ id: userId, type: 'error', message: result.error! })
+    } else {
+      setInviteState(s => ({ ...s, [userId]: 'sent' }))
+      setActionStatus({ id: userId, type: 'success', message: `Invite sent to ${name}` })
+      setTimeout(() => setInviteState(s => { const n = { ...s }; delete n[userId]; return n }), 4000)
+    }
+  }
+
   const activeMembers = members.filter(m => m.role !== 'observer')
   const observerMembers = members.filter(m => m.role === 'observer')
 
@@ -289,19 +315,30 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           )}
         </td>
         <td className="px-4 py-3 text-right">
-          <button
-            onClick={() => setConfirmRemove({ userId: member.userId, name: member.name || member.email })}
-            disabled={isPending}
-            aria-label={`Remove ${member.name || member.email} from course`}
-            className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-          >
-            <TrashIcon />
-          </button>
-          {actionStatus?.id === member.userId && (
-            <span className={`ml-2 text-xs ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
-              {actionStatus.message}
-            </span>
-          )}
+          <div className="flex items-center justify-end gap-3">
+            {actionStatus?.id === member.userId && (
+              <span className={`text-xs ${actionStatus.type === 'error' ? 'text-red-600' : 'text-teal-primary'}`}>
+                {actionStatus.message}
+              </span>
+            )}
+            <button
+              onClick={() => handleSendInvite(member.userId, member.name || member.email)}
+              disabled={isPending || inviteState[member.userId] === 'sending'}
+              aria-label={`Send invite to ${member.name || member.email}`}
+              title={inviteState[member.userId] === 'sent' ? 'Invite sent!' : 'Send account setup invite'}
+              className={`transition-colors disabled:opacity-50 ${inviteState[member.userId] === 'sent' ? 'text-teal-primary' : 'text-muted-text hover:text-teal-primary'}`}
+            >
+              <MailIcon />
+            </button>
+            <button
+              onClick={() => setConfirmRemove({ userId: member.userId, name: member.name || member.email })}
+              disabled={isPending}
+              aria-label={`Remove ${member.name || member.email} from course`}
+              className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </td>
       </tr>
     )
@@ -317,14 +354,25 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           </div>
           <p className="text-xs text-muted-text mt-0.5 truncate">{member.email}</p>
         </div>
-        <button
-          onClick={() => handleRemove(member.userId)}
-          disabled={isPending}
-          aria-label={`Remove ${member.name || member.email} from course`}
-          className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors shrink-0"
-        >
-          <TrashIcon />
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => handleSendInvite(member.userId, member.name || member.email)}
+            disabled={isPending || inviteState[member.userId] === 'sending'}
+            aria-label={`Send invite to ${member.name || member.email}`}
+            title="Send account setup invite"
+            className={`transition-colors disabled:opacity-50 ${inviteState[member.userId] === 'sent' ? 'text-teal-primary' : 'text-muted-text hover:text-teal-primary'}`}
+          >
+            <MailIcon />
+          </button>
+          <button
+            onClick={() => handleRemove(member.userId)}
+            disabled={isPending}
+            aria-label={`Remove ${member.name || member.email} from course`}
+            className="text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+          >
+            <TrashIcon />
+          </button>
+        </div>
       </div>
     )
   }
