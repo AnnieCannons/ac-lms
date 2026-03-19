@@ -240,9 +240,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate ? new Date(`${dueDate}T20:59:00-08:00`).toISOString() : null, published, submission_required: submissionRequired, is_bonus: isBonus, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
         checklist
       )
-    } else {
-      router.refresh()
     }
+    router.refresh()
   }
 
   const addChecklistItem = async () => {

@@ -6,6 +6,8 @@ import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import AssignmentViewEdit from "@/components/ui/AssignmentViewEdit";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
+export const dynamic = 'force-dynamic'
+
 export default async function InstructorAssignmentEditPage({
   params,
 }: {
