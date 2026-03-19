@@ -54,7 +54,7 @@ function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
   return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 }
 
-export default function YearlyScheduleSection({ instructorEditHref, hideCohorts }: { instructorEditHref?: string; hideCohorts?: boolean } = {}) {
+export default function YearlyScheduleSection({ instructorEditHref, hideCohorts, paidOnly }: { instructorEditHref?: string; hideCohorts?: boolean; paidOnly?: boolean } = {}) {
   const [timeline, setTimeline] = useState<TimelineItem[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [breaks, setBreaks] = useState<Break[]>([])
@@ -63,9 +63,12 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts 
   useEffect(() => {
     const supabase = createClient()
     const currentYear = new Date().getFullYear()
+    const breaksQuery = paidOnly
+      ? supabase.from('calendar_breaks').select('*').eq('paid_only', true).order('start_date', { ascending: true })
+      : supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true })
     Promise.all([
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
-      supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true }),
+      breaksQuery,
       supabase.from('calendar_holidays').select('*').eq('year', currentYear).order('date', { ascending: true }),
     ]).then(([{ data: cohorts }, { data: rawBreaks }, { data: hols }]) => {
       setTimeline(buildTimeline(cohorts ?? [], rawBreaks ?? []))

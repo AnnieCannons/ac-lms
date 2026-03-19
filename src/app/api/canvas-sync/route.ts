@@ -102,10 +102,12 @@ async function fetchUpdatedSubmissions(
     fetchSubmissionsPage(courseId, 'submitted_since', since),
     fetchSubmissionsPage(courseId, 'graded_since', since),
   ])
-  // Deduplicate by Canvas submission id
+  // Deduplicate by Canvas submission id — prefer graded over submitted
+  // so a submission that was both resubmitted and graded since last sync
+  // keeps its graded state rather than the intermediate submitted state.
   const seen = new Set<number>()
   const results: CanvasSubmission[] = []
-  for (const s of [...submitted, ...graded]) {
+  for (const s of [...graded, ...submitted]) {
     if (!seen.has(s.id)) { seen.add(s.id); results.push(s) }
   }
   return results
@@ -207,21 +209,25 @@ export async function GET(req: NextRequest) {
       const grade = mapGrade(cs)
       const status = cs.workflow_state === 'graded' ? 'graded' : 'submitted'
 
+      // Only overwrite grade/graded_at when this submission is graded.
+      // A resubmission (workflow_state='submitted') should not wipe out a
+      // previously-recorded incomplete/complete grade on the same submission.
+      const upsertData: Record<string, unknown> = {
+        assignment_id: assignment.id,
+        student_id: student.id,
+        submission_type: mapSubmissionType(cs),
+        content: mapContent(cs),
+        submitted_at: cs.submitted_at ?? nowISO,
+        status,
+      }
+      if (status === 'graded') {
+        upsertData.grade = grade
+        upsertData.graded_at = nowISO
+      }
+
       const { data: upserted, error: subErr } = await supabase
         .from('submissions')
-        .upsert(
-          {
-            assignment_id: assignment.id,
-            student_id: student.id,
-            submission_type: mapSubmissionType(cs),
-            content: mapContent(cs),
-            submitted_at: cs.submitted_at ?? nowISO,
-            status,
-            grade,
-            graded_at: status === 'graded' ? nowISO : null,
-          },
-          { onConflict: 'assignment_id,student_id' },
-        )
+        .upsert(upsertData, { onConflict: 'assignment_id,student_id' })
         .select('id')
         .single()
 

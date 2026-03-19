@@ -104,17 +104,8 @@ export default function SubmissionForm({
   const [error, setError] = useState<string | null>(null);
 
   const [studentComment, setStudentComment] = useState(existingSubmission?.student_comment ?? '');
-  const [savingComment, setSavingComment] = useState(false);
-  const [commentSaved, setCommentSaved] = useState(false);
-
-  const saveComment = async (comment: string) => {
-    if (isStudentPreview || !saved) return;
-    setSavingComment(true);
-    await saveStudentComment(saved.id, comment);
-    setSavingComment(false);
-    setCommentSaved(true);
-    setTimeout(() => setCommentSaved(false), 2000);
-  };
+  const [commentText, setCommentText] = useState('');
+  const [commentUnsavedError, setCommentUnsavedError] = useState(false);
 
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
@@ -221,6 +212,11 @@ export default function SubmissionForm({
   };
 
   const handleSubmit = async () => {
+    if (commentText.trim()) {
+      setCommentUnsavedError(true);
+      return;
+    }
+    setCommentUnsavedError(false);
     const content = getContent();
     const newSaved = await doSave("submitted", content, tab);
     if (newSaved) {
@@ -546,6 +542,26 @@ export default function SubmissionForm({
 
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 
+          {/* Comments inline — above the submit button */}
+          {!isStudentPreview && (
+            <SubmissionComments
+              submissionId={saved?.id ?? null}
+              initialComments={initialComments}
+              currentUserId={studentId}
+              currentUserName={currentUserName}
+              currentUserRole={currentUserRole}
+              isObserver={isObserver}
+              text={commentText}
+              onTextChange={(t) => { setCommentText(t); setCommentUnsavedError(false); }}
+            />
+          )}
+
+          {commentUnsavedError && (
+            <p role="alert" className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              You have an unsaved comment — click &ldquo;Save Comment&rdquo; or clear the text before submitting.
+            </p>
+          )}
+
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
@@ -586,16 +602,17 @@ export default function SubmissionForm({
       )}
     </div>
 
-    {/* Comments — always visible; send is gated on having a submission */}
-    {!isStudentPreview && (
+    {/* Comments in view mode — shows past thread; only appears outside edit mode */}
+    {!isStudentPreview && mode !== 'edit' && (
       <SubmissionComments
-        key={saved?.id ?? 'no-submission'}
         submissionId={saved?.id ?? null}
         initialComments={initialComments}
         currentUserId={studentId}
         currentUserName={currentUserName}
         currentUserRole={currentUserRole}
         isObserver={isObserver}
+        text={commentText}
+        onTextChange={setCommentText}
       />
     )}
     </>

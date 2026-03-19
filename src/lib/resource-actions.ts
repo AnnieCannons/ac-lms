@@ -35,7 +35,7 @@ export async function toggleResourceComplete(resourceId: string, courseId: strin
     if (error) return { error: error.message }
   }
 
-  revalidatePath(`/student/courses/${courseId}`)
+  revalidatePath(`/student/courses/${courseId}`, 'layout')
   revalidatePath(`/student/courses/${courseId}/class-resources`)
   return {}
 }

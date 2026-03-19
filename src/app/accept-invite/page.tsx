@@ -4,6 +4,28 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { acceptInvite } from '@/lib/people-actions'
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
+function validatePassword(pw: string): string | null {
+  if (pw.length < 8) return 'Password must be at least 8 characters.'
+  if (!/[A-Z]/.test(pw)) return 'Password must include at least one uppercase letter.'
+  if (!/[a-z]/.test(pw)) return 'Password must include at least one lowercase letter.'
+  if (!/[0-9]/.test(pw)) return 'Password must include at least one number.'
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include at least one symbol (e.g. !, @, #, $).'
+  return null
+}
+
 export default function AcceptInvitePage() {
   return (
     <Suspense fallback={
@@ -26,8 +48,12 @@ function AcceptInviteForm() {
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const passwordsMatch = confirm.length > 0 && password === confirm
 
   useEffect(() => {
     const supabase = createClient()
@@ -95,8 +121,9 @@ function AcceptInviteForm() {
     e.preventDefault()
     setSubmitError(null)
 
-    if (password.length < 8) {
-      setSubmitError('Password must be at least 8 characters.')
+    const pwError = validatePassword(password)
+    if (pwError) {
+      setSubmitError(pwError)
       return
     }
     if (password !== confirm) {
@@ -164,31 +191,58 @@ function AcceptInviteForm() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-dark-text mb-1">
-                Password <span className="text-muted-text font-normal">(min 8 characters)</span>
+                Password
               </label>
-              <input
-                id="password"
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              />
+              <p className="text-xs text-muted-text mb-1.5">Min 8 characters with uppercase, lowercase, a number, and a symbol (e.g. !, @, #, $)</p>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setSubmitError(null) }}
+                  className="w-full border border-border rounded-lg px-3 py-2 pr-10 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text hover:text-dark-text"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <EyeIcon open={showPassword} />
+                </button>
+              </div>
             </div>
 
             <div>
               <label htmlFor="confirm" className="block text-sm font-medium text-dark-text mb-1">
                 Confirm password
               </label>
-              <input
-                id="confirm"
-                type="password"
-                required
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              />
+              <div className="relative">
+                <input
+                  id="confirm"
+                  type={showConfirm ? 'text' : 'password'}
+                  required
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => { setConfirm(e.target.value); setSubmitError(null) }}
+                  className="w-full border border-border rounded-lg px-3 py-2 pr-10 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text hover:text-dark-text"
+                  tabIndex={-1}
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                >
+                  <EyeIcon open={showConfirm} />
+                </button>
+              </div>
+              {passwordsMatch && (
+                <p className="text-xs text-teal-primary mt-1">Passwords match</p>
+              )}
             </div>
 
             {submitError && (

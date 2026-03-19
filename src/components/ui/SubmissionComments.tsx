@@ -19,6 +19,8 @@ export default function SubmissionComments({
   currentUserName,
   currentUserRole,
   isObserver,
+  text,
+  onTextChange,
 }: {
   submissionId: string | null;
   initialComments: CommentEntry[];
@@ -26,9 +28,10 @@ export default function SubmissionComments({
   currentUserName: string;
   currentUserRole: string;
   isObserver?: boolean;
+  text: string;
+  onTextChange: (t: string) => void;
 }) {
   const [comments, setComments] = useState<CommentEntry[]>(initialComments);
-  const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -51,7 +54,7 @@ export default function SubmissionComments({
           author_role: currentUserRole,
         },
       ]);
-      setText("");
+      onTextChange("");
     }
     setSending(false);
   };
@@ -103,25 +106,27 @@ export default function SubmissionComments({
         <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => onTextChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
             }}
-            placeholder="Add a comment for your instructor…"
+            placeholder={currentUserRole === 'student' ? "Add a comment for your instructor…" : "Leave a comment for the learner…"}
             rows={3}
             className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
           />
           {sendError && <p className="text-xs text-red-500 mt-1">{sendError}</p>}
           <div className="flex items-center justify-between mt-2 gap-3">
-            {!submissionId && (
-              <p className="text-xs text-muted-text">Submit your assignment first to send a comment.</p>
-            )}
+            {!submissionId && text.trim() ? (
+              <p className="text-xs text-amber-700">Submit your assignment first — your comment will be ready to send after.</p>
+            ) : !submissionId ? (
+              <p className="text-xs text-muted-text">Submit your assignment to enable comments.</p>
+            ) : null}
             <button
               onClick={send}
               disabled={sending || !text.trim() || !submissionId}
-              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity ml-auto"
+              className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ml-auto"
             >
-              {sending ? "Sending…" : "Send"}
+              {sending ? "Saving…" : "Save Comment"}
             </button>
           </div>
         </div>

@@ -12,7 +12,7 @@ interface FileUploadProps {
   maxSizeMB?: number;
 }
 
-const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*";
+const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.tar,.gz,image/*";
 const DEFAULT_MAX_MB = 10;
 
 export default function FileUpload({

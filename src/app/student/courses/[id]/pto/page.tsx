@@ -73,7 +73,7 @@ export default async function StudentPTOPage({
               <h1 className="text-2xl font-bold text-dark-text">Paid Time Off</h1>
               <p className="text-sm text-muted-text mt-1">{course.name}</p>
             </div>
-            <YearlyScheduleSection hideCohorts />
+            <YearlyScheduleSection hideCohorts paidOnly />
           </main>
         </div>
       </div>
