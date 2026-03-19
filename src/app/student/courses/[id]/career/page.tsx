@@ -50,7 +50,7 @@ export default async function StudentCareerPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at))')
     .eq('course_id', id)
     .eq('category', 'career')
     .eq('published', true)

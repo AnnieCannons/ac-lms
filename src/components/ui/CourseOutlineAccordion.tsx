@@ -103,6 +103,7 @@ interface Assignment {
   title: string
   due_date: string | null
   published: boolean
+  order?: number | null
   skill_tags?: string[] | null
   is_bonus?: boolean
   careerDev?: boolean
@@ -201,7 +202,9 @@ function DayModal({
   showBonusAssignments?: boolean
   quizzesForDay: Quiz[]
 }) {
-  const publishedAssignments = (day.assignments ?? []).filter(a => a.published && (showBonusAssignments || !a.is_bonus))
+  const publishedAssignments = [...(day.assignments ?? [])]
+    .filter(a => a.published && (showBonusAssignments || !a.is_bonus))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
   const hasContent = publishedAssignments.length > 0 || resources.length > 0 || quizzesForDay.length > 0
 
@@ -592,7 +595,7 @@ export default function CourseOutlineAccordion({
                 <div className="flex flex-col gap-2 px-6 pb-6">
                   {sortedDays.map(day => {
                     const isToday = isCurrentWeek && day.day_name === todayName
-                    const publishedAssignments = day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? []
+                    const publishedAssignments = [...(day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                     const resources = day.resources ?? []
                     const dayQuizzes = (quizzes ?? []).filter(q => {
                       if (q.linked_day_id === day.id) return true
