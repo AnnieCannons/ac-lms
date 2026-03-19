@@ -54,6 +54,7 @@ export default function SubmissionForm({
   initialHistory,
   checklistItems,
   initialChecked,
+  instructorResponseMap,
   isObserver,
   isStudentPreview,
   initialComments = [],
@@ -67,6 +68,7 @@ export default function SubmissionForm({
   initialHistory: HistoryEntry[];
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
+  instructorResponseMap?: Map<string, boolean>;
   isObserver?: boolean;
   isStudentPreview?: boolean;
   initialComments?: CommentEntry[];
@@ -286,7 +288,12 @@ export default function SubmissionForm({
     {hasChecklist && (
       <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Checklist</p>
+          <div>
+            <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Checklist</p>
+            {instructorResponseMap && instructorResponseMap.size > 0 && (
+              <p className="text-xs text-muted-text mt-0.5">Your self-check · Instructor review</p>
+            )}
+          </div>
           <span className="text-xs text-muted-text">
             {requiredItems.filter(i => checked[i.id]).length}/{requiredItems.length} required checked
           </span>
@@ -294,40 +301,62 @@ export default function SubmissionForm({
         <ul className="flex flex-col gap-3">
           {checklistItems!.map(item => {
             const isBonus = item.required === false;
+            const instructorValue = instructorResponseMap?.get(item.id);
+            const instructorChecked = instructorValue === true;
+            const instructorFailed = instructorValue === false;
             return (
               <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => !isObserver && toggleCheck(item.id)}
-                  className={`flex items-start gap-3 w-full text-left group ${isObserver ? 'pointer-events-none opacity-60' : ''}`}
-                >
-                  <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
-                    checked[item.id]
-                      ? "bg-teal-primary border-teal-primary"
-                      : "border-muted-text group-hover:border-teal-primary"
-                  }`}>
-                    {checked[item.id] && (
-                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className={`text-sm transition-colors ${checked[item.id] ? "text-muted-text line-through" : "text-dark-text"}`}>
-                        {item.text}
-                      </p>
-                      {isBonus && (
-                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-300">
-                          Bonus
-                        </span>
+                <div className={`flex items-start gap-3 w-full ${instructorFailed ? 'bg-red-50 rounded-xl px-3 py-2 -mx-1 border border-red-200' : instructorChecked ? 'bg-teal-light/20 rounded-xl px-3 py-2 -mx-1' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => !isObserver && toggleCheck(item.id)}
+                    className={`flex items-start gap-3 flex-1 text-left group ${isObserver ? 'pointer-events-none opacity-60' : ''}`}
+                  >
+                    <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                      checked[item.id]
+                        ? "bg-teal-primary border-teal-primary"
+                        : "border-muted-text group-hover:border-teal-primary"
+                    }`}>
+                      {checked[item.id] && (
+                        <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={`text-sm transition-colors ${checked[item.id] ? "text-muted-text line-through" : "text-dark-text"}`}>
+                          {item.text}
+                        </p>
+                        {isBonus && (
+                          <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-300">
+                            Bonus
+                          </span>
+                        )}
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
                       )}
                     </div>
-                    {item.description && (
-                      <p className="text-xs text-muted-text mt-0.5">{item.description}</p>
-                    )}
-                  </div>
-                </button>
+                  </button>
+                  {/* Instructor verdict badge */}
+                  {instructorChecked && (
+                    <span className="shrink-0 mt-0.5 flex items-center gap-1 text-xs font-semibold text-teal-primary">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+                      </svg>
+                      Approved
+                    </span>
+                  )}
+                  {instructorFailed && (
+                    <span className="shrink-0 mt-0.5 flex items-center gap-1 text-xs font-semibold text-red-500">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2 2l8 8M10 2l-8 8" />
+                      </svg>
+                      Revise
+                    </span>
+                  )}
+                </div>
               </li>
             );
           })}
