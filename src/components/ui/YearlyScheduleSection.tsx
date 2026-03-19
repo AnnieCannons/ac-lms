@@ -98,11 +98,11 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
           <div
             key={i}
             className={`grid grid-cols-[1fr_1fr_1fr_32px] items-center border-b border-border last:border-b-0 ${
-              item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50'
+              item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50 dark:bg-amber-900/20'
             }`}
           >
             <div className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 ${
-              item.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700'
+              item.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700 dark:text-amber-400'
             }`}>
               {item.kind === 'cohort' ? item.name : item.label}
               {item.kind === 'cohort' && item.isCurrent && (
@@ -111,8 +111,8 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
                 </span>
               )}
             </div>
-            <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.start)}</div>
-            <div className="px-4 py-2.5 text-sm text-dark-text">{formatDate(item.end)}</div>
+            <div className={`px-4 py-2.5 text-sm ${item.kind === 'break' ? 'text-amber-800 dark:text-amber-300' : 'text-dark-text'}`}>{formatDate(item.start)}</div>
+            <div className={`px-4 py-2.5 text-sm ${item.kind === 'break' ? 'text-amber-800 dark:text-amber-300' : 'text-dark-text'}`}>{formatDate(item.end)}</div>
             <div className="flex items-center justify-center pr-1">
               <CalendarPopover
                 label={item.kind === 'cohort' ? item.name : item.label}
