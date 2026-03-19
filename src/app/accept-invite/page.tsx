@@ -162,7 +162,7 @@ function AcceptInviteForm() {
         </div>
 
         {sessionError && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 text-center">
+          <div className="alert-error text-sm p-4 text-center">
             {sessionError}
           </div>
         )}

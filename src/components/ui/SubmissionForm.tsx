@@ -306,7 +306,7 @@ export default function SubmissionForm({
             const instructorFailed = instructorValue === false;
             return (
               <li key={item.id}>
-                <div className={`flex items-start gap-3 w-full ${instructorFailed ? 'bg-red-50 rounded-xl px-3 py-2 -mx-1 border border-red-200' : instructorChecked ? 'bg-teal-light/20 rounded-xl px-3 py-2 -mx-1' : ''}`}>
+                <div className={`flex items-start gap-3 w-full ${instructorFailed ? 'status-missing-card rounded-xl px-3 py-2 -mx-1 border' : instructorChecked ? 'bg-teal-light/20 rounded-xl px-3 py-2 -mx-1' : ''}`}>
                   <button
                     type="button"
                     onClick={() => !isObserver && toggleCheck(item.id)}

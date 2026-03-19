@@ -262,6 +262,10 @@ html.theme-dark .status-needs-grading-btn:hover { background-color: #261a00; }
 .badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }
 html.theme-dark .badge-amber { background-color: #2a1800; color: #fbbf24; border-color: #78350f; }
 
+/* Error alert banner — use .alert-error instead of bg-red-50 so dark mode works */
+.alert-error { background-color: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 0.5rem; }
+html.theme-dark .alert-error { background-color: #1f0a0a; border-color: #4a1515; color: #f87171; }
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

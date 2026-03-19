@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-dark-text">AC<span className="text-teal-primary">*</span></h1>
-          <p className="text-gray-500 mt-2">Set a new password</p>
+          <p className="text-muted-text mt-2">Set a new password</p>
         </div>
 
         <div className="bg-surface rounded-2xl border border-border p-8">
@@ -90,7 +90,7 @@ export default function ResetPasswordPage() {
           ) : (
             <>
               {error && (
-                <div className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">{error}</div>
+                <div className="alert-error text-sm p-3 mb-6">{error}</div>
               )}
               <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                 <div>

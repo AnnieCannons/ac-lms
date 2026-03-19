@@ -35,12 +35,12 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-dark-text">AC<span className="text-teal-primary">*</span></h1>
-          <p className="text-gray-500 mt-2">Sign in to your account</p>
+          <p className="text-muted-text mt-2">Sign in to your account</p>
         </div>
 
         <div className="bg-surface rounded-2xl border border-border p-8">
           {error && (
-            <div role="alert" className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">
+            <div role="alert" className="alert-error text-sm p-3 mb-6">
               {error}
             </div>
           )}
