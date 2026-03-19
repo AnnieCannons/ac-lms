@@ -12,6 +12,8 @@ export type CategorizedAssignment = {
   weekNumber: number | null
   isLate: boolean
   submissionId: string | null
+  type?: 'assignment' | 'quiz'
+  score?: number | null
 }
 
 type StatCategory = 'missing' | 'late' | 'submitted' | 'incomplete' | 'complete'
@@ -168,7 +170,7 @@ export default function StudentDetailView({
           <div className="flex items-start gap-3">
             <span className="text-muted-text shrink-0 w-28">Progress</span>
             <span className="text-dark-text">
-              {lists.complete.length} / {totalPublished} assignments complete
+              {lists.complete.length} / {totalPublished} complete
             </span>
           </div>
         </div>
@@ -176,7 +178,7 @@ export default function StudentDetailView({
 
       {/* ── Stat cards ── */}
       <div>
-        <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Assignment Breakdown</h2>
+        <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Breakdown</h2>
 
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
           {categories.map(({ key, items }) => {
@@ -224,11 +226,17 @@ export default function StudentDetailView({
               <ul className="divide-y divide-border">
                 {activeItems.map(a => {
                   const isGrading = grading[a.id]
-                  const canSpeedGrade = (activeCategory === 'submitted' || activeCategory === 'incomplete') && a.submissionId
+                  const isQuiz = a.type === 'quiz'
+                  const canSpeedGrade = !isQuiz && (activeCategory === 'submitted' || activeCategory === 'incomplete') && a.submissionId
                   return (
                     <li key={a.id} className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-surface transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                          {isQuiz && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">Quiz</span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span className="text-xs text-muted-text">
                             {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
@@ -240,6 +248,9 @@ export default function StudentDetailView({
                             <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border status-late-badge">
                               Late
                             </span>
+                          )}
+                          {isQuiz && a.score != null && (
+                            <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
                           )}
                         </div>
                       </div>
@@ -269,16 +280,25 @@ export default function StudentDetailView({
                             )}
                           </>
                         )}
-                        <Link
-                          href={
-                            activeCategory === 'missing'
-                              ? `/instructor/courses/${courseId}/assignments/${a.id}`
-                              : `/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`
-                          }
-                          className="text-xs font-medium text-teal-primary hover:underline"
-                        >
-                          {canSpeedGrade ? 'View' : activeCategory === 'missing' ? 'View →' : 'Grade →'}
-                        </Link>
+                        {isQuiz ? (
+                          <Link
+                            href={`/instructor/courses/${courseId}/quiz-submissions`}
+                            className="text-xs font-medium text-teal-primary hover:underline"
+                          >
+                            View →
+                          </Link>
+                        ) : (
+                          <Link
+                            href={
+                              activeCategory === 'missing'
+                                ? `/instructor/courses/${courseId}/assignments/${a.id}`
+                                : `/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`
+                            }
+                            className="text-xs font-medium text-teal-primary hover:underline"
+                          >
+                            {canSpeedGrade ? 'View' : activeCategory === 'missing' ? 'View →' : 'Grade →'}
+                          </Link>
+                        )}
                       </div>
                     </li>
                   )

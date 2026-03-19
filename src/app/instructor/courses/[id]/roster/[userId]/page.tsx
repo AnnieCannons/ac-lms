@@ -82,17 +82,36 @@ export default async function StudentDetailPage({
   })
 
   const assignmentIds = allAssignments.map(a => a.id)
-  // Use sum of all categorized as denominator (canvas-tracked only, avoids canvas_assignment_id data issues)
 
-  const { data: submissions } = assignmentIds.length > 0
+  const [
+    { data: submissions },
+    { data: quizzes },
+  ] = await Promise.all([
+    assignmentIds.length > 0
+      ? admin
+          .from('submissions')
+          .select('id, assignment_id, status, grade, submitted_at')
+          .eq('student_id', userId)
+          .in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [] }),
+    admin
+      .from('quizzes')
+      .select('id, title, module_title, due_at')
+      .eq('course_id', courseId)
+      .eq('published', true)
+      .is('deleted_at', null),
+  ])
+
+  const quizIds = (quizzes ?? []).map(q => q.id)
+  const { data: quizSubmissions } = quizIds.length > 0
     ? await admin
-        .from('submissions')
-        .select('id, assignment_id, status, grade, submitted_at')
+        .from('quiz_submissions')
+        .select('quiz_id, submitted_at, score_percent')
         .eq('student_id', userId)
-        .in('assignment_id', assignmentIds)
+        .in('quiz_id', quizIds)
     : { data: [] }
 
-  // Categorize
+  // Categorize assignments
   const now = new Date()
   const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null }]))
 
@@ -110,7 +129,7 @@ export default async function StudentDetailPage({
       a.due_date &&
       sub.submitted_at.slice(0, 10) > a.due_date
     )
-    const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null }
+    const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null, type: 'assignment' }
 
     if (!sub || sub.status === 'draft') {
       if (duePassed && a.canvasAssignmentId) missing.push(entry)
@@ -121,6 +140,34 @@ export default async function StudentDetailPage({
       if (isLate && sub.grade !== 'complete') late.push(entry)
       if (sub.grade === 'complete') complete.push(entry)
       else if (sub.grade === 'incomplete') incomplete.push(entry)
+    }
+  }
+
+  // Categorize quizzes
+  const quizSubMap = new Map((quizSubmissions ?? []).map(s => [s.quiz_id, s]))
+  for (const q of (quizzes ?? [])) {
+    const sub = quizSubMap.get(q.id)
+    const duePassed = q.due_at ? new Date(q.due_at) < now : false
+    const displayTitle = q.title?.startsWith('Quiz: ') ? q.title.slice(6) : q.title
+    const isLate = !!(sub?.submitted_at && q.due_at && sub.submitted_at > q.due_at)
+    const entry: CategorizedAssignment = {
+      id: q.id,
+      title: displayTitle ?? '',
+      due_date: q.due_at ?? null,
+      moduleTitle: q.module_title ?? '',
+      weekNumber: null,
+      isLate,
+      submissionId: null,
+      type: 'quiz',
+      score: sub?.score_percent ?? null,
+    }
+    if (!sub) {
+      if (duePassed) missing.push(entry)
+    } else {
+      const score = sub.score_percent ?? 0
+      if (score >= 100) complete.push(entry)
+      else incomplete.push(entry)
+      if (isLate) late.push(entry)
     }
   }
 

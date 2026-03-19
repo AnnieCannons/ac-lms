@@ -22,7 +22,7 @@ export default function ViewAsStudentButton({
   return (
     <button
       onClick={handleClick}
-      className="text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-300 px-3 py-1.5 rounded-full transition-colors"
+      className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-300 dark:border-purple-700 px-3 py-1.5 rounded-full transition-colors"
     >
       View as Student
     </button>
