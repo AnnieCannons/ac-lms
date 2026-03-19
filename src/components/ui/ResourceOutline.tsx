@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatDueDate, localDate } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
@@ -410,7 +410,11 @@ export default function ResourceOutline({
     } catch {}
     return new Set()
   })
-  const [filter, setFilter] = useState<AssignmentFilter>('all')
+  const searchParams = useSearchParams()
+  const [filter, setFilter] = useState<AssignmentFilter>(() => {
+    const p = searchParams.get('filter') as AssignmentFilter | null
+    return (p && FILTERS.some(f => f.key === p)) ? p : 'all'
+  })
   const [search, setSearch] = useState('')
   const [collapsedPastDue, setCollapsedPastDue] = useState(false)
   const [collapsedUpcoming, setCollapsedUpcoming] = useState(false)
@@ -437,6 +441,11 @@ export default function ResourceOutline({
   const changeFilter = (f: AssignmentFilter) => {
     setFilter(f)
     if (f !== 'all') expandAll()
+    const params = new URLSearchParams(searchParams.toString())
+    if (f === 'all') params.delete('filter')
+    else params.set('filter', f)
+    const qs = params.toString()
+    router.replace(qs ? `?${qs}` : '?', { scroll: false })
   }
 
   const toggleStar = async (id: string) => {
@@ -459,9 +468,11 @@ export default function ResourceOutline({
     }
   }
 
-  const assignmentHref = (id: string) => instructorView
-    ? `/instructor/courses/${courseId}/assignments/${id}/submissions`
-    : `/student/courses/${courseId}/assignments/${id}`
+  const assignmentHref = (id: string) => {
+    if (instructorView) return `/instructor/courses/${courseId}/assignments/${id}/submissions`
+    const base = `/student/courses/${courseId}/assignments/${id}`
+    return filter !== 'all' ? `${base}?filter=${filter}` : base
+  }
 
   const toggleModule = (moduleId: string) => {
     const isCollapsed = collapsedModules.has(moduleId)

@@ -13,10 +13,13 @@ import { localDate, formatDueDate } from '@/lib/date-utils'
 
 export default async function StudentAssignmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; assignmentId: string }>
+  searchParams: Promise<{ filter?: string }>
 }) {
   const { id, assignmentId } = await params
+  const { filter: backFilter } = await searchParams
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -185,14 +188,21 @@ export default async function StudentAssignmentPage({
           <Link href="/student/courses" className="hover:text-teal-primary">My Courses</Link>
           <span className="text-border">/</span>
           <Link href={`/student/courses/${id}`} className="hover:text-teal-primary">{course?.name}</Link>
-          {day && (
+          {backFilter ? (
+            <>
+              <span className="text-border">/</span>
+              <Link href={`/student/courses/${id}/assignments?filter=${backFilter}`} className="hover:text-teal-primary">
+                Grades
+              </Link>
+            </>
+          ) : day ? (
             <>
               <span className="text-border">/</span>
               <Link href={`/student/courses/${id}/days/${day.id}`} className="hover:text-teal-primary">
                 {day.day_name}
               </Link>
             </>
-          )}
+          ) : null}
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium truncate max-w-[200px]">{assignment.title}</span>
         </div>
