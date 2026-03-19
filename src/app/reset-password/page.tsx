@@ -49,11 +49,13 @@ export default function ResetPasswordPage() {
     return () => subscription.unsubscribe()
   }, [])
 
+  const passwordMismatch = confirm.length > 0 && password !== confirm
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const pwError = validatePassword(password)
     if (pwError) { setError(pwError); return }
-    if (password !== confirm) { setError('Passwords do not match.'); return }
+    if (password !== confirm) return // inline indicator already visible
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
@@ -137,6 +139,9 @@ export default function ResetPasswordPage() {
                   </div>
                   {passwordsMatch && (
                     <p className="text-xs text-teal-primary mt-1">Passwords match</p>
+                  )}
+                  {passwordMismatch && (
+                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
                   )}
                 </div>
                 <button

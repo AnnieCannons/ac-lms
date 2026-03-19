@@ -54,6 +54,7 @@ function AcceptInviteForm() {
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const passwordsMatch = confirm.length > 0 && password === confirm
+  const passwordMismatch = confirm.length > 0 && password !== confirm
 
   useEffect(() => {
     const supabase = createClient()
@@ -126,10 +127,7 @@ function AcceptInviteForm() {
       setSubmitError(pwError)
       return
     }
-    if (password !== confirm) {
-      setSubmitError('Passwords do not match.')
-      return
-    }
+    if (password !== confirm) return // inline indicator already visible
 
     setSubmitting(true)
     const result = await acceptInvite(name.trim(), password)
@@ -242,6 +240,9 @@ function AcceptInviteForm() {
               </div>
               {passwordsMatch && (
                 <p className="text-xs text-teal-primary mt-1">Passwords match</p>
+              )}
+              {passwordMismatch && (
+                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
               )}
             </div>
 
