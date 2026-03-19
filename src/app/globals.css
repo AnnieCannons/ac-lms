@@ -23,7 +23,14 @@
   --color-border: #E2D9EF;
   --color-dark-text: #1a1030;
   --color-muted-text: #6B5D80;
+  --color-placeholder-text: #B0A3C0;
   --font-sans: 'Inter', sans-serif;
+}
+
+/* Global placeholder color — lighter than muted-text so it's clearly distinct from typed text */
+::placeholder {
+  color: var(--color-placeholder-text) !important;
+  opacity: 1;
 }
 
 html {
@@ -72,6 +79,7 @@ html.theme-dark {
   --color-surface: #1e1530;
   --color-dark-text: #f0eaf8;
   --color-muted-text: #a898c0;
+  --color-placeholder-text: #7a6890;
   --color-border: #2e2245;
   --color-teal-primary: #c870b0;
   --color-teal-light: #2a1530;
