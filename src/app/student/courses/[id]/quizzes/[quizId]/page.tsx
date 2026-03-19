@@ -21,6 +21,30 @@ type Question = {
   code_language?: string;
 };
 
+// Seeded PRNG (mulberry32) + Fisher-Yates shuffle for deterministic choice order
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return h;
+}
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  const rng = mulberry32(hashString(seed));
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -102,9 +126,18 @@ export default async function TakeQuizPage({
     .eq("student_id", user.id)
     .maybeSingle();
 
-  const questions = (quiz.questions ?? []) as Question[];
+  const rawQuestions = (quiz.questions ?? []) as Question[];
   const maxAttempts: number | null = quiz.max_attempts ?? null;
   const attemptCount = submission?.attempt_count ?? 0;
+
+  // Shuffle choices deterministically per student + quiz + attempt number.
+  // True/false questions are left in their original order.
+  const currentAttempt = attemptCount + 1; // 1 for first take, 2 for first retake, etc.
+  const questions = rawQuestions.map(q => {
+    if (q.question_type === 'true_false') return q;
+    const seed = `${user.id}-${quizId}-${currentAttempt}-${q.ident}`;
+    return { ...q, choices: seededShuffle(q.choices, seed) };
+  });
   const outOfAttempts = maxAttempts !== null && attemptCount >= maxAttempts;
   const attemptsLeft = maxAttempts !== null ? maxAttempts - attemptCount : null;
   const displayTitle = quiz.title?.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
