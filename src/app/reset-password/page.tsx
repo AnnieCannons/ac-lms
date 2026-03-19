@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const pwError = validatePassword(password)
-    if (pwError) { setError(pwError); return }
+    if (pwError) { setError('Please follow all password requirements listed below.'); return }
     if (password !== confirm) return // inline indicator already visible
     setError('')
     setLoading(true)
