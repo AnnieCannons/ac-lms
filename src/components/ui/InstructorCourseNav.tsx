@@ -89,9 +89,11 @@ export default function InstructorCourseNav({
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/submissions`)
     } else if (slug === 'assignments') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/assignments`)
+    } else if (slug === 'quiz-submissions') {
+      isActive = pathname.startsWith(`/instructor/courses/${courseId}/quiz-submissions`)
     } else if (slug === 'quizzes') {
-      isActive = pathname.startsWith(`/instructor/courses/${courseId}/quizzes`) ||
-        pathname.startsWith(`/instructor/courses/${courseId}/quiz-submissions`)
+      isActive = pathname.startsWith(`/instructor/courses/${courseId}/quizzes`) &&
+        !pathname.startsWith(`/instructor/courses/${courseId}/quiz-submissions`)
     } else if (slug === 'users') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/users`)
     } else if (slug === 'roster') {
@@ -146,6 +148,7 @@ export default function InstructorCourseNav({
         {gradesOpen && (
           <>
             <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
+            {navLink('Quiz Submissions', 'quiz-submissions')}
             <button
               onClick={() => setGraderOpen(true)}
               className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20 flex items-center justify-between gap-2"
