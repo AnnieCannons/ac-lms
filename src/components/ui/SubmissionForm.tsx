@@ -662,6 +662,30 @@ export default function SubmissionForm({
       )}
     </div>
 
+    {/* Note to instructor — shown in view mode so it doesn't disappear after submit */}
+    {!isObserver && !isStudentPreview && mode !== 'edit' && saved && (
+      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-2">
+        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Note to instructor</p>
+        <textarea
+          value={studentComment}
+          onChange={(e) => handleCommentChange(e.target.value)}
+          placeholder="Optional note for your instructor…"
+          rows={2}
+          className="w-full bg-background text-sm text-dark-text placeholder:text-muted-text focus:outline-none resize-none"
+        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleSaveComment}
+            disabled={savingComment || commentSaved || !studentComment.trim()}
+            className="text-sm font-semibold px-4 py-1.5 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {savingComment ? "Saving…" : commentSaved && studentComment.trim() ? "Saved ✓" : "Save note"}
+          </button>
+        </div>
+      </div>
+    )}
+
     {/* Threaded comments — visible in view mode only (ongoing instructor ↔ student messaging) */}
     {!isStudentPreview && mode !== 'edit' && saved && (
       <SubmissionComments
