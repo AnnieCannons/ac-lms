@@ -61,12 +61,12 @@ export default function ResizableSidebar({ children }: { children: React.ReactNo
 
   return (
     <div
-      className="relative shrink-0 border-r border-border min-h-[calc(100vh-65px)]"
+      className="sticky top-[65px] self-start shrink-0 border-r border-border h-[calc(100vh-65px)] overflow-y-auto"
       style={{ width: collapsed ? 0 : width }}
     >
       {/* Nav content */}
       <div
-        className="py-8 px-3 overflow-hidden h-full"
+        className="py-8 px-3 overflow-hidden"
         style={{ width: collapsed ? 0 : width }}
       >
         {!collapsed && children}

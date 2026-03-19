@@ -13,7 +13,7 @@ export interface Breadcrumb {
 export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { name?: string | null; role?: string | null; isTa?: boolean; breadcrumbs?: Breadcrumb[] }) {
   const displayRole = isTa ? 'TA' : role
   return (
-    <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center gap-4">
+    <nav aria-label="Primary navigation" className="sticky top-0 z-40 bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center gap-4">
       <div className="flex items-center gap-3 shrink-0">
         <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>

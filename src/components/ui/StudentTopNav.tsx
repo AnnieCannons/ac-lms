@@ -7,7 +7,7 @@ const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
 
 export default function StudentTopNav({ name, role }: { name?: string | null; role?: string | null }) {
   return (
-    <nav aria-label="Primary navigation" className="bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center justify-between">
+    <nav aria-label="Primary navigation" className="sticky top-0 z-40 bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
           AC<span className="text-teal-primary">*</span>
