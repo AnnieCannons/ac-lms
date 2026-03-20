@@ -165,7 +165,6 @@ interface Props {
   modules: Module[]
   courseId: string
   currentWeek: number | null
-  todayName?: string
   submissionMap?: Record<string, SubmissionInfo>
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
@@ -342,11 +341,11 @@ type SearchResult =
   | { kind: 'quiz'; quiz: Quiz }
 
 export default function CourseOutlineAccordion({
-  modules, courseId, currentWeek, todayName: todayNameProp, submissionMap,
+  modules, courseId, currentWeek, submissionMap,
   initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes,
   showSearch = true,
 }: Props) {
-  const todayName = todayNameProp ?? DAY_NAMES[new Date().getDay()]
+  const todayName = DAY_NAMES[new Date().getDay()]
   const [search, setSearch] = useState('')
   const [openDayIds, setOpenDayIds] = useState<Set<string>>(new Set())
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())

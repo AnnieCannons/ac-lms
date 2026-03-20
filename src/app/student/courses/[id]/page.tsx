@@ -21,8 +21,6 @@ function getCurrentWeek(startDate: string | null): number | null {
   return Math.floor(diffDays / 7) + 1
 }
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
 export default async function StudentCourseDetailPage({
   params,
 }: {
@@ -141,7 +139,6 @@ export default async function StudentCourseDetailPage({
   const completedIds = (completions ?? []).map(c => c.resource_id)
 
   const currentWeek = getCurrentWeek(course.start_date)
-  const todayName = DAY_NAMES[new Date().getDay()]
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,7 +192,6 @@ export default async function StudentCourseDetailPage({
                 modules={modulesWithCross as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
                 courseId={id}
                 currentWeek={currentWeek}
-                todayName={todayName}
                 submissionMap={submissionMap}
                 initialStarredIds={starredIds}
                 initialCompletedIds={completedIds}

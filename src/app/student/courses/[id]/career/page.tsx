@@ -110,7 +110,6 @@ export default async function StudentCareerPage({
                 modules={modulesWithWikis as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
                 courseId={id}
                 currentWeek={null}
-                todayName=""
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
