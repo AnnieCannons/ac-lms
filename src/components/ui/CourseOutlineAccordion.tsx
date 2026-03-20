@@ -174,7 +174,6 @@ interface Props {
 }
 
 function DayContent({
-  module,
   day,
   courseId,
   submissionMap,
@@ -182,11 +181,9 @@ function DayContent({
   completedIds,
   onToggleStar,
   onToggleComplete,
-  hideLevelUpBanner,
   showBonusAssignments,
   quizzesForDay,
 }: {
-  module: Module
   day: Day
   courseId: string
   submissionMap?: Record<string, SubmissionInfo>
@@ -194,7 +191,6 @@ function DayContent({
   completedIds: Set<string>
   onToggleStar: (id: string) => void
   onToggleComplete: (id: string) => void
-  hideLevelUpBanner?: boolean
   showBonusAssignments?: boolean
   quizzesForDay: Quiz[]
 }) {
@@ -331,23 +327,6 @@ function DayContent({
       {/* Empty state */}
       {!hasContent && (
         <p className="text-sm text-muted-text text-center py-4">Nothing scheduled for this day yet.</p>
-      )}
-
-      {/* Level Up note */}
-      {!hideLevelUpBanner && (
-        <div className="bg-purple-light rounded-xl px-4 py-4">
-          <p className="text-sm font-semibold text-purple-primary">Done with today&apos;s work?</p>
-          <p className="text-sm text-muted-text mt-1">
-            Head over to{' '}
-            <Link
-              href={`/student/courses/${courseId}/level-up`}
-              className="text-teal-primary font-medium hover:underline"
-            >
-              Level Up Your Skills
-            </Link>
-            {' '}for extra challenges and bonus content.
-          </p>
-        </div>
       )}
     </div>
   )
@@ -618,7 +597,6 @@ export default function CourseOutlineAccordion({
 
                         {isDayOpen && (
                           <DayContent
-                            module={module}
                             day={day}
                             courseId={courseId}
                             submissionMap={submissionMap}
@@ -626,7 +604,6 @@ export default function CourseOutlineAccordion({
                             completedIds={completedIds}
                             onToggleStar={toggleStar}
                             onToggleComplete={toggleComplete}
-                            hideLevelUpBanner={hideLevelUpBanner}
                             showBonusAssignments={showBonusAssignments}
                             quizzesForDay={dayQuizzes}
                           />
@@ -640,6 +617,19 @@ export default function CourseOutlineAccordion({
           )
         })}
       </div>
+
+      {!hideLevelUpBanner && (
+        <div className="bg-purple-light rounded-xl px-4 py-4 mt-2">
+          <p className="text-sm font-semibold text-purple-primary">Done with today&apos;s work?</p>
+          <p className="text-sm text-muted-text mt-1">
+            Head over to{' '}
+            <Link href={`/student/courses/${courseId}/level-up`} className="text-teal-primary font-medium hover:underline">
+              Level Up Your Skills
+            </Link>
+            {' '}for extra challenges and bonus content.
+          </p>
+        </div>
+      )}
       </>
       )}
     </>
