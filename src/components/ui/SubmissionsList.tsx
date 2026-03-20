@@ -48,6 +48,10 @@ function StatusBadge({ status, grade }: { status: SubmissionStatus | null; grade
   );
 }
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 function SubmissionPreview({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <span className="text-muted-text italic">No content</span>;
   if (type === "link" || type === "file") return (
@@ -55,7 +59,7 @@ function SubmissionPreview({ type, content }: { type: SubmissionType; content: s
       {content}
     </a>
   );
-  return <span className="text-dark-text line-clamp-1">{content}</span>;
+  return <span className="text-dark-text line-clamp-1">{stripHtml(content)}</span>;
 }
 
 export default function SubmissionsList({
