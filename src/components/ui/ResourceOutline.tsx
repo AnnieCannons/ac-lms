@@ -72,8 +72,8 @@ interface Props {
 const SKIP_DAYS_RESOURCES   = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 const SKIP_DAYS_ASSIGNMENTS = new Set(['Resources', 'Wiki', 'Links'])
 
-function isBonusLike(title?: string, isBonus?: boolean) {
-  return isBonus || !!title?.toUpperCase().includes('BONUS')
+function isBonusLike(_title?: string, isBonus?: boolean) {
+  return !!isBonus
 }
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
@@ -371,7 +371,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const info = map[id]
   if (filter === 'all') return true
   if (filter === 'complete') return info?.grade === 'complete'
-  if (filter === 'turned-in') return info?.status === 'submitted' && !info?.grade
+  if (filter === 'turned-in') return (info?.status === 'submitted' || info?.status === 'graded') && !info?.grade
   const bonus = isBonusLike(title, isBonus)
   const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   const notStarted = !info || (info.status === 'draft' && !info.grade)
