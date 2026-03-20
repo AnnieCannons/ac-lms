@@ -149,13 +149,32 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  // Optional ?since=<ISO_DATE> override for manual backfills (e.g. ?since=2026-01-01)
+  // Optional ?since=<ISO_DATE> and ?until=<ISO_DATE> for manual backfills
   const rawSince = req.nextUrl.searchParams.get('since')
+  const rawUntil = req.nextUrl.searchParams.get('until')
   const sinceOverride = rawSince
     ? (rawSince.includes('T') ? rawSince : `${rawSince}T00:00:00Z`)
     : null
+  const untilOverride = rawUntil
+    ? (rawUntil.includes('T') ? rawUntil : `${rawUntil}T23:59:59Z`)
+    : null
 
   const stats = { submissions: 0, comments: 0, errors: 0 }
+
+  // Pre-fetch all students and assignments once for all courses to avoid per-submission DB round trips
+  const [{ data: allStudents }, { data: allAssignments }] = await Promise.all([
+    supabase.from('users').select('id, canvas_user_id').not('canvas_user_id', 'is', null),
+    supabase.from('assignments').select('id, canvas_assignment_id').not('canvas_assignment_id', 'is', null),
+  ])
+
+  const studentMap = new Map<number, string>()
+  for (const s of allStudents ?? []) {
+    if (s.canvas_user_id) studentMap.set(Number(s.canvas_user_id), s.id)
+  }
+  const assignmentMap = new Map<number, string>()
+  for (const a of allAssignments ?? []) {
+    if (a.canvas_assignment_id) assignmentMap.set(Number(a.canvas_assignment_id), a.id)
+  }
 
   for (const canvasCourseId of CANVAS_COURSE_IDS) {
     // Resolve course
@@ -185,26 +204,21 @@ export async function GET(req: NextRequest) {
     const canvasSubs = await fetchUpdatedSubmissions(canvasCourseId, since)
     console.log(`Course ${canvasCourseId}: Canvas returned ${canvasSubs.length} submissions`)
 
-    let skippedQuiz = 0, skippedStudent = 0, skippedAssignment = 0
+    let skippedQuiz = 0, skippedStudent = 0, skippedAssignment = 0, skippedUntil = 0
     for (const cs of canvasSubs) {
       // Skip quizzes
       if (cs.submission_type === 'online_quiz') { skippedQuiz++; continue }
 
-      // Find student
-      const { data: student } = await supabase
-        .from('users')
-        .select('id')
-        .eq('canvas_user_id', cs.user_id)
-        .maybeSingle()
-      if (!student) { skippedStudent++; console.log(`  No student for canvas_user_id=${cs.user_id}`); continue }
+      // Skip submissions outside the until window (for chunked backfills)
+      if (untilOverride && cs.submitted_at && cs.submitted_at > untilOverride) { skippedUntil++; continue }
 
-      // Find assignment by canvas assignment_id
-      const { data: assignment } = await supabase
-        .from('assignments')
-        .select('id')
-        .eq('canvas_assignment_id', cs.assignment_id)
-        .maybeSingle()
-      if (!assignment) { skippedAssignment++; console.log(`  No assignment for canvas_assignment_id=${cs.assignment_id}`); continue }
+      // Find student via pre-fetched map
+      const studentId = studentMap.get(Number(cs.user_id))
+      if (!studentId) { skippedStudent++; console.log(`  No student for canvas_user_id=${cs.user_id}`); continue }
+
+      // Find assignment via pre-fetched map
+      const assignmentId = assignmentMap.get(Number(cs.assignment_id))
+      if (!assignmentId) { skippedAssignment++; console.log(`  No assignment for canvas_assignment_id=${cs.assignment_id}`); continue }
 
       const grade = mapGrade(cs)
       const status = cs.workflow_state === 'graded' ? 'graded' : 'submitted'
@@ -213,8 +227,8 @@ export async function GET(req: NextRequest) {
       // A resubmission (workflow_state='submitted') should not wipe out a
       // previously-recorded incomplete/complete grade on the same submission.
       const upsertData: Record<string, unknown> = {
-        assignment_id: assignment.id,
-        student_id: student.id,
+        assignment_id: assignmentId,
+        student_id: studentId,
         submission_type: mapSubmissionType(cs),
         content: mapContent(cs),
         submitted_at: cs.submitted_at ?? nowISO,
@@ -258,7 +272,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (canvasSubs.length > 0) console.log(`Course ${canvasCourseId}: skipped quiz=${skippedQuiz} no-student=${skippedStudent} no-assignment=${skippedAssignment}`)
+    if (canvasSubs.length > 0) console.log(`Course ${canvasCourseId}: skipped quiz=${skippedQuiz} no-student=${skippedStudent} no-assignment=${skippedAssignment} until-filtered=${skippedUntil}`)
 
     // Update the since marker to now
     await supabase

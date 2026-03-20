@@ -52,13 +52,22 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+function extractUrl(content: string): string {
+  // If content is HTML (e.g. from Canvas text entry with a pasted link), pull the href
+  const match = content.match(/href="([^"]+)"/)
+  return match ? match[1] : stripHtml(content)
+}
+
 function SubmissionPreview({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <span className="text-muted-text italic">No content</span>;
-  if (type === "link" || type === "file") return (
-    <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all line-clamp-1">
-      {content}
-    </a>
-  );
+  if (type === "link" || type === "file") {
+    const url = content.startsWith('<') ? extractUrl(content) : content;
+    return (
+      <a href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all line-clamp-1">
+        {url}
+      </a>
+    );
+  }
   return <span className="text-dark-text line-clamp-1">{stripHtml(content)}</span>;
 }
 
