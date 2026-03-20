@@ -10,8 +10,7 @@ export default function Assignments() {
       <DocP>Assignments are accessible from three places:</DocP>
       <DocList>
         <li>The <strong>Assignments</strong> page in the sidebar — lists every assignment across the course, grouped by week, each showing its current status</li>
-        <li>Day cards in the <strong>Course Outline</strong> — shows assignments scheduled for a specific day</li>
-        <li>The <strong>day detail page</strong> — click any day card to see everything for that day</li>
+        <li>The <strong>Course Outline</strong> — click any day row to expand it and see assignments, resources, and quizzes for that day</li>
       </DocList>
 
       <DocH2>Your Assignments List</DocH2>
