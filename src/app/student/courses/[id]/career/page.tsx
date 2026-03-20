@@ -42,7 +42,7 @@ export default async function StudentCareerPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('*')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 
@@ -55,10 +55,10 @@ export default async function StudentCareerPage({
     .eq('category', 'career')
     .eq('published', true)
     .is('deleted_at', null)
+    .not('title', 'ilike', '%DO NOT PUBLISH%')
     .order('order', { ascending: true })
 
   const modules = (rawModules ?? [])
-    .filter(m => !m.title?.includes('DO NOT PUBLISH'))
     .map(m => ({
       ...m,
       module_days: (m.module_days ?? [])

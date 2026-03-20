@@ -117,7 +117,6 @@ interface Quiz {
   linked_day_id?: string | null
   max_attempts: number | null
   due_at: string | null
-  questions: unknown[]
 }
 
 interface Day {
@@ -299,7 +298,6 @@ function DayContent({
           <div className="flex flex-col gap-2">
             {quizzesForDay.map(quiz => {
               const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title
-              const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0
               const isCrossPosted = !!quiz.linked_day_id && quiz.linked_day_id === day.id
               return (
                 <div key={quiz.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
@@ -310,7 +308,6 @@ function DayContent({
                         <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5">Career Dev</span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-text mt-0.5">{questionCount} question{questionCount !== 1 ? 's' : ''}</p>
                   </div>
                   <Link
                     href={`/student/courses/${courseId}/quizzes/${quiz.id}`}

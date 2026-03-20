@@ -9,7 +9,7 @@ import Resources from '@/components/docs/student/Resources'
 import Observer from '@/components/docs/student/Observer'
 import Accessibility from '@/components/docs/student/Accessibility'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 const SECTIONS: Record<string, React.ComponentType> = {
   'getting-started': GettingStarted,

@@ -53,7 +53,7 @@ export default async function StudentAssignmentsPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('*')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 

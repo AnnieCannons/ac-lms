@@ -42,16 +42,20 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
     .from('grading_groups').select('student_id, grader_id').eq('course_id', id)
   const groupMap = Object.fromEntries((groups ?? []).map(g => [g.student_id, g.grader_id]))
 
-  // Assignments for this course (via modules → days → assignments)
-  const { data: moduleRows } = await admin.from('modules').select('id').eq('course_id', id).is('deleted_at', null)
-  const moduleIds = moduleRows?.map(m => m.id) ?? []
-  const { data: dayRows } = moduleIds.length
-    ? await admin.from('module_days').select('id').in('module_id', moduleIds).is('deleted_at', null)
-    : { data: [] }
-  const dayIds = dayRows?.map(d => d.id) ?? []
-  const { data: assignmentsData } = dayIds.length
-    ? await admin.from('assignments').select('id, title, grader_id').in('module_day_id', dayIds).is('deleted_at', null).order('title')
-    : { data: [] }
+  // Assignments for this course (single nested query: modules → days → assignments)
+  const { data: modulesWithDays } = await admin
+    .from('modules')
+    .select('module_days(id, deleted_at, assignments!module_day_id(id, title, grader_id, deleted_at))')
+    .eq('course_id', id)
+    .is('deleted_at', null)
+  type RawAssignment = { id: string; title: string; grader_id: string | null; deleted_at: string | null }
+  const assignmentsData = (modulesWithDays ?? [])
+    .flatMap((m: { module_days?: Array<{ id: string; deleted_at: string | null; assignments?: RawAssignment[] }> }) =>
+      (m.module_days ?? [])
+        .filter(d => !d.deleted_at)
+        .flatMap(d => (d.assignments ?? []).filter(a => !a.deleted_at))
+    )
+    .sort((a: RawAssignment, b: RawAssignment) => a.title.localeCompare(b.title)) as RawAssignment[]
 
   const assignments = (assignmentsData ?? []).map(a => ({ id: a.id, title: a.title }))
   const assignmentGraderMap = Object.fromEntries(

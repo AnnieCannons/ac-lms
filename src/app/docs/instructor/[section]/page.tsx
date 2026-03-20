@@ -12,7 +12,7 @@ import StudentPreview from '@/components/docs/instructor/StudentPreview'
 import Accessibility from '@/components/docs/instructor/Accessibility'
 import CareerDev from '@/components/docs/instructor/CareerDev'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 const SECTIONS: Record<string, React.ComponentType> = {
   'getting-started': GettingStarted,

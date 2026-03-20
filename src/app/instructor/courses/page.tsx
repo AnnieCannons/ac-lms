@@ -118,7 +118,7 @@ export default async function CoursesPage() {
 
   const { data: rawCourses } = await supabase
     .from('courses')
-    .select('*')
+    .select('id, name, code, start_date, end_date, is_template, archived')
     .order('created_at', { ascending: false })
 
   const isCurrentCourse = (startDate: string | null | undefined, isTemplate: boolean, endDate?: string | null) => {

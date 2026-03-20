@@ -42,7 +42,7 @@ export default async function StudentClassResourcesPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('*')
+    .select('id, name, code, paid_learners')
     .eq('id', id)
     .single()
 
