@@ -159,11 +159,13 @@ function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undef
   )
 }
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
 interface Props {
   modules: Module[]
   courseId: string
   currentWeek: number | null
-  todayName: string
+  todayName?: string
   submissionMap?: Record<string, SubmissionInfo>
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
@@ -340,10 +342,11 @@ type SearchResult =
   | { kind: 'quiz'; quiz: Quiz }
 
 export default function CourseOutlineAccordion({
-  modules, courseId, currentWeek, todayName, submissionMap,
+  modules, courseId, currentWeek, todayName: todayNameProp, submissionMap,
   initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes,
   showSearch = true,
 }: Props) {
+  const todayName = todayNameProp ?? DAY_NAMES[new Date().getDay()]
   const [search, setSearch] = useState('')
   const [openDayIds, setOpenDayIds] = useState<Set<string>>(new Set())
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
