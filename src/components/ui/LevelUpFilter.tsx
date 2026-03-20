@@ -85,7 +85,6 @@ export default function LevelUpFilter({ modules, courseId }: Props) {
           modules={filtered}
           courseId={courseId}
           currentWeek={null}
-          todayName=""
           hideLevelUpBanner
           showBonusAssignments
           showSearch={false}
