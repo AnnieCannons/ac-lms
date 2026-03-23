@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
-import { saveStudentComment } from "@/lib/grade-actions";
 import SubmissionComments, { type CommentEntry } from "@/components/ui/SubmissionComments";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
@@ -105,33 +104,6 @@ export default function SubmissionForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // "Note to instructor" note — stored as submissions.student_comment
-  const [studentComment, setStudentComment] = useState(existingSubmission?.student_comment ?? '');
-  // commentSaved: true when current text matches what's persisted (or it's empty)
-  const [commentSaved, setCommentSaved] = useState(true);
-  const [savingComment, setSavingComment] = useState(false);
-  const [commentUnsavedError, setCommentUnsavedError] = useState(false);
-
-  const handleCommentChange = (val: string) => {
-    setStudentComment(val);
-    setCommentSaved(false);
-    setCommentUnsavedError(false);
-  };
-
-  const handleSaveComment = async () => {
-    if (isStudentPreview) return;
-    if (saved) {
-      setSavingComment(true);
-      await saveStudentComment(saved.id, studentComment);
-      setSavingComment(false);
-    }
-    // If no submission yet, the comment will be included in the submit payload — mark as saved
-    setCommentSaved(true);
-  };
-
-  const commentText = studentComment.trim();
-  const hasUnsavedComment = commentText.length > 0 && !commentSaved;
-
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
     if (tab === "text") return textContent.trim();
@@ -143,7 +115,7 @@ export default function SubmissionForm({
     : tab === "text"
       ? textContent.trim().length > 0
       : fileUrl.length > 0;
-  useUnsavedChanges(mode === 'edit' && (hasContent || hasUnsavedComment));
+  useUnsavedChanges(mode === 'edit' && hasContent);
 
   const clearForm = () => {
     setLinkContent("");
@@ -183,7 +155,6 @@ export default function SubmissionForm({
       status,
       // Preserve original submitted_at on resubmissions; only set on first submit
       ...(saved?.submitted_at ? {} : { submitted_at: new Date().toISOString() }),
-      student_comment: studentComment.trim() || null,
       ...(status === "submitted" ? { grade: null, graded_at: null, graded_by: null } : {}),
     };
 
@@ -238,10 +209,6 @@ export default function SubmissionForm({
   };
 
   const handleSubmit = async () => {
-    if (hasUnsavedComment) {
-      setCommentUnsavedError(true);
-      return;
-    }
     const content = getContent();
     const newSaved = await doSave("submitted", content, tab);
     if (newSaved) {
@@ -598,35 +565,6 @@ export default function SubmissionForm({
 
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 
-          {/* Note to instructor — always editable, included in submission payload */}
-          {!isObserver && !isStudentPreview && (
-            <div className="bg-background border border-border rounded-xl p-4 flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Leave a note for your instructor</p>
-              <textarea
-                value={studentComment}
-                onChange={(e) => handleCommentChange(e.target.value)}
-                placeholder="Optional note for your instructor…"
-                rows={3}
-                className="w-full bg-background text-sm text-dark-text placeholder:text-muted-text focus:outline-none resize-none"
-              />
-              <div className="flex items-center justify-between gap-3">
-                {commentUnsavedError && (
-                  <p role="alert" className="text-xs text-amber-700">
-                    Save or clear your note before submitting.
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={handleSaveComment}
-                  disabled={savingComment || !studentComment.trim() || commentSaved}
-                  className="ml-auto text-sm font-semibold px-4 py-1.5 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  {savingComment ? "Saving…" : commentSaved && studentComment.trim() ? "Saved ✓" : "Save Comment"}
-                </button>
-              </div>
-            </div>
-          )}
-
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
@@ -666,30 +604,6 @@ export default function SubmissionForm({
         </>
       )}
     </div>
-
-    {/* Note to instructor — shown in view mode so it doesn't disappear after submit */}
-    {!isObserver && !isStudentPreview && mode !== 'edit' && saved && (
-      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-2">
-        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Note to instructor</p>
-        <textarea
-          value={studentComment}
-          onChange={(e) => handleCommentChange(e.target.value)}
-          placeholder="Optional note for your instructor…"
-          rows={2}
-          className="w-full bg-background text-sm text-dark-text placeholder:text-muted-text focus:outline-none resize-none"
-        />
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleSaveComment}
-            disabled={savingComment || commentSaved || !studentComment.trim()}
-            className="text-sm font-semibold px-4 py-1.5 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {savingComment ? "Saving…" : commentSaved && studentComment.trim() ? "Saved ✓" : "Save note"}
-          </button>
-        </div>
-      </div>
-    )}
 
     {/* Threaded comments — visible in view mode only (ongoing instructor ↔ student messaging) */}
     {!isStudentPreview && mode !== 'edit' && saved && (
