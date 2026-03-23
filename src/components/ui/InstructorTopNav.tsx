@@ -15,8 +15,8 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
   return (
     <nav aria-label="Primary navigation" className="sticky top-0 z-40 bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center gap-4">
       <div className="flex items-center gap-3 shrink-0">
-        <Link href="/instructor/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
+        <Link href="/instructor/courses" aria-label="AC — Home" className="text-xl font-extrabold text-dark-text">
+          AC<span aria-hidden="true" className="text-teal-primary">*</span>
         </Link>
         {displayRole && (
           <span className="text-xs font-semibold text-teal-primary bg-teal-light px-2 py-0.5 rounded-full capitalize">
@@ -29,7 +29,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
       <div className="flex-1 flex items-center gap-1 min-w-0 overflow-hidden">
         {(breadcrumbs ?? []).map((crumb, i) => (
           <span key={i} className="flex items-center gap-1 min-w-0">
-            {i > 0 && <span className="text-border shrink-0 select-none">›</span>}
+            {i > 0 && <span aria-hidden="true" className="text-border shrink-0 select-none">›</span>}
             {crumb.href ? (
               <Link href={crumb.href} className="text-sm text-muted-text hover:text-dark-text transition-colors truncate max-w-[180px]">
                 {crumb.label}
@@ -49,7 +49,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
           rel="noopener noreferrer"
           className="text-sm font-medium text-teal-primary hover:underline"
         >
-          Attendance Portal
+          Attendance Portal<span className="sr-only"> (opens in new tab)</span>
         </a>
         <DocsHelpLink guide="instructor" className="text-sm text-muted-text hover:text-teal-primary transition-colors" />
         <Link href="/account" className="text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">

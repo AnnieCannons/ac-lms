@@ -9,8 +9,8 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
   return (
     <nav aria-label="Primary navigation" className="sticky top-0 z-40 bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <Link href="/student/courses" className="text-xl font-extrabold text-dark-text">
-          AC<span className="text-teal-primary">*</span>
+        <Link href="/student/courses" aria-label="AC — Home" className="text-xl font-extrabold text-dark-text">
+          AC<span aria-hidden="true" className="text-teal-primary">*</span>
         </Link>
         {role && (
           <span className="text-xs font-semibold text-teal-primary bg-teal-light px-2 py-0.5 rounded-full capitalize">
@@ -27,7 +27,7 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
           rel="noopener noreferrer"
           className="text-sm font-medium text-teal-primary hover:underline"
         >
-          Attendance Portal
+          Attendance Portal<span className="sr-only"> (opens in new tab)</span>
         </a>
         <DocsHelpLink guide="student" className="text-sm text-muted-text hover:text-teal-primary transition-colors" />
         <Link href="/account" className="text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">

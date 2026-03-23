@@ -44,12 +44,13 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               {error && (
-                <div className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">{error}</div>
+                <div role="alert" className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-6">{error}</div>
               )}
               <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-dark-text mb-1">Email</label>
+                  <label htmlFor="forgot-email" className="block text-sm font-medium text-dark-text mb-1">Email</label>
                   <input
+                    id="forgot-email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}

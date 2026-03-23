@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-8 py-12">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         <h2 className="text-2xl font-bold text-dark-text mb-2">
           Welcome back, {profile?.name}!
         </h2>

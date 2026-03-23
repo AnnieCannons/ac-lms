@@ -181,7 +181,8 @@ export default function SubmissionForm({
       submission_type: type,
       content,
       status,
-      submitted_at: new Date().toISOString(),
+      // Preserve original submitted_at on resubmissions; only set on first submit
+      ...(saved?.submitted_at ? {} : { submitted_at: new Date().toISOString() }),
       student_comment: studentComment.trim() || null,
       ...(status === "submitted" ? { grade: null, graded_at: null, graded_by: null } : {}),
     };
@@ -309,10 +310,12 @@ export default function SubmissionForm({
                 <div className={`flex items-start gap-3 w-full ${instructorFailed ? 'status-missing-card rounded-xl px-3 py-2 -mx-1 border' : instructorChecked ? 'bg-teal-light/20 rounded-xl px-3 py-2 -mx-1' : ''}`}>
                   <button
                     type="button"
+                    role="checkbox"
+                    aria-checked={!!checked[item.id]}
                     onClick={() => !isObserver && toggleCheck(item.id)}
                     className={`flex items-start gap-3 flex-1 text-left group ${isObserver ? 'pointer-events-none opacity-60' : ''}`}
                   >
-                    <span className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                    <span aria-hidden="true" className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
                       checked[item.id]
                         ? "bg-teal-primary border-teal-primary"
                         : "border-muted-text group-hover:border-teal-primary"
@@ -523,11 +526,13 @@ export default function SubmissionForm({
       {!isObserver && mode === "edit" && (
         <>
           {/* Tab selector */}
-          <div className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">
+          <div role="tablist" aria-label="Submission type" className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">
             {(["link", "text", "file"] as SubmissionType[]).map(t => (
               <button
                 key={t}
                 type="button"
+                role="tab"
+                aria-selected={tab === t}
                 onClick={() => { setTab(t); setError(null); }}
                 className={`text-xs font-medium px-3 py-1.5 rounded-md capitalize transition-colors ${
                   tab === t

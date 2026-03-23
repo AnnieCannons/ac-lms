@@ -83,10 +83,11 @@ export default function QuizForm({
         {questions.map((q, i) => (
           <div
             role="group"
+            aria-labelledby={`question-observer-label-${i}`}
             key={i}
             className="bg-surface rounded-xl border border-border/50 p-5 opacity-60"
           >
-            <p className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">
+            <p id={`question-observer-label-${i}`} className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">
               Question {i + 1}
             </p>
             <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
@@ -137,11 +138,12 @@ export default function QuizForm({
           return (
             <div
               role="group"
+              aria-labelledby={`question-label-${i}`}
               key={i}
               className="bg-surface rounded-xl border border-green-500/25 p-5 opacity-55"
             >
-              <p className="text-sm font-semibold text-green-500 uppercase tracking-wide mb-3">
-                Question {i + 1} &nbsp;✓
+              <p id={`question-label-${i}`} className="text-sm font-semibold text-green-500 uppercase tracking-wide mb-3">
+                Question {i + 1} <span aria-hidden="true">&nbsp;✓</span>
               </p>
               <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
                 <HighlightedContent html={q.question_text || ""} />
@@ -189,12 +191,13 @@ export default function QuizForm({
         return (
           <div
             role="group"
+            aria-labelledby={`question-label-${i}`}
             key={i}
             className={`bg-surface rounded-xl border p-6 ${
               isRetake ? "border-orange-500/50" : "border-border"
             }`}
           >
-            <p className={`text-sm font-semibold uppercase tracking-wide mb-3 ${
+            <p id={`question-label-${i}`} className={`text-sm font-semibold uppercase tracking-wide mb-3 ${
               isRetake ? "text-orange-400" : "text-muted-text"
             }`}>
               Question {i + 1}

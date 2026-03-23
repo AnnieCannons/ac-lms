@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { normalizeUrl } from '@/lib/url'
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i
@@ -11,9 +11,11 @@ interface Props {
 export default function SubmissionFilePreview({ content }: Props) {
   const [open, setOpen] = useState(false)
   const isImage = IMAGE_RE.test(content)
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
+    closeBtnRef.current?.focus()
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -40,15 +42,19 @@ export default function SubmissionFilePreview({ content }: Props) {
       </button>
       {open && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Submission image fullscreen view"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
           onClick={() => setOpen(false)}
         >
           <button
+            ref={closeBtnRef}
             onClick={() => setOpen(false)}
             className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full w-9 h-9 flex items-center justify-center text-lg transition-colors"
-            aria-label="Close"
+            aria-label="Close fullscreen view"
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
           <div onClick={e => e.stopPropagation()} className="max-w-[90vw] max-h-[90vh]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
