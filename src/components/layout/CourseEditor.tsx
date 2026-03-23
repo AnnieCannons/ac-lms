@@ -1045,16 +1045,6 @@ function AssignmentDropZone({
           ))}
         </div>
       </SortableContext>
-      {!readOnly && (
-        <CreateButton
-          courseId={courseId}
-          compact
-          label="+ Add Assignment"
-          defaultType="assignment"
-          defaultModuleId={day.module_id}
-          defaultDayId={day.id}
-        />
-      )}
     </div>
   );
 }
@@ -1465,6 +1455,56 @@ function SortableResource({
   );
 }
 
+// ─── AddDropdown ──────────────────────────────────────────────────────────────
+
+function AddDropdown({ onAddAssignment, onAddResource, onAddWiki }: {
+  onAddAssignment: () => void
+  onAddResource: () => void
+  onAddWiki: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1 text-xs font-semibold text-teal-primary hover:opacity-80 transition-opacity"
+      >
+        + Add <span aria-hidden="true" className="text-[10px]">▾</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-lg z-50 min-w-[130px] py-1">
+          {[
+            { label: 'Assignment', action: onAddAssignment },
+            { label: 'Resource',   action: onAddResource   },
+            { label: 'Wiki',       action: onAddWiki       },
+          ].map(({ label, action }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => { setOpen(false); action() }}
+              className="w-full text-left px-3 py-2 text-xs text-dark-text hover:bg-border/20 transition-colors"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── SortableDay ──────────────────────────────────────────────────────────────
 
 function SortableDay({
@@ -1655,6 +1695,13 @@ function SortableDay({
   const [newResContent, setNewResContent] = useState("");
   const [fileUploadKey, setFileUploadKey] = useState(0);
   const [showAddResource, setShowAddResource] = useState(false);
+  const assignmentTriggerRef = useRef<HTMLDivElement>(null);
+
+  const handleAddWiki = async () => {
+    const result = await createWiki({ moduleDayId: day.id, title: 'New Wiki' })
+    if (result.error) { alert(`Failed to create wiki: ${result.error}`); return }
+    if (result.data) onWikiCreated(result.data)
+  };
 
   const submitNewResource = () => {
     if (!newResTitle.trim()) return;
@@ -1717,6 +1764,13 @@ function SortableDay({
         </div>
 
         {!readOnly && (
+          <AddDropdown
+            onAddAssignment={() => assignmentTriggerRef.current?.querySelector('button')?.click()}
+            onAddResource={() => setShowAddResource(true)}
+            onAddWiki={handleAddWiki}
+          />
+        )}
+        {!readOnly && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(day.id, day.day_name); }}
             className="text-muted-text hover:text-red-400"
@@ -1727,6 +1781,12 @@ function SortableDay({
           </button>
         )}
       </div>
+      {/* Hidden assignment create trigger */}
+      {!readOnly && (
+        <div ref={assignmentTriggerRef} className="hidden">
+          <CreateButton courseId={courseId} compact defaultType="assignment" defaultModuleId={day.module_id} defaultDayId={day.id} />
+        </div>
+      )}
 
       {open && (
         <div
@@ -1734,7 +1794,7 @@ function SortableDay({
           className="px-4 sm:px-10 pb-4 pt-2 border-t border-border flex flex-col gap-4"
         >
           {/* Day Wikis */}
-          {((day.wikis ?? []).length > 0 || !readOnly) && (
+          {(day.wikis ?? []).length > 0 && (
             <div className="flex flex-col gap-2">
               {(day.wikis ?? []).map(wiki => (
                 <WikiBlock
@@ -1745,19 +1805,6 @@ function SortableDay({
                   onDelete={onWikiDeleted}
                 />
               ))}
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const result = await createWiki({ moduleDayId: day.id, title: 'New Wiki' })
-                    if (result.error) { alert(`Failed to create wiki: ${result.error}`); return }
-                    if (result.data) onWikiCreated(result.data)
-                  }}
-                  className="text-xs text-teal-primary hover:underline text-left"
-                >
-                  + Add Wiki
-                </button>
-              )}
             </div>
           )}
 
@@ -1890,15 +1937,7 @@ function SortableDay({
                     </button>
                   </div>
                 </div>
-              ) : (
-                <button
-                  onClick={() => setShowAddResource(true)}
-                  className="mt-1 text-xs text-teal-primary hover:underline"
-                  type="button"
-                >
-                  + Add Resource
-                </button>
-              )
+              ) : null
             )}
           </div>
               );
