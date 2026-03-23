@@ -161,10 +161,11 @@ export async function GET(req: NextRequest) {
 
   const stats = { submissions: 0, comments: 0, errors: 0 }
 
-  // Pre-fetch all students and assignments once for all courses to avoid per-submission DB round trips
-  const [{ data: allStudents }, { data: allAssignments }] = await Promise.all([
+  // Pre-fetch all students, assignments, and existing submission timestamps in one shot
+  const [{ data: allStudents }, { data: allAssignments }, { data: existingSubmissions }] = await Promise.all([
     supabase.from('users').select('id, canvas_user_id').not('canvas_user_id', 'is', null),
     supabase.from('assignments').select('id, canvas_assignment_id').not('canvas_assignment_id', 'is', null),
+    supabase.from('submissions').select('assignment_id, student_id, submitted_at'),
   ])
 
   const studentMap = new Map<number, string>()
@@ -174,6 +175,11 @@ export async function GET(req: NextRequest) {
   const assignmentMap = new Map<number, string>()
   for (const a of allAssignments ?? []) {
     if (a.canvas_assignment_id) assignmentMap.set(Number(a.canvas_assignment_id), a.id)
+  }
+  // Map of "assignmentId:studentId" -> original submitted_at to preserve first submission date
+  const originalSubmittedAtMap = new Map<string, string>()
+  for (const s of existingSubmissions ?? []) {
+    if (s.submitted_at) originalSubmittedAtMap.set(`${s.assignment_id}:${s.student_id}`, s.submitted_at)
   }
 
   for (const canvasCourseId of CANVAS_COURSE_IDS) {
@@ -231,7 +237,7 @@ export async function GET(req: NextRequest) {
         student_id: studentId,
         submission_type: mapSubmissionType(cs),
         content: mapContent(cs),
-        submitted_at: cs.submitted_at ?? nowISO,
+        submitted_at: originalSubmittedAtMap.get(`${assignmentId}:${studentId}`) ?? cs.submitted_at ?? nowISO,
         status,
       }
       if (status === 'graded') {
