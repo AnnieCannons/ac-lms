@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import CreateButton from './CreateButton'
@@ -205,7 +206,7 @@ export default function InstructorCourseNav({
         {!isTa && <LaunchSetupButton courseId={courseId} />}
       </div>
 
-      {graderOpen && (
+      {graderOpen && createPortal(
         <LaunchGraderModal
           courseId={courseId}
           needsGrading={needsGrading}
@@ -213,7 +214,8 @@ export default function InstructorCourseNav({
           myGroupNeedsGrading={myGroupNeedsGrading}
           myGroupFirstAssignmentId={myGroupFirstAssignmentId}
           onClose={() => setGraderOpen(false)}
-        />
+        />,
+        document.body
       )}
     </nav>
   )
@@ -257,7 +259,7 @@ function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: stri
         <span>Trash</span>
       </Link>
 
-      {showEmptyPrompt && (
+      {showEmptyPrompt && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowEmptyPrompt(false)}>
           <div className="bg-surface border border-border rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
             <div className="text-3xl mb-3">🗑️</div>
@@ -284,7 +286,8 @@ function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: stri
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
