@@ -196,7 +196,7 @@ export default async function InstructorSubmissionsPage({
         <div className="flex items-center gap-2 text-sm text-muted-text mb-6 flex-wrap">
           <Link href="/instructor/courses" className="hover:text-teal-primary">Courses</Link>
           <span className="text-border">/</span>
-          <Link href={`/instructor/courses/${id}`} className="hover:text-teal-primary">{course?.name}</Link>
+          <Link href={`/instructor/courses/${id}/submissions`} className="hover:text-teal-primary">{course?.name}</Link>
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium truncate max-w-[300px]">{assignment.title}</span>
           <span className="text-border">/</span>
