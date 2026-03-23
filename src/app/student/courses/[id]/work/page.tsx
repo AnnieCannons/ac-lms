@@ -57,14 +57,14 @@ export default async function MyWorkPage({
 
   const { data: rawModulesWork } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, deleted_at))')
+    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, deleted_at, published))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .order('order', { ascending: true })
   const modules = (rawModulesWork ?? []).map(m => {
     const days = (m.module_days ?? [])
       .filter(d => !d.deleted_at)
-      .map(d => ({ ...d, assignments: (d.assignments ?? []).filter(a => !a.deleted_at) }))
+      .map(d => ({ ...d, assignments: (d.assignments ?? []).filter(a => !a.deleted_at && a.published) }))
     return { ...m, module_days: days }
   })
 
