@@ -84,7 +84,7 @@ export default async function StudentAssignmentsPage({
   const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
   const { data: submissions } = await fetchClient
     .from('submissions')
-    .select('id, assignment_id, status, grade')
+    .select('id, assignment_id, status, grade, submitted_at')
     .eq('student_id', effectiveUserId)
 
   const submissionIds = (submissions ?? []).map(s => s.id)
@@ -101,6 +101,7 @@ export default async function StudentAssignmentsPage({
     (submissions ?? []).map(s => [s.assignment_id, {
       status: s.status,
       grade: s.grade ?? null,
+      submitted_at: s.submitted_at ?? null,
       hasComments: commentedSubIds.has(s.id),
     }])
   )

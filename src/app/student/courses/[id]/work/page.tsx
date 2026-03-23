@@ -70,11 +70,11 @@ export default async function MyWorkPage({
 
   const { data: submissions } = await supabase
     .from('submissions')
-    .select('assignment_id, status, grade')
+    .select('assignment_id, status, grade, submitted_at')
     .eq('student_id', user.id)
 
   const submissionMap = new Map(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null }])
   )
 
   const allAssignmentIds = (modules ?? []).flatMap(m =>

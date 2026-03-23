@@ -89,7 +89,7 @@ export default async function StudentCourseDetailPage({
   const moduleIds = modules.map(m => m.id)
 
   const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }, { data: moduleWikisData }] = await Promise.all([
-    supabase.from('submissions').select('assignment_id, status, grade').eq('student_id', user.id),
+    supabase.from('submissions').select('assignment_id, status, grade, submitted_at').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
     admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
@@ -134,7 +134,7 @@ export default async function StudentCourseDetailPage({
   }))
 
   const submissionMap = Object.fromEntries(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null }])
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null }])
   )
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)

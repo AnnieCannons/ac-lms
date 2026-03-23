@@ -55,6 +55,7 @@ type Grade = 'complete' | 'incomplete' | null
 interface SubmissionInfo {
   status: SubmissionStatus
   grade: Grade
+  submitted_at?: string | null
   hasComments?: boolean
 }
 
@@ -77,7 +78,11 @@ function isBonusLike(_title?: string, isBonus?: boolean) {
 }
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
-  const isLate = !!dueDate && localDate(dueDate) < todayLocal()
+  const isLate = !!dueDate && (
+    info?.submitted_at
+      ? localDate(info.submitted_at) > localDate(dueDate)
+      : localDate(dueDate) < todayLocal()
+  )
   if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
   if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
   if (info?.status === 'submitted') return (
