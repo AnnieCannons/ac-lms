@@ -54,8 +54,12 @@ export default async function StudentDetailPage({
     admin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null }, error: null })),
     admin
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, canvas_assignment_id))')
+      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, canvas_assignment_id, deleted_at))')
       .eq('course_id', courseId)
+      .eq('published', true)
+      .eq('category', 'syllabus')
+      .is('deleted_at', null)
+      .not('title', 'ilike', '%DO NOT PUBLISH%')
       .order('order', { ascending: true }),
   ])
 
@@ -63,12 +67,12 @@ export default async function StudentDetailPage({
     (authResult as { data: { user: { last_sign_in_at?: string } | null } }).data?.user?.last_sign_in_at ?? null
 
   // Flatten to all published assignments with module context
-  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; canvas_assignment_id: number | null }
+  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; canvas_assignment_id: number | null; deleted_at: string | null }
   const allAssignments: (Omit<CategorizedAssignment, 'isLate'> & { canvasAssignmentId: number | null })[] = (rawModules ?? []).flatMap(m => {
     const days = (m.module_days ?? []) as { id: string; assignments: RawAssignment[] }[]
     return days.flatMap(d =>
       (d.assignments ?? [])
-        .filter(a => a.published)
+        .filter(a => a.published && !a.deleted_at)
         .map(a => ({
           id: a.id,
           title: a.title,
