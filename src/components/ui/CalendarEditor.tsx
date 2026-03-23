@@ -38,7 +38,7 @@ export default function CalendarEditor() {
     const supabase = createClient()
     Promise.all([
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
-      supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true }),
+      supabase.from('calendar_breaks').select('*').or('paid_only.is.null,paid_only.eq.false').order('start_date', { ascending: true }),
     ]).then(([{ data: c, error: ce }, { data: b, error: be }]) => {
       if (ce || be) setError((ce ?? be)!.message)
       setCohorts(c ?? [])
@@ -156,7 +156,7 @@ export default function CalendarEditor() {
     // Re-fetch stable IDs
     const [{ data: fc }, { data: fb }] = await Promise.all([
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
-      supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true }),
+      supabase.from('calendar_breaks').select('*').or('paid_only.is.null,paid_only.eq.false').order('start_date', { ascending: true }),
     ])
     setCohorts(fc ?? [])
     setBreaks(fb ?? [])

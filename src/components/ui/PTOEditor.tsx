@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import DatePickerField from './DatePickerField'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
-type BreakRow   = { id?: string; label: string; start_date: string; end_date: string }
+type BreakRow   = { id?: string; label: string; start_date: string; end_date: string; paid_only?: boolean }
 type HolidayRow = { id?: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
 
 const inputCls = 'bg-background border border-border rounded-lg px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary w-full'
@@ -31,6 +31,7 @@ export default function PTOEditor() {
     createClient()
       .from('calendar_breaks')
       .select('*')
+      .eq('paid_only', true)
       .order('start_date', { ascending: true })
       .then(({ data }) => {
         setBreaks(data ?? [])
@@ -51,7 +52,7 @@ export default function PTOEditor() {
   }, [holidayYear])
 
   const addBreak = () => {
-    setBreaks(prev => [...prev, { label: '', start_date: '', end_date: '' }])
+    setBreaks(prev => [...prev, { label: '', start_date: '', end_date: '', paid_only: true }])
     setBreaksDirty(true)
   }
 
@@ -68,14 +69,14 @@ export default function PTOEditor() {
     const supabase = createClient()
     if (deletedBreakIds.length) await supabase.from('calendar_breaks').delete().in('id', deletedBreakIds)
     const existing = breaks.filter(b => b.id)
-    const created  = breaks.filter(b => !b.id).map(b => ({ label: b.label, start_date: b.start_date, end_date: b.end_date }))
+    const created  = breaks.filter(b => !b.id).map(b => ({ label: b.label, start_date: b.start_date, end_date: b.end_date, paid_only: true }))
     const ops = []
     if (existing.length) ops.push(supabase.from('calendar_breaks').upsert(existing))
     if (created.length)  ops.push(supabase.from('calendar_breaks').insert(created))
     const results = await Promise.all(ops)
     const err = results.find(r => r.error)?.error
     if (err) { setBreakError(err.message); setBreakSaving(false); return }
-    const { data } = await supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true })
+    const { data } = await supabase.from('calendar_breaks').select('*').eq('paid_only', true).order('start_date', { ascending: true })
     setBreaks(data ?? [])
     setDeletedBreakIds([])
     setBreakSaving(false)
@@ -130,7 +131,7 @@ export default function PTOEditor() {
     <div className="flex flex-col gap-6">
       {/* Breaks */}
       <div className="bg-surface rounded-2xl border border-border p-6">
-        <h2 className="font-semibold text-dark-text mb-4">Breaks</h2>
+        <h2 className="font-semibold text-dark-text mb-4">Paid Holiday Breaks</h2>
         <div className="flex flex-col gap-2 mb-4">
           <div className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2">
             <span className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1">Label</span>
