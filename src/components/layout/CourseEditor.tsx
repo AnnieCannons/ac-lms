@@ -1005,49 +1005,46 @@ function AssignmentDropZone({
     data: { type: "day-drop", dayId: day.id },
   });
 
+  const sorted = [...assignments].sort((a, b) => a.order - b.order);
+  const showBlock = sorted.length > 0 || isOver;
+
   return (
-    <div className="bg-surface/60 rounded-xl p-3">
-      <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
-        Assignments
-      </p>
-      {(() => {
-        const sorted = [...assignments].sort((a, b) => a.order - b.order);
-        return (
-          <SortableContext
-            items={sorted.map((a) => `assignment-${a.id}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div
-              ref={setNodeRef}
-              className={`flex flex-col gap-2 min-h-[48px] rounded-lg p-1 transition-colors ${
-                isOver ? "bg-teal-light border border-dashed border-teal-primary/50" : ""
-              }`}
-            >
-              {sorted.length === 0 ? (
-                <p className="text-xs text-muted-text py-2 px-1">
-                  No assignments. Drag one here or add below.
-                </p>
-              ) : (
-                sorted.map((a) => (
-                  <AssignmentCard
-                    key={a.id}
-                    assignment={a}
-                    dayId={day.id}
-                    moduleId={day.module_id}
-                    weekNumber={weekNumber}
-                    dayName={day.day_name}
-                    courseId={courseId}
-                    onOpen={onOpenAssignment}
-                    onDelete={onDeleteAssignment}
-                    onTogglePublished={onTogglePublished}
-                    onDuplicated={onDuplicatedAssignment}
-                  />
-                ))
-              )}
-            </div>
-          </SortableContext>
-        );
-      })()}
+    <div className={showBlock ? "bg-surface/60 rounded-xl p-3" : ""}>
+      {showBlock && (
+        <p className="text-sm font-bold text-muted-text uppercase tracking-wide mb-2">
+          Assignments
+        </p>
+      )}
+      <SortableContext
+        items={sorted.map((a) => `assignment-${a.id}`)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div
+          ref={setNodeRef}
+          className={`flex flex-col gap-2 rounded-lg p-1 transition-colors ${
+            showBlock ? "min-h-[48px]" : "min-h-0"
+          } ${isOver ? "bg-teal-light border border-dashed border-teal-primary/50" : ""}`}
+        >
+          {isOver && sorted.length === 0 && (
+            <p className="text-xs text-muted-text py-2 px-1">Drop here</p>
+          )}
+          {sorted.map((a) => (
+            <AssignmentCard
+              key={a.id}
+              assignment={a}
+              dayId={day.id}
+              moduleId={day.module_id}
+              weekNumber={weekNumber}
+              dayName={day.day_name}
+              courseId={courseId}
+              onOpen={onOpenAssignment}
+              onDelete={onDeleteAssignment}
+              onTogglePublished={onTogglePublished}
+              onDuplicated={onDuplicatedAssignment}
+            />
+          ))}
+        </div>
+      </SortableContext>
       {!readOnly && (
         <CreateButton
           courseId={courseId}
