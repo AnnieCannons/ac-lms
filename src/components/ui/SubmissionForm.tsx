@@ -115,7 +115,9 @@ export default function SubmissionForm({
     : tab === "text"
       ? textContent.trim().length > 0
       : fileUrl.length > 0;
-  useUnsavedChanges(mode === 'edit' && hasContent);
+
+  const [commentText, setCommentText] = useState('');
+  useUnsavedChanges((mode === 'edit' && hasContent) || commentText.trim().length > 0);
 
   const clearForm = () => {
     setLinkContent("");
@@ -605,15 +607,17 @@ export default function SubmissionForm({
       )}
     </div>
 
-    {/* Threaded comments — visible in view mode only (ongoing instructor ↔ student messaging) */}
-    {!isStudentPreview && mode !== 'edit' && saved && (
+    {/* Threaded comments — always visible below the form (student and instructor can message back and forth) */}
+    {!isStudentPreview && (
       <SubmissionComments
-        submissionId={saved.id}
+        submissionId={saved?.id ?? null}
         initialComments={initialComments}
         currentUserId={studentId}
         currentUserName={currentUserName}
         currentUserRole={currentUserRole}
         isObserver={isObserver}
+        text={commentText}
+        onTextChange={setCommentText}
       />
     )}
     </>
