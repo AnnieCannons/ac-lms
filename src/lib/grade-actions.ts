@@ -164,6 +164,7 @@ export async function toggleChecklistResponse(
 export async function addSubmissionComment(
   submissionId: string,
   content: string,
+  courseId?: string,
 ): Promise<{ id: string; created_at: string } | { error: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -176,29 +177,19 @@ export async function addSubmissionComment(
     // Look up the submission to verify ownership or TA access
     const { data: submission } = await admin
       .from('submissions')
-      .select('student_id, assignment_id')
+      .select('student_id')
       .eq('id', submissionId)
       .single()
 
     if (!submission) return { error: 'Not found' }
 
     if (submission.student_id !== user.id) {
-      // Not the submission owner — check TA enrollment for this course
-      const { data: assignment } = await admin
-        .from('assignments')
-        .select('module_day_id, module_days(module_id, modules(course_id))')
-        .eq('id', submission.assignment_id)
-        .single()
-
-      const mod = assignment?.module_days
-      const modData = Array.isArray(mod) ? mod[0] : mod
-      const modules = modData?.modules
-      const courseId = (Array.isArray(modules) ? modules[0] : modules)?.course_id
-
-      if (!courseId) return { error: 'Not authorized' }
+      // Not the submission owner — must be a TA for this course
+      const resolvedCourseId = courseId
+      if (!resolvedCourseId) return { error: 'Not authorized' }
 
       const { data: enr } = await supabase.from('course_enrollments')
-        .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+        .select('role').eq('user_id', user.id).eq('course_id', resolvedCourseId).maybeSingle()
       if (enr?.role !== 'ta') return { error: 'Not authorized' }
     }
   }

@@ -472,6 +472,8 @@ export default async function GradingPage({
               currentUserId={user.id}
               currentUserName={profile?.name ?? 'Instructor'}
               currentUserRole={profile?.role ?? 'instructor'}
+              isTa={isTa}
+              courseId={id}
             />
           )}
 

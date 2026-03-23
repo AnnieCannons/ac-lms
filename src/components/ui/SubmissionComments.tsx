@@ -19,6 +19,8 @@ export default function SubmissionComments({
   currentUserName,
   currentUserRole,
   isObserver,
+  isTa,
+  courseId,
   text: externalText,
   onTextChange,
 }: {
@@ -28,6 +30,8 @@ export default function SubmissionComments({
   currentUserName: string;
   currentUserRole: string;
   isObserver?: boolean;
+  isTa?: boolean;
+  courseId?: string;
   text?: string;
   onTextChange?: (t: string) => void;
 }) {
@@ -42,7 +46,7 @@ export default function SubmissionComments({
     if (!text.trim() || !submissionId) return;
     setSending(true);
     setSendError(null);
-    const result = await addSubmissionComment(submissionId, text.trim());
+    const result = await addSubmissionComment(submissionId, text.trim(), courseId);
     if ('error' in result) {
       setSendError(result.error);
     } else {
@@ -113,7 +117,7 @@ export default function SubmissionComments({
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
             }}
-            placeholder={currentUserRole === 'student' ? "Add a comment for your instructor…" : "Leave a comment for the learner…"}
+            placeholder={currentUserRole === 'student' && !isTa ? "Add a comment for your instructor…" : "Leave a comment for the student…"}
             rows={3}
             className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
           />
