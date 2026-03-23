@@ -35,7 +35,7 @@ function getCurrentWeek(startDate: string | null | undefined): number | null {
 }
 
 export default function GeneralInfoSections({ sections, courseStartDate }: { sections: Section[]; courseStartDate?: string | null }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(sections.map(s => s.id)))
   const currentWeek = getCurrentWeek(courseStartDate)
 
   useEffect(() => {

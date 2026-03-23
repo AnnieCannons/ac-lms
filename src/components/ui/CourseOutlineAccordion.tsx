@@ -345,7 +345,14 @@ export default function CourseOutlineAccordion({
   const todayName = DAY_NAMES[new Date().getDay()]
   const [search, setSearch] = useState('')
   const [openDayIds, setOpenDayIds] = useState<Set<string>>(new Set())
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
+    const allIds = new Set(modules.map(m => m.id))
+    if (currentWeek !== null) {
+      const current = modules.find(m => m.week_number === currentWeek)
+      if (current) allIds.delete(current.id)
+    }
+    return allIds
+  })
   const toggleModule = (id: string) =>
     setCollapsedModules(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
   const toggleDay = (id: string) =>
