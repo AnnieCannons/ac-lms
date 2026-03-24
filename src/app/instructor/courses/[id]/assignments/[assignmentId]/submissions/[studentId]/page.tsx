@@ -92,13 +92,14 @@ export default async function GradingPage({
   const needsGradingTotal = ungradedStudents.length
 
   // For grader=me, filter ungraded queue to current user's group
+  let myStudentIds = new Set<string>()
   if (grader === 'me') {
     const { data: myGroups } = await admin
       .from('grading_groups')
       .select('student_id')
       .eq('course_id', id)
       .eq('grader_id', user.id)
-    const myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+    myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
     const assignmentGraderOverride = (assignment as typeof assignment & { grader_id: string | null })?.grader_id ?? null
     if (assignmentGraderOverride !== user.id && assignmentGraderOverride !== null) {
       ungradedStudents = [] // someone else is override grader
@@ -148,11 +149,15 @@ export default async function GradingPage({
 
     const allAssignmentIds = orderedAssignments.map(a => a.id)
     if (allAssignmentIds.length > 0) {
-      const { data: ungradedSubData } = await admin
+      let ungradedQuery = admin
         .from('submissions')
         .select('assignment_id')
         .in('assignment_id', allAssignmentIds)
         .eq('status', 'submitted')
+      if (grader === 'me' && myStudentIds.size > 0) {
+        ungradedQuery = ungradedQuery.in('student_id', [...myStudentIds])
+      }
+      const { data: ungradedSubData } = await ungradedQuery
 
       const ungradedSet = new Set(ungradedSubData?.map(s => s.assignment_id) ?? [])
       // Include current assignment even if it's now fully graded (for position display)
@@ -242,7 +247,10 @@ export default async function GradingPage({
     }
   })
 
-  const currentGrade = (submission?.grade ?? null) as 'complete' | 'incomplete' | null
+  // If student resubmitted (status = 'submitted'), treat as ungraded — don't show stale grade
+  const currentGrade = submission?.status === 'submitted'
+    ? null
+    : (submission?.grade ?? null) as 'complete' | 'incomplete' | null
 
   return (
     <div className="min-h-screen bg-background">
@@ -346,7 +354,7 @@ export default async function GradingPage({
             <GradeButtons
               submissionId={submission.id}
               initialGrade={currentGrade}
-              initialGradedAt={submission.graded_at ?? null}
+              initialGradedAt={submission.status === 'submitted' ? null : (submission.graded_at ?? null)}
               gradedById={user.id}
               courseId={id}
               nextUrl={

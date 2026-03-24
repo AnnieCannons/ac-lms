@@ -1509,6 +1509,136 @@ function AddDropdown({ onAddAssignment, onAddResource, onAddWiki, onAddQuiz }: {
   )
 }
 
+// ─── DraggableQuizCard ────────────────────────────────────────────────────────
+
+function DraggableQuizCard({
+  quiz,
+  dayId,
+  moduleTitle,
+  courseId,
+  onPublishToggled,
+  onDuplicated,
+}: {
+  quiz: QuizEntry;
+  dayId: string;
+  moduleTitle: string;
+  courseId: string;
+  onPublishToggled: (quizId: string, newPublished: boolean) => void;
+  onDuplicated: (newQuiz: DuplicatedQuiz) => void;
+}) {
+  const readOnly = useContext(ReadOnlyContext);
+  const ctx = useContext(RelocateContext);
+
+  const displayTitle = quiz.title.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
+  const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
+  const isCrossPosted = !!quiz.linked_day_id && quiz.linked_day_id === dayId;
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `quiz-${quiz.id}`,
+    data: { type: "quiz", quizId: quiz.id, sourceDayId: dayId, sourceModuleTitle: moduleTitle },
+    disabled: readOnly || isCrossPosted,
+  });
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)`, opacity: isDragging ? 0.4 : 1 }
+    : undefined;
+
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyPos, setCopyPos] = useState({ top: 0, left: 0 });
+  const copyPopupRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!copyOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!copyPopupRef.current?.contains(e.target as Node)) setCopyOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [copyOpen]);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-surface rounded-lg border px-3 py-2 flex items-center gap-2 ${isCrossPosted ? "border-purple-primary/30" : "border-border"}`}
+    >
+      {!readOnly && !isCrossPosted && (
+        <button
+          {...attributes}
+          {...listeners}
+          type="button"
+          className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded"
+          aria-label="Drag quiz"
+        >
+          ⠿
+        </button>
+      )}
+      <Link href={`/instructor/courses/${courseId}/quizzes?open=${quiz.id}`} className="flex-1 min-w-0">
+        <p className="text-sm text-dark-text truncate hover:text-teal-primary transition-colors">{displayTitle}</p>
+        <p className="text-xs text-muted-text">
+          {questionCount} question{questionCount !== 1 ? "s" : ""}
+        </p>
+      </Link>
+      {isCrossPosted && (
+        <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">
+          Career Dev
+        </span>
+      )}
+      {!readOnly && ctx && (
+        <button
+          type="button"
+          title="Copy quiz"
+          onClick={(e) => {
+            if (copyOpen) { setCopyOpen(false); return; }
+            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const popH = 300; const popW = 300;
+            const spaceBelow = window.innerHeight - r.bottom;
+            const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
+            setCopyPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
+            setCopyOpen(true);
+          }}
+          className={`shrink-0 transition-colors ${copyOpen ? "text-purple-primary" : "text-muted-text hover:text-purple-primary"}`}
+        >
+          <DuplicateIcon />
+        </button>
+      )}
+      {copyOpen && ctx && (
+        <DuplicateQuizPopup
+          quiz={quiz}
+          currentCourseId={courseId}
+          weekModules={ctx.weekModules}
+          popupPos={copyPos}
+          popupRef={copyPopupRef}
+          onClose={() => setCopyOpen(false)}
+          onDuplicatedInCourse={(newQ) => {
+            onDuplicated(newQ);
+            setCopyOpen(false);
+          }}
+        />
+      )}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={async () => {
+            const newPublished = !quiz.published;
+            onPublishToggled(quiz.id, newPublished);
+            try {
+              await toggleQuizPublished(quiz.id, courseId, newPublished);
+            } catch {
+              onPublishToggled(quiz.id, quiz.published);
+            }
+          }}
+          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            quiz.published
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+          }`}
+        >
+          {quiz.published ? "Published" : "Draft"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── SortableDay ──────────────────────────────────────────────────────────────
 
 function SortableDay({
@@ -1617,17 +1747,6 @@ function SortableDay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizzesKey]);
 
-  const [quizCopyId, setQuizCopyId] = useState<string | null>(null);
-  const [quizCopyPos, setQuizCopyPos] = useState({ top: 0, left: 0 });
-  const quizCopyPopupRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!quizCopyId) return;
-    function onDown(e: MouseEvent) {
-      if (!quizCopyPopupRef.current?.contains(e.target as Node)) setQuizCopyId(null);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [quizCopyId]);
 
   // Register resource state with outer DndContext for cross-day moves
   useEffect(() => {
@@ -1962,92 +2081,21 @@ function SortableDay({
                 Quizzes
               </p>
               <div className="flex flex-col gap-1.5">
-                {quizzes.map(quiz => {
-                  const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title;
-                  const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
-                  const isCrossPosted = !!quiz.linked_day_id && quiz.linked_day_id === day.id;
-                  // eslint-disable-next-line react-hooks/rules-of-hooks
-                  const { attributes: qAttr, listeners: qListeners, setNodeRef: qRef, transform: qTransform, isDragging: qIsDragging } = useDraggable({
-                    id: `quiz-${quiz.id}`,
-                    data: { type: "quiz", quizId: quiz.id, sourceDayId: day.id, sourceModuleTitle: moduleTitle },
-                    disabled: readOnly || isCrossPosted,
-                  });
-                  const qStyle = qTransform ? { transform: `translate3d(${qTransform.x}px,${qTransform.y}px,0)`, opacity: qIsDragging ? 0.4 : 1 } : undefined;
-                  return (
-                    <div key={quiz.id} ref={qRef} style={qStyle} className={`bg-surface rounded-lg border px-3 py-2 flex items-center gap-2 ${isCrossPosted ? 'border-purple-primary/30' : 'border-border'}`}>
-                      {!readOnly && !isCrossPosted && (
-                        <button {...qAttr} {...qListeners} type="button" className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded" aria-label="Drag quiz">⠿</button>
-                      )}
-                      <Link
-                        href={`/instructor/courses/${courseId}/quizzes?open=${quiz.id}`}
-                        className="flex-1 min-w-0"
-                      >
-                        <p className="text-sm text-dark-text truncate hover:text-teal-primary transition-colors">
-                          {displayTitle}
-                        </p>
-                        <p className="text-xs text-muted-text">
-                          {questionCount} question{questionCount !== 1 ? 's' : ''}
-                        </p>
-                      </Link>
-                      {isCrossPosted && (
-                        <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
-                      )}
-                      {!readOnly && ctx && (
-                        <button
-                          type="button"
-                          title="Copy quiz"
-                          onClick={e => {
-                            if (quizCopyId === quiz.id) { setQuizCopyId(null); return; }
-                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                            const popH = 300; const popW = 300;
-                            const spaceBelow = window.innerHeight - r.bottom;
-                            const top = spaceBelow < popH ? Math.max(8, r.top - popH - 4) : r.bottom + 4;
-                            setQuizCopyPos({ top, left: Math.min(r.left, window.innerWidth - popW - 8) });
-                            setQuizCopyId(quiz.id);
-                          }}
-                          className={`shrink-0 transition-colors ${quizCopyId === quiz.id ? 'text-purple-primary' : 'text-muted-text hover:text-purple-primary'}`}
-                        >
-                          <DuplicateIcon />
-                        </button>
-                      )}
-                      {quizCopyId === quiz.id && ctx && (
-                        <DuplicateQuizPopup
-                          quiz={quiz}
-                          currentCourseId={courseId}
-                          weekModules={ctx.weekModules}
-                          popupPos={quizCopyPos}
-                          popupRef={quizCopyPopupRef}
-                          onClose={() => setQuizCopyId(null)}
-                          onDuplicatedInCourse={(newQ) => {
-                            setQuizzes(prev => [...prev, { ...newQ, linked_day_id: null }]);
-                            setQuizCopyId(null);
-                          }}
-                        />
-                      )}
-                      {!readOnly && (
-                        <button
-                          onClick={async () => {
-                            const newPublished = !quiz.published;
-                            setQuizzes(prev => prev.map(q => q.id === quiz.id ? { ...q, published: newPublished } : q));
-                            try {
-                              await toggleQuizPublished(quiz.id, courseId, newPublished);
-                            } catch {
-                              setQuizzes(prev => prev.map(q => q.id === quiz.id ? quiz : q));
-                            }
-                          }}
-                          className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                            quiz.published
-                              ? 'border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white'
-                              : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
-                          }`}
-                          type="button"
-                        >
-                          {quiz.published ? 'Published' : 'Draft'}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                {quizzes.map(quiz => (
+                  <DraggableQuizCard
+                    key={quiz.id}
+                    quiz={quiz}
+                    dayId={day.id}
+                    moduleTitle={moduleTitle}
+                    courseId={courseId}
+                    onPublishToggled={(quizId, newPublished) =>
+                      setQuizzes(prev => prev.map(q => q.id === quizId ? { ...q, published: newPublished } : q))
+                    }
+                    onDuplicated={(newQ) =>
+                      setQuizzes(prev => [...prev, { ...newQ, linked_day_id: null }])
+                    }
+                  />
+                ))}
               </div>
             </div>
           )}
