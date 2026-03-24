@@ -7,7 +7,7 @@ export default function Accessibility() {
       <h1 className="text-2xl font-bold text-dark-text mb-1">Accessibility</h1>
       <p className="text-sm text-muted-text mb-8">Display settings, screen reader support, keyboard navigation, and other tools to make the app work better for you.</p>
 
-      <DocH2>Display &amp; Appearance Settings</DocH2>
+      <DocH2>Display Settings</DocH2>
       <DocP>
         Three display settings are available under your{' '}
         <Link href="/account" className="text-teal-primary hover:underline">Profile → Display &amp; Appearance</Link>{' '}
@@ -19,7 +19,7 @@ export default function Accessibility() {
         Switches to a dark color scheme to reduce eye strain in low-light environments. Recommended for evening studying or anyone who finds bright screens uncomfortable.
       </DocP>
       <DocStep number={1}>Click your name in the top-right corner and select <strong>Profile</strong>.</DocStep>
-      <DocStep number={2}>Scroll to the <strong>Display &amp; Appearance</strong> section.</DocStep>
+      <DocStep number={2}>Scroll to the <strong>Display &amp; Appearance</strong> section on the page.</DocStep>
       <DocStep number={3}>Toggle <strong>Dark mode</strong> on or off.</DocStep>
 
       <DocH3>High Contrast</DocH3>
