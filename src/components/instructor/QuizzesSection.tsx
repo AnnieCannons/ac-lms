@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
 import { createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
@@ -117,6 +118,7 @@ function SortableQuizRow({
 }
 
 export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuizId, moduleTitles = [] }: QuizzesSectionProps) {
+  const router = useRouter();
   const [localQuizzes, setLocalQuizzes] = useState<QuizRow[]>(Array.isArray(quizzes) ? quizzes : []);
   const [selectedQuiz, setSelectedQuiz] = useState<QuizRow | null>(() => {
     if (initialOpenQuizId) {
@@ -124,6 +126,16 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     }
     return null;
   });
+
+  // When initialOpenQuizId changes (e.g. after server action remounts component),
+  // sync selectedQuiz from the updated localQuizzes
+  useEffect(() => {
+    if (initialOpenQuizId) {
+      const quiz = localQuizzes.find(q => q.id === initialOpenQuizId);
+      if (quiz) setSelectedQuiz(quiz);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenQuizId]);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -254,10 +266,12 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
       const data = await createQuizWithQuestions(courseId, title, [], moduleTitle);
       if (data) {
         setLocalQuizzes((prev) => [...prev, data as QuizRow]);
-        setSelectedQuiz(data as QuizRow);
         setShowImport(false);
         setImportTitle("");
         setImportModuleTitle("");
+        // Navigate to ?open= so the editor opens reliably even if the server
+        // action causes Next.js to remount this component
+        router.replace(`?open=${data.id}`);
       }
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Failed to create quiz");
