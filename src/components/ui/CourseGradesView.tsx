@@ -400,6 +400,8 @@ function AssignmentsTab({
   filterUngraded: boolean
   onClearFilter: () => void
 }) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+
   if (assignments.length === 0) {
     return (
       <div className="bg-surface rounded-2xl border border-border p-12 text-center">
@@ -408,19 +410,52 @@ function AssignmentsTab({
     )
   }
 
+  const visibleModuleIds = modules
+    .filter(m => assignments.some(a => {
+      if (a.moduleTitle !== m.title) return false
+      if (filterUngraded && !((statsByAssignment[a.id]?.needsGrading ?? 0) > 0)) return false
+      return true
+    }))
+    .map(m => m.id)
+
+  const allCollapsed = visibleModuleIds.every(id => collapsed.has(id))
+
+  const toggleModule = (id: string) =>
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
   return (
     <div className="flex flex-col gap-2">
-      {filterUngraded && (
-        <div className="flex items-center gap-2 px-1 mb-1">
-          <span className="text-xs font-medium text-yellow-600">Showing assignments that need grading</span>
-          <button
-            onClick={onClearFilter}
-            className="text-xs text-muted-text hover:text-dark-text transition-colors"
-          >
-            × Clear
-          </button>
-        </div>
-      )}
+      <div className="flex items-center justify-between px-1 mb-1">
+        {filterUngraded ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-yellow-600">Showing assignments that need grading</span>
+            <button onClick={onClearFilter} className="text-xs text-muted-text hover:text-dark-text transition-colors">× Clear</button>
+          </div>
+        ) : <span />}
+        {visibleModuleIds.length > 1 && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCollapsed(new Set())}
+              className="text-xs text-muted-text hover:text-dark-text transition-colors"
+            >
+              Expand all
+            </button>
+            <span className="text-xs text-border">·</span>
+            <button
+              type="button"
+              onClick={() => setCollapsed(new Set(visibleModuleIds))}
+              className="text-xs text-muted-text hover:text-dark-text transition-colors"
+            >
+              Collapse all
+            </button>
+          </div>
+        )}
+      </div>
       {modules.map(m => {
         const moduleAssignments = assignments.filter(a => {
           if (a.moduleTitle !== m.title) return false
@@ -428,53 +463,72 @@ function AssignmentsTab({
           return true
         })
         if (moduleAssignments.length === 0) return null
+        const isCollapsed = collapsed.has(m.id)
+        const ungradedInModule = moduleAssignments.reduce((sum, a) => sum + (statsByAssignment[a.id]?.needsGrading ?? 0), 0)
         return (
           <div key={m.id}>
-            <p className="text-xs font-semibold text-muted-text uppercase tracking-wide px-1 py-2">
-              {m.title}{m.week_number ? ` · Week ${m.week_number}` : ''}
-            </p>
-            <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
-              {moduleAssignments.map(a => {
-                const stats = statsByAssignment[a.id]
-                const hasUngraded = (stats?.needsGrading ?? 0) > 0
-                return (
-                  <div key={a.id} className="bg-surface px-6 py-4 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-semibold text-dark-text">{a.title}</span>
-                        {hasUngraded && (
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600">
-                            {stats.needsGrading} ungraded
-                          </span>
-                        )}
+            <button
+              type="button"
+              onClick={() => toggleModule(m.id)}
+              aria-expanded={!isCollapsed}
+              className="w-full flex items-center justify-between px-1 py-2 text-left group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+                  {moduleAssignments.length} {m.title}{m.week_number ? ` · Week ${m.week_number}` : ''}
+                </span>
+                {isCollapsed && ungradedInModule > 0 && (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600">
+                    {ungradedInModule} ungraded
+                  </span>
+                )}
+              </div>
+              <span aria-hidden="true" className={`text-xs text-muted-text transition-transform duration-150 ${isCollapsed ? '' : 'rotate-180'}`}>▾</span>
+            </button>
+            {!isCollapsed && (
+              <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
+                {moduleAssignments.map(a => {
+                  const stats = statsByAssignment[a.id]
+                  const hasUngraded = (stats?.needsGrading ?? 0) > 0
+                  return (
+                    <div key={a.id} className="bg-surface px-6 py-4 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-semibold text-dark-text">{a.title}</span>
+                          {hasUngraded && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600">
+                              {stats.needsGrading} ungraded
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-text flex-wrap">
+                          {a.due_date && (
+                            <span>
+                              Due {formatDueDate(a.due_date, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          )}
+                          {stats ? (
+                            <>
+                              <span>{stats.turnedIn}/{totalStudents} turned in</span>
+                              {stats.complete > 0 && <span className="text-green-700">{stats.complete} complete</span>}
+                              {stats.incomplete > 0 && <span className="text-red-500">{stats.incomplete} incomplete</span>}
+                            </>
+                          ) : (
+                            <span>0/{totalStudents} turned in</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-text flex-wrap">
-                        {a.due_date && (
-                          <span>
-                            Due {formatDueDate(a.due_date, { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        )}
-                        {stats ? (
-                          <>
-                            <span>{stats.turnedIn}/{totalStudents} turned in</span>
-                            {stats.complete > 0 && <span className="text-green-700">{stats.complete} complete</span>}
-                            {stats.incomplete > 0 && <span className="text-red-500">{stats.incomplete} incomplete</span>}
-                          </>
-                        ) : (
-                          <span>0/{totalStudents} turned in</span>
-                        )}
-                      </div>
+                      <Link
+                        href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
+                        className="shrink-0 text-xs font-semibold text-teal-primary hover:underline"
+                      >
+                        Grade →
+                      </Link>
                     </div>
-                    <Link
-                      href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
-                      className="shrink-0 text-xs font-semibold text-teal-primary hover:underline"
-                    >
-                      Grade →
-                    </Link>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )
       })}
