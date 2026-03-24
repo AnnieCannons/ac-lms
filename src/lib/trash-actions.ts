@@ -169,6 +169,20 @@ export async function getTrashedItems(courseId: string): Promise<{ items?: Trash
     : { data: [] }
   const allDayIds = allDays?.map(d => d.id) ?? []
 
+  // Permanently delete any items that have been in the trash for more than 7 days
+  const expiry = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  await Promise.all([
+    admin.from('quizzes').delete().eq('course_id', courseId).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+    admin.from('modules').delete().eq('course_id', courseId).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+    ...(allDayIds.length > 0 ? [
+      admin.from('assignments').delete().in('module_day_id', allDayIds).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+      admin.from('resources').delete().in('module_day_id', allDayIds).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+    ] : []),
+    ...(allModuleIds.length > 0 ? [
+      admin.from('module_days').delete().in('module_id', allModuleIds).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+    ] : []),
+  ])
+
   const [modules, days, assignments, resources, quizzes] = await Promise.all([
     admin.from('modules').select('id, title, deleted_at').eq('course_id', courseId).not('deleted_at', 'is', null),
     allModuleIds.length > 0
