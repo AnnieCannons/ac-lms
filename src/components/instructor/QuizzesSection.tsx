@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
-import { createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
+import { createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizMeta } from "@/lib/quiz-actions";
 import QuizFullView from "./QuizFullView";
 import {
   DndContext,
@@ -244,16 +244,40 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     }
   };
 
-  const handleDayChange = async (quiz: QuizRow, dayTitle: string | null) => {
-    setLocalQuizzes((prev) =>
-      prev.map((q) => (q.id === quiz.id ? { ...q, day_title: dayTitle } : q))
-    );
+const [navigating, setNavigating] = useState(false);
+
+  // ── Move popup ──────────────────────────────────────────────────────────
+  const [movePopupQuiz, setMovePopupQuiz] = useState<QuizRow | null>(null);
+  const [moveToModule, setMoveToModule] = useState("");
+  const [moveToDay, setMoveToDay] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+  const movePopupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!movePopupQuiz) return;
+    const handler = (e: MouseEvent) => {
+      if (movePopupRef.current && !movePopupRef.current.contains(e.target as Node)) {
+        setMovePopupQuiz(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [movePopupQuiz]);
+
+  const handleMoveQuiz = async () => {
+    if (!movePopupQuiz) return;
+    const quiz = movePopupQuiz;
+    setMoving(true);
     try {
-      await updateQuizDay(quiz.id, courseId, dayTitle);
-    } catch {
+      await updateQuizMeta(quiz.id, courseId, { module_title: moveToModule, day_title: moveToDay });
       setLocalQuizzes((prev) =>
-        prev.map((q) => (q.id === quiz.id ? quiz : q))
+        prev.map((q) => q.id === quiz.id ? { ...q, module_title: moveToModule, day_title: moveToDay } : q)
       );
+      setMovePopupQuiz(null);
+    } catch {
+      // keep popup open on error
+    } finally {
+      setMoving(false);
     }
   };
 
@@ -271,6 +295,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
         setImportModuleTitle("");
         // Navigate to ?open= so the editor opens reliably even if the server
         // action causes Next.js to remount this component
+        setNavigating(true);
         router.replace(`?open=${data.id}`);
       }
     } catch (err) {
@@ -282,6 +307,11 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
 
   return (
     <>
+      {navigating && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <p className="text-muted-text text-sm">Opening quiz editor…</p>
+        </div>
+      )}
       {selectedQuiz && (
         <QuizFullView
           quiz={selectedQuiz}
@@ -485,19 +515,64 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
                                       </button>
 
                                       {!quiz.id.startsWith("json-") && (
-                                        <select
-                                          value={quiz.day_title ?? ""}
-                                          onChange={(e) => handleDayChange(quiz, e.target.value || null)}
-                                          className="shrink-0 text-xs bg-background border border-border text-muted-text rounded-full px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-primary"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <option value="">— Unassigned —</option>
-                                          <option value="Monday">Mon</option>
-                                          <option value="Tuesday">Tue</option>
-                                          <option value="Wednesday">Wed</option>
-                                          <option value="Thursday">Thu</option>
-                                          <option value="Friday">Fri</option>
-                                        </select>
+                                        <div className="relative shrink-0" ref={movePopupQuiz?.id === quiz.id ? movePopupRef : undefined}>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (movePopupQuiz?.id === quiz.id) {
+                                                setMovePopupQuiz(null);
+                                              } else {
+                                                setMoveToModule(quiz.module_title || moduleTitles[0] || "");
+                                                setMoveToDay(quiz.day_title ?? null);
+                                                setMovePopupQuiz(quiz);
+                                              }
+                                            }}
+                                            className="shrink-0 text-xs font-medium px-2 py-1 rounded-full border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
+                                            aria-label="Move quiz"
+                                            title="Move to…"
+                                          >
+                                            ⇄
+                                          </button>
+                                          {movePopupQuiz?.id === quiz.id && (
+                                            <div className="absolute right-0 top-8 z-50 bg-surface border border-border rounded-xl shadow-xl p-4 w-64">
+                                              <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">Move To</p>
+                                              <select
+                                                value={moveToModule}
+                                                onChange={(e) => setMoveToModule(e.target.value)}
+                                                className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary mb-3"
+                                              >
+                                                {moduleTitles.map((t) => (
+                                                  <option key={t} value={t}>{t}</option>
+                                                ))}
+                                              </select>
+                                              <div className="flex flex-wrap gap-1.5 mb-4">
+                                                {[null, "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => (
+                                                  <button
+                                                    key={day ?? "none"}
+                                                    type="button"
+                                                    onClick={() => setMoveToDay(day)}
+                                                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                                                      moveToDay === day
+                                                        ? "bg-teal-primary text-white border-teal-primary"
+                                                        : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+                                                    }`}
+                                                  >
+                                                    {day ? day.slice(0, 3) : "None"}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={handleMoveQuiz}
+                                                disabled={moving}
+                                                className="w-full text-xs font-semibold py-2 rounded-lg bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                                              >
+                                                {moving ? "Moving…" : "Move"}
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
                                       )}
 
                                       {!quiz.id.startsWith("json-") && quiz.published && (
