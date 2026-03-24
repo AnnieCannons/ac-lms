@@ -204,6 +204,45 @@ export async function addSubmissionComment(
   return { id: data.id, created_at: data.created_at }
 }
 
+// Edit a comment — only the original author may edit their own comment.
+export async function editSubmissionComment(
+  commentId: string,
+  content: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = createServiceSupabaseClient()
+  const { error } = await admin
+    .from('submission_comments')
+    .update({ content: content.trim() })
+    .eq('id', commentId)
+    .eq('author_id', user.id)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
+// Delete a comment — authors can delete their own; instructors/admins can delete any.
+export async function deleteSubmissionComment(
+  commentId: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const isStaff = profile?.role === 'instructor' || profile?.role === 'admin'
+
+  const admin = createServiceSupabaseClient()
+  const query = admin.from('submission_comments').delete().eq('id', commentId)
+  const { error } = await (isStaff ? query : query.eq('author_id', user.id))
+
+  if (error) return { error: error.message }
+  return {}
+}
+
 // Student saves a comment on their own submission — scoped to auth.uid()
 export async function saveStudentComment(
   submissionId: string,
