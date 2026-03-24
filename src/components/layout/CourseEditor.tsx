@@ -1063,6 +1063,7 @@ function SortableResource({
   weekNumber,
   moduleId,
   courseId,
+  dayId,
   onEdit,
   onDelete,
   onRelocated,
@@ -1072,6 +1073,7 @@ function SortableResource({
   weekNumber: number | null;
   moduleId: string;
   courseId: string;
+  dayId: string;
   onEdit: (id: string, updates: Partial<Pick<Resource, "type" | "title" | "content" | "description">>) => void;
   onDelete: (id: string, title: string) => void;
   onRelocated: () => void;
@@ -1079,7 +1081,7 @@ function SortableResource({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: `resource-${resource.id}`,
-    data: { type: "resource" },
+    data: { type: "resource", resourceId: resource.id, sourceDayId: dayId },
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const ctx = useContext(RelocateContext);
@@ -1524,6 +1526,8 @@ function SortableDay({
   onWikiUpdated,
   onWikiPublishToggled,
   onWikiDeleted,
+  moduleTitle,
+  onRegisterResources,
 }: {
   day: Day;
   weekNumber: number | null;
@@ -1541,6 +1545,8 @@ function SortableDay({
   onWikiUpdated: (wikiId: string, title: string, content: string) => void;
   onWikiPublishToggled: (wikiId: string, published: boolean) => void;
   onWikiDeleted: (wikiId: string) => void;
+  moduleTitle: string;
+  onRegisterResources: (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1621,30 +1627,10 @@ function SortableDay({
     return () => document.removeEventListener("mousedown", onDown);
   }, [quizCopyId]);
 
-  const resourceSensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const handleResourceDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const current = resourcesRef.current;
-    const oldIndex = current.findIndex((r) => `resource-${r.id}` === active.id);
-    const newIndex = current.findIndex((r) => `resource-${r.id}` === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove([...current], oldIndex, newIndex).map((r, i) => ({
-      ...r,
-      order: i,
-    }));
-    setResources(reordered);
-    await Promise.all(
-      reordered.map((r, i) =>
-        supabase.from("resources").update({ order: i }).eq("id", r.id)
-      )
-    );
-  };
+  // Register resource state with outer DndContext for cross-day moves
+  useEffect(() => {
+    onRegisterResources(day.id, () => resourcesRef.current, setResources);
+  }, [day.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addResource = async (type: Resource["type"], title: string, content: string) => {
     const { data, error } = await supabase
@@ -1822,43 +1808,27 @@ function SortableDay({
             {(() => {
               return (
                 <>
-                  <DndContext
-                    sensors={resourceSensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleResourceDragEnd}
-                    accessibility={{
-                      screenReaderInstructions: {
-                        draggable: 'Press Space or Enter to start dragging. Use arrow keys to move. Press Space or Enter to drop, or Escape to cancel.',
-                      },
-                      announcements: {
-                        onDragStart: ({ active }) => `Picked up: ${active.id}.`,
-                        onDragOver: ({ over }) => over ? `Moving over ${over.id}.` : 'Not over a drop target.',
-                        onDragEnd: ({ active, over }) => over ? `${active.id} dropped at ${over.id}.` : `${active.id} returned to original position.`,
-                        onDragCancel: () => 'Drag cancelled.',
-                      },
-                    }}
+                  <SortableContext
+                    items={nativeResources.map((r) => `resource-${r.id}`)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <SortableContext
-                      items={nativeResources.map((r) => `resource-${r.id}`)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="flex flex-col gap-1.5 mb-2">
-                        {nativeResources.map((r) => (
-                          <SortableResource
-                            key={r.id}
-                            resource={r}
-                            weekNumber={weekNumber}
-                            moduleId={day.module_id}
-                            courseId={courseId}
-                            onEdit={editResource}
-                            onDelete={deleteResource}
-                            onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
-                            onTogglePublished={toggleResourcePublished}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
+                    <div className="flex flex-col gap-1.5 mb-2">
+                      {nativeResources.map((r) => (
+                        <SortableResource
+                          key={r.id}
+                          resource={r}
+                          weekNumber={weekNumber}
+                          moduleId={day.module_id}
+                          courseId={courseId}
+                          dayId={day.id}
+                          onEdit={editResource}
+                          onDelete={deleteResource}
+                          onRelocated={() => setResources(prev => prev.filter(res => res.id !== r.id))}
+                          onTogglePublished={toggleResourcePublished}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
                   {crossPostedResources.length > 0 && (
                     <div className="flex flex-col gap-1.5 mb-2">
                       {crossPostedResources.map(r => (
@@ -1986,8 +1956,18 @@ function SortableDay({
                   const displayTitle = quiz.title.startsWith('Quiz: ') ? quiz.title.slice(6) : quiz.title;
                   const questionCount = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
                   const isCrossPosted = !!quiz.linked_day_id && quiz.linked_day_id === day.id;
+                  // eslint-disable-next-line react-hooks/rules-of-hooks
+                  const { attributes: qAttr, listeners: qListeners, setNodeRef: qRef, transform: qTransform, isDragging: qIsDragging } = useDraggable({
+                    id: `quiz-${quiz.id}`,
+                    data: { type: "quiz", quizId: quiz.id, sourceDayId: day.id, sourceModuleTitle: moduleTitle },
+                    disabled: readOnly || isCrossPosted,
+                  });
+                  const qStyle = qTransform ? { transform: `translate3d(${qTransform.x}px,${qTransform.y}px,0)`, opacity: qIsDragging ? 0.4 : 1 } : undefined;
                   return (
-                    <div key={quiz.id} className={`bg-surface rounded-lg border px-3 py-2 flex items-center gap-2 ${isCrossPosted ? 'border-purple-primary/30' : 'border-border'}`}>
+                    <div key={quiz.id} ref={qRef} style={qStyle} className={`bg-surface rounded-lg border px-3 py-2 flex items-center gap-2 ${isCrossPosted ? 'border-purple-primary/30' : 'border-border'}`}>
+                      {!readOnly && !isCrossPosted && (
+                        <button {...qAttr} {...qListeners} type="button" className="text-border hover:text-muted-text cursor-grab shrink-0 focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:rounded" aria-label="Drag quiz">⠿</button>
+                      )}
                       <Link
                         href={`/instructor/courses/${courseId}/quizzes?open=${quiz.id}`}
                         className="flex-1 min-w-0"
@@ -2113,6 +2093,7 @@ function SortableModule({
   onWikiUpdated,
   onWikiPublishToggled,
   onWikiDeleted,
+  onRegisterResources,
 }: {
   module: Module;
   courseId: string;
@@ -2139,6 +2120,7 @@ function SortableModule({
   onWikiUpdated: (wikiId: string, title: string, content: string) => void;
   onWikiPublishToggled: (wikiId: string, published: boolean) => void;
   onWikiDeleted: (wikiId: string) => void;
+  onRegisterResources: (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -2385,6 +2367,8 @@ function SortableModule({
                     const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1];
                     return !!(quizWeek && module.week_number === parseInt(quizWeek, 10));
                   })}
+                  moduleTitle={module.title}
+                  onRegisterResources={onRegisterResources}
                 />
               ))}
           </SortableContext>
@@ -2688,6 +2672,12 @@ export default function CourseEditor({
   const [isMounted, setIsMounted] = useState(false);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(initialModules.map(m => m.id)));
   const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
+  const [allQuizzes, setAllQuizzes] = useState<QuizEntry[]>(courseQuizzes);
+  // Registry for resource state in each SortableDay, used by outer DnD for cross-day moves
+  const resourceRegistryRef = useRef<Map<string, { getResources: () => Resource[]; setResources: React.Dispatch<React.SetStateAction<Resource[]>> }>>(new Map());
+  const handleRegisterResources = (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => {
+    resourceRegistryRef.current.set(dayId, { getResources, setResources });
+  };
 
   const isModuleExpanded = (id: string) => !collapsedModules.has(id);
   const toggleModuleExpand = (id: string) => {
@@ -2840,6 +2830,75 @@ export default function CourseEditor({
           }),
         }))
       );
+      return;
+    }
+
+    // Handle resource moves (within-day reorder or cross-day)
+    if (activeData?.type === "resource") {
+      const { resourceId, sourceDayId } = activeData;
+      const sourceEntry = resourceRegistryRef.current.get(sourceDayId);
+      if (!sourceEntry) return;
+
+      // Within-day reorder: dropped on another resource in the same day
+      if (overData?.type === "resource" && overData.sourceDayId === sourceDayId) {
+        const current = sourceEntry.getResources();
+        const oldIndex = current.findIndex((r) => r.id === resourceId);
+        const newIndex = current.findIndex((r) => r.id === overData.resourceId);
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+        const reordered = arrayMove([...current], oldIndex, newIndex).map((r, i) => ({ ...r, order: i }));
+        sourceEntry.setResources(reordered);
+        await Promise.all(reordered.map((r, i) => supabase.from("resources").update({ order: i }).eq("id", r.id)));
+        return;
+      }
+
+      // Determine target day for cross-day move
+      let resourceTargetDayId: string | null = null;
+      if (overData?.type === "day-drop") {
+        resourceTargetDayId = overData.dayId;
+      } else if (overData?.type === "day") {
+        resourceTargetDayId = (over.id as string).replace("day-", "");
+      } else if (overData?.type === "resource" && overData.sourceDayId !== sourceDayId) {
+        resourceTargetDayId = overData.sourceDayId;
+      } else if (overData?.type === "assignment") {
+        resourceTargetDayId = overData.sourceDayId;
+      }
+      if (!resourceTargetDayId || resourceTargetDayId === sourceDayId) return;
+
+      const targetEntry = resourceRegistryRef.current.get(resourceTargetDayId);
+      const resource = sourceEntry.getResources().find((r) => r.id === resourceId);
+      if (!resource) return;
+      const newOrder = targetEntry ? targetEntry.getResources().length : 0;
+
+      const { error: resMoveError } = await supabase.from("resources").update({ module_day_id: resourceTargetDayId, order: newOrder }).eq("id", resourceId);
+      if (resMoveError) { console.error("Failed to move resource:", resMoveError); return; }
+
+      sourceEntry.setResources((prev) => prev.filter((r) => r.id !== resourceId));
+      targetEntry?.setResources((prev) => [...prev, { ...resource, module_day_id: resourceTargetDayId!, order: newOrder }]);
+      return;
+    }
+
+    // Handle quiz cross-day moves
+    if (activeData?.type === "quiz") {
+      const { quizId, sourceDayId } = activeData;
+
+      let quizTargetDayId: string | null = null;
+      if (overData?.type === "day-drop") {
+        quizTargetDayId = overData.dayId;
+      } else if (overData?.type === "day") {
+        quizTargetDayId = (over.id as string).replace("day-", "");
+      } else if ((overData?.type === "assignment" || overData?.type === "resource" || overData?.type === "quiz") && overData.sourceDayId !== sourceDayId) {
+        quizTargetDayId = overData.sourceDayId;
+      }
+      if (!quizTargetDayId || quizTargetDayId === sourceDayId) return;
+
+      const allDays = modulesRef.current.flatMap((m) => m.module_days.map((d) => ({ ...d, moduleTitle: m.title })));
+      const targetDay = allDays.find((d) => d.id === quizTargetDayId);
+      if (!targetDay) return;
+
+      const { error: quizMoveError } = await supabase.from("quizzes").update({ module_title: targetDay.moduleTitle, day_title: targetDay.day_name }).eq("id", quizId);
+      if (quizMoveError) { console.error("Failed to move quiz:", quizMoveError); return; }
+
+      setAllQuizzes((prev) => prev.map((q) => q.id === quizId ? { ...q, module_title: targetDay.moduleTitle, day_title: targetDay.day_name } : q));
       return;
     }
 
@@ -3568,8 +3627,9 @@ export default function CourseEditor({
                   onDuplicatedModule={handleDuplicatedModule}
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
-                  allQuizzes={courseQuizzes}
+                  allQuizzes={allQuizzes}
                   expandDays={expandDaysTriggers[module.id]}
+                  onRegisterResources={handleRegisterResources}
                   onWikiCreated={handleWikiCreated}
                   onWikiUpdated={handleWikiUpdated}
                   onWikiPublishToggled={handleWikiPublishToggled}
