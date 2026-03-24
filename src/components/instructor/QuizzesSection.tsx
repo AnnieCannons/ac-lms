@@ -251,7 +251,7 @@ const [navigating, setNavigating] = useState(false);
 
   // ── Move popup ──────────────────────────────────────────────────────────
   const [movePopupQuiz, setMovePopupQuiz] = useState<QuizRow | null>(null);
-  const [movePopupPos, setMovePopupPos] = useState<{ top: number; right: number } | null>(null);
+  const [movePopupPos, setMovePopupPos] = useState<{ top: number; left: number } | null>(null);
   const [moveToModule, setMoveToModule] = useState("");
   const [moveToDay, setMoveToDay] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -342,14 +342,14 @@ const [navigating, setNavigating] = useState(false);
       {movePopupQuiz && movePopupPos && (
         <div
           ref={movePopupRef}
-          style={{ position: "fixed", top: movePopupPos.top, right: movePopupPos.right, zIndex: 200 }}
-          className="bg-surface border border-border rounded-xl shadow-xl p-4 w-64"
+          style={{ position: "fixed", top: movePopupPos.top, left: movePopupPos.left, zIndex: 200 }}
+          className="bg-background border-2 border-border rounded-xl shadow-2xl p-4 w-64"
         >
           <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">Move To</p>
           <select
             value={moveToModule}
             onChange={(e) => setMoveToModule(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary mb-3"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary mb-3"
           >
             {moduleTitles.map((t) => (
               <option key={t} value={t}>{t}</option>
@@ -573,7 +573,12 @@ const [navigating, setNavigating] = useState(false);
                                               setMovePopupPos(null);
                                             } else {
                                               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                              setMovePopupPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                                              const popupWidth = 256;
+                                              const popupHeight = 280;
+                                              const left = Math.max(8, Math.min(rect.right - popupWidth, window.innerWidth - popupWidth - 8));
+                                              const spaceBelow = window.innerHeight - rect.bottom;
+                                              const top = spaceBelow < popupHeight + 16 ? rect.top - popupHeight - 6 : rect.bottom + 6;
+                                              setMovePopupPos({ top, left });
                                               setMoveToModule(quiz.module_title || moduleTitles[0] || "");
                                               setMoveToDay(quiz.day_title ?? null);
                                               setMovePopupQuiz(quiz);

@@ -504,36 +504,37 @@ export default async function GradingPage({
                     </div>
                   )}
                 </div>
-
-                {/* History */}
-                {submissionHistory && submissionHistory.length > 1 && (
-                  <div className="flex flex-col gap-2 pt-2 border-t border-border">
-                    <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                      Past Submissions ({submissionHistory.length - 1})
-                    </p>
-                    {submissionHistory.slice(1).map((entry) => (
-                      <div key={entry.id} className="flex items-start gap-3 text-xs bg-background rounded-lg px-3 py-2">
-                        <span className="text-muted-text shrink-0 w-36">
-                          {new Date(entry.submitted_at).toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric',
-                            hour: 'numeric', minute: '2-digit',
-                          })}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <SubmissionContent
-                            type={entry.submission_type as SubmissionType}
-                            content={entry.content}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             ) : (
               <p className="text-sm text-muted-text italic">No submission yet.</p>
             )}
           </div>}
+
+          {/* Previous submissions */}
+          {submissionHistory && submissionHistory.length > 1 && (
+            <div className="bg-surface rounded-2xl border border-border p-6">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-4">
+                Previous Submissions ({submissionHistory.length - 1})
+              </p>
+              <div className="flex flex-col gap-3">
+                {submissionHistory.slice(1).map((entry, i) => (
+                  <div key={entry.id} className="bg-background rounded-xl border border-border p-4">
+                    <p className="text-xs text-muted-text mb-2">
+                      {submissionHistory.length - 1 - i === 1 ? '1st submission · ' : `Submission ${submissionHistory.length - 1 - i} · `}
+                      {new Date(entry.submitted_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit',
+                      })}
+                    </p>
+                    <SubmissionContent
+                      type={entry.submission_type as SubmissionType}
+                      content={entry.content}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Checklist */}
           {checklistItems && checklistItems.length > 0 && submission && (
