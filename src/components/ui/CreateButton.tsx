@@ -189,7 +189,6 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     setResTitle('')
     setResUrl('')
     setQuizTitle('')
-    setQuizText('')
     setWikiTitle('')
     setCrossPost(false)
     setCrossModuleId('')
