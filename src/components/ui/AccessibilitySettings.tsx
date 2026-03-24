@@ -121,7 +121,7 @@ export default function AccessibilitySettings() {
 
   return (
     <div className="bg-surface rounded-2xl border border-border p-6">
-      <h2 className="text-base font-semibold text-dark-text mb-5">Accessibility</h2>
+      <h2 className="text-base font-semibold text-dark-text mb-5">Display &amp; Appearance</h2>
       <div className="flex flex-col gap-5">
         <Toggle
           id="dyslexic-toggle"
