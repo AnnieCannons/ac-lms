@@ -31,7 +31,7 @@ export default async function CourseSubmissionsPage({
   // All modules → days → assignments for this course
   const { data: modules } = await admin
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, is_published))')
     .eq('course_id', id)
     .order('order', { ascending: true })
 
@@ -45,7 +45,7 @@ export default async function CourseSubmissionsPage({
 
   const assignments: AssignmentMeta[] = (modules ?? []).flatMap(m =>
     (m.module_days ?? []).flatMap(d =>
-      (d.assignments ?? []).map(a => ({
+      (d.assignments ?? []).filter(a => a.is_published).map(a => ({
         id: a.id,
         title: a.title,
         due_date: a.due_date,
