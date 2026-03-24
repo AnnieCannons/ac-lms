@@ -1459,10 +1459,11 @@ function SortableResource({
 
 // ─── AddDropdown ──────────────────────────────────────────────────────────────
 
-function AddDropdown({ onAddAssignment, onAddResource, onAddWiki }: {
+function AddDropdown({ onAddAssignment, onAddResource, onAddWiki, onAddQuiz }: {
   onAddAssignment: () => void
   onAddResource: () => void
   onAddWiki: () => void
+  onAddQuiz: () => void
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -1490,6 +1491,7 @@ function AddDropdown({ onAddAssignment, onAddResource, onAddWiki }: {
           {[
             { label: 'Assignment', action: onAddAssignment },
             { label: 'Resource',   action: onAddResource   },
+            { label: 'Quiz',       action: onAddQuiz       },
             { label: 'Wiki',       action: onAddWiki       },
           ].map(({ label, action }) => (
             <button
@@ -1682,6 +1684,7 @@ function SortableDay({
   const [fileUploadKey, setFileUploadKey] = useState(0);
   const [showAddResource, setShowAddResource] = useState(false);
   const assignmentTriggerRef = useRef<HTMLDivElement>(null);
+  const quizTriggerRef = useRef<HTMLDivElement>(null);
 
   const handleAddWiki = async () => {
     const result = await createWiki({ moduleDayId: day.id, title: 'New Wiki' })
@@ -1754,6 +1757,7 @@ function SortableDay({
             onAddAssignment={() => assignmentTriggerRef.current?.querySelector('button')?.click()}
             onAddResource={() => setShowAddResource(true)}
             onAddWiki={handleAddWiki}
+            onAddQuiz={() => quizTriggerRef.current?.querySelector('button')?.click()}
           />
         )}
         {!readOnly && (
@@ -1771,6 +1775,12 @@ function SortableDay({
       {!readOnly && (
         <div ref={assignmentTriggerRef} className="hidden">
           <CreateButton courseId={courseId} compact defaultType="assignment" defaultModuleId={day.module_id} defaultDayId={day.id} />
+        </div>
+      )}
+      {/* Hidden quiz create trigger */}
+      {!readOnly && (
+        <div ref={quizTriggerRef} className="hidden">
+          <CreateButton courseId={courseId} compact defaultType="quiz" defaultModuleId={day.module_id} defaultDayId={day.id} />
         </div>
       )}
 
@@ -2039,16 +2049,6 @@ function SortableDay({
                   );
                 })}
               </div>
-              {!readOnly && (
-                <CreateButton
-                  courseId={courseId}
-                  compact
-                  label="+ Add Quiz"
-                  defaultType="quiz"
-                  defaultModuleId={day.module_id}
-                  defaultDayId={day.id}
-                />
-              )}
             </div>
           )}
         </div>
