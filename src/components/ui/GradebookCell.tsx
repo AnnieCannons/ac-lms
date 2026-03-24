@@ -21,21 +21,26 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
 
   let icon = ''
   let cellClass = ''
+  let cellLabel = 'Not submitted'
 
   if (hasSubmission) {
     if (submission!.status === 'graded' && submission!.grade === 'complete') {
       icon = '✓'
       cellClass = 'status-complete-btn'
+      cellLabel = 'Complete'
     } else if (submission!.status === 'graded' && submission!.grade === 'incomplete') {
       icon = '✗'
       cellClass = 'status-revision-btn'
+      cellLabel = 'Needs Revision'
     } else if (submission!.status === 'submitted') {
       icon = '●'
       cellClass = 'status-needs-grading-btn'
+      cellLabel = 'Submitted – needs grading'
     }
   } else if (isPastDue) {
     icon = '–'
     cellClass = 'status-late-badge'
+    cellLabel = 'Missing / past due'
   }
 
   const graderUrl = hasSubmission
@@ -44,8 +49,12 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
 
   return (
     <td className="relative group p-0 border-r border-b border-border overflow-hidden">
-      <div className={`w-full h-11 flex items-center justify-center text-sm font-bold border border-border/30 ${cellClass}`}>
-        {icon}
+      <div
+        className={`w-full h-11 flex items-center justify-center text-sm font-bold border border-border/30 ${cellClass}`}
+        title={cellLabel}
+        aria-label={cellLabel}
+      >
+        <span aria-hidden="true">{icon}</span>
       </div>
       {graderUrl && (
         <a

@@ -26,7 +26,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
       </div>
 
       {/* Breadcrumb — center */}
-      <div className="flex-1 flex items-center gap-1 min-w-0 overflow-hidden">
+      <nav aria-label="Breadcrumb" className="flex-1 flex items-center gap-1 min-w-0 overflow-hidden">
         {(breadcrumbs ?? []).map((crumb, i) => (
           <span key={i} className="flex items-center gap-1 min-w-0">
             {i > 0 && <span aria-hidden="true" className="text-border shrink-0 select-none">›</span>}
@@ -39,7 +39,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
             )}
           </span>
         ))}
-      </div>
+      </nav>
 
       {/* Desktop right side */}
       <div className="hidden sm:flex items-center gap-5 shrink-0">

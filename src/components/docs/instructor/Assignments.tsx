@@ -148,6 +148,23 @@ export default function Assignments() {
         Changing or removing an existing grade stays on the same page.
       </DocNote>
 
+      <DocH3>By Student Mode</DocH3>
+      <DocP>
+        <strong>By Student mode</strong> flips the navigation so you work through one student&apos;s
+        entire queue instead of one assignment&apos;s entire student list. In this mode the nav strip at
+        the top shows assignment titles on the left and right rather than student names — use <strong>← →</strong> to
+        step through all of that student&apos;s ungraded assignments without returning to the grades list.
+      </DocP>
+      <DocP>By Student mode is activated from two places:</DocP>
+      <DocList>
+        <li><strong>Grades → By Student tab</strong> — click the student&apos;s name or any count to open the grader in By Student mode for that student</li>
+        <li><strong>Gradebook</strong> — hover any cell and click <strong>Open →</strong>; the grader opens in By Student mode so you can navigate all of that student&apos;s assignments from one entry point</li>
+      </DocList>
+      <DocTip>
+        By Student mode is ideal for reviewing one student&apos;s overall progress in a single session. Grade
+        their whole queue, then close or navigate back — the Gradebook will still be right where you left off.
+      </DocTip>
+
       <DocH3>Instructor Checklist Review</DocH3>
       <DocP>
         On the grading page you see the same checklist the student used. Review which items they checked off and use that
@@ -177,10 +194,19 @@ export default function Assignments() {
 
       <DocH2>Submission History</DocH2>
       <DocP>
-        All submissions (including resubmissions) are stored. On the grading page you can see the full history of a
-        student&apos;s submissions to track how their work has evolved across revisions. Historical submissions imported
-        from Canvas also appear here.
+        When a student resubmits, all prior submissions are preserved. On the grading page the most recent submission
+        appears in the <strong>Submission</strong> card at the top. Below it, a separate <strong>Previous
+        Submissions</strong> card lists every earlier version in reverse chronological order — labeled
+        &ldquo;1st submission&rdquo;, &ldquo;2nd submission&rdquo;, etc. — each with its timestamp and content.
       </DocP>
+      <DocP>
+        The Previous Submissions card only appears when the student has submitted more than once. Use it to see how
+        their work evolved across revisions, or to compare the resubmission against their original attempt.
+      </DocP>
+      <DocNote>
+        Submission history is recorded from when the history feature was introduced. Submissions made before that
+        point will not appear in the Previous Submissions card even if a student has resubmitted since.
+      </DocNote>
 
       <DocH2>Grading Groups</DocH2>
       <DocP>

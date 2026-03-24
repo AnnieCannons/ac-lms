@@ -49,9 +49,10 @@ function SectionHeader({ label, open, onToggle }: { label: string; open: boolean
     <button
       type="button"
       onClick={onToggle}
+      aria-expanded={open}
       className="flex items-center gap-1.5 w-full px-3 mt-6 mb-1 group"
     >
-      <span className="text-muted-text text-[8px] group-hover:text-dark-text transition-colors">{open ? '▲' : '▼'}</span>
+      <span aria-hidden="true" className="text-muted-text text-[8px] group-hover:text-dark-text transition-colors">{open ? '▲' : '▼'}</span>
       <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest">{label}</p>
     </button>
   )

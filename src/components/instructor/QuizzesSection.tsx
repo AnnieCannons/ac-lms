@@ -342,7 +342,7 @@ const [navigating, setNavigating] = useState(false);
       {movePopupQuiz && movePopupPos && (
         <div
           ref={movePopupRef}
-          style={{ position: "fixed", top: movePopupPos.top, left: movePopupPos.left, zIndex: 200 }}
+          style={{ position: "fixed", top: movePopupPos.top, left: movePopupPos.left, zIndex: 200, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}
           className="bg-background border-2 border-border rounded-xl shadow-2xl p-4 w-64"
         >
           <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">Move To</p>

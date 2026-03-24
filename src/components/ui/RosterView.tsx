@@ -3,6 +3,7 @@ import { useState, useTransition, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import DOMPurify from 'isomorphic-dompurify'
 import { upsertAccommodation } from '@/lib/accommodation-actions'
 import DatePickerField from '@/components/ui/DatePickerField'
 import RichTextEditor from '@/components/ui/RichTextEditor'
@@ -92,14 +93,13 @@ function isCameraOffActive(acc: Accommodation | null): boolean {
 }
 
 function CameraDatePopover({
-  start, end, onClose, onSave, onRemove, fixedPos, readOnly,
+  start, end, onClose, onSave, onRemove, readOnly,
 }: {
   start: string | null
   end: string | null
   onClose: () => void
   onSave: (start: string, end: string) => Promise<void>
   onRemove?: () => Promise<void>
-  fixedPos: { top: number; left: number }
   readOnly?: boolean
 }) {
   const [editStart, setEditStart] = useState(start ?? '')
@@ -108,8 +108,6 @@ function CameraDatePopover({
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
-  useClickOutside(ref, onClose)
 
   const handleSave = async () => {
     setSaving(true)
@@ -140,76 +138,77 @@ function CameraDatePopover({
 
   return createPortal(
     <div
-      ref={ref}
-      style={{ position: 'fixed', top: fixedPos.top, left: fixedPos.left, zIndex: 50 }}
-      className="bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-72"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
-        <CalendarIcon size={11} /> Camera Off Dates
-      </p>
-      {readOnly ? (
-        <div className="flex flex-col gap-1.5">
-          {noDatesSet ? (
-            <p className="text-xs text-muted-text italic">No dates set.</p>
-          ) : (
-            <>
-              <p className="text-xs text-muted-text">Start: <span className="text-dark-text font-medium">{fmt(start)}</span></p>
-              <p className="text-xs text-muted-text">End: <span className="text-dark-text font-medium">{fmt(end)}</span></p>
-            </>
-          )}
-          <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors mt-1 text-left">
-            Close
-          </button>
-        </div>
-      ) : (
-        <>
-          {noDatesSet && (
-            <p className="text-xs text-muted-text italic bg-border/30 rounded-lg px-2.5 py-1.5">
-              No dates set yet
-            </p>
-          )}
-          <div className="flex flex-col gap-2">
-            <DatePickerField
-              label="Start date"
-              value={editStart}
-              onChange={setEditStart}
-              placeholder="Pick a start date"
-              className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
-            />
-            <DatePickerField
-              label="End date"
-              value={editEnd}
-              onChange={setEditEnd}
-              placeholder="Pick an end date"
-              className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
-            />
-          </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleSave}
-              disabled={saving || removing}
-              className="text-xs font-semibold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {saving ? 'Saving…' : 'Save dates'}
+      <div className="bg-surface border border-border rounded-xl shadow-xl p-4 flex flex-col gap-3 w-80 max-h-[90vh] overflow-y-auto">
+        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide flex items-center gap-1.5">
+          <CalendarIcon size={11} /> Camera Off Dates
+        </p>
+        {readOnly ? (
+          <div className="flex flex-col gap-1.5">
+            {noDatesSet ? (
+              <p className="text-xs text-muted-text italic">No dates set.</p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-text">Start: <span className="text-dark-text font-medium">{fmt(start)}</span></p>
+                <p className="text-xs text-muted-text">End: <span className="text-dark-text font-medium">{fmt(end)}</span></p>
+              </>
+            )}
+            <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors mt-1 text-left">
+              Close
             </button>
-            <div className="flex items-center gap-3">
-              {onRemove && (
-                <button
-                  onClick={handleRemove}
-                  disabled={saving || removing}
-                  className="text-xs text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
-                >
-                  {removing ? 'Removing…' : 'Remove'}
-                </button>
-              )}
-              <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
-                Cancel
-              </button>
-            </div>
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            {noDatesSet && (
+              <p className="text-xs text-muted-text italic bg-border/30 rounded-lg px-2.5 py-1.5">
+                No dates set yet
+              </p>
+            )}
+            <div className="flex flex-col gap-2">
+              <DatePickerField
+                label="Start date"
+                value={editStart}
+                onChange={setEditStart}
+                placeholder="Pick a start date"
+                className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
+              />
+              <DatePickerField
+                label="End date"
+                value={editEnd}
+                onChange={setEditEnd}
+                placeholder="Pick an end date"
+                className="text-xs [&_label]:text-xs [&_label]:text-muted-text [&_label]:font-normal"
+              />
+            </div>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleSave}
+                disabled={saving || removing}
+                className="text-xs font-semibold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {saving ? 'Saving…' : 'Save dates'}
+              </button>
+              <div className="flex items-center gap-3">
+                {onRemove && (
+                  <button
+                    onClick={handleRemove}
+                    disabled={saving || removing}
+                    className="text-xs text-muted-text hover:text-red-500 disabled:opacity-50 transition-colors"
+                  >
+                    {removing ? 'Removing…' : 'Remove'}
+                  </button>
+                )}
+                <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>,
     document.body
   )
@@ -219,20 +218,16 @@ function NotesEditPopover({
   notes: initialNotes,
   onClose,
   onSave,
-  fixedPos,
   readOnly,
 }: {
   notes: string
   onClose: () => void
   onSave: (notes: string) => Promise<void>
-  fixedPos: { top: number; left: number }
   readOnly?: boolean
 }) {
   const [text, setText] = useState(initialNotes)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
-  useClickOutside(ref, onClose)
 
   const handleSave = async () => {
     setSaving(true)
@@ -247,43 +242,44 @@ function NotesEditPopover({
 
   return createPortal(
     <div
-      ref={ref}
-      style={{ position: 'fixed', top: fixedPos.top, left: fixedPos.left, zIndex: 50 }}
-      className="bg-surface border border-border rounded-xl shadow-xl p-3 flex flex-col gap-3 w-96"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Other Accommodations</p>
-      {readOnly ? (
-        <>
-          <div
-            className="text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-bold"
-            dangerouslySetInnerHTML={{ __html: initialNotes }}
-          />
-          <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors text-left">
-            Close
-          </button>
-        </>
-      ) : (
-        <>
-          <RichTextEditor
-            content={text}
-            onChange={setText}
-            placeholder="e.g. Extended time, quiet testing room, screen reader…"
-          />
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="text-xs font-semibold bg-teal-primary text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {saving ? 'Saving…' : 'Save'}
+      <div className="bg-surface border border-border rounded-xl shadow-xl p-4 flex flex-col gap-3 w-[480px] max-w-full max-h-[90vh] overflow-y-auto">
+        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Other Accommodations</p>
+        {readOnly ? (
+          <>
+            <div
+              className="text-sm text-dark-text leading-relaxed [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-bold"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(initialNotes) }}
+            />
+            <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors text-left">
+              Close
             </button>
-            <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
+          </>
+        ) : (
+          <>
+            <RichTextEditor
+              content={text}
+              onChange={setText}
+              placeholder="e.g. Extended time, quiet testing room, screen reader…"
+            />
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="text-xs font-semibold bg-teal-primary text-white px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button onClick={onClose} className="text-xs text-muted-text hover:text-dark-text transition-colors">
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>,
     document.body
   )
@@ -336,8 +332,6 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
   const [, startTransition] = useTransition()
   const [openPopover, setOpenPopover] = useState<string | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState<string | null>(null)
-  const [notesPos, setNotesPos] = useState<{ top: number; left: number } | null>(null)
-  const [cameraPos, setCameraPos] = useState<{ top: number; left: number } | null>(null)
   const [addMenuPos, setAddMenuPos] = useState<{ top: number; left: number } | null>(null)
   const addBtnRectRef = useRef<DOMRect | null>(null)
 
@@ -368,10 +362,8 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
             {student.accommodation?.cameraOff && (
               <button
                 type="button"
-                onClick={(e) => {
+                onClick={() => {
                   setAddMenuOpen(null)
-                  const isOpening = openPopover !== `${student.userId}:camera`
-                  if (isOpening) setCameraPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 288, 290))
                   setOpenPopover(p => p === `${student.userId}:camera` ? null : `${student.userId}:camera`)
                 }}
                 className={`inline-flex items-center justify-center text-white w-7 h-7 rounded-full transition-colors ${
@@ -384,13 +376,12 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
                 <CameraOffIcon size={13} />
               </button>
             )}
-            {openPopover === `${student.userId}:camera` && student.accommodation?.cameraOff && cameraPos && (
+            {openPopover === `${student.userId}:camera` && student.accommodation?.cameraOff && (
               <CameraDatePopover
                 start={student.accommodation?.cameraOffStart ?? null}
                 end={student.accommodation?.cameraOffEnd ?? null}
-                fixedPos={cameraPos}
                 readOnly={readOnly}
-                onClose={() => { setOpenPopover(null); setCameraPos(null) }}
+                onClose={() => setOpenPopover(null)}
                 onSave={async (start, end) => {
                   const result = await upsertAccommodation(
                     student.userId, true,
@@ -399,7 +390,6 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
                   )
                   if (!result.error) {
                     setOpenPopover(null)
-                    setCameraPos(null)
                     startTransition(() => router.refresh())
                   } else {
                     throw new Error(result.error)
@@ -413,7 +403,6 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
                   )
                   if (!result.error) {
                     setOpenPopover(null)
-                    setCameraPos(null)
                     startTransition(() => router.refresh())
                   } else {
                     throw new Error(result.error)
@@ -426,10 +415,8 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
             {student.accommodation?.notes && (
               <button
                 type="button"
-                onClick={(e) => {
+                onClick={() => {
                   setAddMenuOpen(null)
-                  const isOpening = openPopover !== `${student.userId}:notes`
-                  if (isOpening) setNotesPos(popoverCoords(e.currentTarget.getBoundingClientRect(), 384, 320))
                   setOpenPopover(p => p === `${student.userId}:notes` ? null : `${student.userId}:notes`)
                 }}
                 className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-800/50 border border-amber-300 dark:border-amber-600/60 px-2 py-0.5 rounded-full transition-colors"
@@ -437,12 +424,11 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
                 Accommodations
               </button>
             )}
-            {openPopover === `${student.userId}:notes` && student.accommodation?.notes && notesPos && (
+            {openPopover === `${student.userId}:notes` && student.accommodation?.notes && (
               <NotesEditPopover
                 notes={student.accommodation.notes}
-                fixedPos={notesPos}
                 readOnly={readOnly}
-                onClose={() => { setOpenPopover(null); setNotesPos(null) }}
+                onClose={() => setOpenPopover(null)}
                 onSave={async (newNotes) => {
                   const result = await upsertAccommodation(
                     student.userId,
@@ -484,12 +470,10 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
               hasCameraOff={!!student.accommodation?.cameraOff}
               fixedPos={addMenuPos}
               onCameraOff={() => {
-                if (addBtnRectRef.current) setCameraPos(popoverCoords(addBtnRectRef.current, 288, 260))
                 setAddMenuOpen(null)
                 setOpenPopover(`${student.userId}:camera`)
               }}
               onNotes={() => {
-                if (addBtnRectRef.current) setNotesPos(popoverCoords(addBtnRectRef.current, 384, 320))
                 setAddMenuOpen(null)
                 setOpenPopover(`${student.userId}:notes`)
               }}
@@ -497,11 +481,10 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
             />
           )}
           {/* Add-new notes popover via portal */}
-          {openPopover === `${student.userId}:notes` && !student.accommodation?.notes && notesPos && (
+          {openPopover === `${student.userId}:notes` && !student.accommodation?.notes && (
             <NotesEditPopover
               notes=""
-              fixedPos={notesPos}
-              onClose={() => { setOpenPopover(null); setNotesPos(null) }}
+              onClose={() => setOpenPopover(null)}
               onSave={async (newNotes) => {
                 const result = await upsertAccommodation(
                   student.userId,
@@ -512,7 +495,6 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
                 )
                 if (!result.error) {
                   setOpenPopover(null)
-                  setNotesPos(null)
                   startTransition(() => router.refresh())
                 } else {
                   throw new Error(result.error)
@@ -520,12 +502,11 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
               }}
             />
           )}
-          {openPopover === `${student.userId}:camera` && !student.accommodation?.cameraOff && cameraPos && (
+          {openPopover === `${student.userId}:camera` && !student.accommodation?.cameraOff && (
             <CameraDatePopover
               start={null}
               end={null}
-              fixedPos={cameraPos}
-              onClose={() => { setOpenPopover(null); setCameraPos(null) }}
+              onClose={() => setOpenPopover(null)}
               onSave={async (start, end) => {
                 const result = await upsertAccommodation(
                   student.userId, true,
@@ -534,7 +515,6 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
                 )
                 if (!result.error) {
                   setOpenPopover(null)
-                  setCameraPos(null)
                   startTransition(() => router.refresh())
                 } else {
                   throw new Error(result.error)

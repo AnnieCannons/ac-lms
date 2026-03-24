@@ -35,7 +35,7 @@ export default function NavDrawer({ courseId, courseName, paidLearners = false, 
           onClick={() => setOpen(v => !v)}
           aria-label={open ? 'Close navigation' : 'Open navigation'}
           aria-expanded={open}
-          className="absolute top-6 right-0 translate-x-full z-20 w-5 h-14 rounded-r-full bg-teal-primary text-white flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
+          className="absolute top-6 right-0 translate-x-full z-20 w-5 h-14 rounded-r-full bg-teal-primary text-white flex items-center justify-center shadow-md hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-primary"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             {open ? <path d="M15 18l-6-6 6-6" /> : <path d="M9 18l6-6-6-6" />}

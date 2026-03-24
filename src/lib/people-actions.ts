@@ -241,8 +241,13 @@ export async function updateUserRole(
     return { error: 'Only admins can assign the admin role.' }
   }
 
-  const { error } = await admin.from('users').update({ role }).eq('id', targetUserId)
+  const { data: updated, error } = await admin
+    .from('users')
+    .update({ role })
+    .eq('id', targetUserId)
+    .select('id')
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'User not found' }
   return {}
 }
 

@@ -40,7 +40,7 @@ export default function LoginPage() {
 
         <div className="bg-surface rounded-2xl border border-border p-8">
           {error && (
-            <div role="alert" className="alert-error text-sm p-3 mb-6">
+            <div role="alert" aria-live="assertive" aria-atomic="true" className="alert-error text-sm p-3 mb-6">
               {error}
             </div>
           )}

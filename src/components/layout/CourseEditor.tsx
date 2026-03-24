@@ -2478,7 +2478,7 @@ function MovePopup({
   const canMove = !!modId && (modDays.length === 1 || !!day);
 
   return (
-    <div ref={popupRef} className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2" style={{ top: pos.top, left: pos.left, width: 280 }}>
+    <div ref={popupRef} className="fixed z-50 bg-surface border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2" style={{ top: pos.top, left: pos.left, width: 280, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}>
       <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Move to</p>
       <select value={modId} onChange={e => { setModId(e.target.value); setDay(""); }}
         className="text-xs bg-background border border-border rounded px-2 py-1 text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary w-full">

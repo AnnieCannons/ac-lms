@@ -8,13 +8,31 @@ async function getAuthedInstructor() {
   if (!user) return { error: 'Not authenticated' as const }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' as const }
-  return { user, supabase }
+  return { user, supabase, role: profile.role as string }
+}
+
+async function verifyInstructorCourseAccess(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  userRole: string,
+  courseId: string
+): Promise<boolean> {
+  if (userRole === 'admin') return true
+  const { data } = await supabase
+    .from('course_enrollments')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .eq('role', 'instructor')
+    .maybeSingle()
+  return !!data
 }
 
 export async function setStudentGrader(courseId: string, studentId: string, graderId: string | null) {
   const auth = await getAuthedInstructor()
   if ('error' in auth) return { error: auth.error }
-  const supabase = await createServerSupabaseClient()
+  const { user, supabase, role } = auth
+  if (!await verifyInstructorCourseAccess(supabase, user.id, role, courseId)) return { error: 'Not authorized' }
 
   if (!graderId) {
     await supabase
@@ -41,6 +59,8 @@ export async function bulkAssignStudentGraders(
 ): Promise<{ error?: string; success?: boolean }> {
   const auth = await getAuthedInstructor()
   if ('error' in auth) return { error: auth.error }
+  const { user, supabase, role } = auth
+  if (!await verifyInstructorCourseAccess(supabase, user.id, role, courseId)) return { error: 'Not authorized' }
 
   const admin = createServiceSupabaseClient()
 
