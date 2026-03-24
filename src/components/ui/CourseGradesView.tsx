@@ -422,7 +422,7 @@ function AssignmentsTab({
   filterUngraded: boolean
   onClearFilter: () => void
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(modules.map(m => m.id)))
 
   if (assignments.length === 0) {
     return (

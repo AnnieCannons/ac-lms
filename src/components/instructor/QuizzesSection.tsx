@@ -143,7 +143,11 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     return Array.from(modules).sort(sortByWeekNumber);
   });
 
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
+    const mods = new Set<string>();
+    (quizzes || []).forEach((q) => mods.add(q.module_title || "Other"));
+    return mods;
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })

@@ -2686,7 +2686,7 @@ export default function CourseEditor({
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleWeek, setNewModuleWeek] = useState("");
   const [isMounted, setIsMounted] = useState(false);
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(initialModules.map(m => m.id)));
   const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
 
   const isModuleExpanded = (id: string) => !collapsedModules.has(id);
