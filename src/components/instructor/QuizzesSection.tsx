@@ -146,9 +146,11 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
   const [importError, setImportError] = useState<string | null>(null);
 
   const [moduleOrder, setModuleOrder] = useState<string[]>(() => {
-    const modules = new Set<string>();
-    (quizzes || []).forEach((q) => modules.add(q.module_title || "Other"));
-    return Array.from(modules).sort(sortByWeekNumber);
+    const present = new Set((quizzes || []).map((q) => q.module_title || "Other"));
+    // Use moduleTitles canonical order, then append any extras not in that list
+    const ordered = (moduleTitles || []).filter((m) => present.has(m));
+    const extras = Array.from(present).filter((m) => !moduleTitles?.includes(m)).sort(sortByWeekNumber);
+    return [...ordered, ...extras];
   });
 
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
@@ -172,15 +174,16 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     [localQuizzes]
   );
 
-  // Keep moduleOrder in sync when quizzes are added/removed
+  // Keep moduleOrder in sync when quizzes are added/removed, always using moduleTitles canonical order
   useEffect(() => {
     const currentModules = new Set(localQuizzes.map((q) => q.module_title || "Other"));
-    setModuleOrder((prev) => {
-      const filtered = prev.filter((m) => currentModules.has(m));
-      const newModules = Array.from(currentModules).filter((m) => !filtered.includes(m)).sort(sortByWeekNumber);
-      const next = [...filtered, ...newModules];
-      return next.length === prev.length && next.every((m, i) => m === prev[i]) ? prev : next;
-    });
+    const ordered = (moduleTitles || []).filter((m) => currentModules.has(m));
+    const extras = Array.from(currentModules).filter((m) => !moduleTitles?.includes(m)).sort(sortByWeekNumber);
+    const next = [...ordered, ...extras];
+    setModuleOrder((prev) =>
+      next.length === prev.length && next.every((m, i) => m === prev[i]) ? prev : next
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localQuizzes]);
 
   const allCollapsed = moduleOrder.length > 0 && moduleOrder.every((m) => collapsedModules.has(m));
@@ -248,6 +251,7 @@ const [navigating, setNavigating] = useState(false);
 
   // ── Move popup ──────────────────────────────────────────────────────────
   const [movePopupQuiz, setMovePopupQuiz] = useState<QuizRow | null>(null);
+  const [movePopupPos, setMovePopupPos] = useState<{ top: number; right: number } | null>(null);
   const [moveToModule, setMoveToModule] = useState("");
   const [moveToDay, setMoveToDay] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -258,6 +262,7 @@ const [navigating, setNavigating] = useState(false);
     const handler = (e: MouseEvent) => {
       if (movePopupRef.current && !movePopupRef.current.contains(e.target as Node)) {
         setMovePopupQuiz(null);
+        setMovePopupPos(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -274,6 +279,7 @@ const [navigating, setNavigating] = useState(false);
         prev.map((q) => q.id === quiz.id ? { ...q, module_title: moveToModule, day_title: moveToDay } : q)
       );
       setMovePopupQuiz(null);
+      setMovePopupPos(null);
     } catch {
       // keep popup open on error
     } finally {
@@ -331,6 +337,49 @@ const [navigating, setNavigating] = useState(false);
             setSelectedQuiz(null);
           }}
         />
+      )}
+      {/* Fixed move popup — rendered outside overflow containers */}
+      {movePopupQuiz && movePopupPos && (
+        <div
+          ref={movePopupRef}
+          style={{ position: "fixed", top: movePopupPos.top, right: movePopupPos.right, zIndex: 200 }}
+          className="bg-surface border border-border rounded-xl shadow-xl p-4 w-64"
+        >
+          <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">Move To</p>
+          <select
+            value={moveToModule}
+            onChange={(e) => setMoveToModule(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary mb-3"
+          >
+            {moduleTitles.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => setMoveToDay(day)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  moveToDay === day
+                    ? "bg-teal-primary text-white border-teal-primary"
+                    : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+                }`}
+              >
+                {day.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleMoveQuiz}
+            disabled={moving}
+            className="w-full text-xs font-semibold py-2 rounded-lg bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {moving ? "Moving…" : "Move"}
+          </button>
+        </div>
       )}
       <section>
         <div className="flex items-center justify-between mb-3">
@@ -515,64 +564,31 @@ const [navigating, setNavigating] = useState(false);
                                       </button>
 
                                       {!quiz.id.startsWith("json-") && (
-                                        <div className="relative shrink-0" ref={movePopupQuiz?.id === quiz.id ? movePopupRef : undefined}>
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (movePopupQuiz?.id === quiz.id) {
-                                                setMovePopupQuiz(null);
-                                              } else {
-                                                setMoveToModule(quiz.module_title || moduleTitles[0] || "");
-                                                setMoveToDay(quiz.day_title ?? null);
-                                                setMovePopupQuiz(quiz);
-                                              }
-                                            }}
-                                            className="shrink-0 text-xs font-medium px-2 py-1 rounded-full border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
-                                            aria-label="Move quiz"
-                                            title="Move to…"
-                                          >
-                                            ⇄
-                                          </button>
-                                          {movePopupQuiz?.id === quiz.id && (
-                                            <div className="absolute right-0 top-8 z-50 bg-surface border border-border rounded-xl shadow-xl p-4 w-64">
-                                              <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">Move To</p>
-                                              <select
-                                                value={moveToModule}
-                                                onChange={(e) => setMoveToModule(e.target.value)}
-                                                className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary mb-3"
-                                              >
-                                                {moduleTitles.map((t) => (
-                                                  <option key={t} value={t}>{t}</option>
-                                                ))}
-                                              </select>
-                                              <div className="flex flex-wrap gap-1.5 mb-4">
-                                                {[null, "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => (
-                                                  <button
-                                                    key={day ?? "none"}
-                                                    type="button"
-                                                    onClick={() => setMoveToDay(day)}
-                                                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                                                      moveToDay === day
-                                                        ? "bg-teal-primary text-white border-teal-primary"
-                                                        : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
-                                                    }`}
-                                                  >
-                                                    {day ? day.slice(0, 3) : "None"}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                              <button
-                                                type="button"
-                                                onClick={handleMoveQuiz}
-                                                disabled={moving}
-                                                className="w-full text-xs font-semibold py-2 rounded-lg bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-                                              >
-                                                {moving ? "Moving…" : "Move"}
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (movePopupQuiz?.id === quiz.id) {
+                                              setMovePopupQuiz(null);
+                                              setMovePopupPos(null);
+                                            } else {
+                                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                              setMovePopupPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                                              setMoveToModule(quiz.module_title || moduleTitles[0] || "");
+                                              setMoveToDay(quiz.day_title ?? null);
+                                              setMovePopupQuiz(quiz);
+                                            }
+                                          }}
+                                          className={`shrink-0 text-xs font-medium px-2 py-1 rounded-full border transition-colors ${
+                                            movePopupQuiz?.id === quiz.id
+                                              ? "border-teal-primary text-teal-primary"
+                                              : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
+                                          }`}
+                                          aria-label="Move quiz"
+                                          title="Move to…"
+                                        >
+                                          ⇄
+                                        </button>
                                       )}
 
                                       {!quiz.id.startsWith("json-") && quiz.published && (

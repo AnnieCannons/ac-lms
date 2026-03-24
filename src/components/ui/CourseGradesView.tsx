@@ -664,7 +664,7 @@ function StudentsTab({
                       <span className="text-xs text-dark-text">{a.title}</span>
                       {expanded.category !== 'late' ? (
                         <Link
-                          href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
+                          href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}?by=student`}
                           className="text-xs font-medium text-teal-primary hover:underline shrink-0"
                         >
                           {expanded.category === 'needsReview' ? 'Grade →' : 'View →'}
