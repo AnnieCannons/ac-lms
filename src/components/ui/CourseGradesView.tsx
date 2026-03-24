@@ -75,6 +75,7 @@ export default function CourseGradesView({
   const [tab, setTab] = useState<'assignments' | 'students'>(initialTab)
   const [filterUngraded, setFilterUngraded] = useState(false)
   const [speedGraderOpen, setSpeedGraderOpen] = useState(false)
+  const [search, setSearch] = useState('')
 
   const now = new Date()
   const subMap = new Map(submissions.map(s => [`${s.student_id}-${s.assignment_id}`, s]))
@@ -118,8 +119,28 @@ export default function CourseGradesView({
     }))
     .filter(s => s.items.length > 0)
 
+  const searchLower = search.trim().toLowerCase()
+  const filteredAssignments = searchLower
+    ? assignments.filter(a => a.title.toLowerCase().includes(searchLower))
+    : assignments
+
   return (
     <div>
+      {/* Search bar */}
+      <div className="relative mb-5">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+        </svg>
+        <input
+          type="search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search assignments…"
+          aria-label="Search assignments"
+          className="w-full pl-9 pr-4 py-2 bg-surface border border-border rounded-xl text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        />
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <div className="flex gap-1 p-1 bg-border/20 rounded-xl">
           <button
@@ -153,7 +174,7 @@ export default function CourseGradesView({
         <AssignmentsTab
           courseId={courseId}
           modules={modules}
-          assignments={assignments}
+          assignments={filteredAssignments}
           statsByAssignment={statsByAssignment}
           totalStudents={totalStudents}
           filterUngraded={filterUngraded}
@@ -164,6 +185,7 @@ export default function CourseGradesView({
           studentStats={studentStats}
           courseId={courseId}
           subMap={subMap}
+          searchQuery={searchLower}
         />
       )}
 
@@ -542,17 +564,32 @@ function StudentsTab({
   studentStats,
   courseId,
   subMap,
+  searchQuery,
 }: {
   studentStats: StudentRow[]
   courseId: string
   subMap: Map<string, Sub>
+  searchQuery: string
 }) {
   const [expanded, setExpanded] = useState<{ studentId: string; category: ExpandKey } | null>(null)
 
-  if (studentStats.length === 0) {
+  const filterAssignments = (list: Assignment[]) =>
+    searchQuery ? list.filter(a => a.title.toLowerCase().includes(searchQuery)) : list
+
+  const filteredStats = studentStats.map(row => ({
+    ...row,
+    late: filterAssignments(row.late),
+    needsReview: filterAssignments(row.needsReview),
+    complete: filterAssignments(row.complete),
+    incomplete: filterAssignments(row.incomplete),
+  })).filter(row =>
+    !searchQuery || row.late.length + row.needsReview.length + row.complete.length + row.incomplete.length > 0
+  )
+
+  if (filteredStats.length === 0) {
     return (
       <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-        <p className="text-muted-text">No students enrolled.</p>
+        <p className="text-muted-text">{searchQuery ? 'No assignments match your search.' : 'No students enrolled.'}</p>
       </div>
     )
   }
@@ -565,7 +602,7 @@ function StudentsTab({
 
   return (
     <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
-      {studentStats.map(({ student, late, needsReview, complete, incomplete }) => {
+      {filteredStats.map(({ student, late, needsReview, complete, incomplete }) => {
         const isExpanded = (cat: ExpandKey) =>
           expanded?.studentId === student.id && expanded.category === cat
 
