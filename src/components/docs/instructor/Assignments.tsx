@@ -103,9 +103,12 @@ export default function Assignments() {
       </DocP>
       <DocP>The grades view has two tabs:</DocP>
       <DocList>
-        <li><strong>By Assignment</strong> — all assignments grouped by module, each showing the turned-in count, an ungraded badge, and complete/incomplete breakdown</li>
+        <li><strong>By Assignment</strong> — all assignments grouped by module/week, each showing the turned-in count, an ungraded badge, and complete/incomplete breakdown. Click any week header to collapse or expand that section. Use <strong>Expand all / Collapse all</strong> to manage all sections at once.</li>
         <li><strong>By Student</strong> — each student with their missing, needs-grading, incomplete, and complete counts; click any count to expand the assignment list inline; click a student&apos;s name to open their full detail view</li>
       </DocList>
+      <DocP>
+        Use the <strong>search bar</strong> at the top to filter by assignment title — results update as you type and work across both tabs.
+      </DocP>
       <DocTip>
         Click the <strong>N need grading</strong> button (top right) to open the <strong>Speed Grader</strong> — a
         focused modal that walks you through every ungraded student without leaving the page.
@@ -153,10 +156,18 @@ export default function Assignments() {
 
       <DocH3>Comments</DocH3>
       <DocP>
-        Add a comment to explain your grade or provide specific feedback. Comments are visible to the student immediately
-        after you save them. They appear below the submission form on the student&apos;s assignment page. For students who
-        may be sensitive to feedback, comments are a key way to frame revision requests with clarity and encouragement.
+        A threaded comment section lives below the submission form. Both you and the student can post — whoever goes
+        first starts the thread, and the other can reply. Comments are visible to the student immediately after you save.
       </DocP>
+      <DocList>
+        <li><strong>Edit</strong> your own comments at any time by hovering over a comment to reveal the Edit option.</li>
+        <li><strong>Delete</strong> any comment — your own or the student&apos;s — by hovering and clicking Delete. An inline confirmation prevents accidental deletes.</li>
+        <li>Students can also edit or delete their own comments, so threads stay clean without your involvement.</li>
+      </DocList>
+      <DocTip>
+        For students who may be sensitive to feedback, use comments to frame revision requests with clarity and
+        encouragement — a specific, constructive comment alongside a Needs Revision grade makes resubmitting feel approachable.
+      </DocTip>
 
       <DocH2>Mark Complete Without Submission</DocH2>
       <DocP>

@@ -90,12 +90,21 @@ export default function Assignments() {
         has specific guidance to help you grow. Read their comments, make your updates, and resubmit.
       </DocTip>
 
-      <DocH3>Instructor Comments</DocH3>
+      <DocH3>Comments</DocH3>
       <DocP>
-        Comments from your instructor appear below the submission form on the assignment page. Read them carefully —
-        they explain what to focus on when you resubmit. Comments are visible to you immediately after your instructor
-        posts them.
+        A comment thread lives below the submission form on every assignment page. Your instructor can start the conversation,
+        or you can — either way the other person will see it and can reply.
       </DocP>
+      <DocList>
+        <li>You can add a comment <strong>before or after submitting</strong> — use it to ask a question, flag something about your submission, or provide context for your instructor.</li>
+        <li>Comments are visible to you and your instructor only — not to other students.</li>
+        <li>You can <strong>edit or delete your own comments</strong> at any time by hovering over a comment to reveal the Edit and Delete options.</li>
+        <li>Deleting asks for a quick inline confirmation before removing the comment.</li>
+        <li>You can submit a comment with <strong>Ctrl + Enter</strong> (or <strong>Cmd + Enter</strong> on Mac).</li>
+      </DocList>
+      <DocNote>
+        The Send button is disabled until you have submitted your assignment. You can type a comment in advance — it will be ready to send once your submission goes through.
+      </DocNote>
 
       <DocH3>Resubmitting</DocH3>
       <DocOL>
