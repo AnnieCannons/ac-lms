@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Modal from './Modal'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
-import { parseQuizText } from '@/lib/quiz-parser'
 import { createWiki } from '@/lib/wiki-actions'
 
 type CreateType = 'assignment' | 'resource' | 'quiz' | 'wiki'
@@ -77,7 +76,6 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
   // Quiz fields
   const [quizTitle, setQuizTitle] = useState('')
-  const [quizText, setQuizText] = useState('')
 
   // Wiki fields
   const [wikiTitle, setWikiTitle] = useState('')
@@ -159,7 +157,6 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
       setResTitle('')
       setResUrl('')
       setQuizTitle('')
-      setQuizText('')
       setWikiTitle('')
       setCrossPost(false)
       setCrossModuleId('')
@@ -295,14 +292,13 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
     } else if (createType === 'quiz') {
       const title = quizTitle.trim() || 'New Quiz'
-      const questions = quizText.trim() ? parseQuizText(quizText) : []
       const moduleTitle = modules.find(m => m.id === resolvedModuleId)?.title ?? ''
       const dayTitle = days.find(d => d.id === dayId)?.day_name ?? null
       try {
-        await createQuizWithQuestions(courseId, title, questions, moduleTitle, dayTitle, linkedDayId)
+        const newQuiz = await createQuizWithQuestions(courseId, title, [], moduleTitle, dayTitle, linkedDayId)
         setCreating(false)
         setOpen(false)
-        router.push(`/instructor/courses/${courseId}/quizzes`)
+        router.push(`/instructor/courses/${courseId}/quizzes?open=${newQuiz.id}`)
       } catch (e) {
         setCreating(false)
         setError(e instanceof Error ? e.message : 'Failed to create quiz')
@@ -696,21 +692,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
-                    Questions <span className="normal-case font-normal text-muted-text">(optional — paste to bulk import)</span>
-                  </label>
-                  <textarea
-                    value={quizText}
-                    onChange={e => setQuizText(e.target.value)}
-                    placeholder="Paste questions here..."
-                    rows={5}
-                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary font-mono resize-y"
-                  />
-                  {quizText.trim() && (
-                    <p className="text-xs text-muted-text mt-1">{parseQuizText(quizText).length} question(s) detected</p>
-                  )}
-                </div>
+                <p className="text-xs text-muted-text -mt-1">You&apos;ll be able to add and bulk-import questions after creating.</p>
               </>
             )}
           </div>

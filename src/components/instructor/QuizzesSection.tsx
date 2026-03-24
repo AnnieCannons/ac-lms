@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
 import { createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizDay } from "@/lib/quiz-actions";
-import { parseQuizText } from "@/lib/quiz-parser";
 import QuizFullView from "./QuizFullView";
 import {
   DndContext,
@@ -119,7 +117,6 @@ function SortableQuizRow({
 }
 
 export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuizId, moduleTitles = [] }: QuizzesSectionProps) {
-  const router = useRouter();
   const [localQuizzes, setLocalQuizzes] = useState<QuizRow[]>(Array.isArray(quizzes) ? quizzes : []);
   const [selectedQuiz, setSelectedQuiz] = useState<QuizRow | null>(() => {
     if (initialOpenQuizId) {
@@ -133,7 +130,6 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
   const [showImport, setShowImport] = useState(false);
   const [importTitle, setImportTitle] = useState("");
   const [importModuleTitle, setImportModuleTitle] = useState("");
-  const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -249,23 +245,19 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
     }
   };
 
-  const parsedQuestions = importText.trim() ? parseQuizText(importText) : [];
-
   const handleCreate = async () => {
     const title = importTitle.trim() || "New Quiz";
     const moduleTitle = importModuleTitle.trim();
     setImporting(true);
     setImportError(null);
     try {
-      const data = await createQuizWithQuestions(courseId, title, parsedQuestions, moduleTitle);
+      const data = await createQuizWithQuestions(courseId, title, [], moduleTitle);
       if (data) {
         setLocalQuizzes((prev) => [...prev, data as QuizRow]);
         setSelectedQuiz(data as QuizRow);
         setShowImport(false);
         setImportTitle("");
         setImportModuleTitle("");
-        setImportText("");
-        router.refresh();
       }
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Failed to create quiz");
@@ -354,37 +346,24 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
               </select>
             )}
 
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder={`Paste questions here, or leave empty to start blank and add questions individually.\n\nBlank lines separate questions. First answer is always correct.\n\nWhat is typeof null?\n"object"\n"null"\n"undefined"\n\nIs JS single-threaded?\nTrue\nFalse`}
-              rows={10}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary/50 font-mono resize-y"
-            />
+            <p className="text-xs text-muted-text">You&apos;ll be able to bulk-import questions after creating.</p>
 
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-text">
-                {parsedQuestions.length > 0
-                  ? <span className="text-teal-primary font-medium">{parsedQuestions.length} question{parsedQuestions.length !== 1 ? "s" : ""} ready to import</span>
-                  : "Leave blank to start empty"}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowImport(false); setImportError(null); }}
-                  className="text-sm px-4 py-2 rounded-full border border-border text-muted-text hover:text-dark-text transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreate}
-                  disabled={importing}
-                  className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-                >
-                  {importing ? "Creating…" : parsedQuestions.length > 0 ? `Create Quiz (${parsedQuestions.length}q)` : "Create Quiz"}
-                </button>
-              </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowImport(false); setImportError(null); }}
+                className="text-sm px-4 py-2 rounded-full border border-border text-muted-text hover:text-dark-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={importing}
+                className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {importing ? "Creating…" : "Create Quiz →"}
+              </button>
             </div>
 
             {importError && (

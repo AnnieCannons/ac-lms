@@ -29,6 +29,7 @@ import {
   updateQuizDay,
 } from "@/lib/quiz-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { parseQuizText } from "@/lib/quiz-parser";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
 const HighlightedContent = dynamic(() => import("@/components/ui/HighlightedContent"), { ssr: false });
@@ -127,6 +128,8 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
   const [editQuestions, setEditQuestions] = useState<QuizQuestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState("");
   useUnsavedChanges(editingQuestions);
 
   // Sync draft fields when quiz prop changes
@@ -845,19 +848,71 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
                 </ul>
                   </SortableContext>
                 </DndContext>
+                {/* Bulk import */}
+                {showBulkImport && (
+                  <div className="mt-4 border border-border rounded-xl p-4 flex flex-col gap-3 bg-background">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Bulk import questions</p>
+                      <button type="button" onClick={() => { setShowBulkImport(false); setBulkImportText(""); }} className="text-muted-text hover:text-dark-text text-lg leading-none">×</button>
+                    </div>
+                    <textarea
+                      value={bulkImportText}
+                      onChange={e => setBulkImportText(e.target.value)}
+                      rows={12}
+                      placeholder={`Blank lines separate questions. First answer is always correct.\n\nWhat is typeof null?\n"object"\n"null"\n"undefined"\n\nIs JS single-threaded?\nTrue\nFalse`}
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary/50 font-mono resize-y"
+                    />
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-muted-text">
+                        {bulkImportText.trim()
+                          ? <span className="text-teal-primary font-medium">{parseQuizText(bulkImportText).length} question(s) detected — will be appended</span>
+                          : "Paste questions above"}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!bulkImportText.trim()}
+                        onClick={() => {
+                          const parsed = parseQuizText(bulkImportText);
+                          if (parsed.length > 0) {
+                            setEditQuestions(prev => [...prev, ...parsed]);
+                            setShowBulkImport(false);
+                            setBulkImportText("");
+                          }
+                        }}
+                        className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50"
+                      >
+                        Import {bulkImportText.trim() ? `(${parseQuizText(bulkImportText).length}q)` : ""}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
-                  <button
-                    type="button"
-                    onClick={addQuestion}
-                    className="text-sm text-teal-primary hover:opacity-90 font-medium"
-                  >
-                    + Add question
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={addQuestion}
+                      className="text-sm text-teal-primary hover:opacity-90 font-medium"
+                    >
+                      + Add question
+                    </button>
+                    {!showBulkImport && (
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkImport(true)}
+                        className="text-sm text-muted-text hover:text-teal-primary transition-colors font-medium"
+                      >
+                        + Bulk import
+                      </button>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() =>
-                        setEditQuestions(JSON.parse(JSON.stringify(quiz.questions ?? [])))
-                      }
+                      onClick={() => {
+                        setEditQuestions(JSON.parse(JSON.stringify(quiz.questions ?? [])));
+                        setShowBulkImport(false);
+                        setBulkImportText("");
+                      }}
                       className="text-sm text-muted-text hover:text-dark-text px-4 py-2"
                       type="button"
                     >
