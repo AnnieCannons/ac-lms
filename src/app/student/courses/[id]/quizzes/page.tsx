@@ -101,7 +101,7 @@ export default async function StudentQuizzesPage({
           <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
         </ResizableSidebar>
         <div className="flex-1 min-w-0">
-        <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
+        <main id="main-content" tabIndex={-1} aria-label="Quizzes" className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-dark-text">Quizzes</h1>
             <p className="text-sm text-muted-text mt-1">{course.name}</p>
@@ -163,7 +163,7 @@ export default async function StudentQuizzesPage({
                         </div>
                         {isComplete && (
                           <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 dark:bg-green-950/40 dark:text-green-400 dark:border-green-700">
-                            Complete ✓
+                            Complete<span aria-hidden="true"> ✓</span>
                           </span>
                         )}
                       </div>
@@ -174,7 +174,7 @@ export default async function StudentQuizzesPage({
                         Score: {scorePercent != null ? `${scorePercent}%` : "—"}
                         {" · "}{attemptsUsed} attempt{attemptsUsed !== 1 ? "s" : ""} used
                       </p>
-                      <p className="text-sm font-medium mt-3 text-muted-text">View results →</p>
+                      <p className="text-sm font-medium mt-3 text-muted-text">View results <span aria-hidden="true">→</span></p>
                     </Link>
                   );
                 }
@@ -199,7 +199,7 @@ export default async function StudentQuizzesPage({
                       </div>
                       {isComplete && (
                         <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-600 dark:bg-green-950/40 dark:text-green-400 dark:border-green-700">
-                          Complete ✓
+                          Complete<span aria-hidden="true"> ✓</span>
                         </span>
                       )}
                     </div>
@@ -214,7 +214,7 @@ export default async function StudentQuizzesPage({
                     )}
                     {!isComplete && (
                       <p className={`text-sm font-medium mt-3 ${outOfAttempts ? "text-muted-text" : "text-teal-primary"}`}>
-                        {outOfAttempts ? "View results →" : canRetake ? "Retake quiz →" : "Take quiz →"}
+                        {outOfAttempts ? <>View results <span aria-hidden="true">→</span></> : canRetake ? <>Retake quiz <span aria-hidden="true">→</span></> : <>Take quiz <span aria-hidden="true">→</span></>}
                       </p>
                     )}
                   </Link>

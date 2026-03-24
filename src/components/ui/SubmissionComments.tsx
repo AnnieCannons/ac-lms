@@ -71,14 +71,14 @@ export default function SubmissionComments({
 
   return (
     <div className="bg-surface rounded-2xl border border-border p-6">
-      <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-4">
+      <h3 className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-4">
         Comments
-      </p>
+      </h3>
 
       {comments.length > 0 && (
-        <div className="flex flex-col gap-4 mb-4">
+        <ul role="list" className="flex flex-col gap-4 mb-4">
           {comments.map((c) => (
-            <div key={c.id} className="flex flex-col gap-1">
+            <li key={c.id} role="listitem" className="flex flex-col gap-1">
               <div className="flex items-baseline gap-2">
                 <span
                   className={`text-xs font-semibold ${
@@ -88,30 +88,40 @@ export default function SubmissionComments({
                   }`}
                 >
                   {c.author_name}
+                  {isInstructor(c.author_role) && (
+                    <span className="sr-only"> (Staff)</span>
+                  )}
                 </span>
                 {isInstructor(c.author_role) && (
-                  <span className="text-xs text-teal-primary opacity-70">Staff</span>
+                  <span aria-hidden="true" className="text-xs text-teal-primary opacity-70">Staff</span>
                 )}
-                <span className="text-xs text-muted-text">
+                <time
+                  dateTime={c.created_at}
+                  className="text-xs text-muted-text"
+                >
                   {new Date(c.created_at).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                     hour: "numeric",
                     minute: "2-digit",
                   })}
-                </span>
+                </time>
               </div>
               <p className="text-sm text-dark-text whitespace-pre-wrap leading-relaxed">
                 {c.content}
               </p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {!isObserver && (
         <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
+          <label htmlFor="submission-comment-input" className="sr-only">
+            {currentUserRole === 'student' && !isTa ? "Add a comment for your instructor" : "Leave a comment for the student"}
+          </label>
           <textarea
+            id="submission-comment-input"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -121,7 +131,7 @@ export default function SubmissionComments({
             rows={3}
             className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
           />
-          {sendError && <p className="text-xs text-red-500 mt-1">{sendError}</p>}
+          {sendError && <p role="alert" className="text-xs text-red-500 mt-1">{sendError}</p>}
           <div className="flex items-center justify-between mt-2 gap-3">
             {!submissionId && text.trim() ? (
               <p className="text-xs text-amber-700">Submit your assignment first — your comment will be ready to send after.</p>
@@ -131,6 +141,7 @@ export default function SubmissionComments({
             <button
               onClick={send}
               disabled={sending || !text.trim() || !submissionId}
+              aria-busy={sending}
               className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ml-auto"
             >
               {sending ? "Saving…" : "Save Comment"}

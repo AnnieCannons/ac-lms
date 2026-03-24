@@ -139,11 +139,12 @@ export default function QuizForm({
             <div
               role="group"
               aria-labelledby={`question-label-${i}`}
+              aria-disabled="true"
               key={i}
               className="bg-surface rounded-xl border border-green-500/25 p-5 opacity-55"
             >
               <p id={`question-label-${i}`} className="text-sm font-semibold text-green-500 uppercase tracking-wide mb-3">
-                Question {i + 1} <span aria-hidden="true">&nbsp;✓</span>
+                Question {i + 1}, already correct <span aria-hidden="true">&nbsp;✓</span>
               </p>
               <div className="quiz-html text-sm text-dark-text mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_strong]:font-bold [&_em]:italic [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded">
                 <HighlightedContent html={q.question_text || ""} />

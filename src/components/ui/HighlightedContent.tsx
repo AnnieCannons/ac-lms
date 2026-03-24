@@ -16,6 +16,14 @@ hljs.registerLanguage("sql", sql);
 
 const CODE_FONT = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 
+const LANG_LABELS: Record<string, string> = {
+  javascript: "JavaScript",
+  jsx: "JSX",
+  html: "HTML",
+  css: "CSS",
+  sql: "SQL",
+};
+
 function applyPre(pre: HTMLElement) {
   pre.style.background = "#1e1e2e";
   pre.style.border = "1px solid #313244";
@@ -38,12 +46,15 @@ function applyCode(code: HTMLElement) {
   code.style.color = "#cdd6f4";
 }
 
-function highlightCode(code: HTMLElement, pre: HTMLElement | null) {
-  let lang = "";
+function getLang(code: HTMLElement, pre: HTMLElement | null): string {
   for (const cls of [...code.classList, ...(pre ? [...pre.classList] : [])]) {
-    if (cls.startsWith("language-")) { lang = cls.slice(9); break; }
+    if (cls.startsWith("language-")) return cls.slice(9);
   }
-  if (!lang) lang = "javascript";
+  return "javascript";
+}
+
+function highlightCode(code: HTMLElement, pre: HTMLElement | null) {
+  const lang = getLang(code, pre);
 
   const text = code.textContent ?? "";
   if (!text.trim()) return;
@@ -90,8 +101,29 @@ function processHtml(html: string): string {
     }
 
     applyCode(code);
+
+    // Capture plain text before syntax highlighting replaces innerHTML with decorated spans
+    const plainText = code.textContent ?? "";
+    const lang = getLang(code, pre);
+    const langLabel = LANG_LABELS[lang] ?? lang;
+
     highlightCode(code, pre);
     applyCode(code);
+
+    // Accessibility: wrap in a figure so screen readers get the language label,
+    // hide the decorated pre from AT, and expose a sr-only plain-text copy.
+    if (plainText.trim()) {
+      const figure = document.createElement("figure");
+      figure.setAttribute("aria-label", `Code example in ${langLabel}`);
+      figure.style.margin = "0";
+      pre.setAttribute("aria-hidden", "true");
+      pre.parentNode?.insertBefore(figure, pre);
+      figure.appendChild(pre);
+      const srCode = document.createElement("code");
+      srCode.className = "sr-only";
+      srCode.textContent = plainText;
+      figure.appendChild(srCode);
+    }
   });
 
   container.querySelectorAll("a").forEach((a: Element) => {

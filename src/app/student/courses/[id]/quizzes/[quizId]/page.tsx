@@ -196,7 +196,7 @@ export default async function TakeQuizPage({
           <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
         </ResizableSidebar>
         <div className="flex-1 min-w-0">
-        <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
+        <main id="main-content" tabIndex={-1} aria-label="Quiz" className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
 
           {/* RETAKE MODE */}
           {isRetakeMode && submission && (
@@ -204,6 +204,7 @@ export default async function TakeQuizPage({
               <div className="mb-6 flex items-center gap-4">
                 <Link
                   href={`/student/courses/${id}/quizzes/${quizId}`}
+                  aria-label="Back to results"
                   className="text-muted-text hover:text-teal-primary text-sm"
                 >
                   ← Back to results
@@ -239,6 +240,7 @@ export default async function TakeQuizPage({
               <div className="mb-6">
                 <Link
                   href={`/student/courses/${id}/quizzes`}
+                  aria-label="Back to quizzes"
                   className="text-muted-text hover:text-teal-primary text-sm"
                 >
                   ← Quizzes
@@ -277,7 +279,7 @@ export default async function TakeQuizPage({
               {submission && (
                 <div className="flex flex-col gap-4">
                   {/* Score card */}
-                  <div className="bg-teal-light border border-teal-primary/30 rounded-xl px-5 py-4">
+                  <div role="status" className="bg-teal-light border border-teal-primary/30 rounded-xl px-5 py-4">
                     <p className="text-base font-semibold text-dark-text">
                       {correctCount} / {questions.length} correct
                       {submission.score_percent != null && (
@@ -314,9 +316,10 @@ export default async function TakeQuizPage({
                       </div>
                       <Link
                         href={`/student/courses/${id}/quizzes/${quizId}?retake=1`}
+                        aria-label="Retake quiz"
                         className="px-5 py-2.5 rounded-full bg-teal-primary text-white text-sm font-semibold hover:opacity-90 transition-opacity"
                       >
-                        Retake Quiz →
+                        Retake Quiz <span aria-hidden="true">→</span>
                       </Link>
                     </div>
                   )}
@@ -346,11 +349,15 @@ export default async function TakeQuizPage({
                           }`}
                         >
                           <div className="flex items-start gap-2 mb-2">
-                            <span className={`shrink-0 font-bold text-base mt-0.5 ${
-                              isCorrect ? "text-green-700 dark:text-green-500" : "text-orange-600 dark:text-orange-400"
-                            }`}>
+                            <span
+                              aria-hidden="true"
+                              className={`shrink-0 font-bold text-base mt-0.5 ${
+                                isCorrect ? "text-green-700 dark:text-green-500" : "text-orange-600 dark:text-orange-400"
+                              }`}
+                            >
                               {isCorrect ? "✓" : "✗"}
                             </span>
+                            <span className="sr-only">{isCorrect ? "Correct." : "Incorrect."}</span>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
                                 Question {i + 1}
