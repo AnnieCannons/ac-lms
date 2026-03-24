@@ -123,6 +123,23 @@ export default function Accessibility() {
         All display settings (dark mode, high contrast, dyslexia font) are found in one place:{' '}
         <Link href="/account" className="text-teal-primary hover:underline">Profile → Display &amp; Appearance</Link>.
       </DocTip>
+
+      <DocH2>Accessibility Standards</DocH2>
+      <DocP>
+        This app is built to conform with <strong>WCAG 2.1 Level AA</strong> — the Web Content Accessibility Guidelines published by the <strong>W3C</strong> (World Wide Web Consortium) and its Web Accessibility Initiative (<strong>WAI</strong>). These are the internationally recognized standards for accessible web content, and Level AA is the benchmark required by most accessibility laws and policies worldwide.
+      </DocP>
+      <DocP>
+        WCAG 2.1 is organized around four core principles, sometimes called <strong>POUR</strong>:
+      </DocP>
+      <DocList>
+        <li><strong>Perceivable</strong> — Information must be presentable in ways users can perceive. We implement this through sufficient color contrast ratios (4.5:1 minimum for text), text alternatives for non-text content, captions, and a layout that adapts to your text size and zoom preferences.</li>
+        <li><strong>Operable</strong> — The interface must be operable by everyone. We implement this through full keyboard accessibility, no time limits on tasks, skip navigation links, and support for reduced motion via the OS-level preference.</li>
+        <li><strong>Understandable</strong> — Content and controls must be understandable. We implement this through clear button and form labels, consistent navigation, descriptive error messages with suggestions, and human-readable status announcements.</li>
+        <li><strong>Robust</strong> — Content must be interpreted by a wide range of user agents, including assistive technologies. We implement this through semantic HTML, <strong>WAI-ARIA</strong> roles and attributes, and testing with major screen readers.</li>
+      </DocList>
+      <DocNote>
+        We regularly audit the app against WCAG 2.1 AA criteria. If you encounter something that feels inaccessible or difficult to use, please let your instructor know so we can investigate and improve it.
+      </DocNote>
     </>
   )
 }
