@@ -1802,7 +1802,6 @@ function SortableDay({
   const [newResContent, setNewResContent] = useState("");
   const [fileUploadKey, setFileUploadKey] = useState(0);
   const [showAddResource, setShowAddResource] = useState(false);
-  const assignmentTriggerRef = useRef<HTMLDivElement>(null);
   const quizTriggerRef = useRef<HTMLDivElement>(null);
 
   const handleAddWiki = async () => {
@@ -1873,7 +1872,7 @@ function SortableDay({
 
         {!readOnly && (
           <AddDropdown
-            onAddAssignment={() => assignmentTriggerRef.current?.querySelector('button')?.click()}
+            onAddAssignment={() => onOpenAdd(day.id)}
             onAddResource={() => setShowAddResource(true)}
             onAddWiki={handleAddWiki}
             onAddQuiz={() => quizTriggerRef.current?.querySelector('button')?.click()}
@@ -1890,16 +1889,10 @@ function SortableDay({
           </button>
         )}
       </div>
-      {/* Hidden assignment create trigger */}
-      {!readOnly && (
-        <div ref={assignmentTriggerRef} className="hidden">
-          <CreateButton courseId={courseId} compact defaultType="assignment" defaultModuleId={day.module_id} defaultDayId={day.id} />
-        </div>
-      )}
       {/* Hidden quiz create trigger */}
       {!readOnly && (
         <div ref={quizTriggerRef} className="hidden">
-          <CreateButton courseId={courseId} compact defaultType="quiz" defaultModuleId={day.module_id} defaultDayId={day.id} />
+          <CreateButton courseId={courseId} compact defaultType="quiz" defaultModuleId={day.module_id} defaultDayId={day.id} onWikiCreated={onWikiCreated} />
         </div>
       )}
 
@@ -2305,7 +2298,7 @@ function SortableModule({
         )}
         {!readOnly && (
           <span onClick={e => e.stopPropagation()}>
-            <CreateButton courseId={courseId} compact defaultModuleId={module.id} />
+            <CreateButton courseId={courseId} compact defaultModuleId={module.id} onWikiCreated={onWikiCreated} />
           </span>
         )}
         <button
@@ -2355,7 +2348,7 @@ function SortableModule({
       {expanded && (
         <div className="px-6 pb-4 flex flex-col gap-2 border-t border-border pt-4">
           {/* Module-level wikis */}
-          {((module.wikis ?? []).length > 0 || !readOnly) && (
+          {(module.wikis ?? []).length > 0 && (
             <div className="flex flex-col gap-2 mb-2">
               {(module.wikis ?? []).map(wiki => (
                 <WikiBlock
@@ -2366,19 +2359,6 @@ function SortableModule({
                   onDelete={onWikiDeleted}
                 />
               ))}
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const result = await createWiki({ moduleId: module.id, title: 'New Wiki' })
-                    if (result.error) { alert(`Failed to create wiki: ${result.error}`); return }
-                    if (result.data) onWikiCreated(result.data)
-                  }}
-                  className="text-xs text-teal-primary hover:underline text-left"
-                >
-                  + Add Wiki
-                </button>
-              )}
             </div>
           )}
 

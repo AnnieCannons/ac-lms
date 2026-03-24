@@ -156,7 +156,7 @@ export default function AddResourceButton({ courseId, className, variant = 'defa
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
-                  <option value="coding">Coding Class</option>
+                  <option value="coding">Course Outline</option>
                   <option value="career">Career Development</option>
                 </select>
               </div>

@@ -9,7 +9,7 @@ export default function Assignments() {
       <DocH2>Creating an Assignment</DocH2>
       <DocP>Use the <strong>+ Create</strong> button in the course sidebar:</DocP>
       <DocStep number={1}>Click <strong>+ Create</strong> and select <strong>Assignment</strong>.</DocStep>
-      <DocStep number={2}>Choose a <strong>Section</strong> (Coding Class, Career Development, or Level Up Your Skills), a <strong>Module</strong>, and optionally a <strong>Day</strong>.</DocStep>
+      <DocStep number={2}>Choose a <strong>Section</strong> (Course Outline, Career Development, or Level Up Your Skills), a <strong>Module</strong>, and optionally a <strong>Day</strong>.</DocStep>
       <DocStep number={3}>Optionally add <strong>Skill Tags</strong> to label what skills the assignment covers — visible to students.</DocStep>
       <DocStep number={4}>Click <strong>Create &amp; Edit →</strong> to open the assignment editor.</DocStep>
       <DocTip>

@@ -24,6 +24,11 @@ const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
   { value: 'file', label: 'File' },
 ]
 
+type WikiData = {
+  id: string; title: string; content: string; published: boolean; order: number;
+  module_id: string | null; module_day_id: string | null;
+}
+
 interface Props {
   courseId: string
   compact?: boolean
@@ -31,9 +36,10 @@ interface Props {
   defaultModuleId?: string
   defaultDayId?: string
   label?: string
+  onWikiCreated?: (wiki: WikiData) => void
 }
 
-export default function CreateButton({ courseId, compact, defaultType, defaultModuleId, defaultDayId, label }: Props) {
+export default function CreateButton({ courseId, compact, defaultType, defaultModuleId, defaultDayId, label, onWikiCreated }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -314,7 +320,11 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         setCreating(false)
         if (result.error) { setError(result.error); return }
         setOpen(false)
-        router.refresh()
+        if (result.data && onWikiCreated) {
+          onWikiCreated(result.data)
+        } else {
+          router.refresh()
+        }
       } catch (e) {
         setCreating(false)
         setError(e instanceof Error ? e.message : 'Failed to create wiki')
@@ -403,7 +413,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 >
-                  <option value="coding">Coding Class</option>
+                  <option value="coding">Course Outline</option>
                   <option value="career">Career Development</option>
                   <option value="level_up">Level Up Your Skills</option>
                 </select>
