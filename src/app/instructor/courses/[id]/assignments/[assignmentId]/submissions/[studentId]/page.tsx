@@ -12,6 +12,7 @@ import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import MarkdownContent from '@/components/ui/MarkdownContent'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { normalizeUrl } from '@/lib/url'
+import { resolveMyStudentIds } from '@/lib/grading-utils'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -51,7 +52,7 @@ export default async function GradingPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required, grader_id')
+    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required, grader_id, module_days!module_day_id(module_id)')
     .eq('id', assignmentId)
     .single()
 
@@ -92,15 +93,14 @@ export default async function GradingPage({
   let ungradedStudents = allStudents.filter(s => submissionStatusMap.get(s.id) === 'submitted')
   const needsGradingTotal = ungradedStudents.length
 
-  // For grader=me, filter ungraded queue to current user's group
+  // Extract the assignment's module_id for week-aware group lookup
+  const dayJoin = assignment?.module_days as { module_id: string } | { module_id: string }[] | null
+  const assignmentModuleId = (Array.isArray(dayJoin) ? dayJoin[0]?.module_id : dayJoin?.module_id) ?? null
+
+  // For grader=me, filter ungraded queue to current user's group (week-aware)
   let myStudentIds = new Set<string>()
   if (grader === 'me') {
-    const { data: myGroups } = await admin
-      .from('grading_groups')
-      .select('student_id')
-      .eq('course_id', id)
-      .eq('grader_id', user.id)
-    myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+    myStudentIds = await resolveMyStudentIds(admin, id, assignmentModuleId, user.id)
     const assignmentGraderOverride = (assignment as typeof assignment & { grader_id: string | null })?.grader_id ?? null
     if (assignmentGraderOverride !== user.id && assignmentGraderOverride !== null) {
       ungradedStudents = [] // someone else is override grader

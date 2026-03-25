@@ -7,6 +7,7 @@ import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { formatDueDate } from '@/lib/date-utils'
+import { resolveMyStudentIds } from '@/lib/grading-utils'
 
 export default async function InstructorSubmissionsPage({
   params,
@@ -28,7 +29,7 @@ export default async function InstructorSubmissionsPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, due_date, answer_key_url, submission_required, grader_id')
+    .select('id, title, due_date, answer_key_url, submission_required, grader_id, module_days!module_day_id(module_id)')
     .eq('id', assignmentId)
     .single()
 
@@ -68,15 +69,14 @@ export default async function InstructorSubmissionsPage({
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  // For grader=me, filter students to current user's group
+  // Extract the assignment's module_id for week-aware group lookup
+  const dayJoin = assignment?.module_days as { module_id: string } | { module_id: string }[] | null
+  const assignmentModuleId = (Array.isArray(dayJoin) ? dayJoin[0]?.module_id : dayJoin?.module_id) ?? null
+
+  // For grader=me, filter students to current user's group (week-aware)
   let displayStudents = students
   if (grader === 'me') {
-    const { data: myGroups } = await admin
-      .from('grading_groups')
-      .select('student_id')
-      .eq('course_id', id)
-      .eq('grader_id', user.id)
-    const myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+    const myStudentIds = await resolveMyStudentIds(admin, id, assignmentModuleId, user.id)
     const assignmentGraderOverride = (assignment as typeof assignment & { grader_id: string | null })?.grader_id ?? null
     if (assignmentGraderOverride === user.id) {
       displayStudents = students // I'm the override grader — all students

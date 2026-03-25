@@ -31,11 +31,21 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
     // Fetch modules with ordering so we can find the first ungraded assignment in order
     const { data: moduleData } = await admin
       .from('modules')
-      .select('order, module_days(order, assignments!module_day_id(id, order))')
+      .select('id, order, module_days(order, assignments!module_day_id(id, order))')
       .eq('course_id', courseId)
 
     type RawDay = { order: number; assignments: { id: string; order: number }[] }
-    type RawModule = { order: number; module_days: RawDay[] }
+    type RawModule = { id: string; order: number; module_days: RawDay[] }
+
+    // Build assignmentModuleMap: assignmentId → moduleId
+    const assignmentModuleMap = new Map<string, string>()
+    for (const m of (moduleData as RawModule[] ?? [])) {
+      for (const d of m.module_days ?? []) {
+        for (const a of d.assignments ?? []) {
+          assignmentModuleMap.set(a.id, m.id)
+        }
+      }
+    }
 
     const orderedAssignmentIds = (moduleData as RawModule[] ?? [])
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
@@ -68,22 +78,43 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
       const ungradedSet = new Set(ungradedSubs?.map(s => s.assignment_id) ?? [])
       firstUngradedAssignmentId = orderedAssignmentIds.find(id => ungradedSet.has(id)) ?? null
 
-      // Compute my-group stats (applies to everyone — TAs see filtered badge, instructors see Grade for My Group button)
+      // Compute my-group stats (week-aware: uses module-specific groups when weekly rotation is enabled)
       if (user && ungradedSubs && ungradedSubs.length > 0) {
-        const [{ data: myGroups }, { data: assignmentGraderRows }] = await Promise.all([
-          admin.from('grading_groups').select('student_id').eq('course_id', courseId).eq('grader_id', user.id),
+        const [{ data: myGroupRows }, { data: assignmentGraderRows }, { data: allWeekRows }] = await Promise.all([
+          admin.from('grading_groups').select('student_id, module_id').eq('course_id', courseId).eq('grader_id', user.id),
           admin.from('assignments').select('id, grader_id').in('id', orderedAssignmentIds),
+          admin.from('grading_groups').select('module_id').eq('course_id', courseId).not('module_id', 'is', null),
         ])
-        const myStudentIds = new Set(myGroups?.map(g => g.student_id) ?? [])
+
+        // Separate my groups into anchor (course-level) and week-specific
+        const myAnchorStudentIds = new Set<string>()
+        const myWeekStudentIds = new Map<string, Set<string>>()
+        for (const row of myGroupRows ?? []) {
+          if (row.module_id) {
+            if (!myWeekStudentIds.has(row.module_id)) myWeekStudentIds.set(row.module_id, new Set())
+            myWeekStudentIds.get(row.module_id)!.add(row.student_id)
+          } else {
+            myAnchorStudentIds.add(row.student_id)
+          }
+        }
+        // Which modules have ANY week-specific groups (not just mine)
+        const modulesWithWeeklyGroups = new Set((allWeekRows ?? []).map(r => r.module_id).filter(Boolean) as string[])
+
         const assignmentGraderMap = new Map(
           (assignmentGraderRows ?? []).map(a => [a.id, (a.grader_id as string | null)])
         )
         const myGroupAssignmentIds = new Set<string>()
         for (const sub of ungradedSubs) {
           const override = assignmentGraderMap.get(sub.assignment_id)
-          const belongsToMe = override !== undefined && override !== null
-            ? override === user.id
-            : myStudentIds.has(sub.student_id)
+          const moduleId = assignmentModuleMap.get(sub.assignment_id)
+          let belongsToMe: boolean
+          if (override !== undefined && override !== null) {
+            belongsToMe = override === user.id
+          } else if (moduleId && modulesWithWeeklyGroups.has(moduleId)) {
+            belongsToMe = myWeekStudentIds.get(moduleId)?.has(sub.student_id) ?? false
+          } else {
+            belongsToMe = myAnchorStudentIds.has(sub.student_id)
+          }
           if (belongsToMe) {
             myGroupAssignmentIds.add(sub.assignment_id)
             myGroupNeedsGrading++
