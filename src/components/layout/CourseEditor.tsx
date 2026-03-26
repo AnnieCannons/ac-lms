@@ -39,6 +39,7 @@ import CreateButton from "@/components/ui/CreateButton";
 import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup, DuplicateQuizPopup, DuplicateIcon, type DuplicatedAssignment, type DuplicatedModule, type DuplicatedResource, type DuplicatedQuiz } from "@/components/ui/DuplicatePopup";
 import WikiBlock from "@/components/ui/WikiBlock";
 import { createWiki } from "@/lib/wiki-actions";
+import AnswerKeyField from "@/components/ui/AnswerKeyField";
 
 
 type Assignment = {
@@ -47,6 +48,7 @@ type Assignment = {
   due_date: string | null;
   description?: string | null;
   how_to_turn_in?: string | null;
+  answer_key_url?: string | null;
   module_day_id: string;
   published: boolean;
   is_bonus: boolean;
@@ -329,9 +331,9 @@ function AssignmentCard({
             ⠿
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => onOpen(assignment, dayId)}
+        <a
+          href={`/instructor/courses/${courseId}/assignments/${assignment.id}`}
+          onClick={(e) => { e.preventDefault(); onOpen(assignment, dayId); }}
           className="flex-1 min-w-0 text-left"
         >
           <p className="text-sm text-dark-text truncate">
@@ -341,7 +343,7 @@ function AssignmentCard({
             Due:{" "}
             {assignment.due_date ? localDate(assignment.due_date).toLocaleDateString() : "None"}
           </p>
-        </button>
+        </a>
         {!readOnly && ctx && (
           <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
             <button
@@ -813,6 +815,11 @@ function AssignmentFullView({
                       }}
                     />
                   </div>
+                  <AnswerKeyField
+                    assignmentId={assignment!.id}
+                    courseId={courseId}
+                    initialUrl={assignment!.answer_key_url ?? null}
+                  />
                   {ctx && view.mode === "view" && (
                     <div className="flex items-center gap-2 mt-2">
                       <select

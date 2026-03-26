@@ -74,6 +74,11 @@ export async function markCompleteNoSubmission(
     .eq('id', submissionId)
 
   if (error) return { error: error.message }
+
+  if (grade) {
+    await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
+  }
+
   if (courseId) {
     revalidatePath(`/instructor/courses/${courseId}`)
     revalidatePath(`/student/courses/${courseId}`, 'layout')
@@ -114,6 +119,10 @@ export async function saveGrade(
     .eq('id', submissionId)
 
   if (error) return { error: error.message }
+
+  if (grade) {
+    await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
+  }
 
   if (courseId) {
     revalidatePath(`/instructor/courses/${courseId}`)

@@ -497,7 +497,7 @@ function AssignmentsTab({
             >
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-                  {moduleAssignments.length} {m.title}{m.week_number ? ` · Week ${m.week_number}` : ''}
+                  {m.title}{m.week_number ? ` · Week ${m.week_number}` : ''}
                 </span>
                 {isCollapsed && ungradedInModule > 0 && (
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600">

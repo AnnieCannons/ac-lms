@@ -12,7 +12,7 @@ export default async function GradebookPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { profile, isTa } = await getInstructorOrTaAccess(id)
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
 
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect('/instructor/courses') }
@@ -54,6 +54,30 @@ export default async function GradebookPage({
   )
 
   const assignmentIds = assignments.map(a => a.id)
+
+  // Grading group data for "My Grading Group" filter
+  const [{ data: myGroupRows }, { data: allWeekRows }] = await Promise.all([
+    admin.from('grading_groups').select('student_id, module_id').eq('course_id', id).eq('grader_id', user.id),
+    admin.from('grading_groups').select('module_id').eq('course_id', id).not('module_id', 'is', null),
+  ])
+
+  const myGroupCourseLevel: string[] = (myGroupRows ?? [])
+    .filter(r => !r.module_id)
+    .map(r => r.student_id)
+
+  const myGroupByModule: Record<string, string[]> = {}
+  for (const r of myGroupRows ?? []) {
+    if (r.module_id) {
+      myGroupByModule[r.module_id] ??= []
+      myGroupByModule[r.module_id].push(r.student_id)
+    }
+  }
+
+  const modulesWithWeeklyGroups = [...new Set(
+    (allWeekRows ?? []).map(r => r.module_id).filter(Boolean) as string[]
+  )]
+
+  const hasMyGroup = myGroupCourseLevel.length > 0 || Object.keys(myGroupByModule).length > 0
 
   const [enrollmentsResult, submissionsResult] = await Promise.all([
     admin
@@ -117,6 +141,10 @@ export default async function GradebookPage({
               modules={modulesForClient}
               assignments={assignments}
               submissions={submissions}
+              myGroupCourseLevel={myGroupCourseLevel}
+              myGroupByModule={myGroupByModule}
+              modulesWithWeeklyGroups={modulesWithWeeklyGroups}
+              hasMyGroup={hasMyGroup}
             />
           </main>
         </div>

@@ -25,6 +25,10 @@ interface Props {
   modules: GradebookModule[]
   assignments: GradebookAssignment[]
   submissions: GradebookSubmission[]
+  myGroupCourseLevel: string[]
+  myGroupByModule: Record<string, string[]>
+  modulesWithWeeklyGroups: string[]
+  hasMyGroup: boolean
 }
 
 const DEFAULT_COL_WIDTH = 150
@@ -40,6 +44,7 @@ function MultiSelectDropdown({
   onClear,
   searchable,
   dropdownWidth = 224,
+  specialOption,
 }: {
   label: string
   allLabel: string
@@ -49,6 +54,7 @@ function MultiSelectDropdown({
   onClear: () => void
   searchable?: boolean
   dropdownWidth?: number
+  specialOption?: { label: string; active: boolean; onClick: () => void }
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -69,7 +75,9 @@ function MultiSelectDropdown({
     ? items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
     : items
 
-  const buttonLabel = selected.size === 0
+  const buttonLabel = specialOption?.active
+    ? specialOption.label
+    : selected.size === 0
     ? allLabel
     : selected.size === 1
       ? items.find(i => selected.has(i.id))?.name ?? `1 selected`
@@ -111,10 +119,18 @@ function MultiSelectDropdown({
           <div className="overflow-y-auto flex flex-col gap-0.5">
             <button
               onClick={onClear}
-              className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${selected.size === 0 ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
+              className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${selected.size === 0 && !specialOption?.active ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
             >
               {allLabel}
             </button>
+            {specialOption && (
+              <button
+                onClick={specialOption.onClick}
+                className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${specialOption.active ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
+              >
+                {specialOption.label}
+              </button>
+            )}
             {visible.map(item => (
               <button
                 key={item.id}
@@ -137,11 +153,14 @@ function MultiSelectDropdown({
   )
 }
 
-export default function GradebookGrid({ courseId, students, modules, assignments, submissions }: Props) {
+export default function GradebookGrid({ courseId, students, modules, assignments, submissions, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
   const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set())
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
   const [selectedAssignments, setSelectedAssignments] = useState<Set<string>>(new Set())
+  const [myGroupActive, setMyGroupActive] = useState(false)
   const [colWidths, setColWidths] = useState<Map<string, number>>(new Map())
+
+  const weeklyModuleSet = new Set(modulesWithWeeklyGroups)
 
   const toggleModule = (id: string) => setSelectedModules(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
@@ -177,7 +196,21 @@ export default function GradebookGrid({ courseId, students, modules, assignments
     document.addEventListener('mouseup', onMouseUp)
   }, [colWidths])
 
-  const filteredStudents = selectedStudents.size === 0
+  // Resolve "My Grading Group" student IDs based on selected week
+  const myGroupStudentIds: Set<string> | null = (() => {
+    if (!myGroupActive) return null
+    if (selectedModules.size === 1) {
+      const [moduleId] = selectedModules
+      if (weeklyModuleSet.has(moduleId) && myGroupByModule[moduleId]) {
+        return new Set(myGroupByModule[moduleId])
+      }
+    }
+    return new Set(myGroupCourseLevel)
+  })()
+
+  const filteredStudents = myGroupActive && myGroupStudentIds
+    ? students.filter(s => myGroupStudentIds.has(s.id))
+    : selectedStudents.size === 0
     ? students
     : students.filter(s => selectedStudents.has(s.id))
 
@@ -212,9 +245,14 @@ export default function GradebookGrid({ courseId, students, modules, assignments
           allLabel="All Students"
           items={studentItems}
           selected={selectedStudents}
-          onToggle={toggleStudent}
-          onClear={() => setSelectedStudents(new Set())}
+          onToggle={id => { setMyGroupActive(false); toggleStudent(id) }}
+          onClear={() => { setSelectedStudents(new Set()); setMyGroupActive(false) }}
           searchable
+          specialOption={hasMyGroup ? {
+            label: 'My Grading Group',
+            active: myGroupActive,
+            onClick: () => { setMyGroupActive(true); setSelectedStudents(new Set()) },
+          } : undefined}
         />
 
         <MultiSelectDropdown

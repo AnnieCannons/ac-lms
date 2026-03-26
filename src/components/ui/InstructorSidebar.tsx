@@ -31,10 +31,12 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
     // Fetch modules with ordering so we can find the first ungraded assignment in order
     const { data: moduleData } = await admin
       .from('modules')
-      .select('id, order, module_days(order, assignments!module_day_id(id, order))')
+      .select('id, order, module_days(order, assignments!module_day_id(id, order, published))')
       .eq('course_id', courseId)
+      .eq('published', true)
+      .is('deleted_at', null)
 
-    type RawDay = { order: number; assignments: { id: string; order: number }[] }
+    type RawDay = { order: number; assignments: { id: string; order: number; published: boolean }[] }
     type RawModule = { id: string; order: number; module_days: RawDay[] }
 
     // Build assignmentModuleMap: assignmentId → moduleId
@@ -54,25 +56,18 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           .flatMap(d =>
             (d.assignments ?? [])
+              .filter(a => a.published)
               .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
               .map(a => a.id)
           )
       )
 
     if (orderedAssignmentIds.length > 0) {
-      const { data: enrolledStudents } = await admin
-        .from('course_enrollments')
-        .select('user_id')
-        .eq('course_id', courseId)
-        .eq('role', 'student')
-      const enrolledStudentIds = (enrolledStudents ?? []).map(e => e.user_id)
-
       const { data: ungradedSubs } = await admin
         .from('submissions')
         .select('assignment_id, student_id')
         .in('assignment_id', orderedAssignmentIds)
         .eq('status', 'submitted')
-        .in('student_id', enrolledStudentIds.length > 0 ? enrolledStudentIds : [''])
 
       needsGrading = ungradedSubs?.length ?? 0
       const ungradedSet = new Set(ungradedSubs?.map(s => s.assignment_id) ?? [])

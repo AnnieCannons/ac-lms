@@ -10,6 +10,7 @@ import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import { localDate, formatDueDate, todayLocal } from '@/lib/date-utils'
+import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 
 export default async function StudentAssignmentPage({
   params,
@@ -112,6 +113,14 @@ export default async function StudentAssignmentPage({
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false })
+
+  const { data: gradeHistory } = (admin && existingSubmission)
+    ? await admin
+        .from('grade_history')
+        .select('id, grade, graded_at')
+        .eq('submission_id', existingSubmission.id)
+        .order('graded_at', { ascending: false })
+    : { data: [] }
 
   const { data: override } = admin
     ? await admin
@@ -317,6 +326,11 @@ export default async function StudentAssignmentPage({
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
               <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
             </div>
+          )}
+
+          {/* Grade history */}
+          {gradeHistory && gradeHistory.length > 0 && (
+            <GradeHistoryList entries={gradeHistory as GradeHistoryEntry[]} />
           )}
 
         </div>

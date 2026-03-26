@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { addSubmissionComment, editSubmissionComment, deleteSubmissionComment } from "@/lib/grade-actions";
+import RichTextEditor from "@/components/ui/RichTextEditor";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 
 export type CommentEntry = {
   id: string;
@@ -47,6 +49,9 @@ export default function SubmissionComments({
   const [editError, setEditError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editorKey, setEditorKey] = useState(0);
+
+  const isStudent = currentUserRole === 'student' && !isTa;
 
   const send = async () => {
     if (!text.trim() || !submissionId) return;
@@ -68,6 +73,7 @@ export default function SubmissionComments({
         },
       ]);
       setText("");
+      if (!isStudent) setEditorKey(k => k + 1);
     }
     setSending(false);
   };
@@ -188,17 +194,27 @@ export default function SubmissionComments({
 
                 {isEditing ? (
                   <div className="flex flex-col gap-2 mt-1">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit(c.id);
-                        if (e.key === "Escape") setEditingId(null);
-                      }}
-                      rows={3}
-                      aria-label="Edit comment"
-                      className="w-full bg-background border border-teal-primary rounded-xl p-3 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-                    />
+                    {isStudent ? (
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit(c.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        rows={3}
+                        aria-label="Edit comment"
+                        className="w-full bg-background border border-teal-primary rounded-xl p-3 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+                      />
+                    ) : (
+                      <RichTextEditor
+                        key={editingId}
+                        content={editText}
+                        onChange={setEditText}
+                        placeholder="Edit comment…"
+                        minHeight={120}
+                      />
+                    )}
                     {editError && <p role="alert" className="text-xs text-red-500">{editError}</p>}
                     <div className="flex items-center gap-2">
                       <button
@@ -218,9 +234,7 @@ export default function SubmissionComments({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-dark-text whitespace-pre-wrap leading-relaxed">
-                    {c.content}
-                  </p>
+                  <MarkdownContent content={c.content} />
                 )}
               </li>
             );
@@ -231,20 +245,32 @@ export default function SubmissionComments({
 
       {!isObserver && (
         <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
-          <label htmlFor="submission-comment-input" className="sr-only">
-            {currentUserRole === 'student' && !isTa ? "Add a comment for your instructor" : "Leave a comment for the student"}
-          </label>
-          <textarea
-            id="submission-comment-input"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
-            }}
-            placeholder={currentUserRole === 'student' && !isTa ? "Add a comment for your instructor…" : "Leave a comment for the student…"}
-            rows={3}
-            className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-          />
+          {isStudent ? (
+            <>
+              <label htmlFor="submission-comment-input" className="sr-only">
+                Add a comment for your instructor
+              </label>
+              <textarea
+                id="submission-comment-input"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
+                }}
+                placeholder="Add a comment for your instructor…"
+                rows={3}
+                className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+              />
+            </>
+          ) : (
+            <RichTextEditor
+              key={editorKey}
+              content=""
+              onChange={setText}
+              placeholder="Leave a comment for the student…"
+              minHeight={120}
+            />
+          )}
           {sendError && <p role="alert" className="text-xs text-red-500 mt-1">{sendError}</p>}
           <div className="flex items-center justify-between mt-2 gap-3">
             {!submissionId && text.trim() ? (

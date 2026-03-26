@@ -33,6 +33,8 @@ export default async function CourseSubmissionsPage({
     .from('modules')
     .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published))')
     .eq('course_id', id)
+    .eq('published', true)
+    .is('deleted_at', null)
     .order('order', { ascending: true })
 
   type AssignmentMeta = {

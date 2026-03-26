@@ -13,6 +13,7 @@ import MarkdownContent from '@/components/ui/MarkdownContent'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { normalizeUrl } from '@/lib/url'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
+import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -243,12 +244,21 @@ export default async function GradingPage({
     submission = created ?? null
   }
 
-  const { data: submissionHistory } = await admin
-    .from('submission_history')
-    .select('id, submission_type, content, submitted_at')
-    .eq('assignment_id', assignmentId)
-    .eq('student_id', studentId)
-    .order('submitted_at', { ascending: false })
+  const [{ data: submissionHistory }, { data: gradeHistory }] = await Promise.all([
+    admin
+      .from('submission_history')
+      .select('id, submission_type, content, submitted_at')
+      .eq('assignment_id', assignmentId)
+      .eq('student_id', studentId)
+      .order('submitted_at', { ascending: false }),
+    submission
+      ? admin
+          .from('grade_history')
+          .select('id, grade, graded_at')
+          .eq('submission_id', submission.id)
+          .order('graded_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+  ])
 
   const { data: checklistItems } = await admin
     .from('checklist_items')
@@ -534,6 +544,11 @@ export default async function GradingPage({
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Grade history */}
+          {gradeHistory && gradeHistory.length > 0 && (
+            <GradeHistoryList entries={gradeHistory as GradeHistoryEntry[]} />
           )}
 
           {/* Checklist */}
