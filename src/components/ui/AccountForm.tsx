@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { updateUserName } from '@/lib/account-actions'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
-const inputCls = 'w-full border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-dark-text bg-background focus:outline-none focus:ring-2 focus:ring-teal-primary placeholder:text-muted-text'
+const inputCls = 'w-full border border-border rounded-xl px-4 py-2.5 pr-12 text-sm text-dark-text bg-background focus:outline-none focus:ring-2 focus:ring-teal-primary placeholder:text-muted-text min-h-[44px]'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -24,7 +24,7 @@ function PasswordToggle({ show, onToggle }: { show: boolean; onToggle: () => voi
     <button
       type="button"
       onClick={onToggle}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text hover:text-dark-text transition-colors"
+      className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-muted-text hover:text-dark-text transition-colors"
       aria-label={show ? 'Hide password' : 'Show password'}
     >
       <EyeIcon open={show} />
