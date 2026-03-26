@@ -58,7 +58,7 @@ export default async function StudentCoursesPage() {
       <StudentTopNav name={profile?.name} role={profile?.role} />
 
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 md:px-8 md:py-12 focus:outline-none">
-        <h2 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">My Courses</h2>
+        <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">My Courses</h1>
         <p className="text-muted-text text-sm mb-8">
           {totalCount} course{totalCount !== 1 ? 's' : ''} enrolled
         </p>
@@ -74,7 +74,7 @@ export default async function StudentCoursesPage() {
                   <div className="flex items-center justify-between gap-4 p-4 sm:p-6">
                     <Link href={`/student/courses/${course.id}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-dark-text truncate">{course.name}</h3>
+                        <h2 className="font-semibold text-dark-text truncate text-base">{course.name}</h2>
                         {current && (
                           <span className="text-xs font-semibold px-2 py-0.5 rounded-full badge-current shrink-0">Current</span>
                         )}

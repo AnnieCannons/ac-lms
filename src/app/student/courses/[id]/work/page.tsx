@@ -138,7 +138,7 @@ export default async function MyWorkPage({
             <span className="text-border">/</span>
             <Link href={`/student/courses/${id}`} className="text-muted-text hover:text-teal-primary text-sm">{course.name}</Link>
             <span className="text-border">/</span>
-            <h2 className="text-2xl font-bold text-dark-text">My Work</h2>
+            <h1 className="text-2xl font-bold text-dark-text">My Work</h1>
           </div>
           <Link href={`/student/courses/${id}`} className="text-sm text-teal-primary font-medium hover:underline shrink-0">
             Course Overview →

@@ -165,7 +165,7 @@ export default async function StudentDayDetailPage({
           <span className="text-dark-text font-medium">{day.day_name}</span>
         </div>
 
-        <h2 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">{day.day_name}</h2>
+        <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">{day.day_name}</h1>
         {module && (
           <p className="text-muted-text text-sm mb-8">
             {module.title}{module.week_number ? ` · Week ${module.week_number}` : ''}
@@ -176,7 +176,7 @@ export default async function StudentDayDetailPage({
           {/* Wikis */}
           {dayWikis && dayWikis.length > 0 && (
             <section>
-              <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Wikis</h3>
+              <p role="heading" aria-level={2} className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3 m-0">Wikis</p>
               <div className="flex flex-col gap-2">
                 {dayWikis.map(wiki => (
                   <WikiView key={wiki.id} wiki={wiki} />
@@ -187,7 +187,7 @@ export default async function StudentDayDetailPage({
 
           {/* Resources */}
           <section>
-            <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Resources</h3>
+            <p role="heading" aria-level={2} className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3 m-0">Resources</p>
             {resources && resources.length > 0 ? (
               <DayResourceList
                 resources={resources.map(r => ({ ...r, careerDev: r.linked_day_id === dayId }))}
@@ -202,7 +202,7 @@ export default async function StudentDayDetailPage({
 
           {/* Assignments */}
           <section>
-            <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Assignments</h3>
+            <p role="heading" aria-level={2} className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3 m-0">Assignments</p>
             {assignments && assignments.length > 0 ? (
               <div className="flex flex-col gap-3">
                 {assignments.map(assignment => (
@@ -269,7 +269,7 @@ export default async function StudentDayDetailPage({
           {/* Quizzes */}
           {quizzes.length > 0 && (
             <section>
-              <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Quizzes</h3>
+              <p role="heading" aria-level={2} className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3 m-0">Quizzes</p>
               <div className="flex flex-col gap-3">
                 {quizzes.map(quiz => {
                   const sub = quizSubmissions.find(s => s.quiz_id === quiz.id)
