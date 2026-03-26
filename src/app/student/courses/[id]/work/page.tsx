@@ -6,10 +6,11 @@ import StudentWorkList, { type WorkAssignment } from '@/components/ui/StudentWor
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
-function getCurrentWeek(startDate: string | null): number | null {
+function getCurrentWeek(startDate: string | null, endDate: string | null): number | null {
   if (!startDate) return null
   const start = new Date(startDate)
   const today = new Date()
+  if (endDate && today > new Date(endDate)) return null // course has ended
   const diffMs = today.getTime() - start.getTime()
   if (diffMs < 0) return null
   return Math.floor(Math.floor(diffMs / (1000 * 60 * 60 * 24)) / 7) + 1
@@ -49,7 +50,7 @@ export default async function MyWorkPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, start_date')
+    .select('id, name, code, start_date, end_date')
     .eq('id', id)
     .single()
 
@@ -91,7 +92,7 @@ export default async function MyWorkPage({
   const overrideMap = new Map((overrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
 
   const now = new Date()
-  const currentWeek = getCurrentWeek(course.start_date)
+  const currentWeek = getCurrentWeek(course.start_date, course.end_date ?? null)
 
   const assignments: WorkAssignment[] = (modules ?? []).flatMap(module =>
     (module.module_days ?? []).flatMap(

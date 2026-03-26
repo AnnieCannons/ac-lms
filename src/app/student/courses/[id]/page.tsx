@@ -11,10 +11,11 @@ import StudentViewBanner from '@/components/ui/StudentViewBanner'
 
 export const dynamic = 'force-dynamic'
 
-function getCurrentWeek(startDate: string | null): number | null {
+function getCurrentWeek(startDate: string | null, endDate: string | null): number | null {
   if (!startDate) return null
   const start = new Date(startDate)
   const today = new Date()
+  if (endDate && today > new Date(endDate)) return null // course has ended
   const diffMs = today.getTime() - start.getTime()
   if (diffMs < 0) return null // course hasn't started yet
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -139,7 +140,7 @@ export default async function StudentCourseDetailPage({
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)
 
-  const currentWeek = getCurrentWeek(course.start_date)
+  const currentWeek = getCurrentWeek(course.start_date, course.end_date ?? null)
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,13 +166,16 @@ export default async function StudentCourseDetailPage({
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">Course Outline</h1>
                 <div className="flex items-center gap-4 flex-wrap">
-                  <p className="text-muted-text text-sm">{course.code}</p>
-                  {course.start_date && (
-                    <p className="text-muted-text text-sm">
-                      {new Date(course.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {course.end_date && ` – ${new Date(course.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
-                    </p>
-                  )}
+                  <p className="text-muted-text text-sm">
+                    {course.code}
+                    {course.start_date && (
+                      <>
+                        {' · '}
+                        {new Date(course.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {course.end_date && ` – ${new Date(course.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                      </>
+                    )}
+                  </p>
                   {currentWeek && (
                     <a href={`#week-${currentWeek}`} className="bg-teal-light text-teal-primary text-xs font-semibold px-3 py-1 rounded-full hover:opacity-80 transition-opacity">
                       Week {currentWeek} this week

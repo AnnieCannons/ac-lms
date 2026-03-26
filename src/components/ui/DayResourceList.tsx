@@ -98,18 +98,24 @@ export default function DayResourceList({
           return (
             <div key={resource.id} className="rounded-xl border border-border overflow-hidden group">
               <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => toggleReading(resource.id)}
-                  className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-border/10 transition-colors text-left min-w-0"
-                >
-                  <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
-                  <p className="flex-1 font-medium text-dark-text">{resource.title}</p>
-                  {resource.careerDev && (
-                    <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
-                  )}
-                  <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
-                </button>
+                {/* Overlay pattern: title text in normal flow (Speechify-readable), button is invisible overlay */}
+                <div className="flex-1 relative min-w-0">
+                  <div className="flex items-center gap-3 px-4 py-3 pr-10">
+                    <span aria-hidden="true" className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
+                    <span className="flex-1 font-medium text-dark-text">{resource.title}</span>
+                    {resource.careerDev && (
+                      <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+                    )}
+                  </div>
+                  <span aria-hidden="true" className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-text inline-block transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleReading(resource.id)}
+                    aria-expanded={open}
+                    aria-label={`${open ? 'Collapse' : 'Expand'} reading: ${resource.title}`}
+                    className="absolute inset-0 w-full h-full hover:bg-border/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                  />
+                </div>
                 <CheckButton completed={completed} onToggle={() => toggleComplete(resource.id)} />
                 <StarButton starred={starred} onToggle={() => toggleStar(resource.id)} />
               </div>

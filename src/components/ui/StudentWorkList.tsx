@@ -169,15 +169,20 @@ export default function StudentWorkList({
               <>
                 {pastDue.length > 0 && (
                   <div>
-                    <button
-                      type="button"
-                      onClick={() => setCollapsedPastDue(p => !p)}
-                      className="flex items-center gap-2 w-full text-left mb-3 pb-2 border-b border-amber-500/30 group"
-                    >
-                      <h3 className="text-sm font-semibold text-amber-700">Past Due</h3>
-                      <span className="text-xs text-amber-600/70">({pastDue.length})</span>
-                      <span className="ml-auto text-amber-600/60 group-hover:text-amber-700 transition-colors text-xs">{collapsedPastDue ? "▾" : "▴"}</span>
-                    </button>
+                    <div className="relative mb-3 pb-2 border-b border-amber-500/30">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-amber-700">Past Due</h3>
+                        <span className="text-xs text-amber-600/70">({pastDue.length})</span>
+                        <span aria-hidden="true" className="ml-auto text-amber-600/60 text-xs">{collapsedPastDue ? "▾" : "▴"}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedPastDue(p => !p)}
+                        aria-expanded={!collapsedPastDue}
+                        aria-label={`${collapsedPastDue ? 'Show' : 'Hide'} past due assignments (${pastDue.length})`}
+                        className="absolute inset-0 w-full h-full hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                      />
+                    </div>
                     {!collapsedPastDue && (
                       <div className="flex flex-col gap-2">
                         {pastDue.map((a) => <AssignmentRow key={a.id} a={a} />)}
@@ -187,15 +192,20 @@ export default function StudentWorkList({
                 )}
                 {upcoming.length > 0 && (
                   <div>
-                    <button
-                      type="button"
-                      onClick={() => setCollapsedUpcoming(p => !p)}
-                      className="flex items-center gap-2 w-full text-left mb-3 pb-2 border-b border-border group"
-                    >
-                      <h3 className="text-sm font-semibold text-dark-text">Upcoming</h3>
-                      <span className="text-xs text-muted-text">({upcoming.length})</span>
-                      <span className="ml-auto text-muted-text group-hover:text-dark-text transition-colors text-xs">{collapsedUpcoming ? "▾" : "▴"}</span>
-                    </button>
+                    <div className="relative mb-3 pb-2 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-dark-text">Upcoming</h3>
+                        <span className="text-xs text-muted-text">({upcoming.length})</span>
+                        <span aria-hidden="true" className="ml-auto text-muted-text text-xs">{collapsedUpcoming ? "▾" : "▴"}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedUpcoming(p => !p)}
+                        aria-expanded={!collapsedUpcoming}
+                        aria-label={`${collapsedUpcoming ? 'Show' : 'Hide'} upcoming assignments (${upcoming.length})`}
+                        className="absolute inset-0 w-full h-full hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                      />
+                    </div>
                     {!collapsedUpcoming && (
                       <div className="flex flex-col gap-2">
                         {upcoming.map((a) => <AssignmentRow key={a.id} a={a} />)}

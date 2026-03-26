@@ -63,18 +63,24 @@ function ReadingResource({
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="flex items-center">
-        <button
-          type="button"
-          onClick={() => setOpen(o => !o)}
-          className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-border/10 transition-colors text-left min-w-0"
-        >
-          <span className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
-          <p className="flex-1 text-sm font-medium text-dark-text">{resource.title}</p>
-          {resource.careerDev && (
-            <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
-          )}
-          <span className={`text-xs text-muted-text shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
-        </button>
+        {/* Overlay pattern: title text is in normal flow (Speechify-readable), button is an invisible overlay */}
+        <div className="flex-1 relative min-w-0">
+          <div className="flex items-center gap-3 px-4 py-3 pr-10">
+            <span aria-hidden="true" className="text-base shrink-0">{RESOURCE_ICONS.reading}</span>
+            <span className="flex-1 text-sm font-medium text-dark-text">{resource.title}</span>
+            {resource.careerDev && (
+              <span className="text-xs font-medium bg-purple-light text-purple-primary rounded px-1.5 py-0.5 shrink-0">Career Dev</span>
+            )}
+          </div>
+          <span aria-hidden="true" className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-text inline-block transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▾</span>
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            aria-expanded={open}
+            aria-label={`${open ? 'Collapse' : 'Expand'} reading: ${resource.title}`}
+            className="absolute inset-0 w-full h-full hover:bg-border/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+          />
+        </div>
         <CheckButton completed={completed} onToggle={onToggleComplete} />
         <StarButton starred={starred} onToggle={onToggleStar} />
       </div>
@@ -442,13 +448,15 @@ export default function CourseOutlineAccordion({
                 </div>
               )
               if (result.kind === 'day') return (
-                <button key={`d-${result.day.id}-${i}`} type="button"
-                  onClick={() => expandDayInline(result.module.id, result.day.id)}
-                  className="bg-surface rounded-xl border border-border px-4 py-3 text-left hover:border-teal-primary/40 hover:bg-teal-light/20 transition-colors w-full"
-                >
-                  <p className="text-xs text-muted-text mb-0.5">{result.module.title}</p>
-                  <p className="text-sm font-medium text-dark-text">{result.day.day_name}</p>
-                </button>
+                <div key={`d-${result.day.id}-${i}`} className="relative bg-surface rounded-xl border border-border px-4 py-3 hover:border-teal-primary/40 hover:bg-teal-light/20 transition-colors">
+                  <span className="block text-xs text-muted-text mb-0.5">{result.module.title}</span>
+                  <span className="block text-sm font-medium text-dark-text">{result.day.day_name}</span>
+                  <button type="button"
+                    onClick={() => expandDayInline(result.module.id, result.day.id)}
+                    aria-label={`Go to ${result.day.day_name} in ${result.module.title}`}
+                    className="absolute inset-0 w-full h-full rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                  />
+                </div>
               )
               if (result.kind === 'assignment') return (
                 <div key={`a-${result.assignment.id}-${i}`} className="bg-surface rounded-xl border border-border px-4 py-3 flex items-center justify-between gap-4">
@@ -524,21 +532,35 @@ export default function CourseOutlineAccordion({
                 isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
               }`}
             >
-              <button
-                type="button"
-                onClick={() => toggleModule(module.id)}
-                className="w-full flex items-center justify-between px-6 py-5 text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-dark-text">{module.title}</h3>
+              {/* Module header: h3 and button are plain siblings — no overlay, no z-index tricks.
+                  Speechify reads the h3 directly; the button handles expand/collapse. */}
+              <div className="flex items-center justify-between px-6 py-4 gap-3">
+                {/* p with role="heading" aria-level="2":
+                    - <p> tag ensures Speechify reads it (Speechify reads p elements reliably, skips h2-h6 without adjacent paragraph content)
+                    - role="heading" aria-level="2" ensures VoiceOver/JAWS still announce it as a heading */}
+                <p
+                  id={`module-heading-${module.id}`}
+                  role="heading"
+                  aria-level={2}
+                  className="font-semibold text-dark-text m-0 text-base leading-snug flex-1 min-w-0"
+                >
+                  {module.title}
                   {isCurrentWeek && (
-                    <span className="bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
+                    <span className="ml-2 bg-teal-light text-teal-primary text-xs font-semibold px-2 py-0.5 rounded-full">
                       Current Week
                     </span>
                   )}
-                </div>
-                <span className={`text-xs text-muted-text transition-transform duration-150 shrink-0 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
-              </button>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => toggleModule(module.id)}
+                  aria-expanded={!moduleCollapsed}
+                  aria-label={`${moduleCollapsed ? 'Expand' : 'Collapse'} ${module.title}`}
+                  className="shrink-0 p-2 rounded-lg text-muted-text hover:text-dark-text hover:bg-border/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                >
+                  <span aria-hidden="true" className={`text-sm inline-block transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
+                </button>
+              </div>
 
               {!moduleCollapsed && (module.wikis ?? []).length > 0 && (
                 <div className="flex flex-col gap-2 px-6 pb-2">
@@ -571,24 +593,15 @@ export default function CourseOutlineAccordion({
                           isToday ? 'border-teal-primary' : 'border-border'
                         }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => toggleDay(day.id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
-                            isToday
-                              ? 'bg-teal-light hover:bg-teal-light/70'
-                              : 'bg-background hover:bg-border/10'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
+                        {/* Day header: plain flex row — no overlay, text is directly readable by Speechify */}
+                        <div className={`flex items-center justify-between px-4 py-3 gap-2 ${isToday ? 'bg-teal-light' : 'bg-background'}`}>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <span className={`text-sm font-medium ${isToday ? 'text-teal-primary' : 'text-dark-text'}`}>
                               {day.day_name}
                             </span>
                             {isToday && (
                               <span className="text-xs text-teal-primary font-semibold">Today</span>
                             )}
-                          </div>
-                          <div className="flex items-center gap-3">
                             {total > 0 && !isDayOpen && (
                               <span className="text-xs text-muted-text">
                                 {[
@@ -598,9 +611,19 @@ export default function CourseOutlineAccordion({
                                 ].filter(Boolean).join(' · ')}
                               </span>
                             )}
-                            <span className={`text-xs text-muted-text transition-transform duration-150 ${isDayOpen ? 'rotate-180' : ''}`}>▾</span>
                           </div>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleDay(day.id)}
+                            aria-expanded={isDayOpen}
+                            aria-label={`${day.day_name}${isToday ? ' (Today)' : ''} – ${isDayOpen ? 'collapse' : 'expand'}`}
+                            className={`shrink-0 p-1.5 rounded-lg text-muted-text transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary ${
+                              isToday ? 'hover:bg-teal-primary/10' : 'hover:bg-border/10'
+                            }`}
+                          >
+                            <span aria-hidden="true" className={`text-xs inline-block transition-transform duration-150 ${isDayOpen ? 'rotate-180' : ''}`}>▾</span>
+                          </button>
+                        </div>
 
                         {isDayOpen && (
                           <DayContent
