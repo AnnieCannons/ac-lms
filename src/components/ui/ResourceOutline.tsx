@@ -662,9 +662,9 @@ export default function ResourceOutline({
                     <span className="ml-auto text-amber-600/60 group-hover:text-amber-700 transition-colors text-xs">{collapsedPastDue ? '▾' : '▴'}</span>
                   </button>
                   {!collapsedPastDue && (
-                    <div className="flex flex-col gap-2">
+                    <ul role="list" className="flex flex-col gap-2">
                       {notStartedFlat.pastDue.map(a => (
-                        <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                        <li key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
                           <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-dark-text">{a.title}</p>
                             <p className="text-xs text-amber-600 mt-0.5">
@@ -673,9 +673,9 @@ export default function ResourceOutline({
                             </p>
                           </Link>
                           <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
                 </div>
               )}
@@ -691,9 +691,9 @@ export default function ResourceOutline({
                     <span className="ml-auto text-muted-text group-hover:text-dark-text transition-colors text-xs">{collapsedUpcoming ? '▾' : '▴'}</span>
                   </button>
                   {!collapsedUpcoming && (
-                    <div className="flex flex-col gap-2">
+                    <ul role="list" className="flex flex-col gap-2">
                       {notStartedFlat.upcoming.map(a => (
-                        <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
+                        <li key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4">
                           <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-dark-text">{a.title}</p>
                             <p className="text-xs text-muted-text mt-0.5">
@@ -702,9 +702,9 @@ export default function ResourceOutline({
                             </p>
                           </Link>
                           <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
                 </div>
               )}
@@ -830,11 +830,11 @@ export default function ResourceOutline({
                         )}
 
                         {!dayCollapsed && mode === 'assignments' && (
-                          <div className="flex flex-col gap-2 pl-3">
+                          <ul role="list" className="flex flex-col gap-2 pl-3">
                             {!instructorView && visibleAssignments.length === 0 ? (
-                              <p className="text-xs text-muted-text py-2 pl-1">No assignments on {day.day_name.toLowerCase()}.</p>
+                              <li><p className="text-xs text-muted-text py-2 pl-1">No assignments on {day.day_name.toLowerCase()}.</p></li>
                             ) : visibleAssignments.map(a => instructorView ? (
-                              <div
+                              <li
                                 key={a.id}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
                               >
@@ -867,9 +867,9 @@ export default function ResourceOutline({
                                     Submissions →
                                   </Link>
                                 </div>
-                              </div>
+                              </li>
                             ) : (
-                              <div
+                              <li
                                 key={a.id}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
                               >
@@ -903,9 +903,9 @@ export default function ResourceOutline({
                                     <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} />
                                   )}
                                 </div>
-                              </div>
+                              </li>
                             ))}
-                          </div>
+                          </ul>
                         )}
                       </div>
                     )
