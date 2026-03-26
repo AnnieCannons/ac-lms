@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 
 const MIN_WIDTH = 160
 const MAX_WIDTH = 480
@@ -12,7 +12,7 @@ export default function ResizableSidebar({ children }: { children: React.ReactNo
   const widthRef = useRef(DEFAULT_WIDTH)
   widthRef.current = width
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       const w = localStorage.getItem('sidebar-width')
       const c = localStorage.getItem('sidebar-collapsed')
