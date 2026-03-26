@@ -128,9 +128,9 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
       {holidays.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest">
+            <p role="heading" aria-level={2} className="text-sm font-extrabold text-dark-text uppercase tracking-widest m-0">
               {new Date().getFullYear()} Holidays
-            </h3>
+            </p>
             <CalendarPopover
               label="All Holidays"
               initialDate={holidays[0].date}
@@ -152,9 +152,9 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
       {/* School Breaks */}
       {breaks.length > 0 && (
         <div>
-          <h3 className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3">
+          <p role="heading" aria-level={2} className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3 m-0">
             School Breaks
-          </h3>
+          </p>
           <div className="rounded-xl border border-border overflow-hidden">
             {breaks.map((b, i) => (
               <div key={b.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
