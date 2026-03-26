@@ -432,7 +432,21 @@ function AssignmentsTab({
     )
   }
 
-  const visibleModuleIds = modules
+  // "Proper" week modules have their week number in the title (e.g. "Week 3: Loops Intro").
+  // Supplementary modules (e.g. "JavaScript Exercises for Beginners") may have a week_number
+  // set for ordering purposes but don't follow the Week N: title pattern — push them to the end.
+  const isProperWeek = (m: Module) =>
+    m.week_number !== null && new RegExp(`Week\\s+${m.week_number}`, 'i').test(m.title)
+
+  const sortedModules = [...modules].sort((a, b) => {
+    const aWeek = isProperWeek(a)
+    const bWeek = isProperWeek(b)
+    if (aWeek && !bWeek) return -1
+    if (!aWeek && bWeek) return 1
+    return 0
+  })
+
+  const visibleModuleIds = sortedModules
     .filter(m => assignments.some(a => {
       if (a.moduleTitle !== m.title) return false
       if (filterUngraded && !((statsByAssignment[a.id]?.needsGrading ?? 0) > 0)) return false
@@ -478,7 +492,7 @@ function AssignmentsTab({
           </div>
         )}
       </div>
-      {modules.map(m => {
+      {sortedModules.map(m => {
         const moduleAssignments = assignments.filter(a => {
           if (a.moduleTitle !== m.title) return false
           if (filterUngraded && !((statsByAssignment[a.id]?.needsGrading ?? 0) > 0)) return false
@@ -541,7 +555,7 @@ function AssignmentsTab({
                         </div>
                       </div>
                       <Link
-                        href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
+                        href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions?grader=all`}
                         className="shrink-0 text-xs font-semibold text-teal-primary hover:underline"
                       >
                         Grade →
