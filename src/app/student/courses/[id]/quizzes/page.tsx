@@ -156,7 +156,7 @@ export default async function StudentQuizzesPage({
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
+                          <h2 className="font-semibold text-dark-text text-base">{displayTitle}</h2>
                           {quiz.module_title && (
                             <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
                           )}
@@ -192,7 +192,7 @@ export default async function StudentQuizzesPage({
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <h3 className="font-semibold text-dark-text">{displayTitle}</h3>
+                        <h2 className="font-semibold text-dark-text text-base">{displayTitle}</h2>
                         {quiz.module_title && (
                           <p className="text-xs text-muted-text mt-1">{quiz.module_title}</p>
                         )}
