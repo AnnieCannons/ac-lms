@@ -195,40 +195,34 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
         .animate-confetti-fall { animation: confetti-fall 3s ease-out forwards; }
         .ct-card {
           background: var(--color-surface);
-          border: 3px solid var(--color-border);
-          box-shadow: 6px 6px 0 var(--color-border);
-          transition: box-shadow 0.15s, transform 0.15s;
+          border: 1px solid var(--color-border);
         }
-        .ct-card:hover { transform: translate(-2px,-2px); box-shadow: 8px 8px 0 var(--color-border); }
         .ct-btn {
           background: var(--color-teal-primary);
-          border: 3px solid var(--color-border);
-          box-shadow: 4px 4px 0 var(--color-border);
           color: white;
-          transition: all 0.15s;
+          transition: opacity 0.15s;
         }
-        .ct-btn:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 var(--color-border); }
-        .ct-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--color-border); }
-        .ct-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .ct-btn:hover { opacity: 0.85; }
+        .ct-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ct-input {
-          border: 3px solid var(--color-border);
+          border: 1px solid var(--color-border);
           background: var(--color-background);
           color: var(--color-dark-text);
         }
-        .ct-input:focus { outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-teal-primary) 30%, transparent); }
+        .ct-input:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-teal-primary) 25%, transparent); }
         input[type=range].ct-range {
-          -webkit-appearance: none; width: 100%; height: 12px;
+          -webkit-appearance: none; width: 100%; height: 8px;
           background: linear-gradient(to right, #ef4444 0%, #f59e0b 50%, var(--color-teal-primary) 100%);
-          border: 3px solid var(--color-border); border-radius: 8px; outline: none;
+          border-radius: 8px; outline: none;
         }
         input[type=range].ct-range::-webkit-slider-thumb {
-          -webkit-appearance: none; width: 30px; height: 30px;
-          background: var(--color-surface); border: 4px solid var(--color-border);
+          -webkit-appearance: none; width: 24px; height: 24px;
+          background: var(--color-surface); border: 2px solid var(--color-border);
           border-radius: 50%; cursor: pointer;
         }
         input[type=range].ct-range::-moz-range-thumb {
-          width: 30px; height: 30px;
-          background: var(--color-surface); border: 4px solid var(--color-border);
+          width: 24px; height: 24px;
+          background: var(--color-surface); border: 2px solid var(--color-border);
           border-radius: 50%; cursor: pointer;
         }
       `}</style>
