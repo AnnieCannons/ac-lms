@@ -532,12 +532,8 @@ export default function CourseOutlineAccordion({
                 isCurrentWeek ? 'border-teal-primary shadow-sm' : 'border-border'
               }`}
             >
-              {/* Module header: h3 and button are plain siblings — no overlay, no z-index tricks.
-                  Speechify reads the h3 directly; the button handles expand/collapse. */}
-              <div className="flex items-center justify-between px-6 py-4 gap-3">
-                {/* p with role="heading" aria-level="2":
-                    - <p> tag ensures Speechify reads it (Speechify reads p elements reliably, skips h2-h6 without adjacent paragraph content)
-                    - role="heading" aria-level="2" ensures VoiceOver/JAWS still announce it as a heading */}
+              {/* Module header: overlay button covers entire row for click, text stays in DOM for Speechify */}
+              <div className="relative flex items-center justify-between px-6 py-4 gap-3">
                 <p
                   id={`module-heading-${module.id}`}
                   role="heading"
@@ -551,15 +547,14 @@ export default function CourseOutlineAccordion({
                     </span>
                   )}
                 </p>
+                <span aria-hidden="true" className={`shrink-0 text-sm text-muted-text inline-block transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
                 <button
                   type="button"
                   onClick={() => toggleModule(module.id)}
                   aria-expanded={!moduleCollapsed}
                   aria-label={`${moduleCollapsed ? 'Expand' : 'Collapse'} ${module.title}`}
-                  className="shrink-0 p-2 rounded-lg text-muted-text hover:text-dark-text hover:bg-border/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
-                >
-                  <span aria-hidden="true" className={`text-sm inline-block transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
-                </button>
+                  className="absolute inset-0 w-full h-full rounded-t-2xl hover:bg-border/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                />
               </div>
 
               {!moduleCollapsed && (module.wikis ?? []).length > 0 && (
@@ -593,8 +588,8 @@ export default function CourseOutlineAccordion({
                           isToday ? 'border-teal-primary' : 'border-border'
                         }`}
                       >
-                        {/* Day header: plain flex row — no overlay, text is directly readable by Speechify */}
-                        <div className={`flex items-center justify-between px-4 py-3 gap-2 ${isToday ? 'bg-teal-light' : 'bg-background'}`}>
+                        {/* Day header: overlay button covers entire row, text stays in DOM for Speechify */}
+                        <div className={`relative flex items-center justify-between px-4 py-3 gap-2 ${isToday ? 'bg-teal-light' : 'bg-background'}`}>
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <span className={`text-sm font-medium ${isToday ? 'text-teal-primary' : 'text-dark-text'}`}>
                               {day.day_name}
@@ -612,17 +607,14 @@ export default function CourseOutlineAccordion({
                               </span>
                             )}
                           </div>
+                          <span aria-hidden="true" className={`shrink-0 text-xs text-muted-text inline-block transition-transform duration-150 ${isDayOpen ? 'rotate-180' : ''}`}>▾</span>
                           <button
                             type="button"
                             onClick={() => toggleDay(day.id)}
                             aria-expanded={isDayOpen}
                             aria-label={`${day.day_name}${isToday ? ' (Today)' : ''} – ${isDayOpen ? 'collapse' : 'expand'}`}
-                            className={`shrink-0 p-1.5 rounded-lg text-muted-text transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary ${
-                              isToday ? 'hover:bg-teal-primary/10' : 'hover:bg-border/10'
-                            }`}
-                          >
-                            <span aria-hidden="true" className={`text-xs inline-block transition-transform duration-150 ${isDayOpen ? 'rotate-180' : ''}`}>▾</span>
-                          </button>
+                            className="absolute inset-0 w-full h-full hover:bg-border/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-primary"
+                          />
                         </div>
 
                         {isDayOpen && (
