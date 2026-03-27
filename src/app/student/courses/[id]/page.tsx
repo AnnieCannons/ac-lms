@@ -201,6 +201,7 @@ export default async function StudentCourseDetailPage({
                 initialStarredIds={starredIds}
                 initialCompletedIds={completedIds}
                 quizzes={quizzes}
+                showBonusAssignments
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">
