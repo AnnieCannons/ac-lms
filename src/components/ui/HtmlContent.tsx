@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import DOMPurify from "isomorphic-dompurify";
 
 export default function HtmlContent({
@@ -10,20 +9,19 @@ export default function HtmlContent({
   html: string;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const clean = DOMPurify.sanitize(html);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.querySelectorAll("a").forEach((a) => {
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-    });
-  }, [html]);
+  // Force all links to open in a new tab during sanitization so it's
+  // correct from first paint (no hydration gap from useEffect).
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "A") {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+  const clean = DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
+  DOMPurify.removeHooks("afterSanitizeAttributes");
 
   return (
     <div
-      ref={ref}
       className={`wiki-content${className ? ` ${className}` : ''}`}
       dangerouslySetInnerHTML={{ __html: clean }}
     />
