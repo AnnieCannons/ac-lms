@@ -254,7 +254,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[150] p-6">
           <div className="ct-card rounded-2xl p-8 max-w-sm w-full text-center">
             <div className="text-5xl mb-3">🌟</div>
-            <h2 className="text-2xl font-bold text-dark-text mb-2">Mastered!</h2>
+            <h2 className="text-2xl font-bold text-dark-text mb-2">Your hard work paid off!</h2>
             <p className="text-muted-text mb-6">You reached a 10 in <strong className="text-dark-text">{masterySkill}</strong>! You can teach this to anyone.</p>
             <button onClick={() => setMasterySkill(null)} className="ct-btn px-6 py-3 rounded-xl font-bold w-full">
               Let&apos;s go! ✨
