@@ -6,8 +6,10 @@ import { redirect } from 'next/navigation'
  * to the given course, OR if they are a TA enrolled in that course.
  *
  * Redirects to /unauthorized if neither condition is met.
+ * If studentRedirect is provided and the user is a student enrolled in the course,
+ * redirects to that URL instead (e.g. instructor links shared with students).
  */
-export async function getInstructorOrTaAccess(courseId: string) {
+export async function getInstructorOrTaAccess(courseId: string, studentRedirect?: string) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -31,6 +33,10 @@ export async function getInstructorOrTaAccess(courseId: string) {
 
   if (enrollment?.role === 'ta') {
     return { user, profile, isTa: true }
+  }
+
+  if (studentRedirect && (enrollment?.role === 'student' || enrollment?.role === 'observer')) {
+    redirect(studentRedirect)
   }
 
   redirect('/unauthorized')

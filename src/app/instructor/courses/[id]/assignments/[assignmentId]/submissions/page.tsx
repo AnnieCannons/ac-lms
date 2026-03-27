@@ -21,7 +21,7 @@ export default async function InstructorSubmissionsPage({
   const isGraderMode = grader === 'all' || grader === 'me'
   const graderParam = isGraderMode ? grader as 'all' | 'me' : undefined
 
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/assignments/${assignmentId}`)
 
   // Use service role for cross-user queries (bypasses RLS)
   let admin: ReturnType<typeof createServiceSupabaseClient>
