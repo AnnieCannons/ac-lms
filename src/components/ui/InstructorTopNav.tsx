@@ -31,7 +31,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
           <span key={i} className="flex items-center gap-1 min-w-0">
             {i > 0 && <span aria-hidden="true" className="text-border shrink-0 select-none">›</span>}
             {crumb.href ? (
-              <Link href={crumb.href} className="text-sm text-muted-text hover:text-dark-text transition-colors truncate max-w-[180px]">
+              <Link href={crumb.href} className="text-sm text-teal-primary hover:underline transition-colors truncate max-w-[180px]">
                 {crumb.label}
               </Link>
             ) : (
