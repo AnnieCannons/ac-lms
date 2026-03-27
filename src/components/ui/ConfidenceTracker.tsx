@@ -198,7 +198,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
           border: 1px solid var(--color-border);
         }
         .ct-btn {
-          background: var(--color-teal-primary);
+          background: #1AA5A5;
           color: white;
           transition: opacity 0.15s;
         }
@@ -209,10 +209,10 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
           background: var(--color-background);
           color: var(--color-dark-text);
         }
-        .ct-input:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-teal-primary) 25%, transparent); }
+        .ct-input:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, #1AA5A5 25%, transparent); }
         input[type=range].ct-range {
           -webkit-appearance: none; width: 100%; height: 8px;
-          background: linear-gradient(to right, #ef4444 0%, #f59e0b 50%, var(--color-teal-primary) 100%);
+          background: linear-gradient(to right, #ef4444 0%, #f59e0b 50%, #1AA5A5 100%);
           border-radius: 8px; outline: none;
         }
         input[type=range].ct-range::-webkit-slider-thumb {
@@ -275,7 +275,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
 
             {/* Score display */}
             <div className="text-center mb-4">
-              <div className="text-6xl font-bold text-teal-primary" style={{ fontFamily: 'var(--font-inter, sans-serif)' }}>
+              <div className="text-6xl font-bold" style={{ color: '#1AA5A5', fontFamily: 'var(--font-inter, sans-serif)' }}>
                 {confidenceScore}
               </div>
               <p className="text-muted-text text-sm font-semibold">out of 10</p>
@@ -341,7 +341,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-dark-text mb-2">Confidence Tracker</h1>
-          <p className="text-muted-text">Welcome back, <span className="font-semibold text-teal-primary">{userName}</span></p>
+          <p className="text-muted-text">Welcome back, <span className="font-semibold" style={{ color: '#1AA5A5' }}>{userName}</span></p>
           <p className="text-sm text-muted-text mt-1">Track your coding skills and watch your confidence grow</p>
         </div>
 
@@ -363,7 +363,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
             ))}
           </div>
           <details className="mt-2">
-            <summary className="text-sm text-teal-primary font-semibold cursor-pointer hover:underline text-center list-none">
+            <summary className="text-sm font-semibold cursor-pointer hover:underline text-center list-none" style={{ color: '#1AA5A5' }}>
               View detailed descriptions ↓
             </summary>
             <div className="mt-3 space-y-1.5 text-sm text-dark-text">
@@ -409,7 +409,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
         {/* Empty state */}
         {skills.length === 0 && !showForm && (
           <div className="text-center py-16">
-            <Target size={56} className="mx-auto mb-4 text-teal-primary opacity-60" />
+            <Target size={56} className="mx-auto mb-4 opacity-60" style={{ color: '#1AA5A5' }} />
             <p className="text-lg text-muted-text">No skills tracked yet. Start building your confidence!</p>
           </div>
         )}
@@ -435,7 +435,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-2">
                     {latestScore !== null && (
-                      <span className="text-2xl font-bold text-teal-primary">{latestScore}<span className="text-sm text-muted-text font-normal">/10</span></span>
+                      <span className="text-2xl font-bold" style={{ color: '#1AA5A5' }}>{latestScore}<span className="text-sm text-muted-text font-normal">/10</span></span>
                     )}
                     {progress !== null && progress !== 0 && (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full border-2 border-border ${progress > 0 ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'}`}>
@@ -468,9 +468,9 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
                         <Line
                           type="monotone"
                           dataKey="confidence"
-                          stroke="var(--color-teal-primary)"
+                          stroke="#1AA5A5"
                           strokeWidth={3}
-                          dot={{ fill: 'var(--color-teal-primary)', strokeWidth: 2, r: 5, stroke: 'var(--color-border)' }}
+                          dot={{ fill: '#1AA5A5', strokeWidth: 2, r: 5, stroke: 'var(--color-border)' }}
                           activeDot={{ r: 7 }}
                         />
                       </LineChart>
@@ -480,11 +480,11 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
 
                 {/* Practice plan summary */}
                 {latest && !isMastered && (
-                  <div className="mb-4 rounded-xl p-3 border-2 border-teal-primary/40 bg-teal-light/30 text-sm text-dark-text">
+                  <div className="mb-4 rounded-xl p-3 text-sm text-dark-text" style={{ border: '1px solid #1AA5A540', background: '#1AA5A510' }}>
                     Last score: <strong>{latest.score}</strong> — &ldquo;{SCORE_LABELS[latest.score]}&rdquo;
                     {latest.goal_points && (
                       <span className="block mt-1 text-muted-text">
-                        Goal: reach <strong className="text-teal-primary">{Math.min(10, latest.score + latest.goal_points)}</strong> next check-in
+                        Goal: reach <strong style={{ color: '#1AA5A5' }}>{Math.min(10, latest.score + latest.goal_points)}</strong> next check-in
                       </span>
                     )}
                   </div>
