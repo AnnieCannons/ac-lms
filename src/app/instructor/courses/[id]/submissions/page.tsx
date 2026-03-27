@@ -84,7 +84,10 @@ export default async function CourseSubmissionsPage({
 
   const totalStudents = students.length
 
-  // Stats per assignment
+  // Stats per assignment — only count submissions from currently enrolled students
+  // (dropped students leave behind submissions that should not affect grading counts)
+  const enrolledStudentIds = new Set(students.map(s => s.id))
+
   const statsMap = new Map<string, {
     turnedIn: number
     needsGrading: number
@@ -92,7 +95,7 @@ export default async function CourseSubmissionsPage({
     incomplete: number
   }>()
 
-  for (const sub of allSubmissions ?? []) {
+  for (const sub of (allSubmissions ?? []).filter(s => enrolledStudentIds.has(s.student_id))) {
     const s = statsMap.get(sub.assignment_id) ?? {
       turnedIn: 0, needsGrading: 0, complete: 0, incomplete: 0,
     }
@@ -108,8 +111,8 @@ export default async function CourseSubmissionsPage({
   const statsByAssignment = Object.fromEntries(statsMap)
   const totalNeedsGrading = [...statsMap.values()].reduce((n, s) => n + s.needsGrading, 0)
 
-  // Slim submissions for client component
-  const submissionsForClient = (allSubmissions ?? []).map(s => ({
+  // Slim submissions for client component — enrolled students only
+  const submissionsForClient = (allSubmissions ?? []).filter(s => enrolledStudentIds.has(s.student_id)).map(s => ({
     id: s.id,
     assignment_id: s.assignment_id,
     student_id: s.student_id,
