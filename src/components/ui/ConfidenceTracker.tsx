@@ -499,7 +499,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
                 {isMastered && (
                   <div className="mb-4 rounded-xl p-3 border-2 border-yellow-500/40 bg-yellow-50 dark:bg-yellow-950/30 text-sm text-center">
                     <Sparkles size={16} className="inline mr-1 text-yellow-500" />
-                    <span className="font-semibold text-yellow-700 dark:text-yellow-400">Mastered! You can teach this skill.</span>
+                    <span className="font-semibold text-yellow-700 dark:text-yellow-400">Confidence level achieved!</span>
                   </div>
                 )}
 
