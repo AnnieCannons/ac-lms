@@ -491,9 +491,9 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
                 )}
 
                 {isMastered && (
-                  <div className="mb-4 rounded-xl p-3 border-2 border-yellow-500/40 bg-yellow-50 dark:bg-yellow-950/30 text-sm text-center">
-                    <Sparkles size={16} className="inline mr-1 text-yellow-500" />
-                    <span className="font-semibold text-yellow-700 dark:text-yellow-400">Confidence level achieved!</span>
+                  <div className="mb-4 rounded-xl p-3 text-sm text-center" style={{ border: '1px solid #1AA5A540', background: '#1AA5A515' }}>
+                    <Sparkles size={16} className="inline mr-1" style={{ color: '#1AA5A5' }} />
+                    <span className="font-semibold" style={{ color: '#1AA5A5' }}>Confidence level achieved!</span>
                   </div>
                 )}
 
