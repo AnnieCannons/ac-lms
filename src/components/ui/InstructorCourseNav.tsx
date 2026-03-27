@@ -18,7 +18,7 @@ interface Props {
   isTa?: boolean
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence']
 
 function useNavSection(key: string, defaultOpen = true): [boolean, () => void] {
   const [open, setOpen] = useState(() => {
@@ -152,6 +152,7 @@ export default function InstructorCourseNav({
             <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
             {navLink('Gradebook', 'gradebook')}
             {navLink('Quiz Submissions', 'quiz-submissions')}
+            {navLink('Confidence Tracker', 'confidence')}
             <button
               onClick={() => setGraderOpen(true)}
               className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20 flex items-center justify-between gap-2"
