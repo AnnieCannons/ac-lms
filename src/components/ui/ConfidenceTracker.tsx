@@ -57,6 +57,11 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
   const supabase = createClient()
   const [skills, setSkills] = useState<Skill[]>([])
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null))
+  }, [])
 
   // New skill form
   const [showForm, setShowForm] = useState(false)
@@ -106,11 +111,11 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
   useEffect(() => { loadSkills() }, [loadSkills])
 
   const addSkill = async () => {
-    if (!newSkill.trim() || saving) return
+    if (!newSkill.trim() || saving || !userId) return
     setSaving(true)
     const { data } = await supabase
       .from('confidence_skills')
-      .insert({ name: newSkill.trim() })
+      .insert({ name: newSkill.trim(), user_id: userId })
       .select('id, name')
       .single()
     if (data) {
@@ -136,7 +141,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
   }
 
   const logEntry = async () => {
-    if (!selectedSkill || loggingEntry) return
+    if (!selectedSkill || loggingEntry || !userId) return
     setLoggingEntry(true)
 
     const last = selectedSkill.entries[selectedSkill.entries.length - 1]
@@ -145,7 +150,7 @@ export default function ConfidenceTracker({ userName }: { userName: string }) {
 
     const { data } = await supabase
       .from('confidence_entries')
-      .insert({ skill_id: selectedSkill.id, score: confidenceScore, goal_points: goalPoints })
+      .insert({ skill_id: selectedSkill.id, score: confidenceScore, goal_points: goalPoints, user_id: userId })
       .select('id, score, goal_points, created_at')
       .single()
 
