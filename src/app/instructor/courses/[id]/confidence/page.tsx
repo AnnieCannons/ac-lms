@@ -94,16 +94,18 @@ export default async function InstructorConfidencePage({
     skillIdToNorm.set(s.id, s.name.trim().toLowerCase())
   }
 
-  // Build per-student skill entries
+  // Build per-student skill entries — key by display name so lookup matches column headers
   type EntryRow = { score: number; created_at: string }
   const studentSkills = new Map<string, Record<string, EntryRow[]>>()
   for (const e of entriesData ?? []) {
     const normName = skillIdToNorm.get(e.skill_id)
     if (!normName) continue
+    const displayName = skillDisplayNames.get(normName)
+    if (!displayName) continue
     if (!studentSkills.has(e.user_id)) studentSkills.set(e.user_id, {})
     const skills = studentSkills.get(e.user_id)!
-    if (!skills[normName]) skills[normName] = []
-    skills[normName].push({ score: e.score, created_at: e.created_at })
+    if (!skills[displayName]) skills[displayName] = []
+    skills[displayName].push({ score: e.score, created_at: e.created_at })
   }
 
   // Assemble student rows
