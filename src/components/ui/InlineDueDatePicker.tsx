@@ -47,9 +47,9 @@ export default function InlineDueDatePicker({ assignmentId, dueDate, onSaved }: 
     setSaving(false)
   }
 
-  const selected = dueDate ? localDate(dueDate) : undefined
+  const selected = dueDate ? new Date(dueDate) : undefined
   const label = dueDate
-    ? `Due ${formatDueDate(dueDate, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`
+    ? `Due ${new Date(dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`
     : 'Add due date'
 
   return (
