@@ -6,6 +6,7 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import StudentDetailView, { type CategorizedAssignment } from '@/components/ui/StudentDetailView'
 import ViewAsStudentButton from '@/components/ui/ViewAsStudentButton'
+import { localDate, todayLocal } from '@/lib/date-utils'
 
 export default async function StudentDetailPage({
   params,
@@ -116,7 +117,6 @@ export default async function StudentDetailPage({
     : { data: [] }
 
   // Categorize assignments
-  const now = new Date()
   const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null }]))
 
   const missing: CategorizedAssignment[] = []
@@ -127,7 +127,7 @@ export default async function StudentDetailPage({
 
   for (const a of allAssignments) {
     const sub = subMap.get(a.id)
-    const duePassed = a.due_date ? new Date(a.due_date) < now : false
+    const duePassed = a.due_date ? localDate(a.due_date) < todayLocal() : false
     const isLate = !!(
       sub?.submitted_at &&
       a.due_date &&
@@ -151,7 +151,7 @@ export default async function StudentDetailPage({
   const quizSubMap = new Map((quizSubmissions ?? []).map(s => [s.quiz_id, s]))
   for (const q of (quizzes ?? [])) {
     const sub = quizSubMap.get(q.id)
-    const duePassed = q.due_at ? new Date(q.due_at) < now : false
+    const duePassed = q.due_at ? localDate(q.due_at) < todayLocal() : false
     const displayTitle = q.title?.startsWith('Quiz: ') ? q.title.slice(6) : q.title
     const isLate = !!(sub?.submitted_at && q.due_at && sub.submitted_at > q.due_at)
     const entry: CategorizedAssignment = {

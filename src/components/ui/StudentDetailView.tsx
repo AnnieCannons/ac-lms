@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { saveGrade } from '@/lib/grade-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
+import { localDate } from '@/lib/date-utils'
 
 export type CategorizedAssignment = {
   id: string
@@ -44,7 +45,7 @@ const STAT_CONFIG: Record<StatCategory, {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return localDate(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function formatDateTime(iso: string) {
