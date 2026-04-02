@@ -8,7 +8,6 @@ import DayResourceList from '@/components/ui/DayResourceList'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import WikiView from '@/components/ui/WikiView'
-import { formatDueDate } from '@/lib/date-utils'
 
 function stripHtml(html: string): string {
   return html
@@ -243,7 +242,9 @@ export default async function StudentDayDetailPage({
                               )}
                               {!excused && effectiveDue && (
                                 <p className="text-xs text-muted-text mt-2">
-                                  Due {formatDueDate(effectiveDue, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                  Due {new Date(effectiveDue).toLocaleDateString('en-US', {
+                                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                                  })}
                                 </p>
                               )}
                             </>
