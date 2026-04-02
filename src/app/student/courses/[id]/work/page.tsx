@@ -5,6 +5,7 @@ import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentWorkList, { type WorkAssignment } from '@/components/ui/StudentWorkList'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import { localDate, todayLocal } from '@/lib/date-utils'
 
 function getCurrentWeek(startDate: string | null, endDate: string | null): number | null {
   if (!startDate) return null
@@ -91,7 +92,6 @@ export default async function MyWorkPage({
     : { data: [] }
   const overrideMap = new Map((overrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
 
-  const now = new Date()
   const currentWeek = getCurrentWeek(course.start_date, course.end_date ?? null)
 
   const assignments: WorkAssignment[] = (modules ?? []).flatMap(module =>
@@ -109,7 +109,7 @@ export default async function MyWorkPage({
           const override = overrideMap.get(a.id)
           const effectiveDueDate = override?.due_date ?? a.due_date
           const isExcused = override?.excused ?? false
-          const isLate = !isExcused && !sub && !!effectiveDueDate && new Date(effectiveDueDate) < now
+          const isLate = !isExcused && !sub && !!effectiveDueDate && localDate(effectiveDueDate) < todayLocal()
           return {
             id: a.id,
             title: a.title,
