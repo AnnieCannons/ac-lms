@@ -341,7 +341,7 @@ function AssignmentCard({
           </p>
           <p className="text-xs text-muted-text">
             Due:{" "}
-            {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : "None"}
+            {assignment.due_date ? localDate(assignment.due_date).toLocaleDateString() : "None"}
           </p>
         </a>
         {!readOnly && ctx && (
