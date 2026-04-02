@@ -508,7 +508,7 @@ function AssignmentFullView({
   const [editDescription, setEditDescription] = useState(assignment?.description ?? "");
   const [editHowToTurnIn, setEditHowToTurnIn] = useState(assignment?.how_to_turn_in ?? "");
   const [editDueDate, setEditDueDate] = useState(
-    assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : ""
+    assignment?.due_date ? assignment.due_date.slice(0, 16) : ""
   );
   const [viewDueDate, setViewDueDate] = useState(assignment?.due_date ?? null);
 
@@ -588,7 +588,7 @@ function AssignmentFullView({
     editTitle !== decodeHtml(assignment?.title ?? "") ||
     editDescription !== (assignment?.description ?? "") ||
     editHowToTurnIn !== (assignment?.how_to_turn_in ?? "") ||
-    editDueDate !== (assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : "")
+    editDueDate !== (assignment?.due_date ? assignment.due_date.slice(0, 16) : "")
   );
 
   useEffect(() => {
@@ -782,7 +782,7 @@ function AssignmentFullView({
                     setEditTitle(decodeHtml(assignment!.title));
                     setEditDescription(assignment!.description ?? "");
                     setEditHowToTurnIn(assignment!.how_to_turn_in ?? "");
-                    setEditDueDate(assignment!.due_date ? new Date(assignment!.due_date).toISOString().slice(0, 16) : "");
+                    setEditDueDate(assignment!.due_date ? assignment!.due_date.slice(0, 16) : "");
                     updatePersistEditing(false);
                   }}
                   className="text-sm text-muted-text hover:text-dark-text px-4 py-2 transition-colors"
