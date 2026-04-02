@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import GradebookCell from './GradebookCell'
 
 export interface GradebookStudent { id: string; name: string }
@@ -301,12 +302,13 @@ export default function GradebookGrid({ courseId, students, modules, assignments
                       {a.weekNumber != null && (
                         <span className="text-[10px] text-muted-text/70 font-normal block leading-none mb-1">W{a.weekNumber}</span>
                       )}
-                      <span
-                        className="text-xs font-normal tracking-tight text-dark-text block overflow-hidden whitespace-nowrap text-ellipsis"
-                        title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''}`}
+                      <Link
+                        href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                        className="text-xs font-normal tracking-tight text-dark-text block overflow-hidden whitespace-nowrap text-ellipsis hover:text-teal-primary hover:underline"
+                        title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
                       >
                         {a.title}
-                      </span>
+                      </Link>
                     </div>
                     <div
                       onMouseDown={(e) => startResize(a.id, e)}

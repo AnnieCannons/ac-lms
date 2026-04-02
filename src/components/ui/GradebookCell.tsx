@@ -1,4 +1,5 @@
 'use client'
+import { localDate, todayLocal } from '@/lib/date-utils'
 
 interface Submission {
   status: string
@@ -14,8 +15,7 @@ interface Props {
 }
 
 export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate }: Props) {
-  const now = new Date()
-  const isPastDue = dueDate ? new Date(dueDate) < now : false
+  const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
 
   const hasSubmission = !!submission && submission.status !== 'draft'
 

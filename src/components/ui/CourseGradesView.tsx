@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { formatDueDate, localDate } from '@/lib/date-utils'
+import { formatDueDate, localDate, todayLocal } from '@/lib/date-utils'
 import { saveGrade } from '@/lib/grade-actions'
 
 interface Assignment {
@@ -77,7 +77,6 @@ export default function CourseGradesView({
   const [speedGraderOpen, setSpeedGraderOpen] = useState(false)
   const [search, setSearch] = useState('')
 
-  const now = new Date()
   const subMap = new Map(submissions.map(s => [`${s.student_id}-${s.assignment_id}`, s]))
 
   const studentStats: StudentRow[] = students
@@ -90,7 +89,7 @@ export default function CourseGradesView({
       for (const a of assignments) {
         const sub = subMap.get(`${student.id}-${a.id}`)
         if (!sub || sub.status === 'draft') {
-          if (a.due_date && localDate(a.due_date) < now) late.push(a)
+          if (a.due_date && localDate(a.due_date) < todayLocal()) late.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)
         } else if (sub.status === 'graded') {
