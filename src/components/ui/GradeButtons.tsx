@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { saveGrade } from "@/lib/grade-actions";
 
@@ -26,11 +26,14 @@ export default function GradeButtons({
   const [grade, setGrade] = useState<Grade>(initialGrade);
   const [gradedAt, setGradedAt] = useState<string | null>(initialGradedAt);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const mark = async (value: "complete" | "incomplete") => {
+    if (savingRef.current) return;
     const newGrade: Grade = grade === value ? null : value;
     const now = newGrade ? new Date().toISOString() : null;
     const wasUngraded = grade === null;
+    savingRef.current = true;
     setSaving(true);
     setGrade(newGrade);
     setGradedAt(now);
@@ -39,9 +42,11 @@ export default function GradeButtons({
       console.error("Failed to save grade:", result.error);
       setGrade(grade);
       setGradedAt(initialGradedAt);
+      savingRef.current = false;
       setSaving(false);
       return;
     }
+    savingRef.current = false;
     setSaving(false);
     router.refresh();
   };

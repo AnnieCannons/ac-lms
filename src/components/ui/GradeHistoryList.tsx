@@ -7,7 +7,10 @@ export type GradeHistoryEntry = {
 export default function GradeHistoryList({ entries }: { entries: GradeHistoryEntry[] }) {
   if (entries.length === 0) return null
 
-  const incompleteCount = entries.filter(e => e.grade === 'incomplete').length
+  // De-duplicate consecutive same-grade entries (e.g. double-click producing two incompletes)
+  const deduped = entries.filter((entry, i) => i === entries.length - 1 || entry.grade !== entries[i + 1].grade)
+
+  const incompleteCount = deduped.filter(e => e.grade === 'incomplete').length
 
   return (
     <div className="bg-surface rounded-2xl border border-border p-6">
@@ -20,7 +23,7 @@ export default function GradeHistoryList({ entries }: { entries: GradeHistoryEnt
         )}
       </div>
       <div className="flex flex-col gap-2">
-        {entries.map((entry) => (
+        {deduped.map((entry) => (
           <div key={entry.id} className="flex items-center justify-between gap-3">
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
               entry.grade === 'complete' ? 'status-complete-btn' : 'status-revision-btn'

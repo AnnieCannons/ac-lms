@@ -107,6 +107,16 @@ export async function saveGrade(
   }
 
   const admin = createServiceSupabaseClient()
+
+  // Fetch current grade to prevent duplicate history entries
+  const { data: current } = await admin
+    .from('submissions')
+    .select('grade')
+    .eq('id', submissionId)
+    .single()
+
+  if (current?.grade === grade) return {}
+
   const now = grade ? new Date().toISOString() : null
   const { error } = await admin
     .from('submissions')
