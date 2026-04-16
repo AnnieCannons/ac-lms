@@ -48,7 +48,11 @@ export default function GradeButtons({
     }
     savingRef.current = false;
     setSaving(false);
-    router.refresh();
+    if (wasUngraded && newGrade && nextUrl) {
+      router.push(nextUrl);
+    } else {
+      router.refresh();
+    }
   };
 
   return (
