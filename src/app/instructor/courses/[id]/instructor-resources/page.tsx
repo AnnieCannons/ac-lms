@@ -1,22 +1,24 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import ResourceOutline from "@/components/ui/ResourceOutline";
+import AddResourceButton from "@/components/ui/AddResourceButton";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 
-export default async function InstructorClassResourcesPage({
+export const dynamic = 'force-dynamic';
+
+export default async function InstructorResourcesPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
-  const supabase = await createServerSupabaseClient();
+  const { profile, isTa } = await getInstructorOrTaAccess(id);
   const admin = createServiceSupabaseClient();
 
-  const { data: course } = await supabase
+  const { data: course } = await admin
     .from("courses")
     .select("*")
     .eq("id", id)
@@ -37,12 +39,27 @@ export default async function InstructorClassResourcesPage({
       ...m,
       module_days: (m.module_days ?? [])
         .filter(d => !(d as { deleted_at?: string | null }).deleted_at)
-        .map(d => ({ ...d, resources: (d.resources ?? []).filter((r: { deleted_at?: string | null; instructor_only?: boolean }) => !r.deleted_at && !r.instructor_only) })),
+        .map(d => ({
+          ...d,
+          resources: (d.resources ?? []).filter(
+            (r: { deleted_at?: string | null; instructor_only?: boolean }) =>
+              !r.deleted_at && r.instructor_only === true
+          ),
+        })),
     }));
 
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name, href: `/instructor/courses/${id}` }, { label: 'Class Resources' }]} />
+      <InstructorTopNav
+        name={profile?.name}
+        role={profile?.role}
+        isTa={isTa}
+        breadcrumbs={[
+          { label: 'Courses', href: '/instructor/courses' },
+          { label: course.name, href: `/instructor/courses/${id}` },
+          { label: 'Instructor Resources' },
+        ]}
+      />
 
       <div className="flex">
         <InstructorSidebar courseId={id} courseName={course.name} />
@@ -52,12 +69,18 @@ export default async function InstructorClassResourcesPage({
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>
-            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Class Resources</h2>
+            <div className="flex items-center justify-between mt-6 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-dark-text">Instructor Resources</h2>
+                <p className="text-sm text-muted-text mt-1">Only visible to instructors, admins, and TAs — never shown to students.</p>
+              </div>
+              {!isTa && <AddResourceButton courseId={id} instructorOnly />}
+            </div>
             <ResourceOutline
               modules={modules as Parameters<typeof ResourceOutline>[0]['modules']}
               courseId={id}
               mode="resources"
-              editable
+              editable={!isTa}
             />
           </main>
         </div>

@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
     title: r.title,
     content: r.content,
     order: r.order,
+    instructor_only: r.instructor_only ?? false,
   }))
   const { data: newResources, error: resourcesError } = resourceInserts.length
     ? await service.from('resources').insert(resourceInserts).select()

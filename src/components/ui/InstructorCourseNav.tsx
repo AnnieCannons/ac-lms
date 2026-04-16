@@ -18,7 +18,7 @@ interface Props {
   isTa?: boolean
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence']
 
 function useNavSection(key: string, defaultOpen = true): [boolean, () => void] {
   const [open, setOpen] = useState(() => {
@@ -40,6 +40,7 @@ const CATEGORY_ITEMS = [
   { label: 'Assignments', slug: 'assignments' },
   { label: 'Quizzes', slug: 'quizzes' },
   { label: 'Class Resources', slug: 'class-resources' },
+  { label: 'Instructor Resources', slug: 'instructor-resources' },
   { label: 'Career Development', slug: 'career' },
   { label: 'Level Up Your Skills', slug: 'level-up' },
 ]

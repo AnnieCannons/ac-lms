@@ -155,11 +155,22 @@ function MultiSelectDropdown({
 }
 
 export default function GradebookGrid({ courseId, students, modules, assignments, submissions, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
-  const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set())
+  const modulesStorageKey = `gradebook-modules-${courseId}`
+  const [selectedModules, setSelectedModules] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(modulesStorageKey)
+      if (saved) return new Set(JSON.parse(saved) as string[])
+    } catch {}
+    return new Set()
+  })
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
   const [selectedAssignments, setSelectedAssignments] = useState<Set<string>>(new Set())
   const [myGroupActive, setMyGroupActive] = useState(false)
   const [colWidths, setColWidths] = useState<Map<string, number>>(new Map())
+
+  useEffect(() => {
+    try { localStorage.setItem(modulesStorageKey, JSON.stringify([...selectedModules])) } catch {}
+  }, [selectedModules])
 
   const weeklyModuleSet = new Set(modulesWithWeeklyGroups)
 

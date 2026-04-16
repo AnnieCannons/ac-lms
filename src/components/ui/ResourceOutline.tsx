@@ -8,6 +8,9 @@ import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actio
 import { trashResource } from '@/lib/trash-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import { normalizeUrl } from '@/lib/url'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -387,6 +390,19 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   return true
 }
 
+function SortableModuleRow({ id, canDrag, children }: {
+  id: string
+  canDrag: boolean
+  children: (handleProps: React.HTMLAttributes<HTMLElement> | null) => React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !canDrag })
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}>
+      {children(canDrag ? { ...attributes, ...listeners } : null)}
+    </div>
+  )
+}
+
 export default function ResourceOutline({
   modules, courseId, mode, editable, instructorView, submissionMap,
   initialStarredIds, initialCompletedIds,
@@ -495,17 +511,34 @@ export default function ResourceOutline({
   const toggleDay = (id: string) =>
     setCollapsedDays(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
 
-  const sorted = [...modules].sort((a, b) => {
-    const aCareer = a.category === 'career'
-    const bCareer = b.category === 'career'
-    if (aCareer !== bCareer) return aCareer ? 1 : -1
-    if (a.week_number !== null && b.week_number !== null) return a.week_number - b.week_number
-    return a.order - b.order
-  })
+  const [orderedModules, setOrderedModules] = useState(() =>
+    [...modules].sort((a, b) => {
+      const aCareer = a.category === 'career'
+      const bCareer = b.category === 'career'
+      if (aCareer !== bCareer) return aCareer ? 1 : -1
+      if (a.week_number !== null && b.week_number !== null) return a.week_number - b.week_number
+      return a.order - b.order
+    })
+  )
+
+  const canReorderModules = !!(editable || instructorView)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleModuleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = orderedModules.findIndex(m => m.id === active.id)
+    const newIndex = orderedModules.findIndex(m => m.id === over.id)
+    const newOrder = arrayMove(orderedModules, oldIndex, newIndex)
+    setOrderedModules(newOrder)
+    await Promise.all(
+      newOrder.map((m, i) => supabase.from('modules').update({ order: i }).eq('id', m.id))
+    )
+  }
 
   const searchQ = search.trim().toLowerCase()
 
-  const allPublishedAssignments = sorted.flatMap(m =>
+  const allPublishedAssignments = orderedModules.flatMap(m =>
     m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published).map(a => ({
       ...a,
       moduleTitle: m.title as string,
@@ -550,7 +583,7 @@ export default function ResourceOutline({
 
   const skipDays = mode === 'assignments' ? SKIP_DAYS_ASSIGNMENTS : SKIP_DAYS_RESOURCES
 
-  const modulesWithContent = sorted.filter(m =>
+  const modulesWithContent = orderedModules.filter(m =>
     m.module_days.some(d => {
       if (skipDays.has(d.day_name)) return false
       if (mode === 'resources') return (d.resources ?? []).some(r =>
@@ -724,6 +757,8 @@ export default function ResourceOutline({
               {allExpanded ? 'Collapse All ▴' : 'Expand All ▾'}
             </button>
           </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleModuleDragEnd}>
+          <SortableContext items={modulesWithContent.map(m => m.id)} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-6">
             {modulesWithContent.map(module => {
           const moduleCollapsed = collapsedModules.has(module.id)
@@ -748,16 +783,33 @@ export default function ResourceOutline({
           if (days.length === 0) return null
 
           return (
-            <div key={module.id}>
+            <SortableModuleRow key={module.id} id={module.id} canDrag={canReorderModules}>
+              {(handleProps) => (
+            <div>
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
-                <button
-                  type="button"
-                  onClick={() => toggleModule(module.id)}
-                  className="flex items-center gap-2 text-left"
-                >
-                  <h2 className="text-base font-bold text-dark-text">{module.title}</h2>
-                  <span className={`text-xs text-muted-text transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
-                </button>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {handleProps && (
+                    <span
+                      {...handleProps}
+                      className="cursor-grab active:cursor-grabbing text-muted-text hover:text-dark-text transition-colors shrink-0 touch-none"
+                      title="Drag to reorder"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                        <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                        <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                      </svg>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleModule(module.id)}
+                    className="flex items-center gap-2 text-left"
+                  >
+                    <h2 className="text-base font-bold text-dark-text">{module.title}</h2>
+                    <span className={`text-xs text-muted-text transition-transform duration-150 ${moduleCollapsed ? '' : 'rotate-180'}`}>▾</span>
+                  </button>
+                </div>
               </div>
 
               {!moduleCollapsed && (
@@ -917,9 +969,13 @@ export default function ResourceOutline({
                 </div>
               )}
             </div>
+            )}
+            </SortableModuleRow>
           )
         })}
           </div>
+          </SortableContext>
+          </DndContext>
         </>
       )}
 

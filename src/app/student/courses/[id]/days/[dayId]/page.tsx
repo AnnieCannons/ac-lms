@@ -73,7 +73,7 @@ export default async function StudentDayDetailPage({
 
   const admin2 = createServiceSupabaseClient()
   const [{ data: resources }, { data: stars }, { data: completions }, { data: dayWikis }] = await Promise.all([
-    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).order('order', { ascending: true }),
+    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).eq('instructor_only', false).order('order', { ascending: true }),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
     admin2.from('wikis').select('id, title, content').eq('module_day_id', dayId).eq('published', true).order('order', { ascending: true }),

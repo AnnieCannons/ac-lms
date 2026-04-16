@@ -9,7 +9,7 @@ import SubmissionComments, { type CommentEntry } from '@/components/ui/Submissio
 import SubmissionFilePreview from '@/components/ui/SubmissionFilePreview'
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
-import MarkdownContent from '@/components/ui/MarkdownContent'
+import MarkdownContent, { PlainTextContent } from '@/components/ui/MarkdownContent'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { normalizeUrl } from '@/lib/url'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
@@ -30,7 +30,7 @@ function SubmissionContent({ type, content }: { type: SubmissionType; content: s
       </a>
     )
   }
-  return <MarkdownContent content={content} />
+  return <PlainTextContent content={content} />
 }
 
 export default async function GradingPage({
@@ -111,8 +111,9 @@ export default async function GradingPage({
     // if override === user.id: keep all ungraded (I'm grading everyone for this assignment)
   }
 
-  // In grader mode: navigate through ungraded students only; otherwise all students
-  const navStudents = isGraderMode ? ungradedStudents : allStudents
+  // In grader mode: navigate through ungraded students only; otherwise students who have submitted
+  const studentsWithSubmissions = allStudents.filter(s => submissionStatusMap.has(s.id))
+  const navStudents = isGraderMode ? ungradedStudents : studentsWithSubmissions
   const currentNavIndex = navStudents.findIndex(s => s.id === studentId)
   const prevStudent = currentNavIndex > 0 ? navStudents[currentNavIndex - 1] : null
   const nextStudent = currentNavIndex < navStudents.length - 1 ? navStudents[currentNavIndex + 1] : null
@@ -405,7 +406,7 @@ export default async function GradingPage({
             </div>
             <div className="text-center shrink-0 flex flex-col gap-0.5">
               <p className="text-xs font-semibold text-dark-text">
-                {isGraderMode ? `${studentPosition} / ${studentTotal} ungraded` : `${studentPosition} / ${studentTotal}`}
+                {isGraderMode ? `${studentPosition} / ${studentTotal} ungraded` : `${studentPosition} / ${studentTotal} submitted`}
               </p>
               {!isGraderMode && needsGradingTotal > 0 && (
                 <p className="text-xs text-yellow-600 font-medium">{needsGradingTotal} need grading</p>
@@ -498,14 +499,14 @@ export default async function GradingPage({
               <div className="flex flex-col gap-3">
                 <div className="bg-background rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-text mb-2">
-                    {new Date(submission.submitted_at).toLocaleDateString('en-US', {
+                    {new Date(submissionHistory?.[0]?.submitted_at ?? submission.submitted_at).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', year: 'numeric',
                       hour: 'numeric', minute: '2-digit',
                     })}
                   </p>
                   <SubmissionContent
-                    type={submission.submission_type as SubmissionType}
-                    content={submission.content}
+                    type={(submissionHistory?.[0]?.submission_type ?? submission.submission_type) as SubmissionType}
+                    content={submissionHistory?.[0]?.content ?? submission.content}
                   />
                   {submission.student_comment && (
                     <div className="mt-3 pt-3 border-t border-border">

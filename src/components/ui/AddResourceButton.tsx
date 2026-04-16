@@ -14,6 +14,7 @@ interface Props {
   variant?: 'default' | 'link'
   defaultModuleId?: string
   defaultSection?: 'coding' | 'career'
+  instructorOnly?: boolean
 }
 
 const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
@@ -23,7 +24,7 @@ const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
   { value: 'file', label: 'File' },
 ]
 
-export default function AddResourceButton({ courseId, className, variant = 'default', defaultModuleId, defaultSection: defaultSectionProp }: Props) {
+export default function AddResourceButton({ courseId, className, variant = 'default', defaultModuleId, defaultSection: defaultSectionProp, instructorOnly = false }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -117,7 +118,7 @@ export default function AddResourceButton({ courseId, className, variant = 'defa
     const order = (existing ?? []).length
     const { error: err } = await supabase
       .from('resources')
-      .insert({ module_day_id: targetDayId, type, title: title.trim(), content: url.trim() || null, order })
+      .insert({ module_day_id: targetDayId, type, title: title.trim(), content: url.trim() || null, order, instructor_only: instructorOnly })
     setCreating(false)
     if (err) { setError(err.message); return }
     setOpen(false)

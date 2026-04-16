@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import MarkdownContent from "@/components/ui/MarkdownContent";
+import MarkdownContent, { PlainTextContent } from "@/components/ui/MarkdownContent";
 import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
 import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
@@ -390,7 +390,7 @@ export default function SubmissionForm({
                 {saved.content}
               </a>
             ) : (
-              <MarkdownContent content={saved.content} />
+              <PlainTextContent content={saved.content} />
             )}
           </div>
 

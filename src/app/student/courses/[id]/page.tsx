@@ -65,7 +65,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .not('title', 'ilike', '%DO NOT PUBLISH%')
@@ -80,7 +80,7 @@ export default async function StudentCourseDetailPage({
         .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null }> }) => ({
           ...d,
           assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
-          resources: (d.resources ?? []).filter(r => !r.deleted_at),
+          resources: (d.resources ?? []).filter((r: { deleted_at: string | null; instructor_only?: boolean }) => !r.deleted_at && !r.instructor_only),
         })),
     }))
 
@@ -98,7 +98,7 @@ export default async function StudentCourseDetailPage({
       ? supabase.from('assignments').select('id, title, due_date, published, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
     dayIds.length > 0
-      ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null)
+      ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null).eq('instructor_only', false)
       : Promise.resolve({ data: [] }),
     moduleIds.length > 0
       ? admin.from('wikis').select('id, title, content, module_id').in('module_id', moduleIds).eq('published', true).order('order', { ascending: true })
