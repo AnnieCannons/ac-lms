@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
     title: m.title,
     week_number: m.week_number,
     order: m.order,
+    category: m.category,
   }))
   const { data: newModules, error: modulesError } = moduleInserts.length
     ? await service.from('modules').insert(moduleInserts).select()

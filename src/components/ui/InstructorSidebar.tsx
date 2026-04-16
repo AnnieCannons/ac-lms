@@ -63,14 +63,22 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
       )
 
     if (orderedAssignmentIds.length > 0) {
+      const { data: enrolledRows } = await admin
+        .from('course_enrollments')
+        .select('user_id')
+        .eq('course_id', courseId)
+        .eq('role', 'student')
+      const enrolledStudentIds = new Set((enrolledRows ?? []).map(r => r.user_id))
+
       const { data: ungradedSubs } = await admin
         .from('submissions')
         .select('assignment_id, student_id')
         .in('assignment_id', orderedAssignmentIds)
         .eq('status', 'submitted')
 
-      needsGrading = ungradedSubs?.length ?? 0
-      const ungradedSet = new Set(ungradedSubs?.map(s => s.assignment_id) ?? [])
+      const filteredSubs = (ungradedSubs ?? []).filter(s => enrolledStudentIds.has(s.student_id))
+      needsGrading = filteredSubs.length
+      const ungradedSet = new Set(filteredSubs.map(s => s.assignment_id))
       firstUngradedAssignmentId = orderedAssignmentIds.find(id => ungradedSet.has(id)) ?? null
 
       // Compute my-group stats (week-aware: uses module-specific groups when weekly rotation is enabled)

@@ -724,7 +724,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
             <button
               type="button"
               onClick={() => setNewItemBonus(b => !b)}
-              className={`text-xs px-2 py-0.5 rounded border transition-colors ${newItemBonus ? 'text-amber-600 border-amber-300 bg-amber-50' : 'border-border text-muted-text hover:text-amber-600 hover:border-amber-300'}`}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${newItemBonus ? 'text-amber-400 border-amber-400 bg-amber-400/10' : 'border-border text-muted-text hover:text-amber-400 hover:border-amber-400'}`}
             >
               {newItemBonus ? 'Bonus (not required)' : 'Bonus?'}
             </button>
