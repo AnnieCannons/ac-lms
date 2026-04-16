@@ -131,6 +131,7 @@ interface Day {
   order: number
   assignments: Assignment[]
   resources: Resource[]
+  wikis?: WikiItem[]
 }
 
 interface WikiItem {
@@ -204,10 +205,22 @@ function DayContent({
     .filter(a => a.published && (showBonusAssignments || !a.is_bonus))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const resources = [...(day.resources ?? [])].sort((a, b) => a.order - b.order)
-  const hasContent = publishedAssignments.length > 0 || resources.length > 0 || quizzesForDay.length > 0
+  const dayWikis = day.wikis ?? []
+  const hasContent = publishedAssignments.length > 0 || resources.length > 0 || quizzesForDay.length > 0 || dayWikis.length > 0
 
   return (
     <div className="px-4 py-5 flex flex-col gap-6 border-t border-border bg-background">
+      {/* Wikis */}
+      {dayWikis.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-3">Wikis</p>
+          <div className="flex flex-col gap-2">
+            {dayWikis.map(wiki => (
+              <WikiView key={wiki.id} wiki={wiki} />
+            ))}
+          </div>
+        </div>
+      )}
       {/* Resources */}
       {resources.length > 0 && (
         <div>

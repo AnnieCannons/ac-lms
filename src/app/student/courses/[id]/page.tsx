@@ -89,7 +89,7 @@ export default async function StudentCourseDetailPage({
   const admin = createServiceSupabaseClient()
   const moduleIds = modules.map(m => m.id)
 
-  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }, { data: moduleWikisData }] = await Promise.all([
+  const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }, { data: moduleWikisData }, { data: dayWikisData }] = await Promise.all([
     supabase.from('submissions').select('assignment_id, status, grade, submitted_at').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
@@ -103,6 +103,9 @@ export default async function StudentCourseDetailPage({
     moduleIds.length > 0
       ? admin.from('wikis').select('id, title, content, module_id').in('module_id', moduleIds).eq('published', true).order('order', { ascending: true })
       : Promise.resolve({ data: [] }),
+    dayIds.length > 0
+      ? admin.from('wikis').select('id, title, content, module_day_id').in('module_day_id', dayIds).eq('published', true).order('order', { ascending: true })
+      : Promise.resolve({ data: [] }),
   ])
 
   type CourseQuiz = { id: string; title: string; module_title: string; day_title: string | null; linked_day_id: string | null; max_attempts: number | null; due_at: string | null }
@@ -113,7 +116,9 @@ export default async function StudentCourseDetailPage({
   const crossResourcesArr = (crossResources ?? []) as Array<{ id: string; type: string; title: string; content: string | null; description: string | null; order: number; linked_day_id: string | null }>
 
   type ModuleWikiRow = { id: string; title: string; content: string; module_id: string | null }
+  type DayWikiRow = { id: string; title: string; content: string; module_day_id: string | null }
   const moduleWikis = (moduleWikisData ?? []) as ModuleWikiRow[]
+  const dayWikis = (dayWikisData ?? []) as DayWikiRow[]
 
   // Build a mutable copy of modules to inject cross-posted data and wikis
   const modulesWithCross = modules.map(m => ({
@@ -130,6 +135,7 @@ export default async function StudentCourseDetailPage({
         ...d,
         assignments: [...(d.assignments ?? []), ...extraAssignments],
         resources: [...(d.resources ?? []), ...extraResources],
+        wikis: dayWikis.filter(w => w.module_day_id === d.id),
       }
     }),
   }))
