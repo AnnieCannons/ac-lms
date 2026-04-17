@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import MarkdownContent, { PlainTextContent } from "@/components/ui/MarkdownContent";
-import { createClient } from "@/lib/supabase/client";
 import FileUpload from "@/components/ui/FileUpload";
-import { revalidateAssignmentsPage } from "@/lib/revalidate-actions";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
 import SubmissionComments, { type CommentEntry } from "@/components/ui/SubmissionComments";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
+import { saveSubmission } from "@/lib/submission-actions";
 
 
 
@@ -74,8 +73,6 @@ export default function SubmissionForm({
   currentUserName?: string;
   currentUserRole?: string;
 }) {
-  const supabase = createClient();
-
   const [saved, setSaved] = useState<Submission | null>(existingSubmission);
   const [mode, setMode] = useState<Mode>(existingSubmission ? "view" : "edit");
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
@@ -151,60 +148,27 @@ export default function SubmissionForm({
     setError(null);
     setSubmitting(true);
 
-    const payload: Record<string, unknown> = {
-      submission_type: type,
-      content,
+    const result = await saveSubmission(
+      assignmentId,
       status,
-      // Preserve original submitted_at on resubmissions; only set on first submit
-      ...(saved?.submitted_at ? {} : { submitted_at: new Date().toISOString() }),
-      ...(status === "submitted" ? { grade: null, graded_at: null, graded_by: null } : {}),
-    };
-
-    let result;
-    if (saved) {
-      const { data, error: err } = await supabase
-        .from("submissions")
-        .update(payload)
-        .eq("id", saved.id)
-        .select()
-        .single();
-      result = { data, error: err };
-    } else {
-      const { data, error: err } = await supabase
-        .from("submissions")
-        .insert({ ...payload, assignment_id: assignmentId, student_id: studentId })
-        .select()
-        .single();
-      result = { data, error: err };
-    }
+      content,
+      type,
+      saved?.id ?? null,
+      saved?.submitted_at ?? null,
+    );
 
     setSubmitting(false);
 
     if (result.error) {
-      setError(`Failed to save: ${result.error.message}`);
+      setError(`Failed to save: ${result.error}`);
       return null;
     }
 
     const newSaved = result.data as Submission;
     setSaved(newSaved);
 
-    if (status === "submitted") {
-      revalidateAssignmentsPage(courseId);
-
-      const { data: histEntry } = await supabase
-        .from("submission_history")
-        .insert({
-          submission_id: newSaved.id,
-          assignment_id: assignmentId,
-          student_id: studentId,
-          submission_type: type,
-          content,
-        })
-        .select("id, submission_type, content, submitted_at")
-        .single();
-      if (histEntry) {
-        setHistory(prev => [histEntry as HistoryEntry, ...prev]);
-      }
+    if (status === "submitted" && result.historyEntry) {
+      setHistory(prev => [result.historyEntry as HistoryEntry, ...prev]);
     }
 
     return newSaved;
