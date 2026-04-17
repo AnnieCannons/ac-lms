@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 interface FileUploadProps {
   bucket: string;
@@ -46,28 +45,30 @@ export default function FileUpload({
     }
 
     setUploading(true);
-    const supabase = createClient();
     // Sanitize filename: replace spaces with underscores
     const safeName = file.name.replace(/\s+/g, "_");
     const filePath = `${path}${safeName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, { upsert: true });
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("bucket", bucket);
+    formData.append("path", filePath);
 
-    if (uploadError) {
-      const msg = `Upload failed: ${uploadError.message}`;
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    const json = await res.json();
+
+    if (!res.ok || json.error) {
+      const msg = `Upload failed: ${json.error ?? res.statusText}`;
       setError(msg);
       onError?.(msg);
       setUploading(false);
       return;
     }
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
     setUploadedName(safeName);
-    setUploadedUrl(data.publicUrl);
+    setUploadedUrl(json.url);
     setUploading(false);
-    onUpload(data.publicUrl, safeName);
+    onUpload(json.url, safeName);
 
     // Reset input so same file can be re-selected if needed
     if (inputRef.current) inputRef.current.value = "";
