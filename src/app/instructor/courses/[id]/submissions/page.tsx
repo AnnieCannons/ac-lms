@@ -58,12 +58,23 @@ export default async function CourseSubmissionsPage({
   )
 
   const assignmentIds = assignments.map(a => a.id)
-  const { data: allSubmissions } = assignmentIds.length
-    ? await admin
-        .from('submissions')
-        .select('id, assignment_id, student_id, status, grade, submitted_at')
-        .in('assignment_id', assignmentIds)
-    : { data: [] }
+  const [
+    { data: allSubmissions },
+    { data: allOverrides },
+  ] = await Promise.all([
+    assignmentIds.length
+      ? admin
+          .from('submissions')
+          .select('id, assignment_id, student_id, status, grade, submitted_at')
+          .in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [] }),
+    assignmentIds.length
+      ? admin
+          .from('assignment_overrides')
+          .select('assignment_id, student_id, due_date, excused')
+          .in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [] }),
+  ])
 
   // Enrolled students with names
   const { data: enrollments } = await admin
@@ -155,6 +166,7 @@ export default async function CourseSubmissionsPage({
               students={students}
               statsByAssignment={statsByAssignment}
               submissions={submissionsForClient}
+              overrides={allOverrides ?? []}
               totalStudents={totalStudents}
               totalNeedsGrading={totalNeedsGrading}
             />

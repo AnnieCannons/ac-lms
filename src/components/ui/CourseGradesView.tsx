@@ -47,6 +47,13 @@ interface StudentRow {
 
 type ExpandKey = 'late' | 'needsReview' | 'complete' | 'incomplete'
 
+interface Override {
+  assignment_id: string
+  student_id: string
+  excused: boolean
+  due_date: string | null
+}
+
 interface Props {
   courseId: string
   instructorId: string
@@ -56,6 +63,7 @@ interface Props {
   students: Student[]
   statsByAssignment: Record<string, AssignmentStats>
   submissions: Sub[]
+  overrides: Override[]
   totalStudents: number
   totalNeedsGrading: number
 }
@@ -69,6 +77,7 @@ export default function CourseGradesView({
   students,
   statsByAssignment,
   submissions,
+  overrides,
   totalStudents,
   totalNeedsGrading,
 }: Props) {
@@ -78,6 +87,7 @@ export default function CourseGradesView({
   const [search, setSearch] = useState('')
 
   const subMap = new Map(submissions.map(s => [`${s.student_id}-${s.assignment_id}`, s]))
+  const overrideMap = new Map(overrides.map(o => [`${o.student_id}-${o.assignment_id}`, o]))
 
   const studentStats: StudentRow[] = students
     .map(student => {
@@ -88,8 +98,11 @@ export default function CourseGradesView({
 
       for (const a of assignments) {
         const sub = subMap.get(`${student.id}-${a.id}`)
+        const override = overrideMap.get(`${student.id}-${a.id}`)
+        if (override?.excused) continue
+        const effectiveDueDate = override?.due_date ?? a.due_date
         if (!sub || sub.status === 'draft') {
-          if (a.due_date && localDate(a.due_date) < todayLocal()) late.push(a)
+          if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) late.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)
         } else if (sub.status === 'graded') {

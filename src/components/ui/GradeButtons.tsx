@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { saveGrade } from "@/lib/grade-actions";
 
 type Grade = "complete" | "incomplete" | null;
@@ -18,7 +19,7 @@ export default function GradeButtons({
   initialGrade: Grade;
   initialGradedAt: string | null;
   gradedById: string;
-  /** When set, navigates here after the first grade is saved (null→complete or null→incomplete). */
+  /** When set, shows a "Next →" link after grading. No longer auto-navigates. */
   nextUrl?: string | null;
   courseId?: string;
 }) {
@@ -26,13 +27,13 @@ export default function GradeButtons({
   const [grade, setGrade] = useState<Grade>(initialGrade);
   const [gradedAt, setGradedAt] = useState<string | null>(initialGradedAt);
   const [saving, setSaving] = useState(false);
+  const [justGraded, setJustGraded] = useState(false);
   const savingRef = useRef(false);
 
   const mark = async (value: "complete" | "incomplete") => {
     if (savingRef.current) return;
     const newGrade: Grade = grade === value ? null : value;
     const now = newGrade ? new Date().toISOString() : null;
-    const wasUngraded = grade === null;
     savingRef.current = true;
     setSaving(true);
     setGrade(newGrade);
@@ -48,11 +49,12 @@ export default function GradeButtons({
     }
     savingRef.current = false;
     setSaving(false);
-    if (wasUngraded && newGrade && nextUrl) {
-      router.push(nextUrl);
+    if (newGrade) {
+      setJustGraded(true);
     } else {
-      router.refresh();
+      setJustGraded(false);
     }
+    router.refresh();
   };
 
   return (
@@ -80,6 +82,14 @@ export default function GradeButtons({
         >
           {saving && grade === null ? "…" : "Incomplete"}
         </button>
+        {justGraded && nextUrl && (
+          <Link
+            href={nextUrl}
+            className="text-sm font-semibold px-4 py-2 rounded-full bg-teal-primary text-white hover:bg-teal-primary/90 transition-colors"
+          >
+            Next →
+          </Link>
+        )}
       </div>
       {grade && gradedAt && (
         <p className="text-xs text-muted-text">

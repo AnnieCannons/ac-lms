@@ -91,6 +91,7 @@ export default async function StudentDetailPage({
   const [
     { data: submissions },
     { data: quizzes },
+    { data: overrideRows },
   ] = await Promise.all([
     assignmentIds.length > 0
       ? admin
@@ -105,6 +106,13 @@ export default async function StudentDetailPage({
       .eq('course_id', courseId)
       .eq('published', true)
       .is('deleted_at', null),
+    assignmentIds.length > 0
+      ? admin
+          .from('assignment_overrides')
+          .select('assignment_id, due_date, excused')
+          .eq('student_id', userId)
+          .in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [] }),
   ])
 
   const quizIds = (quizzes ?? []).map(q => q.id)
@@ -118,6 +126,7 @@ export default async function StudentDetailPage({
 
   // Categorize assignments
   const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null }]))
+  const overrideMap = new Map((overrideRows ?? []).map(o => [o.assignment_id, o as { assignment_id: string; due_date: string | null; excused: boolean }]))
 
   const missing: CategorizedAssignment[] = []
   const late: CategorizedAssignment[] = []
@@ -127,11 +136,14 @@ export default async function StudentDetailPage({
 
   for (const a of allAssignments) {
     const sub = subMap.get(a.id)
-    const duePassed = a.due_date ? localDate(a.due_date) < todayLocal() : false
+    const override = overrideMap.get(a.id)
+    if (override?.excused) continue
+    const effectiveDueDate = override?.due_date ?? a.due_date
+    const duePassed = effectiveDueDate ? localDate(effectiveDueDate) < todayLocal() : false
     const isLate = !!(
       sub?.submitted_at &&
-      a.due_date &&
-      sub.submitted_at.slice(0, 10) > a.due_date
+      effectiveDueDate &&
+      sub.submitted_at.slice(0, 10) > effectiveDueDate
     )
     const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null, type: 'assignment' }
 
