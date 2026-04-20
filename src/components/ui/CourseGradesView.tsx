@@ -39,13 +39,13 @@ interface AssignmentStats {
 
 interface StudentRow {
   student: Student
-  late: Assignment[]
+  missing: Assignment[]
   needsReview: Assignment[]
   complete: Assignment[]
-  incomplete: Assignment[]
+  needsRevision: Assignment[]
 }
 
-type ExpandKey = 'late' | 'needsReview' | 'complete' | 'incomplete'
+type ExpandKey = 'missing' | 'needsReview' | 'complete' | 'needsRevision'
 
 interface Override {
   assignment_id: string
@@ -91,10 +91,10 @@ export default function CourseGradesView({
 
   const studentStats: StudentRow[] = students
     .map(student => {
-      const late: Assignment[] = []
+      const missing: Assignment[] = []
       const needsReview: Assignment[] = []
       const complete: Assignment[] = []
-      const incomplete: Assignment[] = []
+      const needsRevision: Assignment[] = []
 
       for (const a of assignments) {
         const sub = subMap.get(`${student.id}-${a.id}`)
@@ -102,20 +102,20 @@ export default function CourseGradesView({
         if (override?.excused) continue
         const effectiveDueDate = override?.due_date ?? a.due_date
         if (!sub || sub.status === 'draft') {
-          if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) late.push(a)
+          if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) missing.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)
         } else if (sub.status === 'graded') {
           if (sub.grade === 'complete') complete.push(a)
-          else if (sub.grade === 'incomplete') incomplete.push(a)
+          else if (sub.grade === 'incomplete') needsRevision.push(a)
         }
       }
 
-      return { student, late, needsReview, complete, incomplete }
+      return { student, missing, needsReview, complete, needsRevision }
     })
     .sort((a, b) => {
-      const aAttn = a.late.length + a.needsReview.length + a.incomplete.length
-      const bAttn = b.late.length + b.needsReview.length + b.incomplete.length
+      const aAttn = a.missing.length + a.needsReview.length + a.needsRevision.length
+      const bAttn = b.missing.length + b.needsReview.length + b.needsRevision.length
       return bAttn - aAttn || a.student.name.localeCompare(b.student.name)
     })
 
@@ -604,12 +604,12 @@ function StudentsTab({
 
   const filteredStats = studentStats.map(row => ({
     ...row,
-    late: filterAssignments(row.late),
+    missing: filterAssignments(row.missing),
     needsReview: filterAssignments(row.needsReview),
     complete: filterAssignments(row.complete),
-    incomplete: filterAssignments(row.incomplete),
+    needsRevision: filterAssignments(row.needsRevision),
   })).filter(row =>
-    !searchQuery || row.late.length + row.needsReview.length + row.complete.length + row.incomplete.length > 0
+    !searchQuery || row.missing.length + row.needsReview.length + row.complete.length + row.needsRevision.length > 0
   )
 
   if (filteredStats.length === 0) {
@@ -628,28 +628,28 @@ function StudentsTab({
 
   return (
     <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
-      {filteredStats.map(({ student, late, needsReview, complete, incomplete }) => {
+      {filteredStats.map(({ student, missing, needsReview, complete, needsRevision }) => {
         const isExpanded = (cat: ExpandKey) =>
           expanded?.studentId === student.id && expanded.category === cat
 
         const expandedList: Assignment[] =
           expanded?.studentId === student.id
-            ? { late, needsReview, complete, incomplete }[expanded.category] ?? []
+            ? { missing, needsReview, complete, needsRevision }[expanded.category] ?? []
             : []
 
-        const hasAnything = late.length + needsReview.length + complete.length + incomplete.length > 0
+        const hasAnything = missing.length + needsReview.length + complete.length + needsRevision.length > 0
 
         return (
           <div key={student.id} className="bg-surface">
             <div className="px-6 py-4">
               <Link href={`/instructor/courses/${courseId}/roster/${student.id}`} className="text-sm font-semibold text-dark-text hover:text-teal-primary hover:underline mb-1.5 inline-block">{student.name}</Link>
               <div className="flex items-center gap-4 text-xs flex-wrap">
-                {late.length > 0 && (
+                {missing.length > 0 && (
                   <button
-                    onClick={() => toggle(student.id, 'late')}
-                    className={`font-medium transition-colors ${isExpanded('late') ? 'text-red-700 underline' : 'text-red-500 hover:underline'}`}
+                    onClick={() => toggle(student.id, 'missing')}
+                    className={`font-medium transition-colors ${isExpanded('missing') ? 'text-red-700 underline' : 'text-red-500 hover:underline'}`}
                   >
-                    {late.length} late
+                    {missing.length} missing
                   </button>
                 )}
                 {needsReview.length > 0 && (
@@ -660,12 +660,12 @@ function StudentsTab({
                     {needsReview.length} ungraded
                   </button>
                 )}
-                {incomplete.length > 0 && (
+                {needsRevision.length > 0 && (
                   <button
-                    onClick={() => toggle(student.id, 'incomplete')}
-                    className={`font-medium transition-colors ${isExpanded('incomplete') ? 'text-red-600 underline' : 'text-red-400 hover:underline'}`}
+                    onClick={() => toggle(student.id, 'needsRevision')}
+                    className={`font-medium transition-colors ${isExpanded('needsRevision') ? 'text-red-600 underline' : 'text-red-400 hover:underline'}`}
                   >
-                    {incomplete.length} incomplete
+                    {needsRevision.length} needs revision
                   </button>
                 )}
                 {complete.length > 0 && (
@@ -688,7 +688,7 @@ function StudentsTab({
                   return (
                     <div key={a.id} className="flex items-center justify-between gap-4 py-1">
                       <span className="text-xs text-dark-text">{a.title}</span>
-                      {expanded.category !== 'late' ? (
+                      {expanded.category !== 'missing' ? (
                         <Link
                           href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}?by=student`}
                           className="text-xs font-medium text-teal-primary hover:underline shrink-0"

@@ -160,7 +160,7 @@ export default async function CourseSubmissionsPage({
             <CourseGradesView
               courseId={id}
               instructorId={user.id}
-              initialTab={tab === 'students' ? 'students' : 'assignments'}
+              initialTab={tab === 'assignments' ? 'assignments' : 'students'}
               modules={modulesForClient}
               assignments={assignments}
               students={students}
