@@ -48,12 +48,8 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
     : null
 
   return (
-    <td className="relative group p-0 border-r border-b border-border overflow-hidden">
-      <div
-        className={`w-full h-11 flex items-center justify-center text-sm font-bold border border-border/30 ${cellClass}`}
-        title={cellLabel}
-        aria-label={cellLabel}
-      >
+    <td className={`relative group p-0 border-r border-b border-border overflow-hidden ${cellClass}`} title={cellLabel} aria-label={cellLabel}>
+      <div className="w-full h-full min-h-[44px] flex items-center justify-center text-sm font-bold">
         <span aria-hidden="true">{icon}</span>
       </div>
       {graderUrl && (

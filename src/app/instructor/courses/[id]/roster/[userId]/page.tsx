@@ -145,7 +145,12 @@ export default async function StudentDetailPage({
       effectiveDueDate &&
       sub.submitted_at.slice(0, 10) > effectiveDueDate
     )
-    const entry: CategorizedAssignment = { ...a, isLate, submissionId: sub?.id ?? null, type: 'assignment' }
+    let lateCurrentStatus: CategorizedAssignment['lateCurrentStatus']
+    if (isLate) {
+      if (sub?.status === 'submitted') lateCurrentStatus = 'needsGrading'
+      else if (sub?.status === 'graded') lateCurrentStatus = sub.grade === 'complete' ? 'complete' : 'needsRevision'
+    }
+    const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, type: 'assignment' }
 
     if (!sub || sub.status === 'draft') {
       if (duePassed && a.canvasAssignmentId) missing.push(entry)
@@ -153,9 +158,9 @@ export default async function StudentDetailPage({
       submitted.push(entry)
       if (isLate) late.push(entry)
     } else if (sub.status === 'graded') {
-      if (isLate && sub.grade !== 'complete') late.push(entry)
       if (sub.grade === 'complete') complete.push(entry)
       else if (sub.grade === 'incomplete') incomplete.push(entry)
+      if (isLate) late.push(entry)
     }
   }
 
@@ -166,6 +171,11 @@ export default async function StudentDetailPage({
     const duePassed = q.due_at ? localDate(q.due_at) < todayLocal() : false
     const displayTitle = q.title?.startsWith('Quiz: ') ? q.title.slice(6) : q.title
     const isLate = !!(sub?.submitted_at && q.due_at && sub.submitted_at > q.due_at)
+    let lateCurrentStatus: CategorizedAssignment['lateCurrentStatus']
+    if (isLate && sub) {
+      const score = sub.score_percent ?? 0
+      lateCurrentStatus = score >= 100 ? 'complete' : 'needsRevision'
+    }
     const entry: CategorizedAssignment = {
       id: q.id,
       title: displayTitle ?? '',
@@ -173,6 +183,7 @@ export default async function StudentDetailPage({
       moduleTitle: q.module_title ?? '',
       weekNumber: null,
       isLate,
+      lateCurrentStatus,
       submissionId: null,
       type: 'quiz',
       score: sub?.score_percent ?? null,

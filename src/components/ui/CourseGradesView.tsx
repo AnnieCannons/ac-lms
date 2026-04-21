@@ -647,7 +647,7 @@ function StudentsTab({
                 {missing.length > 0 && (
                   <button
                     onClick={() => toggle(student.id, 'missing')}
-                    className={`font-medium transition-colors ${isExpanded('missing') ? 'text-red-700 underline' : 'text-red-500 hover:underline'}`}
+                    className={`font-medium hover:underline text-red-600 dark:!text-red-400 ${isExpanded('missing') ? 'underline' : ''}`}
                   >
                     {missing.length} missing
                   </button>
@@ -655,7 +655,7 @@ function StudentsTab({
                 {needsReview.length > 0 && (
                   <button
                     onClick={() => toggle(student.id, 'needsReview')}
-                    className={`font-medium transition-colors ${isExpanded('needsReview') ? 'text-yellow-700 underline' : 'text-yellow-600 hover:underline'}`}
+                    className={`font-medium hover:underline text-amber-600 dark:!text-amber-400 ${isExpanded('needsReview') ? 'underline' : ''}`}
                   >
                     {needsReview.length} ungraded
                   </button>
@@ -663,7 +663,7 @@ function StudentsTab({
                 {needsRevision.length > 0 && (
                   <button
                     onClick={() => toggle(student.id, 'needsRevision')}
-                    className={`font-medium transition-colors ${isExpanded('needsRevision') ? 'text-red-600 underline' : 'text-red-400 hover:underline'}`}
+                    className={`font-medium hover:underline text-orange-600 dark:!text-orange-400 ${isExpanded('needsRevision') ? 'underline' : ''}`}
                   >
                     {needsRevision.length} needs revision
                   </button>
@@ -671,7 +671,7 @@ function StudentsTab({
                 {complete.length > 0 && (
                   <button
                     onClick={() => toggle(student.id, 'complete')}
-                    className={`font-medium transition-colors ${isExpanded('complete') ? 'text-green-700 underline' : 'text-green-600 hover:underline'}`}
+                    className={`font-medium hover:underline text-green-700 dark:!text-green-400 ${isExpanded('complete') ? 'underline' : ''}`}
                   >
                     {complete.length} complete
                   </button>

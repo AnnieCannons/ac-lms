@@ -12,12 +12,13 @@ export type CategorizedAssignment = {
   moduleTitle: string
   weekNumber: number | null
   isLate: boolean
+  lateCurrentStatus?: 'needsGrading' | 'needsRevision' | 'complete'
   submissionId: string | null
   type?: 'assignment' | 'quiz'
   score?: number | null
 }
 
-type StatCategory = 'missing' | 'late' | 'submitted' | 'incomplete' | 'complete'
+type StatCategory = 'missing' | 'submitted' | 'incomplete' | 'complete'
 
 interface Props {
   courseId: string
@@ -38,10 +39,20 @@ const STAT_CONFIG: Record<StatCategory, {
   ringColor: string
 }> = {
   missing:    { label: 'Missing',       cardClass: 'status-missing-card',  ringColor: 'ring-red-400' },
-  late:       { label: 'Late',          cardClass: 'status-late-card',     ringColor: 'ring-amber-400' },
   submitted:  { label: 'Needs Grading', cardClass: 'status-grading-card',  ringColor: 'ring-teal-primary' },
   incomplete: { label: 'Needs Revision',cardClass: 'status-revision-card', ringColor: 'ring-orange-400' },
   complete:   { label: 'Complete',      cardClass: 'status-complete-card', ringColor: 'ring-green-500' },
+}
+
+const LATE_STATUS_LABEL: Record<string, string> = {
+  needsGrading:  'Needs Grading',
+  needsRevision: 'Needs Revision',
+  complete:      'Complete',
+}
+const LATE_STATUS_CLASS: Record<string, string> = {
+  needsGrading:  'bg-teal-light text-teal-primary',
+  needsRevision: 'bg-orange-100 text-orange-700',
+  complete:      'bg-green-100 text-green-700',
 }
 
 function formatDate(iso: string) {
@@ -68,11 +79,11 @@ export default function StudentDetailView({
   totalPublished,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null)
+  const [lateOpen, setLateOpen] = useState(false)
 
   // Mutable local state for speed grading
   const [lists, setLists] = useState<Record<StatCategory, CategorizedAssignment[]>>({
     missing,
-    late,
     submitted,
     incomplete,
     complete,
@@ -100,8 +111,6 @@ export default function StudentDetailView({
         submitted: removeFrom(prev.submitted),
         incomplete: newIncomplete,
         complete: newComplete,
-        // Keep late list in sync — update the entry if it was there
-        late: prev.late.map(a => a.id === assignment.id ? { ...a } : a),
       }
     })
     setGrading(prev => ({ ...prev, [assignment.id]: false }))
@@ -109,7 +118,6 @@ export default function StudentDetailView({
 
   const categories: { key: StatCategory; items: CategorizedAssignment[] }[] = [
     { key: 'missing',    items: lists.missing },
-    { key: 'late',       items: lists.late },
     { key: 'submitted',  items: lists.submitted },
     { key: 'incomplete', items: lists.incomplete },
     { key: 'complete',   items: lists.complete },
@@ -181,7 +189,7 @@ export default function StudentDetailView({
       <div>
         <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Breakdown</h2>
 
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {categories.map(({ key, items }) => {
             const cfg = STAT_CONFIG[key]
             const isActive = activeCategory === key
@@ -284,6 +292,75 @@ export default function StudentDetailView({
                             className="text-xs font-medium text-teal-primary hover:underline"
                           >
                             {canSpeedGrade ? 'View' : activeCategory === 'missing' ? 'View →' : 'Grade →'}
+                          </Link>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Late submissions accordion */}
+        {late.length > 0 && (
+          <div className="mt-4 border border-border rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setLateOpen(o => !o)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 status-late-card text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              <span>{late.length} Late Submission{late.length !== 1 ? 's' : ''}</span>
+              <span className="text-muted-text text-xs font-normal">{lateOpen ? '▲ Hide' : '▼ Show'}</span>
+            </button>
+
+            {lateOpen && (
+              <ul className="divide-y divide-border">
+                {late.map(a => {
+                  const isQuiz = a.type === 'quiz'
+                  const statusLabel = a.lateCurrentStatus ? LATE_STATUS_LABEL[a.lateCurrentStatus] : null
+                  const statusClass = a.lateCurrentStatus ? LATE_STATUS_CLASS[a.lateCurrentStatus] : ''
+                  return (
+                    <li key={a.id} className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-surface transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                          {isQuiz && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">Quiz</span>
+                          )}
+                          {statusLabel && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${statusClass}`}>
+                              {statusLabel}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-muted-text">
+                            {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
+                          </span>
+                          {a.due_date && (
+                            <span className="text-xs text-muted-text">· Due {formatDate(a.due_date)}</span>
+                          )}
+                          {isQuiz && a.score != null && (
+                            <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {isQuiz ? (
+                          <Link
+                            href={`/instructor/courses/${courseId}/quiz-submissions`}
+                            className="text-xs font-medium text-teal-primary hover:underline"
+                          >
+                            View →
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
+                            className="text-xs font-medium text-teal-primary hover:underline"
+                          >
+                            View →
                           </Link>
                         )}
                       </div>

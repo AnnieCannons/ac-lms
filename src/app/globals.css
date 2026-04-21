@@ -34,6 +34,10 @@
 
 html {
   font-size: 22px !important;
+  --status-missing-color: #dc2626;
+  --status-ungraded-color: #a16207;
+  --status-revision-color: #ea580c;
+  --status-complete-color: #15803d;
 }
 
 a, button, select, [role="button"], [role="tab"], [role="switch"], label {
@@ -84,6 +88,10 @@ html.theme-dark {
   --color-teal-light: #2a1530;
   --color-purple-primary: #b080e0;
   --color-purple-light: #251540;
+  --status-missing-color: #f87171;
+  --status-ungraded-color: #fbbf24;
+  --status-revision-color: #fb923c;
+  --status-complete-color: #4ade80;
 }
 html.theme-dark body {
   background-color: #120d1e !important;
@@ -272,6 +280,16 @@ html.theme-dark .status-draft-badge   { background-color: #1c1a00; color: #fcd34
 html.theme-dark .status-camera-badge  { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
 html.theme-dark .status-needs-grading-btn { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
 html.theme-dark .status-needs-grading-btn:hover { background-color: #261a00; }
+
+/* Status text-only colors — use these instead of raw Tailwind text colors so dark mode works */
+.status-missing-text   { color: #dc2626; }
+.status-ungraded-text  { color: #a16207; }
+.status-revision-text  { color: #ea580c; }
+.status-complete-text  { color: #15803d; }
+html.theme-dark .status-missing-text   { color: #f87171 !important; }
+html.theme-dark .status-ungraded-text  { color: #fbbf24 !important; }
+html.theme-dark .status-revision-text  { color: #fb923c !important; }
+html.theme-dark .status-complete-text  { color: #4ade80 !important; }
 
 /* Amber/yellow badge or button — use .badge-amber instead of bg-amber-50 so dark mode works */
 .badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }

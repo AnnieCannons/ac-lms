@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import GradebookCell from './GradebookCell'
+import { localDate, todayLocal } from '@/lib/date-utils'
 
 export interface GradebookStudent { id: string; name: string }
 export interface GradebookAssignment {
@@ -35,6 +36,7 @@ interface Props {
 const DEFAULT_COL_WIDTH = 150
 const MIN_COL_WIDTH = 60
 const NAME_COL_WIDTH = 192
+const ASSIGNMENT_ROW_COL_WIDTH = 240
 
 function MultiSelectDropdown({
   label,
@@ -167,6 +169,20 @@ export default function GradebookGrid({ courseId, students, modules, assignments
   const [selectedAssignments, setSelectedAssignments] = useState<Set<string>>(new Set())
   const [myGroupActive, setMyGroupActive] = useState(false)
   const [colWidths, setColWidths] = useState<Map<string, number>>(new Map())
+  const [transposed, setTransposed] = useState(false)
+
+  type StatusFilter = 'complete' | 'needs_revision' | 'ungraded' | 'late_missing' | 'not_yet_due'
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<StatusFilter>>(new Set())
+  const toggleStatus = (s: StatusFilter) => setSelectedStatuses(prev => {
+    const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next
+  })
+  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null): StatusFilter {
+    const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
+    if (!sub || sub.status === 'draft') return isPastDue ? 'late_missing' : 'not_yet_due'
+    if (sub.status === 'submitted') return 'ungraded'
+    if (sub.status === 'graded') return sub.grade === 'complete' ? 'complete' : 'needs_revision'
+    return 'not_yet_due'
+  }
 
   useEffect(() => {
     try { localStorage.setItem(modulesStorageKey, JSON.stringify([...selectedModules])) } catch {}
@@ -235,7 +251,26 @@ export default function GradebookGrid({ courseId, students, modules, assignments
     submissionMap.set(`${sub.assignment_id}_${sub.student_id}`, sub)
   }
 
-  const moduleItems = modules.map(m => ({ id: m.id, name: m.title }))
+  const statusFilteredStudents = selectedStatuses.size === 0
+    ? filteredStudents
+    : filteredStudents.filter(student =>
+        filteredAssignments.some(a =>
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, a.due_date))
+        )
+      )
+
+  const statusFilteredAssignments = selectedStatuses.size === 0
+    ? filteredAssignments
+    : filteredAssignments.filter(a =>
+        filteredStudents.some(student =>
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, a.due_date))
+        )
+      )
+
+  const modulesWithAssignments = new Set(assignments.map(a => a.moduleId))
+  const moduleItems = modules
+    .filter(m => m.title && m.title.trim() && modulesWithAssignments.has(m.id))
+    .map(m => ({ id: m.id, name: m.title }))
   const studentItems = students.map(s => ({ id: s.id, name: s.name }))
   const assignmentItems = assignments.map(a => ({ id: a.id, name: a.title }))
 
@@ -250,6 +285,7 @@ export default function GradebookGrid({ courseId, students, modules, assignments
           selected={selectedModules}
           onToggle={toggleModule}
           onClear={() => setSelectedModules(new Set())}
+          dropdownWidth={500}
         />
 
         <MultiSelectDropdown
@@ -280,100 +316,212 @@ export default function GradebookGrid({ courseId, students, modules, assignments
 
         <span className="text-xs text-muted-text">{filteredAssignments.length} assignments · {filteredStudents.length} students</span>
 
-        {/* Legend */}
-        <div className="flex items-center gap-3 flex-wrap ml-auto">
-          <span className="text-xs text-muted-text font-medium">Key:</span>
-          <span className="flex items-center gap-1 text-xs"><span className="inline-flex w-6 h-5 items-center justify-center text-xs font-bold status-complete-btn rounded border border-border/30">✓</span> Complete</span>
-          <span className="flex items-center gap-1 text-xs"><span className="inline-flex w-6 h-5 items-center justify-center text-xs font-bold status-revision-btn rounded border border-border/30">✗</span> Needs Revision</span>
-          <span className="flex items-center gap-1 text-xs"><span className="inline-flex w-6 h-5 items-center justify-center text-xs font-bold status-needs-grading-btn rounded border border-border/30">●</span> Ungraded</span>
-          <span className="flex items-center gap-1 text-xs"><span className="inline-flex w-6 h-5 items-center justify-center text-xs font-bold status-late-badge rounded border border-border/30">–</span> Late / missing</span>
-          <span className="flex items-center gap-1 text-xs"><span className="inline-flex w-6 h-5 items-center justify-center text-xs font-bold border border-border rounded"> </span> Not yet due</span>
+        {/* Status filter legend */}
+        <div className="flex items-center gap-2 flex-wrap ml-auto">
+          {selectedStatuses.size > 0 && (
+            <button
+              onClick={() => setSelectedStatuses(new Set())}
+              className="text-xs text-muted-text hover:text-dark-text transition-colors mr-1"
+            >
+              Clear filters ×
+            </button>
+          )}
+          {([
+            { key: 'complete' as StatusFilter,      icon: '✓', label: 'Complete',       cls: 'status-complete-btn' },
+            { key: 'needs_revision' as StatusFilter, icon: '✗', label: 'Needs Revision', cls: 'status-revision-btn' },
+            { key: 'ungraded' as StatusFilter,       icon: '●', label: 'Ungraded',       cls: 'status-needs-grading-btn' },
+            { key: 'late_missing' as StatusFilter,   icon: '–', label: 'Late / missing', cls: 'status-late-badge' },
+            { key: 'not_yet_due' as StatusFilter,    icon: ' ', label: 'Not yet due',    cls: 'border border-border' },
+          ] as const).map(({ key, icon, label, cls }) => {
+            const active = selectedStatuses.has(key)
+            return (
+              <button
+                key={key}
+                onClick={() => toggleStatus(key)}
+                className={`flex items-center gap-1 text-xs rounded px-1.5 py-0.5 transition-all ${active ? 'ring-2 ring-offset-1 ring-teal-primary/60' : 'opacity-70 hover:opacity-100'}`}
+              >
+                <span className={`inline-flex w-6 h-5 items-center justify-center text-xs font-bold rounded ${cls}`}>{icon}</span>
+                <span className={active ? 'underline font-medium' : ''}>{label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       <div className="overflow-x-auto border border-border rounded-xl">
-        <table className="border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
-          <thead>
-            <tr className="bg-surface">
-              <th
-                className="sticky left-0 z-30 bg-surface border-b border-r border-border px-3 py-2 text-left text-xs font-semibold text-muted-text uppercase tracking-wide"
-                style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
-              >
-                Student
-              </th>
-              {filteredAssignments.map(a => {
-                const w = getColWidth(a.id)
-                return (
-                  <th
-                    key={a.id}
-                    className="relative border-b border-r border-border/60 bg-surface text-left align-top"
-                    style={{ width: w, minWidth: MIN_COL_WIDTH }}
-                  >
-                    <div className="px-2 pt-3 pb-2 overflow-hidden" style={{ width: w - 8 }}>
-                      {a.weekNumber != null && (
-                        <span className="text-[10px] text-muted-text/70 font-normal block leading-none mb-1">W{a.weekNumber}</span>
-                      )}
-                      <Link
-                        href={`/instructor/courses/${courseId}/assignments/${a.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-normal tracking-tight text-dark-text block overflow-hidden whitespace-nowrap text-ellipsis hover:text-teal-primary hover:underline"
-                        title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
-                      >
-                        {a.title}
-                      </Link>
-                    </div>
-                    <div
-                      onMouseDown={(e) => startResize(a.id, e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-teal-primary/30 transition-colors"
-                    />
-                  </th>
-                )
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStudents.map((student, i) => (
-              <tr key={student.id} className={i % 2 === 0 ? '' : 'bg-surface/30'}>
-                <td
-                  className="sticky left-0 z-10 border-b border-r border-border px-3 py-2.5 text-sm truncate bg-background"
+        {!transposed ? (
+          /* ── Default: students as rows, assignments as columns ── */
+          <table className="border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+            <thead>
+              <tr className="bg-surface">
+                <th
+                  className="sticky left-0 z-30 bg-surface border-b border-r border-border px-3 py-2 text-left align-middle"
                   style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
                 >
-                  <a
-                    href={`/instructor/courses/${courseId}/roster/${student.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-teal-primary hover:underline font-medium"
+                  <button
+                    onClick={() => setTransposed(true)}
+                    title="Switch to assignments-as-rows view"
+                    className="text-xs font-semibold text-muted-text uppercase tracking-wide hover:text-teal-primary transition-colors flex items-center gap-1"
                   >
-                    {student.name}
-                  </a>
-                </td>
-                {filteredAssignments.map(a => (
-                  <GradebookCell
-                    key={a.id}
-                    courseId={courseId}
-                    assignmentId={a.id}
-                    studentId={student.id}
-                    submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
-                    dueDate={a.due_date}
-                  />
-                ))}
+                    Student <span className="text-[10px] opacity-60">⇄</span>
+                  </button>
+                </th>
+                {statusFilteredAssignments.map(a => {
+                  const w = getColWidth(a.id)
+                  return (
+                    <th
+                      key={a.id}
+                      className="relative border-b border-r border-border/60 bg-surface text-left align-top"
+                      style={{ width: w, minWidth: MIN_COL_WIDTH }}
+                    >
+                      <div className="px-2 pt-3 pb-2" style={{ width: w - 8 }}>
+                        {a.weekNumber != null && (
+                          <span className="text-[10px] text-muted-text/70 font-normal block leading-none mb-1">W{a.weekNumber}</span>
+                        )}
+                        <Link
+                          href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-normal tracking-tight text-dark-text block break-words hover:text-teal-primary hover:underline"
+                          title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
+                        >
+                          {a.title}
+                        </Link>
+                      </div>
+                      <div
+                        onMouseDown={(e) => startResize(a.id, e)}
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-teal-primary/30 transition-colors"
+                      />
+                    </th>
+                  )
+                })}
               </tr>
-            ))}
-            {filteredStudents.length === 0 && (
-              <tr>
-                <td colSpan={filteredAssignments.length + 1} className="px-6 py-10 text-center text-sm text-muted-text">
-                  {students.length === 0 ? 'No students enrolled' : 'No students match your filter'}
-                </td>
+            </thead>
+            <tbody>
+              {statusFilteredStudents.map((student, i) => (
+                <tr key={student.id} className={i % 2 === 0 ? '' : 'bg-surface/30'}>
+                  <td
+                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-2.5 text-sm truncate bg-background"
+                    style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
+                  >
+                    <a
+                      href={`/instructor/courses/${courseId}/roster/${student.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-primary hover:underline font-medium"
+                    >
+                      {student.name}
+                    </a>
+                  </td>
+                  {statusFilteredAssignments.map(a => (
+                    <GradebookCell
+                      key={a.id}
+                      courseId={courseId}
+                      assignmentId={a.id}
+                      studentId={student.id}
+                      submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
+                      dueDate={a.due_date}
+                    />
+                  ))}
+                </tr>
+              ))}
+              {statusFilteredStudents.length === 0 && (
+                <tr>
+                  <td colSpan={statusFilteredAssignments.length + 1} className="px-6 py-10 text-center text-sm text-muted-text">
+                    {students.length === 0 ? 'No students enrolled' : 'No students match your filter'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        ) : (
+          /* ── Transposed: assignments as rows, students as columns ── */
+          <table className="border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+            <thead>
+              <tr className="bg-surface">
+                <th
+                  className="sticky left-0 z-30 bg-surface border-b border-r border-border px-3 py-2 text-left align-middle"
+                  style={{ width: ASSIGNMENT_ROW_COL_WIDTH, minWidth: ASSIGNMENT_ROW_COL_WIDTH }}
+                >
+                  <button
+                    onClick={() => setTransposed(false)}
+                    title="Switch to students-as-rows view"
+                    className="text-xs font-semibold text-muted-text uppercase tracking-wide hover:text-teal-primary transition-colors flex items-center gap-1"
+                  >
+                    Assignment <span className="text-[10px] opacity-60">⇄</span>
+                  </button>
+                </th>
+                {statusFilteredStudents.map(student => {
+                  const w = getColWidth(`s_${student.id}`)
+                  return (
+                    <th
+                      key={student.id}
+                      className="relative border-b border-r border-border/60 bg-surface text-left align-bottom"
+                      style={{ width: w, minWidth: MIN_COL_WIDTH }}
+                    >
+                      <div className="px-2 pt-2 pb-2" style={{ width: w - 8 }}>
+                        <a
+                          href={`/instructor/courses/${courseId}/roster/${student.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-teal-primary block truncate hover:underline"
+                        >
+                          {student.name}
+                        </a>
+                      </div>
+                      <div
+                        onMouseDown={(e) => startResize(`s_${student.id}`, e)}
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-teal-primary/30 transition-colors"
+                      />
+                    </th>
+                  )
+                })}
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {statusFilteredAssignments.map((a, i) => (
+                <tr key={a.id} className={i % 2 === 0 ? '' : 'bg-surface/30'}>
+                  <td
+                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-2.5 bg-background"
+                    style={{ width: ASSIGNMENT_ROW_COL_WIDTH, minWidth: ASSIGNMENT_ROW_COL_WIDTH }}
+                  >
+                    {a.weekNumber != null && (
+                      <span className="text-[10px] text-muted-text/70 block leading-none mb-0.5">W{a.weekNumber}</span>
+                    )}
+                    <Link
+                      href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-dark-text break-words hover:text-teal-primary hover:underline"
+                      title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
+                    >
+                      {a.title}
+                    </Link>
+                  </td>
+                  {statusFilteredStudents.map(student => (
+                    <GradebookCell
+                      key={student.id}
+                      courseId={courseId}
+                      assignmentId={a.id}
+                      studentId={student.id}
+                      submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
+                      dueDate={a.due_date}
+                    />
+                  ))}
+                </tr>
+              ))}
+              {statusFilteredAssignments.length === 0 && (
+                <tr>
+                  <td colSpan={statusFilteredStudents.length + 1} className="px-6 py-10 text-center text-sm text-muted-text">
+                    No published assignments match your filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {filteredAssignments.length === 0 && filteredStudents.length > 0 && (
-        <p className="mt-6 text-center text-sm text-muted-text">No published assignments match your filter.</p>
-      )}
     </div>
   )
 }

@@ -30,6 +30,9 @@ export default async function GradebookPage({
     .from('modules')
     .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published))')
     .eq('course_id', id)
+    .eq('category', 'syllabus')
+    .is('deleted_at', null)
+    .not('title', 'ilike', '%DO NOT PUBLISH%')
     .order('order', { ascending: true })
 
   const modulesForClient: GradebookModule[] = (modules ?? []).map(m => ({
