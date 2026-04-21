@@ -60,6 +60,7 @@ interface SubmissionInfo {
   grade: Grade
   submitted_at?: string | null
   hasComments?: boolean
+  excused?: boolean
 }
 
 interface Props {
@@ -81,6 +82,7 @@ function isBonusLike(_title?: string, isBonus?: boolean) {
 }
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
+  if (info?.excused) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-muted-text shrink-0">Excused</span>
   const isLate = !!dueDate && (
     info?.submitted_at
       ? localDate(info.submitted_at) > localDate(dueDate)
@@ -385,7 +387,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (bonus && (filter === 'late' || filter === 'not-started')) return false
-  if (filter === 'late') return isLate && notStarted
+  if (filter === 'late') return isLate && notStarted && !info?.excused
   if (filter === 'not-started') return notStarted
   return true
 }

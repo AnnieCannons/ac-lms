@@ -1,3 +1,7 @@
+'use client'
+
+import LocalDateTime from './LocalDateTime'
+
 export type GradeHistoryEntry = {
   id: string
   grade: 'complete' | 'incomplete'
@@ -31,10 +35,7 @@ export default function GradeHistoryList({ entries }: { entries: GradeHistoryEnt
               {entry.grade === 'complete' ? 'Complete ✓' : 'Incomplete'}
             </span>
             <span className="text-xs text-muted-text">
-              {new Date(entry.graded_at).toLocaleDateString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric',
-                hour: 'numeric', minute: '2-digit',
-              })}
+              <LocalDateTime iso={entry.graded_at} />
             </span>
           </div>
         ))}

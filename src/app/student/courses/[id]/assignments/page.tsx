@@ -82,10 +82,28 @@ export default async function StudentAssignmentsPage({
 
   // Use service role when impersonating to bypass RLS
   const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
-  const { data: submissions } = await fetchClient
-    .from('submissions')
-    .select('id, assignment_id, status, grade, submitted_at')
-    .eq('student_id', effectiveUserId)
+
+  const allAssignmentIds = modules.flatMap(m =>
+    m.module_days.flatMap((d: { assignments: Array<{ id: string }> }) => d.assignments.map((a: { id: string }) => a.id))
+  )
+
+  const [{ data: submissions }, { data: overrideRows }] = await Promise.all([
+    fetchClient
+      .from('submissions')
+      .select('id, assignment_id, status, grade, submitted_at')
+      .eq('student_id', effectiveUserId),
+    allAssignmentIds.length > 0
+      ? fetchClient
+          .from('assignment_overrides')
+          .select('assignment_id, excused')
+          .eq('student_id', effectiveUserId)
+          .in('assignment_id', allAssignmentIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const excusedSet = new Set(
+    (overrideRows ?? []).filter((o: { excused: boolean }) => o.excused).map((o: { assignment_id: string }) => o.assignment_id)
+  )
 
   const submissionIds = (submissions ?? []).map(s => s.id)
   const { data: commentedSubs } = submissionIds.length > 0
@@ -103,8 +121,16 @@ export default async function StudentAssignmentsPage({
       grade: s.grade ?? null,
       submitted_at: s.submitted_at ?? null,
       hasComments: commentedSubIds.has(s.id),
+      excused: excusedSet.has(s.assignment_id),
     }])
   )
+
+  // Add excused-only entries for assignments with no submission row
+  for (const assignmentId of excusedSet) {
+    if (!submissionMap[assignmentId]) {
+      submissionMap[assignmentId] = { status: 'draft', grade: null, excused: true }
+    }
+  }
 
   const displayName = impersonation?.studentName ?? profile?.name
 

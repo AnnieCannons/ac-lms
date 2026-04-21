@@ -53,7 +53,10 @@ export async function saveSubmission(
   } else {
     const { data, error } = await admin
       .from('submissions')
-      .insert({ ...payload, assignment_id: assignmentId, student_id: user.id })
+      .upsert(
+        { ...payload, assignment_id: assignmentId, student_id: user.id },
+        { onConflict: 'assignment_id,student_id' }
+      )
       .select('id, submission_type, content, status, grade, graded_at, submitted_at, student_comment')
       .single()
     if (error) return { error: error.message }

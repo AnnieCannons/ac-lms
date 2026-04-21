@@ -14,6 +14,7 @@ import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { normalizeUrl } from '@/lib/url'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
+import LocalDateTime from '@/components/ui/LocalDateTime'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -525,10 +526,7 @@ export default async function GradingPage({
               <div className="flex flex-col gap-3">
                 <div className="bg-background rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-text mb-2">
-                    {new Date(submissionHistory?.[0]?.submitted_at ?? submission.submitted_at).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', year: 'numeric',
-                      hour: 'numeric', minute: '2-digit',
-                    })}
+                    <LocalDateTime iso={submissionHistory?.[0]?.submitted_at ?? submission.submitted_at} />
                   </p>
                   <SubmissionContent
                     type={(submissionHistory?.[0]?.submission_type ?? submission.submission_type) as SubmissionType}
@@ -558,10 +556,7 @@ export default async function GradingPage({
                   <div key={entry.id} className="bg-background rounded-xl border border-border p-4">
                     <p className="text-xs text-muted-text mb-2">
                       {submissionHistory.length - 1 - i === 1 ? '1st submission · ' : `Submission ${submissionHistory.length - 1 - i} · `}
-                      {new Date(entry.submitted_at).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                        hour: 'numeric', minute: '2-digit',
-                      })}
+                      <LocalDateTime iso={entry.submitted_at} />
                     </p>
                     <SubmissionContent
                       type={entry.submission_type as SubmissionType}
