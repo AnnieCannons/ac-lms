@@ -32,6 +32,17 @@ export default function NewCoursePage() {
       .single()
 
     if (error) { setError(error.message); return }
+
+    // Enroll the creator as instructor so wiki/resource actions can verify course access
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('course_enrollments').insert({
+        user_id: user.id,
+        course_id: data.id,
+        role: 'instructor',
+      })
+    }
+
     router.push(`/instructor/courses/${data.id}`)
   }
 
