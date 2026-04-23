@@ -15,6 +15,7 @@ export type WorkAssignment = {
   status: SubmissionStatus | null;
   grade: Grade;
   isLate: boolean;
+  isExcused: boolean;
   moduleTitle: string;
   weekNumber: number | null;
   isCurrentWeek: boolean;
@@ -39,7 +40,7 @@ function getFilterMatch(a: WorkAssignment, filter: Filter): boolean {
   if (filter === "complete") return a.grade === "complete";
   if (filter === "needs-revision") return a.grade === "incomplete";
   if (filter === "turned-in") return a.status === "submitted";
-  if (filter === "not-started") return !a.status && !a.grade;
+  if (filter === "not-started") return !a.status && !a.grade && !a.isExcused;
   return true;
 }
 

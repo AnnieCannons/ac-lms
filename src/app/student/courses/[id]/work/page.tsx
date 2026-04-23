@@ -117,6 +117,7 @@ export default async function MyWorkPage({
             status: (sub?.status ?? null) as WorkAssignment['status'],
             grade: (sub?.grade ?? null) as WorkAssignment['grade'],
             isLate,
+            isExcused,
             moduleTitle: module.title,
             weekNumber: module.week_number,
             isCurrentWeek: currentWeek !== null && module.week_number === currentWeek,

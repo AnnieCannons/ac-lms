@@ -388,7 +388,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (bonus && (filter === 'late' || filter === 'not-started')) return false
   if (filter === 'late') return isLate && notStarted && !info?.excused
-  if (filter === 'not-started') return notStarted
+  if (filter === 'not-started') return notStarted && !info?.excused
   return true
 }
 
@@ -575,7 +575,7 @@ export default function ResourceOutline({
           if (isBonusLike(a.title)) return false
           const info = submissionMap[a.id]
           const notStarted = !info || (info.status === 'draft' && !info.grade)
-          return notStarted && (!searchQ || a.title.toLowerCase().includes(searchQ))
+          return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
         })
         const pastDue = sortByDue(base.filter(a => !!a.due_date && localDate(a.due_date) < todayLocal()))
         const upcoming = sortByDue(base.filter(a => !a.due_date || localDate(a.due_date) >= todayLocal()))

@@ -153,7 +153,7 @@ export default async function StudentDetailPage({
     const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, type: 'assignment' }
 
     if (!sub || sub.status === 'draft') {
-      if (duePassed && a.canvasAssignmentId) missing.push(entry)
+      if (duePassed) missing.push(entry)
     } else if (sub.status === 'submitted') {
       submitted.push(entry)
       if (isLate) late.push(entry)
