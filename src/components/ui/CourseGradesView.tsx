@@ -8,6 +8,7 @@ interface Assignment {
   id: string
   title: string
   due_date: string | null
+  submission_required: boolean
   moduleTitle: string
 }
 
@@ -102,6 +103,7 @@ export default function CourseGradesView({
         if (override?.excused) continue
         const effectiveDueDate = override?.due_date ?? a.due_date
         if (!sub || sub.status === 'draft') {
+          if (a.submission_required === false) continue
           if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) missing.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)

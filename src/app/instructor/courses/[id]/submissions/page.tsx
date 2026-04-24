@@ -31,7 +31,7 @@ export default async function CourseSubmissionsPage({
   // All modules → days → assignments for this course
   const { data: modules } = await admin
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, submission_required))')
     .eq('course_id', id)
     .eq('published', true)
     .is('deleted_at', null)
@@ -41,6 +41,7 @@ export default async function CourseSubmissionsPage({
     id: string
     title: string
     due_date: string | null
+    submission_required: boolean
     moduleTitle: string
     weekNumber: number | null
   }
@@ -51,6 +52,7 @@ export default async function CourseSubmissionsPage({
         id: a.id,
         title: a.title,
         due_date: a.due_date,
+        submission_required: a.submission_required,
         moduleTitle: m.title,
         weekNumber: m.week_number,
       }))
