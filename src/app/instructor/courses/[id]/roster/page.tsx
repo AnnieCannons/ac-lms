@@ -29,14 +29,6 @@ export default async function RosterPage({
     ? { data: null }
     : await admin.from('courses').select('id, name, start_date, end_date').order('created_at', { ascending: false })
 
-  const now = Date.now()
-  const isCurrentCourse = (startDate: string | null | undefined, endDate: string | null | undefined) => {
-    if (!startDate) return false
-    const start = new Date(startDate).getTime()
-    const end = endDate ? new Date(endDate).getTime() : start + 105 * 24 * 60 * 60 * 1000
-    return now >= start && now <= end
-  }
-
   // Students and observers enrolled in current course
   const { data: enrollments } = await admin
     .from('course_enrollments')
@@ -99,8 +91,8 @@ export default async function RosterPage({
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  // Current course first, then other current courses (TAs only see their course)
-  const otherCourses = isTa ? [] : (allCourses ?? []).filter(c => c.id !== id && isCurrentCourse(c.start_date, c.end_date))
+  // Current course first, then all other courses sorted by most recent start date
+  const otherCourses = isTa ? [] : (allCourses ?? []).filter(c => c.id !== id)
   const courses = [course, ...otherCourses]
 
   return (
