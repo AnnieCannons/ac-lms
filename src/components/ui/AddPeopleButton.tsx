@@ -161,7 +161,7 @@ export default function AddPeopleButton({
               ) : (
                 <div className="bg-purple-light/60 border border-purple-primary/30 rounded-xl px-4 py-3 text-sm text-dark-text">
                   <p className="font-semibold text-purple-primary mb-0.5">Global access</p>
-                  <p className="text-muted-text">Staff members can see all courses. After adding, you can assign them to a specific course from the <strong>Instructors</strong> table on this page — or leave them unassigned if they don&apos;t have a dedicated class.</p>
+                  <p className="text-muted-text">Staff members can see all courses. After adding, you can assign them to a specific course from the <strong>Staff</strong> table on this page — or leave them unassigned if they don&apos;t have a dedicated class.</p>
                 </div>
               )}
               <div>

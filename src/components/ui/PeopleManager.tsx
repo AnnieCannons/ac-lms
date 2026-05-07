@@ -151,7 +151,7 @@ function InstructorSection({
                             <button type="button" onClick={() => removeCourse(instructor.id, courseId)} className="hover:opacity-60 leading-none" aria-label={`Remove ${courseNameMap[courseId]}`}>×</button>
                           </span>
                         ))}
-                        {assignedIds.length === 0 && unassigned.length > 0 && (
+                        {unassigned.length > 0 && (
                           addingFor === instructor.id ? (
                             <select
                               autoFocus
@@ -221,7 +221,7 @@ function InstructorSection({
                       <button type="button" onClick={() => removeCourse(instructor.id, courseId)} className="hover:opacity-60">×</button>
                     </span>
                   ))}
-                  {assignedIds.length === 0 && unassigned.length > 0 && (
+                  {unassigned.length > 0 && (
                     addingFor === instructor.id ? (
                       <select autoFocus defaultValue="" onChange={e => addCourse(instructor.id, e.target.value)} onBlur={() => setAddingFor(null)} className="text-xs bg-background border border-border rounded-lg px-2 py-0.5 text-dark-text">
                         <option value="" disabled>Pick a course…</option>
