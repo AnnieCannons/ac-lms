@@ -160,7 +160,10 @@ export async function fetchAttendanceCourses(): Promise<AttendanceCourse[]> {
 
 export async function fetchActiveClasses(): Promise<string[]> {
   const p = new URLSearchParams()
-  p.set('filterByFormula', `FIND('${COURSE_YEAR}', {Name})`)
+  p.set(
+    'filterByFormula',
+    `AND(FIND('${COURSE_YEAR}', {Name}), NOT(FIND('Practicum', {Name})), IS_BEFORE({Start Date}, TODAY()))`,
+  )
   p.set('sort[0][field]', 'Start Date')
   p.set('sort[0][direction]', 'desc')
 
