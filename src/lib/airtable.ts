@@ -3,7 +3,6 @@
 const BASE_ID = process.env.AIRTABLE_BASE_ID!
 const API_KEY = process.env.AIRTABLE_API_KEY!
 const ATTENDANCE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Attendance'
-const COURSE_YEAR = process.env.CURRENT_COURSE_YEAR || '2026'
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
@@ -36,17 +35,6 @@ async function paginate(table: string, base: URLSearchParams): Promise<AirtableR
     offset = data.offset
   } while (offset)
   return all
-}
-
-function getCourseStartDate(courseName?: string | null): Date {
-  const name = courseName ?? ''
-  if (name.includes('ITP') || name.toLowerCase().includes('intro to programming')) {
-    return new Date(process.env.ITP_START_DATE || `${COURSE_YEAR}-06-01`)
-  }
-  if (name.includes('TCF') || name.toLowerCase().includes('coding foundation')) {
-    return new Date(process.env.TCF_START_DATE || `${COURSE_YEAR}-05-01`)
-  }
-  return new Date(`${COURSE_YEAR}-01-01`)
 }
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -162,7 +150,7 @@ export async function fetchActiveClasses(): Promise<string[]> {
   const p = new URLSearchParams()
   p.set(
     'filterByFormula',
-    `AND(FIND('${COURSE_YEAR}', {Name}), NOT(FIND('Practicum', {Name})), IS_BEFORE({Start Date}, TODAY()))`,
+    `AND(NOT(FIND('Practicum', {Name})), IS_BEFORE({Start Date}, TODAY()))`,
   )
   p.set('sort[0][field]', 'Start Date')
   p.set('sort[0][direction]', 'desc')
