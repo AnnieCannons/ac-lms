@@ -5,8 +5,9 @@ import { format } from 'date-fns'
 import { updateAssignmentDueDate } from '@/lib/assignment-actions'
 import { localDate, formatDueDate } from '@/lib/date-utils'
 
-export default function InlineDueDatePicker({ assignmentId, dueDate, onSaved }: {
+export default function InlineDueDatePicker({ assignmentId, courseId, dueDate, onSaved }: {
   assignmentId: string
+  courseId: string
   dueDate: string | null
   onSaved: (date: string | null) => void
 }) {
@@ -42,7 +43,7 @@ export default function InlineDueDatePicker({ assignmentId, dueDate, onSaved }: 
     setOpen(false)
     setSaving(true)
     const val = day ? format(day, 'yyyy-MM-dd') : null
-    await updateAssignmentDueDate(assignmentId, val)
+    await updateAssignmentDueDate(assignmentId, val, courseId)
     onSaved(val)
     setSaving(false)
   }

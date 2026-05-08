@@ -130,6 +130,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             )}
             <InlineDueDatePicker
               assignmentId={assignment.id}
+              courseId={courseId}
               dueDate={assignment.due_date}
               onSaved={(d) => setAssignment(prev => ({ ...prev, due_date: d }))}
             />

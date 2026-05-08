@@ -1,16 +1,34 @@
 "use server";
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import type { QuizQuestion } from "@/data/quizzes";
 
-async function getInstructorSession() {
+async function getAuthedInstructorOrTa(courseId: string): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) return { error: 'Not authenticated' };
   const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-  if (profile?.role === "student") redirect("/student/courses");
-  return user;
+  if (profile?.role === 'admin') return {};
+  if (profile?.role === 'instructor') {
+    const { data: enrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .maybeSingle()
+    if (!enrollment) return { error: 'Not enrolled in this course' };
+    return {};
+  }
+  // TA: role='student' in users table but 'ta' in course_enrollments
+  const { data: taEnrollment } = await supabase
+    .from('course_enrollments')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('course_id', courseId)
+    .eq('role', 'ta')
+    .maybeSingle()
+  if (taEnrollment) return {};
+  return { error: 'Unauthorized' };
 }
 
 export async function createQuizWithQuestions(
@@ -21,7 +39,8 @@ export async function createQuizWithQuestions(
   dayTitle: string | null = null,
   linkedDayId: string | null = null
 ) {
-  await getInstructorSession()
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient()
   const identifier = `paste-${Date.now()}`
   const { data, error } = await admin
@@ -45,7 +64,8 @@ export async function createQuizWithQuestions(
 }
 
 export async function createQuiz(courseId: string) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   const identifier = `new-quiz-${Date.now()}`;
   const { data, error } = await admin
@@ -71,7 +91,8 @@ export async function updateQuizMeta(
   courseId: string,
   updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null }
 ) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -82,7 +103,8 @@ export async function updateQuizMeta(
 }
 
 export async function updateQuizQuestions(quizId: string, courseId: string, questions: QuizQuestion[]) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -93,7 +115,8 @@ export async function updateQuizQuestions(quizId: string, courseId: string, ques
 }
 
 export async function toggleQuizPublished(quizId: string, courseId: string, published: boolean) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -104,7 +127,8 @@ export async function toggleQuizPublished(quizId: string, courseId: string, publ
 }
 
 export async function deleteQuiz(quizId: string, courseId: string) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   // Verify quiz belongs to this course
   const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
@@ -115,7 +139,8 @@ export async function deleteQuiz(quizId: string, courseId: string) {
 }
 
 export async function getConductSubmissions(quizId: string, courseId: string) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   // Verify quiz belongs to this course
   const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
@@ -141,7 +166,8 @@ export async function getConductSubmissions(quizId: string, courseId: string) {
 }
 
 export async function updateQuizDay(quizId: string, courseId: string, dayTitle: string | null) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -163,7 +189,8 @@ export async function upsertQuizFromJson(
     max_attempts: number | null;
   }
 ) {
-  await getInstructorSession();
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if (auth.error) throw new Error(auth.error)
   const admin = createServiceSupabaseClient();
   const { data, error } = await admin
     .from("quizzes")

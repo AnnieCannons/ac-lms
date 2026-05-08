@@ -139,7 +139,8 @@ function processHtml(html: string): string {
     }
   });
 
-  return container.innerHTML;
+  // Re-sanitize after DOM mutations (highlight.js adds spans; img/a attributes are set above)
+  return DOMPurify.sanitize(container.innerHTML, { ADD_ATTR: ['aria-label', 'aria-hidden', 'target', 'rel'] });
 }
 
 interface Props {

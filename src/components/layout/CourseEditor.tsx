@@ -808,6 +808,7 @@ function AssignmentFullView({
                   <div className="mt-1">
                     <InlineDueDatePicker
                       assignmentId={assignment!.id}
+                      courseId={courseId}
                       dueDate={viewDueDate}
                       onSaved={(d) => {
                         setViewDueDate(d)
