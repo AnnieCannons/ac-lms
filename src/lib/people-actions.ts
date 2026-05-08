@@ -320,13 +320,20 @@ export async function removeStudentUser(
 
   const admin = createServiceSupabaseClient()
 
-  // Remove all course enrollments
-  await admin.from('course_enrollments').delete().eq('user_id', targetUserId)
+  // Delete all FK-constrained rows before deleting the user row
+  await Promise.all([
+    admin.from('course_enrollments').delete().eq('user_id', targetUserId),
+    admin.from('submissions').delete().eq('student_id', targetUserId),
+    admin.from('quiz_submissions').delete().eq('student_id', targetUserId),
+    admin.from('checklist_responses').delete().eq('student_id', targetUserId),
+    admin.from('accommodations').delete().eq('user_id', targetUserId),
+    admin.from('resource_stars').delete().eq('user_id', targetUserId),
+    admin.from('resource_completions').delete().eq('user_id', targetUserId),
+  ])
 
-  // Delete from users table
-  await admin.from('users').delete().eq('id', targetUserId)
+  const { error: userDeleteError } = await admin.from('users').delete().eq('id', targetUserId)
+  if (userDeleteError) return { error: userDeleteError.message }
 
-  // Delete from Supabase auth
   const { error } = await admin.auth.admin.deleteUser(targetUserId)
   if (error) return { error: error.message }
 
