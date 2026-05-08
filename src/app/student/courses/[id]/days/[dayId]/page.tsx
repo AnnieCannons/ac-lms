@@ -28,6 +28,9 @@ export default async function StudentDayDetailPage({
   params: Promise<{ id: string; dayId: string }>
 }) {
   const { id, dayId } = await params
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(id) || !UUID_RE.test(dayId)) redirect('/student/courses')
+
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

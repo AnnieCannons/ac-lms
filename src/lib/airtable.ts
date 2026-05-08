@@ -6,6 +6,14 @@ const ATTENDANCE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Attendance'
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
+/** Escape a string for safe interpolation inside an Airtable formula string literal */
+function escapeAirtableString(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/[{}()]/g, (c) => `\\${c}`)
+}
+
 type AirtableRecord = { id: string; fields: Record<string, unknown> }
 
 async function airtableGet(
@@ -65,7 +73,7 @@ export type ClassStudent = {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function fetchStudentAttendance(preferredName: string): Promise<AttendanceRecord[]> {
-  const safeName = preferredName.replace(/'/g, "\\'")
+  const safeName = escapeAirtableString(preferredName)
   const p = new URLSearchParams()
   p.set('filterByFormula', `{PreferredNameText}='${safeName}'`)
   p.set('sort[0][field]', 'Date')
@@ -84,7 +92,7 @@ export async function fetchStudentAttendance(preferredName: string): Promise<Att
 }
 
 export async function fetchStudentProfile(preferredName: string): Promise<StudentProfile | null> {
-  const safeName = preferredName.replace(/'/g, "\\'")
+  const safeName = escapeAirtableString(preferredName)
   const p = new URLSearchParams()
   p.set('filterByFormula', `LOWER({Preferred Name})='${safeName.toLowerCase()}'`)
 
@@ -165,7 +173,7 @@ export async function fetchActiveClasses(): Promise<string[]> {
 export async function fetchClassAttendance(className: string): Promise<ClassStudent[]> {
   // Resolve course record
   const cp = new URLSearchParams()
-  cp.set('filterByFormula', `{Name}='${className.replace(/'/g, "\\'")}'`)
+  cp.set('filterByFormula', `{Name}='${escapeAirtableString(className)}'`)
   const courseRecords = await paginate('Courses', cp)
   if (!courseRecords.length) throw new Error('Course not found')
 
@@ -177,7 +185,7 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   until.setHours(23, 59, 59, 999)
 
   // ARRAYJOIN on linked fields returns display names (not record IDs), so filter by course name
-  const safeClassName = className.replace(/'/g, "\\'")
+  const safeClassName = escapeAirtableString(className)
   const sp = new URLSearchParams()
   sp.set(
     'filterByFormula',

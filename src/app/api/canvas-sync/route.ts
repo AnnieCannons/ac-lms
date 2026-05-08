@@ -7,8 +7,8 @@
  *
  * Secured by a shared secret: CANVAS_SYNC_SECRET env var.
  *
- * Trigger (GET or POST):
- *   https://your-domain/api/canvas-sync?secret=<CANVAS_SYNC_SECRET>
+ * Trigger (GET):
+ *   curl -H "x-sync-secret: <CANVAS_SYNC_SECRET>" https://your-domain/api/canvas-sync
  *
  * Required env vars:
  *   CANVAS_API_TOKEN
@@ -135,11 +135,11 @@ function mapContent(sub: CanvasSubmission): string | null {
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  // Auth check — accepts Vercel's automatic CRON_SECRET header or manual query param
+  // Auth check — accepts Vercel's automatic CRON_SECRET header or x-sync-secret header for manual triggers
   const authHeader = req.headers.get('authorization')
-  const querySecret = req.nextUrl.searchParams.get('secret')
+  const syncHeader = req.headers.get('x-sync-secret')
   const validCron = CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`
-  const validManual = SYNC_SECRET && querySecret === SYNC_SECRET
+  const validManual = SYNC_SECRET && syncHeader === SYNC_SECRET
   if (!validCron && !validManual) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
