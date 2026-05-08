@@ -36,6 +36,7 @@ export default async function AccountPage() {
         <AccountForm
           initialName={profile?.name ?? ''}
           initialEmail={user.email ?? ''}
+          role={profile?.role ?? 'student'}
         />
         <div className="mt-6">
           <AccessibilitySettings />

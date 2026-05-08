@@ -3,8 +3,6 @@ import LogoutButton from '@/components/ui/LogoutButton'
 import NavMobileMenu from '@/components/ui/NavMobileMenu'
 import DocsHelpLink from '@/components/ui/DocsHelpLink'
 
-const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
-
 export interface Breadcrumb {
   label: string
   href?: string
@@ -43,14 +41,12 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
 
       {/* Desktop right side */}
       <div className="hidden sm:flex items-center gap-5 shrink-0">
-        <a
-          href={ATTENDANCE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href="/instructor/attendance"
           className="text-sm font-medium text-teal-primary hover:underline"
         >
-          Attendance Portal<span className="sr-only"> (opens in new tab)</span>
-        </a>
+          Attendance Portal
+        </Link>
         <DocsHelpLink guide="instructor" className="text-sm text-muted-text hover:text-teal-primary transition-colors" />
         <Link href="/account" className="text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">
           {name}
@@ -59,7 +55,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
       </div>
 
       {/* Mobile hamburger */}
-      <NavMobileMenu name={name} accountHref="/account" />
+      <NavMobileMenu name={name} accountHref="/account" attendanceHref="/instructor/attendance" />
     </nav>
   )
 }
