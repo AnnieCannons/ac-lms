@@ -5,8 +5,6 @@ import LogoutButton from '@/components/ui/LogoutButton'
 import NavMobileMenu from '@/components/ui/NavMobileMenu'
 import DocsHelpLink from '@/components/ui/DocsHelpLink'
 
-const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
-
 function ToolsDropdown() {
   const [open, setOpen] = useState(false)
   return (
@@ -25,24 +23,20 @@ function ToolsDropdown() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-lg z-50 py-2">
-            <a
+            <Link
               href="/student/confidence"
-              target="_blank"
-              rel="noopener noreferrer"
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
               onClick={() => setOpen(false)}
             >
               Confidence Tracker
-            </a>
-            <a
-              href={ATTENDANCE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            </Link>
+            <Link
+              href="/student/attendance"
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
               onClick={() => setOpen(false)}
             >
-              Attendance Portal<span className="sr-only"> (opens in new tab)</span>
-            </a>
+              Attendance Portal
+            </Link>
           </div>
         </>
       )}

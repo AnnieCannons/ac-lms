@@ -3,9 +3,15 @@ import { useState } from 'react'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 
-const ATTENDANCE_URL = 'https://ac-student-portal.vercel.app/'
-
-export default function NavMobileMenu({ name, accountHref }: { name?: string | null; accountHref: string }) {
+export default function NavMobileMenu({
+  name,
+  accountHref,
+  attendanceHref = '/student/attendance',
+}: {
+  name?: string | null
+  accountHref: string
+  attendanceHref?: string
+}) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -26,24 +32,20 @@ export default function NavMobileMenu({ name, accountHref }: { name?: string | n
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-lg z-50 py-2">
-            <a
+            <Link
               href="/student/confidence"
-              target="_blank"
-              rel="noopener noreferrer"
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
               onClick={() => setOpen(false)}
             >
               Confidence Tracker
-            </a>
-            <a
-              href={ATTENDANCE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            </Link>
+            <Link
+              href={attendanceHref}
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
               onClick={() => setOpen(false)}
             >
               Attendance Portal
-            </a>
+            </Link>
             <Link
               href={accountHref}
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
