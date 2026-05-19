@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getInstructorUsers } from "@/lib/people-actions";
 import Modal from "./Modal";
 import DatePickerField from "./DatePickerField";
 
@@ -11,8 +12,11 @@ type Stats = {
   assignments: number;
   resources: number;
   checklistItems: number;
+  quizzes: number;
   datesShifted: boolean;
 };
+
+type InstructorOption = { id: string; name: string | null; email: string };
 
 function deriveCode(code: string | null): string {
   if (!code) return "";
@@ -25,11 +29,13 @@ export default function DuplicateCourseButton({
   courseName,
   courseCode,
   courseStartDate,
+  currentUserId,
 }: {
   courseId: string;
   courseName: string;
   courseCode: string | null;
   courseStartDate: string | null;
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -41,7 +47,11 @@ export default function DuplicateCourseButton({
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
 
-  const handleOpen = () => {
+  const [instructors, setInstructors] = useState<InstructorOption[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loadingInstructors, setLoadingInstructors] = useState(false);
+
+  const handleOpen = async () => {
     setName(`Copy of ${courseName}`);
     setCode(deriveCode(courseCode));
     setSourceStart(courseStartDate ?? "");
@@ -49,10 +59,24 @@ export default function DuplicateCourseButton({
     setError(null);
     setStats(null);
     setOpen(true);
+
+    setLoadingInstructors(true);
+    const list = await getInstructorUsers();
+    setInstructors(list);
+    setSelectedIds(new Set([currentUserId]));
+    setLoadingInstructors(false);
   };
 
   const handleClose = () => {
     if (!submitting) setOpen(false);
+  };
+
+  const toggleInstructor = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +93,7 @@ export default function DuplicateCourseButton({
         newCode: code.trim(),
         sourceStartDate: sourceStart || null,
         newStartDate: startDate || null,
+        instructorIds: Array.from(selectedIds),
       }),
     });
 
@@ -106,7 +131,7 @@ export default function DuplicateCourseButton({
               <p className="text-sm text-muted-text">
                 {stats.modules} modules · {stats.days} days · {stats.assignments} assignments
                 <br />
-                {stats.checklistItems} checklist items · {stats.resources} resources
+                {stats.checklistItems} checklist items · {stats.resources} resources · {stats.quizzes} quizzes
               </p>
               {stats.datesShifted && (
                 <p className="text-xs text-teal-primary font-medium">
@@ -151,6 +176,32 @@ export default function DuplicateCourseButton({
                     Due dates will shift by the difference between the two dates.
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-dark-text mb-2">Assign Instructors</label>
+                {loadingInstructors ? (
+                  <p className="text-sm text-muted-text">Loading…</p>
+                ) : (
+                  <div className="max-h-40 overflow-y-auto flex flex-col gap-1 border border-border rounded-lg p-2">
+                    {instructors.map(inst => (
+                      <label key={inst.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-border/20 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(inst.id)}
+                          onChange={() => toggleInstructor(inst.id)}
+                          className="accent-teal-primary"
+                        />
+                        <span className="text-sm text-dark-text">{inst.name ?? inst.email}</span>
+                        {inst.name && <span className="text-xs text-muted-text">{inst.email}</span>}
+                      </label>
+                    ))}
+                    {instructors.length === 0 && (
+                      <p className="text-sm text-muted-text px-2 py-1">No instructors found.</p>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-text mt-1">Selected instructors will be enrolled in the new course.</p>
               </div>
 
               {error && (

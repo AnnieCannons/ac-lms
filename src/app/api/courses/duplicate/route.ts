@@ -9,11 +9,11 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await authClient
     .from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate } = await req.json()
+  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds } = await req.json()
   if (!sourceCourseId || !newName || !newCode) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -58,11 +58,12 @@ export async function POST(req: NextRequest) {
     : [{ data: [] }, { data: [] }]
 
   const assignmentIds = (assignments ?? []).map(a => a.id)
-  const [{ data: checklistItems }, { data: courseSections }] = await Promise.all([
+  const [{ data: checklistItems }, { data: courseSections }, { data: quizzes }] = await Promise.all([
     assignmentIds.length
       ? service.from('checklist_items').select('*').in('assignment_id', assignmentIds).order('order')
       : Promise.resolve({ data: [] }),
     service.from('course_sections').select('*').eq('course_id', sourceCourseId).order('order'),
+    service.from('quizzes').select('*').eq('course_id', sourceCourseId).is('deleted_at', null),
   ])
 
   // ── DATE SHIFT ───────────────────────────────────────────────────────────
@@ -198,6 +199,37 @@ export async function POST(req: NextRequest) {
     : { data: [], error: null }
   if (sectionsError) return NextResponse.json({ error: sectionsError.message }, { status: 500 })
 
+  // Quizzes
+  const quizInserts = (quizzes ?? []).map(q => ({
+    course_id: newCourse.id,
+    identifier: q.identifier,
+    title: q.title,
+    due_at: shiftDate(q.due_at),
+    module_title: q.module_title,
+    day_title: q.day_title ?? null,
+    published: q.published,
+    questions: q.questions,
+    max_attempts: q.max_attempts ?? null,
+  }))
+  const { data: newQuizzes, error: quizzesError } = quizInserts.length
+    ? await service.from('quizzes').insert(quizInserts).select()
+    : { data: [], error: null }
+  if (quizzesError) return NextResponse.json({ error: quizzesError.message }, { status: 500 })
+
+  // Instructor enrollments
+  const validInstructorIds: string[] = Array.isArray(instructorIds) ? instructorIds.filter(Boolean) : []
+  if (validInstructorIds.length > 0) {
+    const enrollmentInserts = validInstructorIds.map(id => ({
+      course_id: newCourse.id,
+      user_id: id,
+      role: 'instructor',
+    }))
+    const { error: enrollError } = await service
+      .from('course_enrollments')
+      .upsert(enrollmentInserts, { onConflict: 'course_id,user_id' })
+    if (enrollError) return NextResponse.json({ error: enrollError.message }, { status: 500 })
+  }
+
   return NextResponse.json({
     newCourseId: newCourse.id,
     stats: {
@@ -207,6 +239,7 @@ export async function POST(req: NextRequest) {
       resources: newResources?.length ?? 0,
       checklistItems: newChecklists?.length ?? 0,
       sections: newSections?.length ?? 0,
+      quizzes: newQuizzes?.length ?? 0,
       datesShifted,
     },
   })
