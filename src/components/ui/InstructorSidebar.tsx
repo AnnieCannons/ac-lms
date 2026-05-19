@@ -8,6 +8,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
   let myGroupNeedsGrading = 0
   let myGroupFirstAssignmentId: string | null = null
   let isTa = false
+  let otherCurrentCourses: { id: string; name: string }[] = []
 
   try {
     const supabase = await createServerSupabaseClient()
@@ -130,6 +131,28 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
     // Non-critical — badge and grader button degrade gracefully
   }
 
+  // Fetch other current courses for the dropdown (non-critical)
+  try {
+    const admin = createServiceSupabaseClient()
+    const { data: allCourses } = await admin
+      .from('courses')
+      .select('id, name, start_date, end_date, is_template, archived')
+      .order('start_date', { ascending: false })
+
+    const now = Date.now()
+    otherCurrentCourses = (allCourses ?? [])
+      .filter(c => {
+        if (c.id === courseId) return false
+        if (!c.start_date || c.is_template || c.archived) return false
+        const start = new Date(c.start_date).getTime()
+        const end = c.end_date ? new Date(c.end_date).getTime() : start + 105 * 24 * 60 * 60 * 1000
+        return now >= start && now <= end
+      })
+      .map(c => ({ id: c.id, name: c.name }))
+  } catch {
+    // Non-critical
+  }
+
   return (
     <ResizableSidebar>
       <InstructorCourseNav
@@ -140,6 +163,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
         myGroupNeedsGrading={myGroupNeedsGrading}
         myGroupFirstAssignmentId={myGroupFirstAssignmentId}
         isTa={isTa}
+        otherCurrentCourses={otherCurrentCourses}
       />
     </ResizableSidebar>
   )
