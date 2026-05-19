@@ -13,7 +13,7 @@ export async function saveAnswerKey(
 
   // Allow instructors/admins globally, or TAs for this course
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
     if (enr?.role !== 'ta') return { error: 'Not authorized' }
@@ -37,7 +37,7 @@ export async function markCompleteNoSubmission(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     if (!courseId) return { error: 'Not authorized' }
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
@@ -100,7 +100,7 @@ export async function saveGrade(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     if (!courseId) return { error: 'Not authorized' }
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
@@ -159,7 +159,7 @@ export async function toggleChecklistResponse(
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
     if (enr?.role !== 'ta') return { error: 'Not authorized' }
@@ -193,7 +193,7 @@ export async function addSubmissionComment(
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const admin = createServiceSupabaseClient()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     // Look up the submission to verify ownership or TA access
     const { data: submission } = await admin
       .from('submissions')
@@ -253,7 +253,7 @@ export async function deleteSubmissionComment(
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isStaff = profile?.role === 'instructor' || profile?.role === 'admin'
+  const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 
   const admin = createServiceSupabaseClient()
   const query = admin.from('submission_comments').delete().eq('id', commentId)

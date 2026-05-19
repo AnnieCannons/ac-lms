@@ -24,7 +24,7 @@ export default async function StudentsPage() {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') redirect('/student/courses')
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') redirect('/student/courses')
 
   const admin = createServiceSupabaseClient()
 

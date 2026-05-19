@@ -18,7 +18,7 @@ export default async function InstructorAttendancePage() {
     .single()
 
   const isInstructorOrAdmin =
-    profile?.role === 'instructor' || profile?.role === 'admin'
+    profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 
   if (!isInstructorOrAdmin) {
     const service = createServiceSupabaseClient()

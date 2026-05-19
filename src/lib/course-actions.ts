@@ -17,7 +17,7 @@ export async function updateCourseDates(
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { error: 'Not authorized' }
   }
 
@@ -55,7 +55,7 @@ export async function archiveCourse(
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { error: 'Not authorized' }
   }
 

@@ -13,7 +13,7 @@ export async function upsertAccommodation(
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Unauthorized' }
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Unauthorized' }
 
   const admin = createServiceSupabaseClient()
   const { error } = await admin

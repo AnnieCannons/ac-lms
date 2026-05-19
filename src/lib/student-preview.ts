@@ -9,7 +9,7 @@ export async function isStudentPreview(courseId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role === 'instructor' || profile?.role === 'admin') return true
+  if (profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin') return true
   // TAs have users.role = 'student' but course_enrollments.role = 'ta'
   const { data: enrollment } = await supabase
     .from('course_enrollments')

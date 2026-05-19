@@ -1,14 +1,16 @@
 import ResizableSidebar from './ResizableSidebar'
 import InstructorCourseNav from './InstructorCourseNav'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getPendingExtensionCount } from '@/lib/extension-actions'
 
-export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName: string }) {
+export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName?: string }) {
   let needsGrading = 0
   let firstUngradedAssignmentId: string | null = null
   let myGroupNeedsGrading = 0
   let myGroupFirstAssignmentId: string | null = null
   let isTa = false
   let otherCurrentCourses: { id: string; name: string }[] = []
+  let pendingExtensions = 0
 
   try {
     const supabase = await createServerSupabaseClient()
@@ -16,7 +18,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
 
     if (user) {
       const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-      if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+      if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
         const { data: enrollment } = await supabase
           .from('course_enrollments')
           .select('role')
@@ -153,17 +155,24 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
     // Non-critical
   }
 
+  try {
+    pendingExtensions = await getPendingExtensionCount(courseId)
+  } catch {
+    // Non-critical
+  }
+
   return (
     <ResizableSidebar>
       <InstructorCourseNav
         courseId={courseId}
-        courseName={courseName}
+        courseName={courseName ?? ''}
         needsGrading={needsGrading}
         firstUngradedAssignmentId={firstUngradedAssignmentId}
         myGroupNeedsGrading={myGroupNeedsGrading}
         myGroupFirstAssignmentId={myGroupFirstAssignmentId}
         isTa={isTa}
         otherCurrentCourses={otherCurrentCourses}
+        pendingExtensions={pendingExtensions}
       />
     </ResizableSidebar>
   )

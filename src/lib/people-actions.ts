@@ -1,8 +1,8 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
-type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
-const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'observer', 'ta']
+type Role = 'student' | 'instructor' | 'staff' | 'admin' | 'observer' | 'ta'
+const VALID_ROLES: Role[] = ['student', 'instructor', 'staff', 'admin', 'observer', 'ta']
 
 async function getAuthedInstructorOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -15,7 +15,7 @@ async function getAuthedInstructorOrAdmin() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { error: 'Unauthorized' as const }
   }
 
@@ -56,8 +56,8 @@ export async function bulkAddPeopleToCourse(
 
       if (error) return { email, error: error.message }
 
-      // Sync users.role for instructor/admin so they appear in the Staff section
-      if (role === 'instructor' || role === 'admin') {
+      // Sync users.role for instructor/staff/admin so they appear in the Staff section
+      if (role === 'instructor' || role === 'staff' || role === 'admin') {
         await admin.from('users').update({ role }).eq('id', existingUser.id)
       }
 
@@ -75,7 +75,7 @@ export async function bulkAddPeopleToCourse(
     const invitedUserId = inviteData?.user?.id
     if (invitedUserId) {
       await admin.from('users').upsert(
-        { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'admin') ? role : 'student' },
+        { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
         { onConflict: 'id', ignoreDuplicates: true }
       )
       await admin.from('course_enrollments').upsert(
@@ -129,8 +129,8 @@ export async function addPersonToCourse(
 
     if (error) return { error: error.message }
 
-    // Sync users.role for instructor/admin so they appear in the Staff section
-    if (role === 'instructor' || role === 'admin') {
+    // Sync users.role for instructor/staff/admin so they appear in the Staff section
+    if (role === 'instructor' || role === 'staff' || role === 'admin') {
       await admin.from('users').update({ role }).eq('id', existingUser.id)
     }
 
@@ -152,7 +152,7 @@ export async function addPersonToCourse(
   const invitedUserId = inviteData?.user?.id
   if (invitedUserId) {
     await admin.from('users').upsert(
-      { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'admin') ? role : 'student' },
+      { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
       { onConflict: 'id', ignoreDuplicates: true }
     )
     await admin.from('course_enrollments').upsert(
@@ -234,7 +234,7 @@ export async function updateUserRole(
   const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
 
   // Only instructors and admins can change roles
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' }
 
   // Only admins can assign the admin role
   if (role === 'admin' && profile?.role !== 'admin') {

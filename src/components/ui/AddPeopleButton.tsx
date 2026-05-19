@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { bulkAddPeopleToCourse } from '@/lib/people-actions'
 import Modal from './Modal'
 
-type InviteRole = 'student' | 'instructor' | 'admin' | 'ta'
+type InviteRole = 'student' | 'instructor' | 'staff' | 'admin' | 'ta'
 
 interface BulkResult {
   email: string
@@ -28,8 +28,14 @@ const INVITE_TYPES: { role: InviteRole; label: string; description: string; colo
   },
   {
     role: 'instructor',
+    label: 'Instructor',
+    description: 'Course instructors — added globally, with access to all courses',
+    color: 'border-purple-primary/40 hover:border-purple-primary hover:bg-purple-light/50',
+  },
+  {
+    role: 'staff',
     label: 'Staff',
-    description: 'Instructors and teaching staff — added globally, with access to all courses',
+    description: 'Operations and partnerships staff — added globally, with access to all courses',
     color: 'border-purple-primary/40 hover:border-purple-primary hover:bg-purple-light/50',
   },
 ]
@@ -54,7 +60,7 @@ export default function AddPeopleButton({
   allCourses,
 }: {
   courseId: string
-  currentUserRole: 'instructor' | 'admin'
+  currentUserRole: 'instructor' | 'staff' | 'admin'
   allCourses: { id: string; name: string }[]
 }) {
   const router = useRouter()
