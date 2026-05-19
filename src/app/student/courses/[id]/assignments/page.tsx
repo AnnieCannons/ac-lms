@@ -61,7 +61,7 @@ export default async function StudentAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, deleted_at))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, submission_required, deleted_at))')
     .eq('course_id', id)
     .eq('published', true)
     .is('deleted_at', null)

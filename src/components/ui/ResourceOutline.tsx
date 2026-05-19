@@ -33,6 +33,7 @@ interface Assignment {
   title: string
   due_date: string | null
   published: boolean
+  submission_required?: boolean
 }
 
 interface Day {
@@ -81,7 +82,7 @@ function isBonusLike(_title?: string, isBonus?: boolean) {
   return !!isBonus
 }
 
-function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean }) {
+function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequired }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean }) {
   if (info?.excused) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-muted-text shrink-0">Excused</span>
   const isLate = !!dueDate && (
     info?.submitted_at
@@ -98,6 +99,8 @@ function AssignmentStatusBadge({ info, dueDate, title, isBonus }: { info: Submis
   )
   // Bonus assignments: no status badge
   if (isBonusLike(title, isBonus)) return null
+  // No submission required: no Not Started badge (there's nothing to turn in)
+  if (submissionRequired === false) return null
   // not started (no submission or draft) — show both Late + Not Started if past due
   return (
     <div className="flex items-center gap-1.5">
@@ -377,7 +380,7 @@ const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string
   'complete':       { inactive: 'bg-green-600/20 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
 }
 
-function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean): boolean {
+function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean, submissionRequired?: boolean): boolean {
   const info = map[id]
   if (filter === 'all') return true
   if (filter === 'complete') return info?.grade === 'complete'
@@ -387,6 +390,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (bonus && (filter === 'late' || filter === 'not-started')) return false
+  if (submissionRequired === false && (filter === 'late' || filter === 'not-started')) return false
   if (filter === 'late') return isLate && notStarted && !info?.excused
   if (filter === 'not-started') return notStarted && !info?.excused
   return true
@@ -554,7 +558,7 @@ export default function ResourceOutline({
         f.key === 'all'
           ? allPublishedAssignments.filter(a => !searchQ || a.title.toLowerCase().includes(searchQ)).length
           : allPublishedAssignments.filter(a =>
-              matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title) &&
+              matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title, undefined, a.submission_required) &&
               (!searchQ || a.title.toLowerCase().includes(searchQ))
             ).length,
       ])) as Record<AssignmentFilter, number>
@@ -573,6 +577,7 @@ export default function ResourceOutline({
     ? (() => {
         const base = allPublishedAssignments.filter(a => {
           if (isBonusLike(a.title)) return false
+          if (a.submission_required === false) return false
           const info = submissionMap[a.id]
           const notStarted = !info || (info.status === 'draft' && !info.grade)
           return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
@@ -598,7 +603,7 @@ export default function ResourceOutline({
         a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
       )
       if (!submissionMap || filter === 'all') return pub.length > 0
-      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title))
+      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, undefined, a.submission_required))
     })
   )
 
@@ -709,7 +714,7 @@ export default function ResourceOutline({
                               {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
                             </p>
                           </Link>
-                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
+                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
                         </div>
                       ))}
                     </div>
@@ -738,7 +743,7 @@ export default function ResourceOutline({
                               {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
                             </p>
                           </Link>
-                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} />
+                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
                         </div>
                       ))}
                     </div>
@@ -779,7 +784,7 @@ export default function ResourceOutline({
               )
               if (!submissionMap) return pub.length > 0
               if (filter === 'all') return pub.length > 0
-              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title))
+              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, undefined, a.submission_required))
             })
 
           if (days.length === 0) return null
@@ -824,7 +829,7 @@ export default function ResourceOutline({
                           ? (!searchQ || a.title.toLowerCase().includes(searchQ))
                           : (a.published &&
                              (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
-                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title)))
+                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, undefined, a.submission_required)))
                       )
                       .sort((a, b) => {
                         // In not-started view, sort late assignments first
@@ -958,7 +963,7 @@ export default function ResourceOutline({
                                     </Link>
                                   )}
                                   {submissionMap && (
-                                    <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} />
+                                    <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
                                   )}
                                 </div>
                               </div>
