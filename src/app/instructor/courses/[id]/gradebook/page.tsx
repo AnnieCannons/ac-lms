@@ -4,7 +4,7 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import GradebookGrid from '@/components/ui/GradebookGrid'
-import type { GradebookAssignment, GradebookModule, GradebookStudent, GradebookSubmission } from '@/components/ui/GradebookGrid'
+import type { GradebookAssignment, GradebookModule, GradebookStudent, GradebookSubmission, GradebookOverride } from '@/components/ui/GradebookGrid'
 
 export default async function GradebookPage({
   params,
@@ -83,7 +83,7 @@ export default async function GradebookPage({
 
   const hasMyGroup = myGroupCourseLevel.length > 0 || Object.keys(myGroupByModule).length > 0
 
-  const [enrollmentsResult, submissionsResult] = await Promise.all([
+  const [enrollmentsResult, submissionsResult, overridesResult] = await Promise.all([
     admin
       .from('course_enrollments')
       .select('user_id, users(id, name)')
@@ -93,6 +93,12 @@ export default async function GradebookPage({
       ? admin
           .from('submissions')
           .select('assignment_id, student_id, status, grade')
+          .in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [] }),
+    assignmentIds.length
+      ? admin
+          .from('assignment_overrides')
+          .select('assignment_id, student_id, due_date, excused')
           .in('assignment_id', assignmentIds)
       : Promise.resolve({ data: [] }),
   ])
@@ -112,6 +118,13 @@ export default async function GradebookPage({
     student_id: s.student_id,
     status: s.status,
     grade: s.grade,
+  }))
+
+  const overrides: GradebookOverride[] = (overridesResult.data ?? []).map(o => ({
+    assignment_id: o.assignment_id,
+    student_id: o.student_id,
+    due_date: o.due_date,
+    excused: o.excused,
   }))
 
   return (
@@ -146,6 +159,7 @@ export default async function GradebookPage({
               modules={modulesForClient}
               assignments={assignments}
               submissions={submissions}
+              overrides={overrides}
               myGroupCourseLevel={myGroupCourseLevel}
               myGroupByModule={myGroupByModule}
               modulesWithWeeklyGroups={modulesWithWeeklyGroups}
