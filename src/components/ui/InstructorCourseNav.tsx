@@ -17,6 +17,7 @@ interface Props {
   myGroupFirstAssignmentId?: string | null
   isTa?: boolean
   otherCurrentCourses?: { id: string; name: string }[]
+  pendingExtensions?: number
 }
 
 const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence']
@@ -69,6 +70,7 @@ export default function InstructorCourseNav({
   myGroupFirstAssignmentId = null,
   isTa = false,
   otherCurrentCourses = [],
+  pendingExtensions = 0,
 }: Props) {
   const pathname = usePathname()
   const router = useRouter()
@@ -209,6 +211,7 @@ export default function InstructorCourseNav({
               )}
             </button>
             {!isTa && navLink('Grading Groups', 'grading-groups')}
+            <ExtensionRequestsNavLink courseId={courseId} pending={pendingExtensions} pathname={pathname} />
           </>
         )}
 
@@ -334,6 +337,31 @@ function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: stri
         document.body
       )}
     </>
+  )
+}
+
+function ExtensionRequestsNavLink({ courseId, pending, pathname }: { courseId: string; pending: number; pathname: string }) {
+  const href = `/instructor/courses/${courseId}/extension-requests`
+  const isActive = pathname.startsWith(href)
+  return (
+    <Link
+      href={href}
+      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between gap-2 ${
+        isActive
+          ? 'bg-teal-light text-teal-primary'
+          : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+      }`}
+    >
+      <span>Extension Requests</span>
+      {pending > 0 && (
+        <span
+          className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count"
+          title={`${pending} pending extension request${pending === 1 ? '' : 's'}`}
+        >
+          {pending}
+        </span>
+      )}
+    </Link>
   )
 }
 
