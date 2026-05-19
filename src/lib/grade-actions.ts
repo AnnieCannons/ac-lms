@@ -81,6 +81,7 @@ export async function markCompleteNoSubmission(
 
   if (courseId) {
     revalidatePath(`/instructor/courses/${courseId}`)
+    revalidatePath(`/instructor/courses/${courseId}/gradebook`)
     revalidatePath(`/student/courses/${courseId}`, 'layout')
   } else {
     revalidatePath('/instructor/courses', 'layout')

@@ -1,5 +1,7 @@
 'use client'
+import { useState } from 'react'
 import { localDate, todayLocal } from '@/lib/date-utils'
+import { markCompleteNoSubmission } from '@/lib/grade-actions'
 
 interface Submission {
   status: string
@@ -12,10 +14,63 @@ interface Props {
   studentId: string
   submission: Submission | null
   dueDate: string | null
+  submissionRequired?: boolean
+  currentUserId?: string
 }
 
-export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate }: Props) {
+export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate, submissionRequired, currentUserId }: Props) {
   const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
+  const isComplete = submission?.grade === 'complete'
+  const [optimisticComplete, setOptimisticComplete] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // No-submission assignment: show checkbox toggle
+  if (submissionRequired === false) {
+    const checked = optimisticComplete ?? isComplete
+
+    const toggle = async () => {
+      if (loading || !currentUserId) return
+      const next = !checked
+      setOptimisticComplete(next)
+      setLoading(true)
+      const { error } = await markCompleteNoSubmission(
+        assignmentId,
+        studentId,
+        next ? 'complete' : null,
+        currentUserId,
+        courseId,
+      )
+      setLoading(false)
+      if (error) {
+        setOptimisticComplete(checked)
+        console.error('Failed to mark complete:', error)
+      }
+    }
+
+    return (
+      <td
+        className={`relative p-0 border-r border-b border-border overflow-hidden ${checked ? 'status-complete-btn' : ''}`}
+        title={checked ? 'Complete — click to unmark' : 'Not started — click to mark complete'}
+        aria-label={checked ? 'Complete' : 'Not started'}
+      >
+        <button
+          type="button"
+          onClick={toggle}
+          disabled={loading}
+          className="w-full h-full min-h-[44px] flex items-center justify-center text-sm font-bold disabled:opacity-50 transition-opacity"
+          aria-pressed={checked}
+        >
+          {loading ? (
+            <span className="text-xs opacity-60">…</span>
+          ) : checked ? (
+            <span aria-hidden="true">✓</span>
+          ) : (
+            <span aria-hidden="true" className="text-border text-base leading-none">○</span>
+          )}
+        </button>
+      </td>
+    )
+  }
 
   const hasSubmission = !!submission && submission.status !== 'draft'
 

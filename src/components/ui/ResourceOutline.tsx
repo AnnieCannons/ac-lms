@@ -99,8 +99,10 @@ function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequir
   )
   // Bonus assignments: no status badge
   if (isBonusLike(title, isBonus)) return null
-  // No submission required: no Not Started badge (there's nothing to turn in)
-  if (submissionRequired === false) return null
+  // No submission required: show Not Started but never Late (instructor marks complete manually)
+  if (submissionRequired === false) {
+    return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
+  }
   // not started (no submission or draft) — show both Late + Not Started if past due
   return (
     <div className="flex items-center gap-1.5">
@@ -390,7 +392,7 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (bonus && (filter === 'late' || filter === 'not-started')) return false
-  if (submissionRequired === false && (filter === 'late' || filter === 'not-started')) return false
+  if (submissionRequired === false && filter === 'late') return false
   if (filter === 'late') return isLate && notStarted && !info?.excused
   if (filter === 'not-started') return notStarted && !info?.excused
   return true
@@ -577,13 +579,12 @@ export default function ResourceOutline({
     ? (() => {
         const base = allPublishedAssignments.filter(a => {
           if (isBonusLike(a.title)) return false
-          if (a.submission_required === false) return false
           const info = submissionMap[a.id]
           const notStarted = !info || (info.status === 'draft' && !info.grade)
           return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
         })
-        const pastDue = sortByDue(base.filter(a => !!a.due_date && localDate(a.due_date) < todayLocal()))
-        const upcoming = sortByDue(base.filter(a => !a.due_date || localDate(a.due_date) >= todayLocal()))
+        const pastDue = sortByDue(base.filter(a => a.submission_required !== false && !!a.due_date && localDate(a.due_date) < todayLocal()))
+        const upcoming = sortByDue(base.filter(a => a.submission_required === false || !a.due_date || localDate(a.due_date) >= todayLocal()))
         return { pastDue, upcoming }
       })()
     : null

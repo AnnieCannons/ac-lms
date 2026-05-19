@@ -103,6 +103,7 @@ export default function CourseGradesView({
         if (override?.excused) continue
         const effectiveDueDate = override?.due_date ?? a.due_date
         if (!sub || sub.status === 'draft') {
+          // No-submission assignments are never "missing" — instructor marks them complete manually
           if (a.submission_required === false) continue
           if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) missing.push(a)
         } else if (sub.status === 'submitted') {
