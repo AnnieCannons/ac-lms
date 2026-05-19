@@ -12,6 +12,7 @@ export interface GradebookAssignment {
   moduleId: string
   moduleTitle: string
   weekNumber: number | null
+  graderId?: string | null
 }
 export interface GradebookSubmission {
   assignment_id: string
@@ -23,6 +24,7 @@ export interface GradebookModule { id: string; title: string; week_number: numbe
 
 interface Props {
   courseId: string
+  currentUserId: string
   students: GradebookStudent[]
   modules: GradebookModule[]
   assignments: GradebookAssignment[]
@@ -156,7 +158,7 @@ function MultiSelectDropdown({
   )
 }
 
-export default function GradebookGrid({ courseId, students, modules, assignments, submissions, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
+export default function GradebookGrid({ courseId, currentUserId, students, modules, assignments, submissions, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
   const modulesStorageKey = `gradebook-modules-${courseId}`
   const [selectedModules, setSelectedModules] = useState<Set<string>>(() => {
     try {
@@ -245,6 +247,7 @@ export default function GradebookGrid({ courseId, students, modules, assignments
   const filteredAssignments = assignments
     .filter(a => selectedModules.size === 0 || selectedModules.has(a.moduleId))
     .filter(a => selectedAssignments.size === 0 || selectedAssignments.has(a.id))
+    .filter(a => !myGroupActive || !a.graderId || a.graderId === currentUserId)
 
   const submissionMap = new Map<string, GradebookSubmission>()
   for (const sub of submissions) {
