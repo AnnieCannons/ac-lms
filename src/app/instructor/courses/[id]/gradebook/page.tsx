@@ -28,7 +28,7 @@ export default async function GradebookPage({
   // Modules → days → published assignments
   const { data: modules } = await admin
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, grader_id))')
+    .select('id, title, week_number, order, module_days(id, day_name, order, assignments!module_day_id(id, title, due_date, published, grader_id, submission_required))')
     .eq('course_id', id)
     .eq('category', 'syllabus')
     .is('deleted_at', null)
@@ -53,6 +53,7 @@ export default async function GradebookPage({
           moduleTitle: m.title,
           weekNumber: m.week_number,
           graderId: a.grader_id ?? null,
+          submission_required: a.submission_required,
         }))
     )
   )

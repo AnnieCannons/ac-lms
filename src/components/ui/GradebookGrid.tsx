@@ -13,6 +13,7 @@ export interface GradebookAssignment {
   moduleTitle: string
   weekNumber: number | null
   graderId?: string | null
+  submission_required?: boolean
 }
 export interface GradebookSubmission {
   assignment_id: string
@@ -337,9 +338,12 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
   const toggleStatus = (s: StatusFilter) => setSelectedStatuses(prev => {
     const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next
   })
-  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null): StatusFilter {
+  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean): StatusFilter {
     const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
-    if (!sub || sub.status === 'draft') return isPastDue ? 'late_missing' : 'not_yet_due'
+    if (!sub || sub.status === 'draft') {
+      if (submissionRequired === false) return 'not_yet_due'
+      return isPastDue ? 'late_missing' : 'not_yet_due'
+    }
     if (sub.status === 'submitted') return 'ungraded'
     if (sub.status === 'graded') return sub.grade === 'complete' ? 'complete' : 'needs_revision'
     return 'not_yet_due'
@@ -428,7 +432,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     ? filteredStudents
     : filteredStudents.filter(student =>
         filteredAssignments.some(a =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date)))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
         )
       )
 
@@ -436,7 +440,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     ? filteredAssignments
     : filteredAssignments.filter(a =>
         filteredStudents.some(student =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date)))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
         )
       )
 
@@ -563,6 +567,8 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       studentId={student.id}
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
                       dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
+                      submissionRequired={a.submission_required}
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </tr>
@@ -648,6 +654,8 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       studentId={student.id}
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
                       dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
+                      submissionRequired={a.submission_required}
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </tr>
