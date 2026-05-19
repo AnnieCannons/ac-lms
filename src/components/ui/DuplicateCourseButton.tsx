@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { getInstructorUsers } from "@/lib/people-actions";
 import Modal from "./Modal";
 import DatePickerField from "./DatePickerField";
 
@@ -61,13 +61,7 @@ export default function DuplicateCourseButton({
     setOpen(true);
 
     setLoadingInstructors(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("users")
-      .select("id, name, email")
-      .eq("role", "instructor")
-      .order("name");
-    const list: InstructorOption[] = data ?? [];
+    const list = await getInstructorUsers();
     setInstructors(list);
     setSelectedIds(new Set([currentUserId]));
     setLoadingInstructors(false);

@@ -15,7 +15,7 @@ async function getAuthedInstructorOrAdmin() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { error: 'Unauthorized' as const }
   }
 
@@ -234,7 +234,7 @@ export async function updateUserRole(
   const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
 
   // Only instructors and admins can change roles
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' }
 
   // Only admins can assign the admin role
   if (role === 'admin' && profile?.role !== 'admin') {
@@ -481,4 +481,20 @@ export async function acceptInvite(
   }
 
   return { courseId, role }
+}
+
+export async function getInstructorUsers(): Promise<{ id: string; name: string | null; email: string }[]> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return []
+
+  const admin = createServiceSupabaseClient()
+  const { data } = await admin
+    .from('users')
+    .select('id, name, email')
+    .eq('role', 'instructor')
+    .order('name')
+  return data ?? []
 }
