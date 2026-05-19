@@ -19,7 +19,7 @@ async function getAuthedInstructorOrAdmin() {
     return { error: 'Unauthorized' as const }
   }
 
-  return { user, supabase }
+  return { user, supabase, callerRole: profile.role as string }
 }
 
 export async function bulkAddPeopleToCourse(
@@ -261,6 +261,10 @@ export async function updateEnrollmentRole(
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return { error: auth.error }
 
+  if (role === 'admin' && auth.callerRole !== 'admin') {
+    return { error: 'Only admins can assign the admin role.' }
+  }
+
   const admin = createServiceSupabaseClient()
   const { error } = await admin
     .from('course_enrollments')
@@ -441,8 +445,18 @@ export async function acceptInvite(
   const { error: pwError } = await admin.auth.admin.updateUserById(user.id, { password })
   if (pwError) return { error: pwError.message }
 
-  const role: Role = (user.user_metadata?.role as Role) ?? 'student'
-  const courseId: string = user.user_metadata?.course_id
+  // Read role and courseId from the invitations table (not user_metadata, which is user-writable)
+  const { data: invitation } = await admin
+    .from('invitations')
+    .select('role, course_id')
+    .eq('email', user.email!)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const role: Role = (invitation?.role as Role) ?? (user.user_metadata?.role as Role) ?? 'student'
+  const courseId: string = invitation?.course_id ?? user.user_metadata?.course_id
 
   // Upsert profile: always write name (user just entered it), preserve existing role if present
   const { data: existingProfile } = await admin
