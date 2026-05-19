@@ -124,7 +124,7 @@ function AcceptInviteForm() {
 
     const pwError = validatePassword(password)
     if (pwError) {
-      setSubmitError('Please follow all password requirements listed below.')
+      setSubmitError('Please follow all password requirements listed above.')
       return
     }
     if (password !== confirm) return // inline indicator already visible
