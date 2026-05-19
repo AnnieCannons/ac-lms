@@ -20,7 +20,7 @@ export async function getInstructorOrTaAccess(courseId: string, studentRedirect?
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  if (profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin') {
     return { user, profile, isTa: false }
   }
 

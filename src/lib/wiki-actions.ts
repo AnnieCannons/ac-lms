@@ -17,7 +17,7 @@ async function getInstructorOrAdminUser() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { user: null, role: null, error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { user: null, role: null, error: 'Unauthorized' }
   }
   return { user, role: profile.role, error: null }

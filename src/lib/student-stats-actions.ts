@@ -28,7 +28,7 @@ export async function getStudentAssignmentStats(
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     throw new Error('Forbidden')
   }
 
