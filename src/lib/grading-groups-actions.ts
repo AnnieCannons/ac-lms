@@ -240,6 +240,9 @@ export async function setAssignmentGrader(
   const auth = await getAuthedInstructor()
   if ('error' in auth) return { error: auth.error }
 
+  const hasAccess = await verifyInstructorCourseAccess(auth.supabase, auth.user.id, auth.role, courseId)
+  if (!hasAccess) return { error: 'Not authorized for this course' }
+
   const admin = createServiceSupabaseClient()
 
   // Verify the assignment belongs to this course via module_days → modules → course_id
