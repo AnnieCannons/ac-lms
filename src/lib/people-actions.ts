@@ -494,7 +494,7 @@ export async function getInstructorUsers(): Promise<{ id: string; name: string |
   const { data } = await admin
     .from('users')
     .select('id, name, email')
-    .eq('role', 'instructor')
+    .in('role', ['instructor', 'admin'])
     .order('name')
   return data ?? []
 }
