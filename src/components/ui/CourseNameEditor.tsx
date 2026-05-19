@@ -86,7 +86,6 @@ export default function CourseNameEditor({
             </a>
           )}
         </div>
-        {code && <p className="text-muted-text text-sm mt-0.5">{code}</p>}
       </div>
       <button
         onClick={() => setEditing(true)}

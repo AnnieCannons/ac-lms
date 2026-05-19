@@ -13,7 +13,7 @@ export default function InstructorTopNav({ name, role, isTa, breadcrumbs }: { na
   return (
     <nav aria-label="Primary navigation" className="sticky top-0 z-40 bg-surface border-b border-border px-4 sm:px-8 py-4 flex items-center gap-4">
       <div className="flex items-center gap-3 shrink-0">
-        <Link href="/instructor/courses" aria-label="AC — Home" className="text-xl font-extrabold text-dark-text">
+        <Link href="/instructor" aria-label="AC — Home" className="text-xl font-extrabold text-dark-text">
           AC<span aria-hidden="true" className="text-teal-primary">*</span>
         </Link>
         {displayRole && (
