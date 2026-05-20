@@ -203,8 +203,8 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   ap.set(
     'filterByFormula',
     endDateStr
-      ? `AND(IS_AFTER({Date}, '${startDateStr}'), NOT(IS_AFTER({Date}, '${endDateStr}')))`
-      : `IS_AFTER({Date}, '${startDateStr}')`,
+      ? `AND(NOT(IS_BEFORE({Date}, '${startDateStr}')), NOT(IS_AFTER({Date}, '${endDateStr}')))`
+      : `NOT(IS_BEFORE({Date}, '${startDateStr}'))`,
   )
   const attendanceRecords = await paginate(ATTENDANCE_TABLE, ap)
 
