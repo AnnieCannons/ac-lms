@@ -51,7 +51,7 @@ export default async function StudentClassResourcesPage({
   const [{ data: rawModules }, { data: stars }, { data: completions }] = await Promise.all([
     supabase
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, day_name, order, resources!module_day_id(id, type, title, content, description, order, instructor_only))')
+      .select('id, title, week_number, order, module_days(id, day_name, order, resources!module_day_id(id, type, title, content, description, order, instructor_only, published))')
       .eq('course_id', id)
       .eq('published', true)
       .order('order', { ascending: true }),
@@ -65,7 +65,7 @@ export default async function StudentClassResourcesPage({
       ...m,
       module_days: (m.module_days ?? []).map(d => ({
         ...d,
-        resources: (d.resources ?? []).filter((r: { instructor_only?: boolean }) => !r.instructor_only),
+        resources: (d.resources ?? []).filter((r: { instructor_only?: boolean; published?: boolean }) => !r.instructor_only && r.published !== false),
       })),
     }))
   const starredIds = (stars ?? []).map(s => s.resource_id)
