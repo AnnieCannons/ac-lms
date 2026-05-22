@@ -4,6 +4,7 @@ import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
 import NavMobileMenu from '@/components/ui/NavMobileMenu'
 import DocsHelpLink from '@/components/ui/DocsHelpLink'
+import NotificationBell from '@/components/ui/NotificationBell'
 
 function ToolsDropdown() {
   const [open, setOpen] = useState(false)
@@ -61,6 +62,7 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
       {/* Desktop right side */}
       <div className="hidden sm:flex items-center gap-5">
         <ToolsDropdown />
+        <NotificationBell />
         <DocsHelpLink guide="student" className="text-sm text-muted-text hover:text-teal-primary transition-colors" />
         <Link href="/account" className="text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">
           {name}

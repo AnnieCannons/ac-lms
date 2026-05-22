@@ -11,6 +11,8 @@ import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import { localDate, formatDueDate, todayLocal } from '@/lib/date-utils'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
+import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
+import { getExtensionRequestForStudent } from '@/lib/extension-actions'
 
 export default async function StudentAssignmentPage({
   params,
@@ -133,6 +135,11 @@ export default async function StudentAssignmentPage({
 
   const effectiveDueDate = (override?.due_date ?? null) ? override!.due_date : assignment.due_date
   const isExcused = override?.excused ?? false
+
+  const isStudent = !preview && enrollment?.role === 'student'
+  const existingExtensionRequest = isStudent && admin
+    ? await getExtensionRequestForStudent(assignmentId, user.id)
+    : null
 
   // Instructor's checklist responses (read-only for student)
   const { data: instructorResponses } = (admin && existingSubmission)
@@ -272,6 +279,18 @@ export default async function StudentAssignmentPage({
             )
           })()}
         </div>
+
+        {/* Extension request button — students only, not observers or preview */}
+        {isStudent && (
+          <div className="mb-6">
+            <RequestExtensionButton
+              assignmentId={assignmentId}
+              courseId={id}
+              existingRequest={existingExtensionRequest}
+              assignmentTitle={assignment.title}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-6">
           {/* Instructions */}

@@ -457,6 +457,50 @@ RLS: Instructors/admins can manage. Per-assignment overrides use `assignments.gr
 - `instructor` — globally has access to all courses; must be explicitly enrolled per course (via Users → Instructors) to appear in grading groups
 - `ta` — course-scoped; enrolled via Users → Add People
 
+---
+
+### extension_requests
+Student requests for a due date extension on a specific assignment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `course_id` | uuid | FK → courses, CASCADE DELETE |
+| `reason` | text | Selected reason key: `not_enough_time`, `bug`, `dont_understand`, `other` |
+| `reason_other` | text | Nullable — filled when `reason = 'other'` |
+| `plan` | text[] | Selected action keys: `calendar`, `ask_help`, `other` |
+| `plan_other` | text | Nullable — filled when `plan` includes `'other'` |
+| `requested_due_date` | timestamptz | Student's proposed new due date/time |
+| `notes` | text | Nullable — any additional context |
+| `status` | text | `pending`, `approved`, or `denied` |
+| `instructor_comment` | text | Nullable — instructor's note to student |
+| `reviewed_by` | uuid | FK → users, nullable — instructor who reviewed |
+| `reviewed_at` | timestamptz | Nullable |
+| `created_at` | timestamptz | Default: now() |
+
+Unique constraint on `(assignment_id, student_id)` — one request per student per assignment.
+
+---
+
+### notifications
+In-app notifications for students and instructors.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → users, CASCADE DELETE |
+| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment` |
+| `course_id` | uuid | FK → courses, nullable |
+| `assignment_id` | uuid | FK → assignments, nullable |
+| `extension_request_id` | uuid | FK → extension_requests, nullable |
+| `message` | text | Human-readable notification text |
+| `read` | boolean | Default: false |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
 ## Indexes
 
 | Table | Indexed Column | Reason |
