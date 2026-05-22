@@ -12,6 +12,8 @@ Built on Supabase (PostgreSQL). All IDs are UUIDs. Timestamps are `timestamptz`.
 | `resource_type` | `video`, `reading`, `link`, `file` |
 | `submission_type` | `text`, `file`, `link` |
 | `submission_status` | `draft`, `submitted`, `graded` |
+| `partner_status` | `prospect`, `active`, `inactive`, `in_onboarding` |
+| `partner_type` | `service_provider`, `corporate`, `funder`, `advisory`, `mentorship`, `media` |
 
 ---
 
@@ -197,6 +199,18 @@ A student's submission for an assignment.
 | `grade` | text | `complete` or `incomplete` |
 | `graded_at` | timestamptz | |
 | `graded_by` | uuid | FK → users (instructor who graded) |
+
+---
+
+### grade_history
+Records every time a submission is graded, enabling a grade change log.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `submission_id` | uuid | FK → submissions, CASCADE DELETE |
+| `grade` | text | `complete` or `incomplete` |
+| `graded_at` | timestamptz | Default: now() |
 
 ---
 
@@ -485,6 +499,22 @@ Unique constraint on `(assignment_id, student_id)` — one request per student p
 
 ---
 
+### assignment_overrides
+Per-student due date or excusal overrides for a specific assignment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `due_date` | date | Nullable — overrides the assignment's due_date for this student |
+| `excused` | boolean | Default: false — if true, assignment is excused for this student |
+| `created_at` | timestamptz | Default: now() |
+
+Unique constraint on `(assignment_id, student_id)`.
+
+---
+
 ### notifications
 In-app notifications for students and instructors.
 
@@ -498,6 +528,87 @@ In-app notifications for students and instructors.
 | `extension_request_id` | uuid | FK → extension_requests, nullable |
 | `message` | text | Human-readable notification text |
 | `read` | boolean | Default: false |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### confidence_skills
+Skills a student is personally tracking in the Confidence Tracker.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
+| `name` | text | Skill name (e.g. `React`, `CSS Flexbox`) |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### confidence_entries
+Individual score log entries per tracked skill.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `skill_id` | uuid | FK → confidence_skills, CASCADE DELETE |
+| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
+| `score` | int | 1–10 self-rating |
+| `goal_points` | int | Nullable, 1–5 — optional effort/goal points |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### partners
+Partner organizations (employers, funders, advisors, etc.).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `name` | text | Required |
+| `city` | text | Nullable |
+| `state` | text | Nullable |
+| `multi_city` | boolean | Default: false |
+| `how_we_met` | text | Nullable |
+| `services_focus_area` | text | Nullable |
+| `status` | partner_status | `prospect`, `active`, `inactive`, `in_onboarding` |
+| `last_interaction_date` | date | Nullable |
+| `meeting_notes` | text | Nullable |
+| `tags` | text[] | Default: `{}` |
+| `internal_owner_id` | uuid | FK → users, nullable — AC staff owner |
+| `referred_by` | text | Nullable |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+RLS: staff and admin only.
+
+---
+
+### partner_type_assignments
+Junction table — a partner can have multiple types.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE |
+| `partner_type` | partner_type | `service_provider`, `corporate`, `funder`, `advisory`, `mentorship`, `media` |
+
+Unique on `(partner_id, partner_type)`.
+
+---
+
+### partner_contacts
+Contacts (people) associated with a partner organization.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE |
+| `name` | text | Required |
+| `title` | text | Nullable |
+| `email` | text | Nullable |
+| `phone` | text | Nullable |
+| `is_primary` | boolean | Default: false |
+| `notes` | text | Nullable |
 | `created_at` | timestamptz | Default: now() |
 
 ---
