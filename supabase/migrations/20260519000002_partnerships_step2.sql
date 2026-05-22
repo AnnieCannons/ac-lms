@@ -93,3 +93,15 @@ CREATE POLICY "staff and admin can manage partner_contacts"
         AND users.role IN ('staff', 'admin')
     )
   );
+
+GRANT ALL ON TABLE public.partners TO anon;
+GRANT ALL ON TABLE public.partners TO authenticated;
+GRANT ALL ON TABLE public.partners TO service_role;
+
+GRANT ALL ON TABLE public.partner_type_assignments TO anon;
+GRANT ALL ON TABLE public.partner_type_assignments TO authenticated;
+GRANT ALL ON TABLE public.partner_type_assignments TO service_role;
+
+GRANT ALL ON TABLE public.partner_contacts TO anon;
+GRANT ALL ON TABLE public.partner_contacts TO authenticated;
+GRANT ALL ON TABLE public.partner_contacts TO service_role;
