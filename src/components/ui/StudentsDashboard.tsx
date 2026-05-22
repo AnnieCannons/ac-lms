@@ -96,9 +96,15 @@ function AssignmentList({
 function StudentRow({
   student,
   courseId,
+  startDate,
+  endDate,
+  airtableCourseName,
 }: {
   student: { id: string; name: string }
   courseId: string
+  startDate: string | null
+  endDate: string | null
+  airtableCourseName: string | null
 }) {
   const [expanded, setExpanded] = useState(false)
   const [data, setData] = useState<StudentData>({
@@ -113,9 +119,13 @@ function StudentRow({
     if (data.assignments !== null || data.loading) return
     setData(d => ({ ...d, loading: true, error: null }))
     try {
+      const attendanceParams = new URLSearchParams({ name: student.name })
+      if (startDate) attendanceParams.set('since', startDate)
+      if (endDate) attendanceParams.set('until', endDate)
+      if (airtableCourseName) attendanceParams.set('courseName', airtableCourseName)
       const [assignments, attendanceRes] = await Promise.all([
         getStudentAssignmentStats(student.id, courseId),
-        fetch(`/api/attendance/instructor/student?name=${encodeURIComponent(student.name)}`).then(r => r.json()),
+        fetch(`/api/attendance/instructor/student?${attendanceParams}`).then(r => r.json()),
       ])
       setData(d => ({
         ...d,
@@ -126,7 +136,7 @@ function StudentRow({
     } catch {
       setData(d => ({ ...d, loading: false, error: 'Failed to load data.' }))
     }
-  }, [data.assignments, data.loading, student.id, student.name, courseId])
+  }, [data.assignments, data.loading, student.id, student.name, courseId, startDate, endDate, airtableCourseName])
 
   const toggle = () => {
     if (!expanded) load()
@@ -246,6 +256,7 @@ function StudentRow({
 }
 
 function CourseAccordion({ course }: { course: CourseWithStudents }) {
+  const { startDate, endDate, airtableCourseName } = course
   const [open, setOpen] = useState(true)
 
   return (
@@ -274,7 +285,7 @@ function CourseAccordion({ course }: { course: CourseWithStudents }) {
       {open && (
         <ul className="border-t border-border divide-y divide-border">
           {course.students.map(s => (
-            <StudentRow key={s.id} student={s} courseId={course.id} />
+            <StudentRow key={s.id} student={s} courseId={course.id} startDate={startDate} endDate={endDate} airtableCourseName={airtableCourseName} />
           ))}
         </ul>
       )}

@@ -13,12 +13,19 @@ export interface GradebookAssignment {
   moduleTitle: string
   weekNumber: number | null
   graderId?: string | null
+  submission_required?: boolean
 }
 export interface GradebookSubmission {
   assignment_id: string
   student_id: string
   status: string
   grade: string | null
+}
+export interface GradebookOverride {
+  assignment_id: string
+  student_id: string
+  due_date: string | null
+  excused: boolean
 }
 export interface GradebookModule { id: string; title: string; week_number: number | null }
 
@@ -29,6 +36,7 @@ interface Props {
   modules: GradebookModule[]
   assignments: GradebookAssignment[]
   submissions: GradebookSubmission[]
+  overrides: GradebookOverride[]
   myGroupCourseLevel: string[]
   myGroupByModule: Record<string, string[]>
   modulesWithWeeklyGroups: string[]
@@ -311,7 +319,7 @@ function AssignmentFilterDropdown({
   )
 }
 
-export default function GradebookGrid({ courseId, currentUserId, students, modules, assignments, submissions, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
+export default function GradebookGrid({ courseId, currentUserId, students, modules, assignments, submissions, overrides, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
   const modulesStorageKey = `gradebook-modules-${courseId}`
   const [selectedModules, setSelectedModules] = useState<Set<string>>(() => {
     try {
@@ -330,9 +338,12 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
   const toggleStatus = (s: StatusFilter) => setSelectedStatuses(prev => {
     const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next
   })
-  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null): StatusFilter {
+  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean): StatusFilter {
     const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
-    if (!sub || sub.status === 'draft') return isPastDue ? 'late_missing' : 'not_yet_due'
+    if (!sub || sub.status === 'draft') {
+      if (submissionRequired === false) return 'not_yet_due'
+      return isPastDue ? 'late_missing' : 'not_yet_due'
+    }
     if (sub.status === 'submitted') return 'ungraded'
     if (sub.status === 'graded') return sub.grade === 'complete' ? 'complete' : 'needs_revision'
     return 'not_yet_due'
@@ -406,11 +417,22 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     submissionMap.set(`${sub.assignment_id}_${sub.student_id}`, sub)
   }
 
+  const overrideMap = new Map<string, GradebookOverride>()
+  for (const o of overrides) {
+    overrideMap.set(`${o.assignment_id}_${o.student_id}`, o)
+  }
+
+  function effectiveDueDate(assignmentId: string, studentId: string, globalDueDate: string | null): string | null {
+    const o = overrideMap.get(`${assignmentId}_${studentId}`)
+    if (o?.excused) return null
+    return o?.due_date ?? globalDueDate
+  }
+
   const statusFilteredStudents = selectedStatuses.size === 0
     ? filteredStudents
     : filteredStudents.filter(student =>
         filteredAssignments.some(a =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, a.due_date))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
         )
       )
 
@@ -418,7 +440,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     ? filteredAssignments
     : filteredAssignments.filter(a =>
         filteredStudents.some(student =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, a.due_date))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
         )
       )
 
@@ -544,7 +566,9 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       assignmentId={a.id}
                       studentId={student.id}
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
-                      dueDate={a.due_date}
+                      dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
+                      submissionRequired={a.submission_required}
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </tr>
@@ -629,7 +653,9 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       assignmentId={a.id}
                       studentId={student.id}
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
-                      dueDate={a.due_date}
+                      dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
+                      submissionRequired={a.submission_required}
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </tr>

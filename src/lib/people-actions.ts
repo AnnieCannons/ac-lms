@@ -1,8 +1,8 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
-type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
-const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'observer', 'ta']
+type Role = 'student' | 'instructor' | 'staff' | 'admin' | 'observer' | 'ta'
+const VALID_ROLES: Role[] = ['student', 'instructor', 'staff', 'admin', 'observer', 'ta']
 
 async function getAuthedInstructorOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -15,11 +15,11 @@ async function getAuthedInstructorOrAdmin() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { error: 'Unauthorized' as const }
   }
 
-  return { user, supabase }
+  return { user, supabase, callerRole: profile.role as string }
 }
 
 export async function bulkAddPeopleToCourse(
@@ -56,8 +56,8 @@ export async function bulkAddPeopleToCourse(
 
       if (error) return { email, error: error.message }
 
-      // Sync users.role for instructor/admin so they appear in the Staff section
-      if (role === 'instructor' || role === 'admin') {
+      // Sync users.role for instructor/staff/admin so they appear in the Staff section
+      if (role === 'instructor' || role === 'staff' || role === 'admin') {
         await admin.from('users').update({ role }).eq('id', existingUser.id)
       }
 
@@ -75,7 +75,7 @@ export async function bulkAddPeopleToCourse(
     const invitedUserId = inviteData?.user?.id
     if (invitedUserId) {
       await admin.from('users').upsert(
-        { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'admin') ? role : 'student' },
+        { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
         { onConflict: 'id', ignoreDuplicates: true }
       )
       await admin.from('course_enrollments').upsert(
@@ -129,8 +129,8 @@ export async function addPersonToCourse(
 
     if (error) return { error: error.message }
 
-    // Sync users.role for instructor/admin so they appear in the Staff section
-    if (role === 'instructor' || role === 'admin') {
+    // Sync users.role for instructor/staff/admin so they appear in the Staff section
+    if (role === 'instructor' || role === 'staff' || role === 'admin') {
       await admin.from('users').update({ role }).eq('id', existingUser.id)
     }
 
@@ -152,7 +152,7 @@ export async function addPersonToCourse(
   const invitedUserId = inviteData?.user?.id
   if (invitedUserId) {
     await admin.from('users').upsert(
-      { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'admin') ? role : 'student' },
+      { id: invitedUserId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
       { onConflict: 'id', ignoreDuplicates: true }
     )
     await admin.from('course_enrollments').upsert(
@@ -234,7 +234,7 @@ export async function updateUserRole(
   const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
 
   // Only instructors and admins can change roles
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' }
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' }
 
   // Only admins can assign the admin role
   if (role === 'admin' && profile?.role !== 'admin') {
@@ -260,6 +260,10 @@ export async function updateEnrollmentRole(
 
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return { error: auth.error }
+
+  if (role === 'admin' && auth.callerRole !== 'admin') {
+    return { error: 'Only admins can assign the admin role.' }
+  }
 
   const admin = createServiceSupabaseClient()
   const { error } = await admin
@@ -441,8 +445,18 @@ export async function acceptInvite(
   const { error: pwError } = await admin.auth.admin.updateUserById(user.id, { password })
   if (pwError) return { error: pwError.message }
 
-  const role: Role = (user.user_metadata?.role as Role) ?? 'student'
-  const courseId: string = user.user_metadata?.course_id
+  // Read role and courseId from the invitations table (not user_metadata, which is user-writable)
+  const { data: invitation } = await admin
+    .from('invitations')
+    .select('role, course_id')
+    .eq('email', user.email!)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const role: Role = (invitation?.role as Role) ?? (user.user_metadata?.role as Role) ?? 'student'
+  const courseId: string = invitation?.course_id ?? user.user_metadata?.course_id
 
   // Upsert profile: always write name (user just entered it), preserve existing role if present
   const { data: existingProfile } = await admin
@@ -481,4 +495,20 @@ export async function acceptInvite(
   }
 
   return { courseId, role }
+}
+
+export async function getInstructorUsers(): Promise<{ id: string; name: string | null; email: string }[]> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return []
+
+  const admin = createServiceSupabaseClient()
+  const { data } = await admin
+    .from('users')
+    .select('id, name, email')
+    .in('role', ['instructor', 'admin'])
+    .order('name')
+  return data ?? []
 }

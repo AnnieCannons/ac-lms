@@ -23,6 +23,18 @@ export default function Gradebook() {
         <li><strong>– amber</strong> — past due with no submission (late / missing)</li>
         <li><strong>empty with border</strong> — not yet due, no submission</li>
       </DocList>
+
+      <DocH3>No-Submission Assignments</DocH3>
+      <DocP>
+        Assignments with <strong>No submission required</strong> use a checkbox in their gradebook cell instead of
+        status indicators. Click the checkbox to mark a student complete — no submission is needed. The cell shows
+        a green checkmark when marked complete and is empty otherwise. These assignments never show as
+        Missing or Late since students aren&apos;t expected to submit anything.
+      </DocP>
+      <DocNote>
+        No-submission assignments use an <strong>Add to Gradebook</strong> toggle in the assignment editor (instead
+        of Publish) to control whether they appear in the gradebook.
+      </DocNote>
       <DocTip>
         Hover over any filled cell to reveal an <strong>Open →</strong> link. Click it to open the grader for that
         student &amp; assignment in a new tab, in <em>By Student</em> mode — so you can navigate through all of that

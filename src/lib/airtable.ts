@@ -72,10 +72,33 @@ export type ClassStudent = {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export async function fetchStudentAttendance(preferredName: string): Promise<AttendanceRecord[]> {
+export async function fetchStudentAttendance(preferredName: string, since?: string, until?: string, courseName?: string): Promise<AttendanceRecord[]> {
   const safeName = escapeAirtableString(preferredName)
+
+  // If a course name is provided, verify this student is enrolled in that specific
+  // Airtable course before fetching attendance — prevents mixing up students with the
+  // same preferred name who are in different concurrent courses.
+  if (courseName) {
+    const safeCourseName = escapeAirtableString(courseName)
+    const sp = new URLSearchParams()
+    sp.set(
+      'filterByFormula',
+      `AND(LOWER({Preferred Name})='${safeName.toLowerCase()}', OR(FIND('${safeCourseName}', ARRAYJOIN({Current Course})), FIND('${safeCourseName}', ARRAYJOIN({Past Courses}))))`,
+    )
+    const enrolled = await paginate('Students', sp)
+    if (!enrolled.length) return []
+  }
+
+  const dateFilter = since && until
+    ? `AND(NOT(IS_BEFORE({Date}, '${since}')), NOT(IS_AFTER({Date}, '${until}')))`
+    : since
+      ? `NOT(IS_BEFORE({Date}, '${since}'))`
+      : ''
+  const nameFilter = `{PreferredNameText}='${safeName}'`
+  const formula = dateFilter ? `AND(${nameFilter}, ${dateFilter})` : nameFilter
+
   const p = new URLSearchParams()
-  p.set('filterByFormula', `{PreferredNameText}='${safeName}'`)
+  p.set('filterByFormula', formula)
   p.set('sort[0][field]', 'Date')
   p.set('sort[0][direction]', 'desc')
 
@@ -203,8 +226,8 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   ap.set(
     'filterByFormula',
     endDateStr
-      ? `AND(IS_AFTER({Date}, '${startDateStr}'), NOT(IS_AFTER({Date}, '${endDateStr}')))`
-      : `IS_AFTER({Date}, '${startDateStr}')`,
+      ? `AND(NOT(IS_BEFORE({Date}, '${startDateStr}')), NOT(IS_AFTER({Date}, '${endDateStr}')))`
+      : `NOT(IS_BEFORE({Date}, '${startDateStr}'))`,
   )
   const attendanceRecords = await paginate(ATTENDANCE_TABLE, ap)
 

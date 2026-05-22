@@ -16,7 +16,7 @@ export default async function BenefitsPage({
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') redirect('/unauthorized')
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') redirect('/unauthorized')
 
   const { from } = await searchParams
   const { data: course } = from

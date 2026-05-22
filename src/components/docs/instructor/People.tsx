@@ -30,18 +30,26 @@ export default function People() {
         the email is new, an invitation is sent and they appear in <strong>Pending Invitations</strong> until they accept.
       </DocTip>
 
+      <DocH3>Adding an Instructor</DocH3>
+      <DocP>
+        Choose <strong>Instructor</strong> in the modal. Instructors are added <strong>globally</strong> — they can
+        be enrolled in any course and have full instructor access to the courses they&apos;re assigned to. Paste their
+        email addresses and click Add.
+      </DocP>
+      <DocP>
+        After adding, enroll them in a specific course from the <strong>Users</strong> page for that course, or
+        pre-select them when duplicating a course using the Instructor picker.
+      </DocP>
+
       <DocH3>Adding Staff</DocH3>
       <DocP>
-        Choose <strong>Staff</strong> in the modal. Staff members are added <strong>globally</strong> — they get access
-        to all courses in the system. Paste their email addresses and click Add.
-      </DocP>
-      <DocP>
-        After adding, assign them to a specific course from the <strong>Instructors</strong> table on the Users page —
-        or leave them unassigned if they don&apos;t have a dedicated class.
+        Choose <strong>Staff</strong> in the modal. Staff have a global role that gives them access to all courses
+        and to the <strong>Partnerships</strong> dashboard. Use this for program coordinators, partnership managers,
+        and other non-teaching team members who need broad access without teaching a specific course.
       </DocP>
       <DocNote>
-        Staff are added with the global Instructor role. If you only want someone to grade for a single course without
-        full instructor access, use the <strong>TA</strong> role instead (see below).
+        If you only want someone to grade for a single course without full access, use the <strong>TA</strong> role
+        instead (see below) — assign it from the course Users page.
       </DocNote>
 
       <DocH2>Pending Invitations</DocH2>
@@ -58,11 +66,17 @@ export default function People() {
       </DocTip>
 
       <DocH2>Enrollment Roles</DocH2>
+      <DocP>Course-level roles (set per enrollment):</DocP>
       <DocList>
         <li><strong>Student</strong> — full access: can submit assignments, take quizzes, and receive grades</li>
         <li><strong>Observer</strong> — read-only access: can view content and previous work but cannot submit or take quizzes. Use this for students who are temporarily on leave.</li>
         <li><strong>TA</strong> — read-only instructor view with grading rights: can grade submissions and view the roster, but cannot create or edit course content or manage users</li>
-        <li><strong>Staff / Instructor</strong> — full instructor access to this course</li>
+      </DocList>
+      <DocP>Global roles (apply across all courses):</DocP>
+      <DocList>
+        <li><strong>Instructor</strong> — full course management: can create, edit, grade, and manage enrollments for any course they&apos;re assigned to</li>
+        <li><strong>Staff</strong> — same access as Instructor plus access to the Partnerships dashboard; for coordinators and program staff</li>
+        <li><strong>Admin</strong> — full platform access: all courses, all users, and all admin-only actions</li>
       </DocList>
 
       <DocH3>When to Use Observer</DocH3>
@@ -106,9 +120,23 @@ export default function People() {
         account, use the trash icon on the <strong>All Users</strong> tab (admins only).
       </DocNote>
 
-      <DocH2>All Users Tab</DocH2>
+      <DocH2>Global Users Page</DocH2>
       <DocP>
-        Switch to the <strong>All Users</strong> tab to see every student enrolled across all courses in a single
+        The <strong>Users</strong> card on the main instructor dashboard (at <strong>/instructor/users</strong>) gives
+        a bird&apos;s-eye view of everyone in the system — available to all instructors, staff, and admins:
+      </DocP>
+      <DocList>
+        <li><strong>Staff &amp; Admins</strong> — all global team members with name, email, and role</li>
+        <li><strong>Students by course</strong> — students grouped under their active course enrollment; students not enrolled in a current course appear in a separate section</li>
+      </DocList>
+      <DocP>
+        The <strong>+ Add People</strong> button on this page lets you invite students or staff globally, the same
+        way as from within a course.
+      </DocP>
+
+      <DocH2>All Users Tab (within a course)</DocH2>
+      <DocP>
+        Within a course, switch to the <strong>All Users</strong> tab to see every student enrolled across all courses in a single
         alphabetical list. Each row shows the student&apos;s name, email, and the course(s) they are enrolled in.
       </DocP>
 

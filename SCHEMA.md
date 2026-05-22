@@ -43,6 +43,7 @@ A course offered on the platform.
 | `end_date` | date | |
 | `is_template` | boolean | Default: false |
 | `paid_learners` | boolean | Default: false — enables Benefits & PTO sidebar |
+| `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
 | `created_at` | timestamptz | Default: now() |
 
 ---

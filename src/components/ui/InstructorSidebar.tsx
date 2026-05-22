@@ -18,7 +18,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
 
     if (user) {
       const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-      if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+      if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
         const { data: enrollment } = await supabase
           .from('course_enrollments')
           .select('role')

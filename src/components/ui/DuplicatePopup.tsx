@@ -25,7 +25,7 @@ type OtherModule = { id: string; title: string; module_days: { id: string; day_n
 export type DuplicatedAssignment = {
   id: string; title: string; description: string | null; how_to_turn_in: string | null;
   due_date: string | null; published: boolean; order: number; module_day_id: string;
-  skill_tags?: string[] | null; is_bonus?: boolean | null;
+  skill_tags?: string[] | null; is_bonus?: boolean | null; submission_required?: boolean;
 }
 
 export type DuplicatedModule = {
@@ -43,6 +43,7 @@ interface DuplicateAssignmentProps {
   assignment: {
     id: string; title: string; description: string | null; how_to_turn_in: string | null;
     due_date: string | null; skill_tags?: string[] | null; is_bonus?: boolean | null;
+    submission_required?: boolean;
   }
   currentCourseId: string
   currentModuleId: string
@@ -149,6 +150,7 @@ export function DuplicateAssignmentPopup({
       order,
       skill_tags: assignment.skill_tags ?? [],
       is_bonus: assignment.is_bonus ?? false,
+      submission_required: assignment.submission_required ?? true,
     }).select().single()
     if (aErr || !newA) { setError(aErr?.message ?? 'Failed to copy'); return null }
 
@@ -303,7 +305,7 @@ interface DuplicateModuleProps {
       assignments?: {
         id: string; title: string; description: string | null; how_to_turn_in: string | null;
         due_date: string | null; published: boolean; order: number; module_day_id: string;
-        skill_tags?: string[] | null; is_bonus?: boolean | null;
+        skill_tags?: string[] | null; is_bonus?: boolean | null; submission_required?: boolean;
       }[]
     }[]
   }
@@ -377,6 +379,7 @@ export function DuplicateModulePopup({
           order: a.order,
           skill_tags: a.skill_tags ?? [],
           is_bonus: a.is_bonus ?? false,
+          submission_required: a.submission_required ?? true,
         }).select().single()
         if (aErr || !newA) continue
 

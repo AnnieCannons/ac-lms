@@ -22,7 +22,7 @@ export default async function AllUsersPage({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     redirect('/unauthorized')
   }
 

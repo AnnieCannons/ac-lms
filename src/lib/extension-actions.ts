@@ -39,7 +39,7 @@ async function getAuthedInstructorOrTa(courseId: string) {
   if (!user) return { error: 'Not authenticated' as const }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
 
-  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'admin'
+  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
   if (!isInstructorOrAdmin) {
     const { data: taEnrollment } = await supabase
       .from('course_enrollments')
@@ -239,6 +239,14 @@ export async function getExtensionRequestForStudent(
   assignmentId: string,
   studentId: string
 ): Promise<ExtensionRequest | null> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
+  if (!isStaff && user.id !== studentId) return null
+
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('extension_requests')
@@ -252,8 +260,10 @@ export async function getExtensionRequestForStudent(
 export async function getCourseExtensionRequests(
   courseId: string
 ): Promise<ExtensionRequest[]> {
-  const admin = createServiceSupabaseClient()
-  const { data } = await admin
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if ('error' in auth) return []
+
+  const { data } = await auth.admin
     .from('extension_requests')
     .select(`
       *,
@@ -271,8 +281,10 @@ export async function getCourseExtensionRequests(
 }
 
 export async function getPendingExtensionCount(courseId: string): Promise<number> {
-  const admin = createServiceSupabaseClient()
-  const { count } = await admin
+  const auth = await getAuthedInstructorOrTa(courseId)
+  if ('error' in auth) return 0
+
+  const { count } = await auth.admin
     .from('extension_requests')
     .select('id', { count: 'exact', head: true })
     .eq('course_id', courseId)

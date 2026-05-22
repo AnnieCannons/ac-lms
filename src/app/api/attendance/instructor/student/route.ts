@@ -18,8 +18,12 @@ export async function GET(req: NextRequest) {
   const name = req.nextUrl.searchParams.get('name')
   if (!name) return NextResponse.json({ error: 'Missing name' }, { status: 400 })
 
+  const since = req.nextUrl.searchParams.get('since') ?? undefined
+  const until = req.nextUrl.searchParams.get('until') ?? undefined
+  const courseName = req.nextUrl.searchParams.get('courseName') ?? undefined
+
   try {
-    const records = await fetchStudentAttendance(name)
+    const records = await fetchStudentAttendance(name, since, until, courseName)
 
     let absences = 0
     let tardies = 0
