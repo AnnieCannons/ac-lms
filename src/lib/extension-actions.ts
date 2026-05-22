@@ -116,7 +116,7 @@ export async function submitExtensionRequest(
     .eq('id', assignmentId)
     .single()
 
-  // Notify all instructors enrolled in this course
+  // Notify all instructors/TAs enrolled in this course
   const admin = createServiceSupabaseClient()
   const { data: instructors } = await admin
     .from('course_enrollments')

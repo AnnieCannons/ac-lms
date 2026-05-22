@@ -9,8 +9,8 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
   let myGroupNeedsGrading = 0
   let myGroupFirstAssignmentId: string | null = null
   let isTa = false
-  let otherCurrentCourses: { id: string; name: string }[] = []
   let pendingExtensions = 0
+  let otherCurrentCourses: { id: string; name: string }[] = []
 
   try {
     const supabase = await createServerSupabaseClient()

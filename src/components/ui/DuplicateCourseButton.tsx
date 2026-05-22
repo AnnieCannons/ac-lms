@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getInstructorUsers } from "@/lib/people-actions";
 import Modal from "./Modal";
