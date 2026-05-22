@@ -77,6 +77,7 @@ A module represents a week or unit within a course.
 | `category` | text | `syllabus`, `career`, `level_up`, etc. |
 | `published` | boolean | Default: true |
 | `skill_tags` | text[] | Default: `{}` — skill tags for Level Up modules (e.g. `['HTML','CSS']`) |
+| `deleted_at` | timestamptz | Nullable — soft-deleted modules (in trash); `IS NULL` = active |
 
 ---
 
@@ -89,6 +90,7 @@ A specific day within a module (e.g. Monday, Assignments).
 | `module_id` | uuid | FK → modules |
 | `day_name` | text | e.g. `Monday`, `Assignments` |
 | `order` | int | Display order within the module |
+| `deleted_at` | timestamptz | Nullable — soft-deleted days; `IS NULL` = active |
 
 ---
 
@@ -105,6 +107,9 @@ Learning materials attached to a module day.
 | `content` | text | URL or content body |
 | `description` | text | Optional subtitle/description |
 | `order` | int | Display order within the day |
+| `published` | boolean | Default: true — false = hidden from students |
+| `instructor_only` | boolean | Default: false — true = visible to instructors/admins/TAs only, never students |
+| `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
 
 ---
 
@@ -127,6 +132,7 @@ An assignment attached to a module day.
 | `skill_tags` | text[] | Default: `{}` — skill tags shown to students (e.g. `['HTML','React']`) |
 | `is_bonus` | boolean | Default: false — bonus assignments appear only in Level Up, not in the main Assignments list or grades unless completed |
 | `grader_id` | uuid | FK → users, nullable — overrides the grader for this assignment; if null, falls back to the student's grading group assignment |
+| `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
 
 ---
 
@@ -148,6 +154,7 @@ Quizzes for a course (synced from data folder). Students see only published quiz
 | `questions` | jsonb | Array of question objects with choices and correct_response_ident |
 | `created_at` | timestamptz | Default: now() |
 | `updated_at` | timestamptz | Default: now() |
+| `deleted_at` | timestamptz | Nullable — soft-deleted quizzes; `IS NULL` = active |
 
 Unique on `(course_id, identifier)`.
 
@@ -165,6 +172,7 @@ A student's submitted quiz attempt (one per student per quiz).
 | `answers` | jsonb | Array of `{ question_ident, choice_ident }` |
 | `score_percent` | numeric(5,2) | Optional 0–100 |
 | `attempt_count` | int | Default: 1 — tracks how many times the student has submitted |
+| `attempt_history` | jsonb | Default: `[]` — array of per-attempt timing data |
 
 Unique on `(quiz_id, student_id)`.
 
@@ -199,6 +207,7 @@ A student's submission for an assignment.
 | `grade` | text | `complete` or `incomplete` |
 | `graded_at` | timestamptz | |
 | `graded_by` | uuid | FK → users (instructor who graded) |
+| `student_comment` | text | Nullable — note the student attached when submitting; shown to instructor as "Note from student" |
 
 ---
 
@@ -462,9 +471,10 @@ Maps each student to a grader (instructor or TA) for a course. Used by the Gradi
 | `course_id` | uuid | FK → courses, CASCADE DELETE |
 | `student_id` | uuid | FK → users, CASCADE DELETE |
 | `grader_id` | uuid | FK → users, nullable — SET NULL on delete |
+| `module_id` | uuid | FK → modules, nullable — if set, this row is a week-specific override; null = course-level default |
 | `created_at` | timestamptz | Default: now() |
 
-Unique constraint on `(course_id, student_id)`.
+Two unique constraints (partial indexes): `(course_id, student_id) WHERE module_id IS NULL` for course-level rows, and `(course_id, module_id, student_id) WHERE module_id IS NOT NULL` for week-specific rows.
 
 RLS: Instructors/admins can manage. Per-assignment overrides use `assignments.grader_id` — if set, that grader grades the assignment for all students regardless of their group.
 
@@ -529,6 +539,7 @@ In-app notifications for students and instructors.
 | `message` | text | Human-readable notification text |
 | `read` | boolean | Default: false |
 | `created_at` | timestamptz | Default: now() |
+| `emailed_at` | timestamptz | Nullable — set when included in a daily digest email; prevents re-sending |
 
 ---
 
@@ -610,6 +621,20 @@ Contacts (people) associated with a partner organization.
 | `is_primary` | boolean | Default: false |
 | `notes` | text | Nullable |
 | `created_at` | timestamptz | Default: now() |
+
+---
+
+### rubric_templates
+Saved reusable checklist templates that instructors can apply to new assignments.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `name` | text | Template name |
+| `items` | jsonb | Array of `{ text, description, required }` — matches checklist_items structure |
+| `created_at` | timestamptz | Default: now() |
+
+RLS: Instructors and admins can read, insert, and delete their own templates.
 
 ---
 
