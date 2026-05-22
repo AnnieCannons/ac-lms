@@ -17,3 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_quizzes_course_id ON quizzes(course_id);
 CREATE INDEX IF NOT EXISTS idx_quizzes_published ON quizzes(course_id, published) WHERE published = true;
 
 COMMENT ON TABLE quizzes IS 'Quizzes per course from data folder; students see only published ones.';
+
+GRANT ALL ON TABLE public.quizzes TO anon;
+GRANT ALL ON TABLE public.quizzes TO authenticated;
+GRANT ALL ON TABLE public.quizzes TO service_role;

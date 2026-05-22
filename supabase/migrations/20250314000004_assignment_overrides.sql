@@ -7,3 +7,7 @@ CREATE TABLE IF NOT EXISTS assignment_overrides (
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(assignment_id, student_id)
 );
+
+GRANT ALL ON TABLE public.assignment_overrides TO anon;
+GRANT ALL ON TABLE public.assignment_overrides TO authenticated;
+GRANT ALL ON TABLE public.assignment_overrides TO service_role;

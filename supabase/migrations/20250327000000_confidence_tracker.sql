@@ -30,3 +30,11 @@ CREATE POLICY "students_own_entries"  ON confidence_entries
 CREATE INDEX IF NOT EXISTS confidence_skills_user   ON confidence_skills(user_id);
 CREATE INDEX IF NOT EXISTS confidence_entries_skill  ON confidence_entries(skill_id);
 CREATE INDEX IF NOT EXISTS confidence_entries_user   ON confidence_entries(user_id);
+
+GRANT ALL ON TABLE public.confidence_skills TO anon;
+GRANT ALL ON TABLE public.confidence_skills TO authenticated;
+GRANT ALL ON TABLE public.confidence_skills TO service_role;
+
+GRANT ALL ON TABLE public.confidence_entries TO anon;
+GRANT ALL ON TABLE public.confidence_entries TO authenticated;
+GRANT ALL ON TABLE public.confidence_entries TO service_role;
