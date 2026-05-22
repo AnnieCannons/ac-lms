@@ -6,6 +6,7 @@ export async function updateCourseDates(
   courseId: string,
   startDate: string | null,
   endDate: string | null,
+  airtableCourseName: string | null = null,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -32,9 +33,12 @@ export async function updateCourseDates(
     if (enrollment?.role !== 'instructor') return { error: 'Not authorized' }
   }
 
+  const update: Record<string, unknown> = { start_date: startDate || null, end_date: endDate || null }
+  if (airtableCourseName !== null) update.airtable_course_name = airtableCourseName || null
+
   const { error } = await supabase
     .from('courses')
-    .update({ start_date: startDate || null, end_date: endDate || null })
+    .update(update)
     .eq('id', courseId)
 
   if (error) return { error: error.message }

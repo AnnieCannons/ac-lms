@@ -15,6 +15,9 @@ function isCurrentCourse(startDate: string | null | undefined, endDate?: string 
 export type CourseWithStudents = {
   id: string
   name: string
+  startDate: string | null
+  endDate: string | null
+  airtableCourseName: string | null
   students: { id: string; name: string }[]
 }
 
@@ -31,7 +34,7 @@ export default async function StudentsPage() {
   // Fetch all current courses
   const { data: courses } = await admin
     .from('courses')
-    .select('id, name, start_date, end_date, is_template, archived')
+    .select('id, name, start_date, end_date, is_template, archived, airtable_course_name')
     .order('start_date', { ascending: false })
 
   const currentCourses = (courses ?? []).filter(c =>
@@ -70,6 +73,9 @@ export default async function StudentsPage() {
     .map(c => ({
       id: c.id,
       name: c.name,
+      startDate: c.start_date ?? null,
+      endDate: c.end_date ?? null,
+      airtableCourseName: c.airtable_course_name ?? null,
       students: (courseStudentMap.get(c.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
     }))
     .filter(c => c.students.length > 0)
