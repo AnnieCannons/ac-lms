@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { resend } from '@/lib/resend'
+import { getResend } from '@/lib/resend'
 import DigestEmail from '@/emails/DigestEmail'
 import React from 'react'
 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       .map(n => ({ message: n.message, assignmentId: n.assignment_id, courseId: n.course_id }))
 
     try {
-      const { error: sendError } = await resend.emails.send({
+      const { error: sendError } = await getResend().emails.send({
         from,
         to: student.email,
         subject: `Your AnnieCannons updates — ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`,
