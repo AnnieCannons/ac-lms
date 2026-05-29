@@ -6,7 +6,7 @@ import { formatDueDate } from "@/lib/date-utils";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
-type Filter = "all" | "complete" | "needs-revision" | "turned-in" | "not-started";
+type Filter = "all" | "complete" | "needs-revision" | "turned-in" | "not-started" | "level-up";
 
 export type WorkAssignment = {
   id: string;
@@ -16,6 +16,7 @@ export type WorkAssignment = {
   grade: Grade;
   isLate: boolean;
   isExcused: boolean;
+  isBonus: boolean;
   moduleTitle: string;
   weekNumber: number | null;
   isCurrentWeek: boolean;
@@ -37,6 +38,9 @@ function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | nul
 }
 
 function getFilterMatch(a: WorkAssignment, filter: Filter): boolean {
+  if (filter === "level-up") return a.isBonus;
+  // All other filters exclude Level Up (bonus) assignments
+  if (a.isBonus) return false;
   if (filter === "complete") return a.grade === "complete";
   if (filter === "needs-revision") return a.grade === "incomplete";
   if (filter === "turned-in") return a.status === "submitted";
@@ -50,6 +54,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "not-started", label: "Not Started" },
   { key: "turned-in", label: "Turned In" },
   { key: "complete", label: "Complete" },
+  { key: "level-up", label: "Level Up" },
 ];
 
 export default function StudentWorkList({
@@ -109,10 +114,12 @@ export default function StudentWorkList({
                 ? f.key === "complete"        ? "bg-green-600 text-white border-green-600"
                 : f.key === "needs-revision"  ? "bg-red-500 text-white border-red-500"
                 : f.key === "turned-in"       ? "bg-teal-primary text-white border-teal-primary"
+                : f.key === "level-up"        ? "bg-purple-primary text-white border-purple-primary"
                 : "bg-dark-text dark:bg-surface text-white dark:text-dark-text border-dark-text"
                 : f.key === "complete"        ? "bg-green-50 text-green-700 border-green-600"
                 : f.key === "needs-revision"  ? "bg-red-50 text-red-500 border-red-500"
                 : f.key === "turned-in"       ? "bg-teal-light text-teal-primary border-teal-primary"
+                : f.key === "level-up"        ? "bg-purple-light text-purple-primary border-purple-primary"
                 : "bg-background text-muted-text border-border"
             }`}
           >

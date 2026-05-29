@@ -61,7 +61,7 @@ export default async function StudentAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, deleted_at))')
+    .select('id, title, week_number, order, category, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, deleted_at))')
     .eq('course_id', id)
     .eq('published', true)
     .is('deleted_at', null)
@@ -76,7 +76,7 @@ export default async function StudentAssignmentsPage({
         .filter((d: { deleted_at: string | null }) => !d.deleted_at)
         .map((d: { id: string; day_name: string; order: number; assignments?: Array<{ id: string; title: string; due_date: string | null; published: boolean; is_bonus?: boolean; deleted_at?: string | null }> }) => ({
           ...d,
-          assignments: (d.assignments ?? []).filter((a) => !a.is_bonus && a.published && !a.deleted_at),
+          assignments: (d.assignments ?? []).filter((a) => a.published && !a.deleted_at),
         })),
     }))
 

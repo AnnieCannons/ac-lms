@@ -98,12 +98,6 @@ export default async function MyWorkPage({
     (module.module_days ?? []).flatMap(
       (day: { id: string; assignments?: { id: string; title: string; due_date: string | null; is_bonus?: boolean }[] }) =>
         (day.assignments ?? [])
-          .filter(a => {
-            // Bonus assignments: only show if the student has completed them
-            if (!a.is_bonus) return true
-            const sub = submissionMap.get(a.id)
-            return sub?.grade === 'complete'
-          })
           .map(a => {
           const sub = submissionMap.get(a.id) ?? null
           const override = overrideMap.get(a.id)
@@ -118,6 +112,7 @@ export default async function MyWorkPage({
             grade: (sub?.grade ?? null) as WorkAssignment['grade'],
             isLate,
             isExcused,
+            isBonus: a.is_bonus ?? false,
             moduleTitle: module.title,
             weekNumber: module.week_number,
             isCurrentWeek: currentWeek !== null && module.week_number === currentWeek,
