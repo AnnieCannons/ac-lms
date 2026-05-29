@@ -15,14 +15,18 @@ Welcome to the AnnieCannons Learning Management System. This guide walks you thr
 7. [Setting Up General Info](#7-setting-up-general-info)
 8. [Grading Student Work](#8-grading-student-work)
 9. [Grading Groups](#9-grading-groups)
-10. [Roster & Student Details](#10-roster--student-details)
-11. [Users — Managing Enrollment](#11-users--managing-enrollment)
-12. [Teaching Assistants (TAs)](#12-teaching-assistants-tas)
-13. [Student View — Previewing as a Student](#13-student-view--previewing-as-a-student)
-14. [Global Templates](#14-global-templates)
-15. [Calendar](#15-calendar)
-16. [Benefits & Paid Time Off (Paid Learner Courses)](#16-benefits--paid-time-off-paid-learner-courses)
-17. [Tips & Common Questions](#17-tips--common-questions)
+10. [Gradebook](#10-gradebook)
+11. [Quizzes](#11-quizzes)
+12. [Extension Requests](#12-extension-requests)
+13. [Career Dev Cross-Post](#13-career-dev-cross-post)
+14. [Roster & Student Details](#14-roster--student-details)
+15. [Users — Managing Enrollment](#15-users--managing-enrollment)
+16. [Teaching Assistants (TAs)](#16-teaching-assistants-tas)
+17. [Student View — Previewing as a Student](#17-student-view--previewing-as-a-student)
+18. [Global Templates](#18-global-templates)
+19. [Calendar](#19-calendar)
+20. [Benefits & Paid Time Off (Paid Learner Courses)](#20-benefits--paid-time-off-paid-learner-courses)
+21. [Tips & Common Questions](#21-tips--common-questions)
 
 ---
 
@@ -190,10 +194,11 @@ Click **Grade →** next to a student's name to open their submission.
 
 On the grading page you will see:
 1. **The student's submission** — text, link, or file
-2. **Submission history** — all prior versions if they resubmitted
-3. **Checklist** — check off each item the student has completed; items the student self-checked are marked with *✓ student*
-4. **Grade buttons** — click **Complete** or **Needs Revision** to set the final grade
-5. **Comments** — leave feedback; the student will see this and can reply
+2. **Note from student** — if the student attached a note when submitting, it appears highlighted here; read it before grading
+3. **Submission history** — all prior versions if they resubmitted
+4. **Checklist** — check off each item the student has completed; items the student self-checked are marked with *✓ student*
+5. **Grade buttons** — click **Complete** or **Needs Revision** to set the final grade
+6. **Comments** — leave feedback; the student will see this and can reply
 
 > Grading is saved immediately when you click Complete or Needs Revision.
 
@@ -245,7 +250,80 @@ Below the student cards, the **Assignment Overrides** section lets you pin a spe
 
 ---
 
-## 10. Roster & Student Details
+---
+
+## 10. Gradebook
+
+The **Gradebook** page gives you a bird's-eye view of every student's progress across every published assignment in the course.
+
+Go to your course → **Gradebook** in the sidebar.
+
+- **Columns** — each published assignment, grouped by week
+- **Rows** — every enrolled student
+- **Cells** — color-coded status: not submitted, turned in, complete, or needs revision
+- Click any cell to jump directly to that student's submission for that assignment
+
+> The Gradebook is read-only — use the grading page to change grades.
+
+---
+
+## 11. Quizzes
+
+Go to your course → **Quizzes** in the sidebar to create and manage quizzes.
+
+### Building a Quiz
+
+1. Click **+ New Quiz** and give it a title
+2. Add questions — each question has:
+   - **Question text** (plain text or a code snippet via the code block toggle)
+   - **Answer choices** (mark one as correct)
+   - **True / False** shortcut creates a two-choice question automatically
+3. Set an optional **Max Attempts** — leave blank for unlimited retakes
+4. **Pin to a day** — select the module week and day (Mon–Thu) so the quiz appears in the Course Editor and on students' day pages
+5. Toggle **Published** when the quiz is ready for students
+
+### Viewing Quiz Submissions
+
+Go to **Quiz Submissions** in the sidebar to see a table of every student's score and attempt count for each published quiz.
+
+---
+
+## 12. Extension Requests
+
+Students can request a due-date extension from their assignment page. You review and respond from the **Extension Requests** page.
+
+Go to your course → **Extension Requests** in the sidebar.
+
+- A badge in the sidebar shows the count of **pending** requests
+- Each request shows: student name, assignment, requested date, reason, and action plan
+- Click **Approve** to grant the extension (the student is notified)
+- Click **Deny** and optionally add a note explaining why
+
+> Approved extensions set an `assignment_overrides` row for the student so their personal due date updates automatically.
+
+---
+
+## 13. Career Dev Cross-Post
+
+Resources, assignments, and quizzes that live in a **Career Development** module can be cross-posted to appear on a specific coding week's day card — so students see career content right where their daily work lives.
+
+### Cross-Posting When Creating
+
+When creating a resource, assignment, or quiz from inside a Career Development module:
+
+1. Check **Also show in Course Outline?**
+2. Select the target **coding week** and **day** (Mon–Thu)
+3. Save — the item now appears in both the Career Dev section and on that coding day with a purple **Career Dev** badge
+
+### Editing Cross-Posted Items
+
+Open the item from the Career Dev module to edit it. Changes apply everywhere the item appears.
+
+> Cross-posted items cannot be reordered within the coding day panel — only natively-created items can be dragged.
+
+---
+
+## 14. Roster & Student Details
 
 The **Roster** page shows all students enrolled in a course, along with any accommodations on file.
 
@@ -278,7 +356,7 @@ Click any stat card to expand the assignment list for that category. Each assign
 
 ---
 
-## 11. Users — Managing Enrollment
+## 15. Users — Managing Enrollment
 
 The **Users** page manages who is enrolled in your course.
 
@@ -301,7 +379,7 @@ Pending invitations (emails sent but not yet accepted) appear in a separate list
 
 ---
 
-## 12. Teaching Assistants (TAs)
+## 16. Teaching Assistants (TAs)
 
 A **Teaching Assistant** is a student who has been given read-only instructor access for a specific course. TAs can grade student work but cannot edit course content, manage users, or access Global Templates.
 
@@ -339,7 +417,7 @@ TAs automatically see a **Benefits** and **Paid Time Off** section in their side
 
 ---
 
-## 13. Student View — Previewing as a Student
+## 17. Student View — Previewing as a Student
 
 You can preview exactly what your students see without creating a separate test account.
 
@@ -352,7 +430,7 @@ You can preview exactly what your students see without creating a separate test 
 
 ---
 
-## 14. Global Templates
+## 18. Global Templates
 
 **Global Templates** are shared pieces of content that appear across all courses. Edit them once and every course picks up the change automatically.
 
@@ -370,7 +448,7 @@ Click the template name, then click **✎ Edit** on any section. Use the rich te
 
 ---
 
-## 15. Calendar
+## 19. Calendar
 
 The Calendar manages the school-wide schedule that appears on students' General Info → Yearly Schedule section and on the Paid Time Off page.
 
@@ -394,7 +472,7 @@ Use **Copy to [next year] →** to duplicate the current year's holidays into th
 
 ---
 
-## 16. Benefits & Paid Time Off (Paid Learner Courses)
+## 20. Benefits & Paid Time Off (Paid Learner Courses)
 
 For Advanced courses where students receive employment benefits:
 
@@ -418,7 +496,7 @@ To update PTO content, go to **Global Templates → Paid Time Off** and edit bre
 
 ---
 
-## 17. Tips & Common Questions
+## 21. Tips & Common Questions
 
 **How do I hide a module while I'm still building it?**
 Toggle the module to **Unpublished** using the eye icon. Students won't see it until you publish it.

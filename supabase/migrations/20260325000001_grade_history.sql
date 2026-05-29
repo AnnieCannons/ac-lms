@@ -7,3 +7,7 @@ CREATE TABLE IF NOT EXISTS grade_history (
 );
 
 CREATE INDEX IF NOT EXISTS grade_history_submission_id_idx ON grade_history (submission_id);
+
+GRANT ALL ON TABLE public.grade_history TO anon;
+GRANT ALL ON TABLE public.grade_history TO authenticated;
+GRANT ALL ON TABLE public.grade_history TO service_role;

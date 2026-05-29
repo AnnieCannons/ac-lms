@@ -16,6 +16,8 @@ interface Props {
   myGroupNeedsGrading?: number
   myGroupFirstAssignmentId?: string | null
   isTa?: boolean
+  otherCurrentCourses?: { id: string; name: string }[]
+  pendingExtensions?: number
 }
 
 const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence']
@@ -67,10 +69,14 @@ export default function InstructorCourseNav({
   myGroupNeedsGrading = 0,
   myGroupFirstAssignmentId = null,
   isTa = false,
+  otherCurrentCourses = [],
+  pendingExtensions = 0,
 }: Props) {
   const pathname = usePathname()
+  const router = useRouter()
   const [graderOpen, setGraderOpen] = useState(false)
   const [courseOpen, toggleCourseOpen] = useNavSection('nav_section_course')
+  const [courseDropdownOpen, setCourseDropdownOpen] = useState(false)
   const [activeConductUrl, setActiveConductUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -126,12 +132,48 @@ export default function InstructorCourseNav({
 
   return (
     <nav aria-label="Course navigation" className="flex flex-col">
-      <p
-        className="text-xs font-extrabold text-dark-text uppercase tracking-widest mb-4 px-3 truncate"
-        title={courseName}
-      >
-        {courseName}
-      </p>
+      <div className="relative mb-4 px-3">
+        <button
+          type="button"
+          onClick={() => setCourseDropdownOpen(v => !v)}
+          className="flex items-center gap-1.5 w-full group text-left"
+          title={courseName}
+          disabled={otherCurrentCourses.length === 0}
+        >
+          <span className="text-xs font-extrabold text-dark-text uppercase tracking-widest truncate flex-1">
+            {courseName}
+          </span>
+          {otherCurrentCourses.length > 0 && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`w-3.5 h-3.5 shrink-0 text-muted-text group-hover:text-dark-text transition-transform ${courseDropdownOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </button>
+        {courseDropdownOpen && otherCurrentCourses.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
+            {otherCurrentCourses.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setCourseDropdownOpen(false)
+                  router.push(`/instructor/courses/${c.id}`)
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-dark-text hover:bg-background transition-colors truncate"
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {!isTa && (
         <div className="mb-6 px-3">
@@ -169,6 +211,7 @@ export default function InstructorCourseNav({
               )}
             </button>
             {!isTa && navLink('Grading Groups', 'grading-groups')}
+            <ExtensionRequestsNavLink courseId={courseId} pending={pendingExtensions} pathname={pathname} />
           </>
         )}
 
@@ -294,6 +337,31 @@ function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: stri
         document.body
       )}
     </>
+  )
+}
+
+function ExtensionRequestsNavLink({ courseId, pending, pathname }: { courseId: string; pending: number; pathname: string }) {
+  const href = `/instructor/courses/${courseId}/extension-requests`
+  const isActive = pathname.startsWith(href)
+  return (
+    <Link
+      href={href}
+      className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between gap-2 ${
+        isActive
+          ? 'bg-teal-light text-teal-primary'
+          : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+      }`}
+    >
+      <span>Extension Requests</span>
+      {pending > 0 && (
+        <span
+          className="text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 badge-count"
+          title={`${pending} pending extension request${pending === 1 ? '' : 's'}`}
+        >
+          {pending}
+        </span>
+      )}
+    </Link>
   )
 }
 

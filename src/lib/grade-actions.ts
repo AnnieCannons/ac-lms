@@ -13,7 +13,7 @@ export async function saveAnswerKey(
 
   // Allow instructors/admins globally, or TAs for this course
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
     if (enr?.role !== 'ta') return { error: 'Not authorized' }
@@ -37,7 +37,7 @@ export async function markCompleteNoSubmission(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     if (!courseId) return { error: 'Not authorized' }
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
@@ -77,10 +77,29 @@ export async function markCompleteNoSubmission(
 
   if (grade) {
     await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
+
+    // Notify student
+    if (courseId) {
+      const { data: asgn } = await admin
+        .from('assignments')
+        .select('title')
+        .eq('id', assignmentId)
+        .single()
+      if (asgn) {
+        await admin.from('notifications').insert({
+          user_id: studentId,
+          type: 'grade_posted',
+          course_id: courseId,
+          assignment_id: assignmentId,
+          message: `Your "${asgn.title}" submission was marked ${grade}.`,
+        })
+      }
+    }
   }
 
   if (courseId) {
     revalidatePath(`/instructor/courses/${courseId}`)
+    revalidatePath(`/instructor/courses/${courseId}/gradebook`)
     revalidatePath(`/student/courses/${courseId}`, 'layout')
   } else {
     revalidatePath('/instructor/courses', 'layout')
@@ -99,7 +118,7 @@ export async function saveGrade(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     if (!courseId) return { error: 'Not authorized' }
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
@@ -132,6 +151,29 @@ export async function saveGrade(
 
   if (grade) {
     await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
+
+    // Notify student
+    const { data: sub } = await admin
+      .from('submissions')
+      .select('student_id, assignment_id')
+      .eq('id', submissionId)
+      .single()
+    if (sub) {
+      const { data: asgn } = await admin
+        .from('assignments')
+        .select('title, course_id')
+        .eq('id', sub.assignment_id)
+        .single()
+      if (asgn) {
+        await admin.from('notifications').insert({
+          user_id: sub.student_id,
+          type: 'grade_posted',
+          course_id: asgn.course_id,
+          assignment_id: sub.assignment_id,
+          message: `Your "${asgn.title}" submission was marked ${grade}.`,
+        })
+      }
+    }
   }
 
   if (courseId) {
@@ -158,7 +200,7 @@ export async function toggleChecklistResponse(
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     const { data: enr } = await supabase.from('course_enrollments')
       .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
     if (enr?.role !== 'ta') return { error: 'Not authorized' }
@@ -192,7 +234,7 @@ export async function addSubmissionComment(
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const admin = createServiceSupabaseClient()
 
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     // Look up the submission to verify ownership or TA access
     const { data: submission } = await admin
       .from('submissions')
@@ -220,6 +262,30 @@ export async function addSubmissionComment(
     .single()
 
   if (error || !data) return { error: error?.message ?? 'Failed to save' }
+
+  // Notify student when an instructor or TA comments (not when the student comments on their own)
+  const { data: sub } = await admin
+    .from('submissions')
+    .select('student_id, assignment_id')
+    .eq('id', submissionId)
+    .single()
+  if (sub && sub.student_id !== user.id) {
+    const { data: asgn } = await admin
+      .from('assignments')
+      .select('title, course_id')
+      .eq('id', sub.assignment_id)
+      .single()
+    if (asgn) {
+      await admin.from('notifications').insert({
+        user_id: sub.student_id,
+        type: 'submission_comment',
+        course_id: asgn.course_id,
+        assignment_id: sub.assignment_id,
+        message: `Your instructor left a comment on your "${asgn.title}" submission.`,
+      })
+    }
+  }
+
   return { id: data.id, created_at: data.created_at }
 }
 
@@ -252,7 +318,7 @@ export async function deleteSubmissionComment(
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isStaff = profile?.role === 'instructor' || profile?.role === 'admin'
+  const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 
   const admin = createServiceSupabaseClient()
   const query = admin.from('submission_comments').delete().eq('id', commentId)

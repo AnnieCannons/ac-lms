@@ -38,7 +38,7 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+    if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
       // Allow TAs — they have role='ta' in course_enrollments for at least one course
       const { data: taEnrollment } = await supabase
         .from('course_enrollments')

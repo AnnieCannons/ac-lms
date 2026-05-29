@@ -393,7 +393,9 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           }`}
         >
           <span className={`w-2 h-2 rounded-full ${published ? 'bg-teal-primary' : 'bg-muted-text'}`} />
-          {published ? 'Published' : 'Draft'}
+          {submissionRequired
+            ? (published ? 'Published' : 'Draft')
+            : (published ? 'In Gradebook' : 'Add to Gradebook')}
         </button>
         <button
           type="button"

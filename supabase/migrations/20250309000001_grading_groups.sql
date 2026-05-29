@@ -17,3 +17,7 @@ CREATE POLICY "Instructors can manage grading groups"
       SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('instructor', 'admin')
     )
   );
+
+GRANT ALL ON TABLE public.grading_groups TO anon;
+GRANT ALL ON TABLE public.grading_groups TO authenticated;
+GRANT ALL ON TABLE public.grading_groups TO service_role;

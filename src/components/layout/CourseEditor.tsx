@@ -51,6 +51,7 @@ type Assignment = {
   answer_key_url?: string | null;
   module_day_id: string;
   published: boolean;
+  submission_required?: boolean;
   is_bonus: boolean;
   order: number;
 };
@@ -445,7 +446,9 @@ function AssignmentCard({
               type="button"
               aria-label={assignment.published ? "Published — click to unpublish" : "Draft — click to publish"}
             >
-              {assignment.published ? "Published" : "Draft"}
+              {(assignment.submission_required ?? true)
+                ? (assignment.published ? "Published" : "Draft")
+                : (assignment.published ? "In Gradebook" : "Add to Gradebook")}
             </button>
             <button
               onClick={() => onDelete(assignment.id, assignment.title)}
@@ -808,6 +811,7 @@ function AssignmentFullView({
                   <div className="mt-1">
                     <InlineDueDatePicker
                       assignmentId={assignment!.id}
+                      courseId={courseId}
                       dueDate={viewDueDate}
                       onSaved={(d) => {
                         setViewDueDate(d)

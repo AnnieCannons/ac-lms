@@ -28,6 +28,9 @@ export default async function StudentDayDetailPage({
   params: Promise<{ id: string; dayId: string }>
 }) {
   const { id, dayId } = await params
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(id) || !UUID_RE.test(dayId)) redirect('/student/courses')
+
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -73,7 +76,7 @@ export default async function StudentDayDetailPage({
 
   const admin2 = createServiceSupabaseClient()
   const [{ data: resources }, { data: stars }, { data: completions }, { data: dayWikis }] = await Promise.all([
-    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).eq('instructor_only', false).order('order', { ascending: true }),
+    supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).eq('instructor_only', false).eq('published', true).order('order', { ascending: true }),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
     admin2.from('wikis').select('id, title, content').eq('module_day_id', dayId).eq('published', true).order('order', { ascending: true }),

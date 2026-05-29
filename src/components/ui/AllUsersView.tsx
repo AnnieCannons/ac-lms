@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateUserRole, removeStudentUser, deleteStaffMember } from '@/lib/people-actions'
 
-type Role = 'student' | 'instructor' | 'admin'
+type Role = 'student' | 'instructor' | 'staff' | 'admin'
 
 interface StudentEntry {
   userId: string
@@ -22,13 +22,15 @@ interface StaffMember {
 interface Props {
   allStudents: StudentEntry[]
   staff: StaffMember[]
-  currentUserRole: 'instructor' | 'admin'
+  currentUserRole: 'instructor' | 'staff' | 'admin'
+  hideStudents?: boolean
 }
 
 function RolePill({ role }: { role: string }) {
   const styles: Record<string, string> = {
     student: 'bg-teal-light text-teal-primary',
     instructor: 'bg-purple-100 text-purple-700',
+    staff: 'bg-blue-100 text-blue-700',
     admin: 'bg-orange-100 text-orange-700',
   }
   return (
@@ -50,7 +52,7 @@ function TrashIcon() {
   )
 }
 
-export default function AllUsersView({ allStudents, staff, currentUserRole }: Props) {
+export default function AllUsersView({ allStudents, staff, currentUserRole, hideStudents }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null)
@@ -191,7 +193,8 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
                           className="border border-border rounded px-2 py-0.5 text-xs bg-surface text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                           aria-label={`Change role for ${member.name || member.email}`}
                         >
-                          <option value="instructor">Staff</option>
+                          <option value="instructor">Instructor</option>
+                          <option value="staff">Staff</option>
                           <option value="admin">Admin</option>
                         </select>
                       ) : (
@@ -232,7 +235,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
       </section>
 
       {/* All Students */}
-      <section>
+      {!hideStudents && <section>
         <h2 className="text-base font-semibold text-dark-text mb-4">
           Students <span className="text-muted-text font-normal">({allStudents.length} total)</span>
         </h2>
@@ -300,7 +303,7 @@ export default function AllUsersView({ allStudents, staff, currentUserRole }: Pr
             </div>
           </>
         )}
-      </section>
+      </section>}
     </div>
   )
 }

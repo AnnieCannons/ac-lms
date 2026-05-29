@@ -12,6 +12,8 @@ Built on Supabase (PostgreSQL). All IDs are UUIDs. Timestamps are `timestamptz`.
 | `resource_type` | `video`, `reading`, `link`, `file` |
 | `submission_type` | `text`, `file`, `link` |
 | `submission_status` | `draft`, `submitted`, `graded` |
+| `partner_status` | `prospect`, `active`, `inactive`, `in_onboarding` |
+| `partner_type` | `service_provider`, `corporate`, `funder`, `advisory`, `mentorship`, `media` |
 
 ---
 
@@ -43,6 +45,7 @@ A course offered on the platform.
 | `end_date` | date | |
 | `is_template` | boolean | Default: false |
 | `paid_learners` | boolean | Default: false — enables Benefits & PTO sidebar |
+| `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
 | `created_at` | timestamptz | Default: now() |
 
 ---
@@ -74,6 +77,7 @@ A module represents a week or unit within a course.
 | `category` | text | `syllabus`, `career`, `level_up`, etc. |
 | `published` | boolean | Default: true |
 | `skill_tags` | text[] | Default: `{}` — skill tags for Level Up modules (e.g. `['HTML','CSS']`) |
+| `deleted_at` | timestamptz | Nullable — soft-deleted modules (in trash); `IS NULL` = active |
 
 ---
 
@@ -86,6 +90,7 @@ A specific day within a module (e.g. Monday, Assignments).
 | `module_id` | uuid | FK → modules |
 | `day_name` | text | e.g. `Monday`, `Assignments` |
 | `order` | int | Display order within the module |
+| `deleted_at` | timestamptz | Nullable — soft-deleted days; `IS NULL` = active |
 
 ---
 
@@ -102,6 +107,9 @@ Learning materials attached to a module day.
 | `content` | text | URL or content body |
 | `description` | text | Optional subtitle/description |
 | `order` | int | Display order within the day |
+| `published` | boolean | Default: true — false = hidden from students |
+| `instructor_only` | boolean | Default: false — true = visible to instructors/admins/TAs only, never students |
+| `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
 
 ---
 
@@ -124,6 +132,7 @@ An assignment attached to a module day.
 | `skill_tags` | text[] | Default: `{}` — skill tags shown to students (e.g. `['HTML','React']`) |
 | `is_bonus` | boolean | Default: false — bonus assignments appear only in Level Up, not in the main Assignments list or grades unless completed |
 | `grader_id` | uuid | FK → users, nullable — overrides the grader for this assignment; if null, falls back to the student's grading group assignment |
+| `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
 
 ---
 
@@ -145,6 +154,7 @@ Quizzes for a course (synced from data folder). Students see only published quiz
 | `questions` | jsonb | Array of question objects with choices and correct_response_ident |
 | `created_at` | timestamptz | Default: now() |
 | `updated_at` | timestamptz | Default: now() |
+| `deleted_at` | timestamptz | Nullable — soft-deleted quizzes; `IS NULL` = active |
 
 Unique on `(course_id, identifier)`.
 
@@ -162,6 +172,7 @@ A student's submitted quiz attempt (one per student per quiz).
 | `answers` | jsonb | Array of `{ question_ident, choice_ident }` |
 | `score_percent` | numeric(5,2) | Optional 0–100 |
 | `attempt_count` | int | Default: 1 — tracks how many times the student has submitted |
+| `attempt_history` | jsonb | Default: `[]` — array of per-attempt timing data |
 
 Unique on `(quiz_id, student_id)`.
 
@@ -196,6 +207,19 @@ A student's submission for an assignment.
 | `grade` | text | `complete` or `incomplete` |
 | `graded_at` | timestamptz | |
 | `graded_by` | uuid | FK → users (instructor who graded) |
+| `student_comment` | text | Nullable — note the student attached when submitting; shown to instructor as "Note from student" |
+
+---
+
+### grade_history
+Records every time a submission is graded, enabling a grade change log.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `submission_id` | uuid | FK → submissions, CASCADE DELETE |
+| `grade` | text | `complete` or `incomplete` |
+| `graded_at` | timestamptz | Default: now() |
 
 ---
 
@@ -447,15 +471,172 @@ Maps each student to a grader (instructor or TA) for a course. Used by the Gradi
 | `course_id` | uuid | FK → courses, CASCADE DELETE |
 | `student_id` | uuid | FK → users, CASCADE DELETE |
 | `grader_id` | uuid | FK → users, nullable — SET NULL on delete |
+| `module_id` | uuid | FK → modules, nullable — if set, this row is a week-specific override; null = course-level default |
 | `created_at` | timestamptz | Default: now() |
 
-Unique constraint on `(course_id, student_id)`.
+Two unique constraints (partial indexes): `(course_id, student_id) WHERE module_id IS NULL` for course-level rows, and `(course_id, module_id, student_id) WHERE module_id IS NOT NULL` for week-specific rows.
 
 RLS: Instructors/admins can manage. Per-assignment overrides use `assignments.grader_id` — if set, that grader grades the assignment for all students regardless of their group.
 
 **`course_enrollments.role` values for grading:**
 - `instructor` — globally has access to all courses; must be explicitly enrolled per course (via Users → Instructors) to appear in grading groups
 - `ta` — course-scoped; enrolled via Users → Add People
+
+---
+
+### extension_requests
+Student requests for a due date extension on a specific assignment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `course_id` | uuid | FK → courses, CASCADE DELETE |
+| `reason` | text | Selected reason key: `not_enough_time`, `bug`, `dont_understand`, `other` |
+| `reason_other` | text | Nullable — filled when `reason = 'other'` |
+| `plan` | text[] | Selected action keys: `calendar`, `ask_help`, `other` |
+| `plan_other` | text | Nullable — filled when `plan` includes `'other'` |
+| `requested_due_date` | timestamptz | Student's proposed new due date/time |
+| `notes` | text | Nullable — any additional context |
+| `status` | text | `pending`, `approved`, or `denied` |
+| `instructor_comment` | text | Nullable — instructor's note to student |
+| `reviewed_by` | uuid | FK → users, nullable — instructor who reviewed |
+| `reviewed_at` | timestamptz | Nullable |
+| `created_at` | timestamptz | Default: now() |
+
+Unique constraint on `(assignment_id, student_id)` — one request per student per assignment.
+
+---
+
+### assignment_overrides
+Per-student due date or excusal overrides for a specific assignment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `due_date` | date | Nullable — overrides the assignment's due_date for this student |
+| `excused` | boolean | Default: false — if true, assignment is excused for this student |
+| `created_at` | timestamptz | Default: now() |
+
+Unique constraint on `(assignment_id, student_id)`.
+
+---
+
+### notifications
+In-app notifications for students and instructors.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → users, CASCADE DELETE |
+| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment` |
+| `course_id` | uuid | FK → courses, nullable |
+| `assignment_id` | uuid | FK → assignments, nullable |
+| `extension_request_id` | uuid | FK → extension_requests, nullable |
+| `message` | text | Human-readable notification text |
+| `read` | boolean | Default: false |
+| `created_at` | timestamptz | Default: now() |
+| `emailed_at` | timestamptz | Nullable — set when included in a daily digest email; prevents re-sending |
+
+---
+
+### confidence_skills
+Skills a student is personally tracking in the Confidence Tracker.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
+| `name` | text | Skill name (e.g. `React`, `CSS Flexbox`) |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### confidence_entries
+Individual score log entries per tracked skill.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `skill_id` | uuid | FK → confidence_skills, CASCADE DELETE |
+| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
+| `score` | int | 1–10 self-rating |
+| `goal_points` | int | Nullable, 1–5 — optional effort/goal points |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### partners
+Partner organizations (employers, funders, advisors, etc.).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `name` | text | Required |
+| `city` | text | Nullable |
+| `state` | text | Nullable |
+| `multi_city` | boolean | Default: false |
+| `how_we_met` | text | Nullable |
+| `services_focus_area` | text | Nullable |
+| `status` | partner_status | `prospect`, `active`, `inactive`, `in_onboarding` |
+| `last_interaction_date` | date | Nullable |
+| `meeting_notes` | text | Nullable |
+| `tags` | text[] | Default: `{}` |
+| `internal_owner_id` | uuid | FK → users, nullable — AC staff owner |
+| `referred_by` | text | Nullable |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+RLS: staff and admin only.
+
+---
+
+### partner_type_assignments
+Junction table — a partner can have multiple types.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE |
+| `partner_type` | partner_type | `service_provider`, `corporate`, `funder`, `advisory`, `mentorship`, `media` |
+
+Unique on `(partner_id, partner_type)`.
+
+---
+
+### partner_contacts
+Contacts (people) associated with a partner organization.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE |
+| `name` | text | Required |
+| `title` | text | Nullable |
+| `email` | text | Nullable |
+| `phone` | text | Nullable |
+| `is_primary` | boolean | Default: false |
+| `notes` | text | Nullable |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### rubric_templates
+Saved reusable checklist templates that instructors can apply to new assignments.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `name` | text | Template name |
+| `items` | jsonb | Array of `{ text, description, required }` — matches checklist_items structure |
+| `created_at` | timestamptz | Default: now() |
+
+RLS: Instructors and admins can read, insert, and delete their own templates.
+
+---
 
 ## Indexes
 

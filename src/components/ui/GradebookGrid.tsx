@@ -12,6 +12,8 @@ export interface GradebookAssignment {
   moduleId: string
   moduleTitle: string
   weekNumber: number | null
+  graderId?: string | null
+  submission_required?: boolean
 }
 export interface GradebookSubmission {
   assignment_id: string
@@ -19,14 +21,22 @@ export interface GradebookSubmission {
   status: string
   grade: string | null
 }
+export interface GradebookOverride {
+  assignment_id: string
+  student_id: string
+  due_date: string | null
+  excused: boolean
+}
 export interface GradebookModule { id: string; title: string; week_number: number | null }
 
 interface Props {
   courseId: string
+  currentUserId: string
   students: GradebookStudent[]
   modules: GradebookModule[]
   assignments: GradebookAssignment[]
   submissions: GradebookSubmission[]
+  overrides: GradebookOverride[]
   myGroupCourseLevel: string[]
   myGroupByModule: Record<string, string[]>
   modulesWithWeeklyGroups: string[]
@@ -37,6 +47,16 @@ const DEFAULT_COL_WIDTH = 150
 const MIN_COL_WIDTH = 60
 const NAME_COL_WIDTH = 192
 const ASSIGNMENT_ROW_COL_WIDTH = 240
+
+type StatusFilter = 'complete' | 'needs_revision' | 'ungraded' | 'late_missing' | 'not_yet_due'
+
+const STATUS_OPTIONS: { key: StatusFilter; icon: string; label: string; iconCls: string }[] = [
+  { key: 'complete',       icon: '✓', label: 'Complete',       iconCls: 'status-complete-btn' },
+  { key: 'needs_revision', icon: '✗', label: 'Needs Revision', iconCls: 'status-revision-btn' },
+  { key: 'ungraded',       icon: '●', label: 'Ungraded',       iconCls: 'status-needs-grading-btn' },
+  { key: 'late_missing',   icon: '–', label: 'Late / Missing', iconCls: 'status-late-badge' },
+  { key: 'not_yet_due',    icon: ' ', label: 'Not Yet Due',    iconCls: 'border border-border' },
+]
 
 function MultiSelectDropdown({
   label,
@@ -156,7 +176,150 @@ function MultiSelectDropdown({
   )
 }
 
-export default function GradebookGrid({ courseId, students, modules, assignments, submissions, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
+function AssignmentFilterDropdown({
+  assignments,
+  selectedAssignments,
+  onToggleAssignment,
+  onClearAssignments,
+  selectedStatuses,
+  onToggleStatus,
+  onClearStatuses,
+  dropdownWidth = 600,
+}: {
+  assignments: { id: string; name: string }[]
+  selectedAssignments: Set<string>
+  onToggleAssignment: (id: string) => void
+  onClearAssignments: () => void
+  selectedStatuses: Set<StatusFilter>
+  onToggleStatus: (s: StatusFilter) => void
+  onClearStatuses: () => void
+  dropdownWidth?: number
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setSearch('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const visibleAssignments = search.trim()
+    ? assignments.filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
+    : assignments
+
+  const hasFilter = selectedStatuses.size > 0 || selectedAssignments.size > 0
+
+  let buttonLabel = 'All Assignments'
+  if (selectedStatuses.size === 1 && selectedAssignments.size === 0) {
+    buttonLabel = STATUS_OPTIONS.find(o => selectedStatuses.has(o.key))?.label ?? 'All Assignments'
+  } else if (selectedStatuses.size > 1 && selectedAssignments.size === 0) {
+    buttonLabel = `${selectedStatuses.size} statuses`
+  } else if (selectedAssignments.size > 0 && selectedStatuses.size === 0) {
+    buttonLabel = selectedAssignments.size === 1
+      ? assignments.find(a => selectedAssignments.has(a.id))?.name ?? '1 selected'
+      : `${selectedAssignments.size} selected`
+  } else if (hasFilter) {
+    buttonLabel = `Filtered`
+  }
+
+  function handleClearAll() {
+    onClearAssignments()
+    onClearStatuses()
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-sm border border-border rounded-lg px-3 py-1.5 bg-surface text-dark-text hover:border-teal-primary/60 transition-colors max-w-48"
+      >
+        <span className="font-medium truncate">{buttonLabel}</span>
+        {hasFilter && (
+          <span className="text-xs bg-teal-primary text-white rounded-full px-1.5 py-0.5 font-semibold leading-none shrink-0">
+            {selectedStatuses.size + selectedAssignments.size}
+          </span>
+        )}
+        <span className="text-muted-text text-xs shrink-0">▾</span>
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1 z-50 bg-background border-2 border-border rounded-xl shadow-xl p-3 flex flex-col"
+          style={{ width: dropdownWidth, maxHeight: 420 }}
+        >
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <span className="text-xs font-bold text-muted-text uppercase tracking-wide">Filter by Assignment</span>
+            {hasFilter && (
+              <button onClick={handleClearAll} className="text-xs text-teal-primary hover:underline">Clear all</button>
+            )}
+          </div>
+
+          {/* Status quick-filters */}
+          <div className="flex flex-col gap-0.5 mb-2 shrink-0">
+            <button
+              onClick={handleClearAll}
+              className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${!hasFilter ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
+            >
+              All Assignments
+            </button>
+            {STATUS_OPTIONS.map(({ key, icon, label, iconCls }) => {
+              const active = selectedStatuses.has(key)
+              return (
+                <button
+                  key={key}
+                  onClick={() => { onClearAssignments(); onToggleStatus(key) }}
+                  className={`w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors ${active && selectedAssignments.size === 0 ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
+                >
+                  <span className={`inline-flex w-6 h-5 items-center justify-center text-xs font-bold rounded shrink-0 ${iconCls}`}>{icon}</span>
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border mb-2 shrink-0" />
+
+          {/* Search specific assignment */}
+          <input
+            type="text"
+            placeholder="Search for a specific assignment…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="text-xs border border-border rounded-lg px-2 py-1 mb-2 bg-surface text-dark-text placeholder:text-muted-text/60 shrink-0"
+          />
+
+          <div className="overflow-y-auto flex flex-col gap-0.5">
+            {visibleAssignments.map(item => (
+              <button
+                key={item.id}
+                onClick={() => { onClearStatuses(); onToggleAssignment(item.id) }}
+                className={`w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors ${selectedAssignments.has(item.id) ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
+              >
+                <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs shrink-0 ${selectedAssignments.has(item.id) ? 'bg-teal-primary border-teal-primary text-white' : 'border-border'}`}>
+                  {selectedAssignments.has(item.id) ? '✓' : ''}
+                </span>
+                <span className="truncate">{item.name}</span>
+              </button>
+            ))}
+            {visibleAssignments.length === 0 && (
+              <p className="text-xs text-muted-text px-2 py-2">No matches</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function GradebookGrid({ courseId, currentUserId, students, modules, assignments, submissions, overrides, myGroupCourseLevel, myGroupByModule, modulesWithWeeklyGroups, hasMyGroup }: Props) {
   const modulesStorageKey = `gradebook-modules-${courseId}`
   const [selectedModules, setSelectedModules] = useState<Set<string>>(() => {
     try {
@@ -171,14 +334,16 @@ export default function GradebookGrid({ courseId, students, modules, assignments
   const [colWidths, setColWidths] = useState<Map<string, number>>(new Map())
   const [transposed, setTransposed] = useState(false)
 
-  type StatusFilter = 'complete' | 'needs_revision' | 'ungraded' | 'late_missing' | 'not_yet_due'
   const [selectedStatuses, setSelectedStatuses] = useState<Set<StatusFilter>>(new Set())
   const toggleStatus = (s: StatusFilter) => setSelectedStatuses(prev => {
     const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next
   })
-  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null): StatusFilter {
+  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean): StatusFilter {
     const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
-    if (!sub || sub.status === 'draft') return isPastDue ? 'late_missing' : 'not_yet_due'
+    if (!sub || sub.status === 'draft') {
+      if (submissionRequired === false) return 'not_yet_due'
+      return isPastDue ? 'late_missing' : 'not_yet_due'
+    }
     if (sub.status === 'submitted') return 'ungraded'
     if (sub.status === 'graded') return sub.grade === 'complete' ? 'complete' : 'needs_revision'
     return 'not_yet_due'
@@ -245,17 +410,29 @@ export default function GradebookGrid({ courseId, students, modules, assignments
   const filteredAssignments = assignments
     .filter(a => selectedModules.size === 0 || selectedModules.has(a.moduleId))
     .filter(a => selectedAssignments.size === 0 || selectedAssignments.has(a.id))
+    .filter(a => !myGroupActive || !a.graderId || a.graderId === currentUserId)
 
   const submissionMap = new Map<string, GradebookSubmission>()
   for (const sub of submissions) {
     submissionMap.set(`${sub.assignment_id}_${sub.student_id}`, sub)
   }
 
+  const overrideMap = new Map<string, GradebookOverride>()
+  for (const o of overrides) {
+    overrideMap.set(`${o.assignment_id}_${o.student_id}`, o)
+  }
+
+  function effectiveDueDate(assignmentId: string, studentId: string, globalDueDate: string | null): string | null {
+    const o = overrideMap.get(`${assignmentId}_${studentId}`)
+    if (o?.excused) return null
+    return o?.due_date ?? globalDueDate
+  }
+
   const statusFilteredStudents = selectedStatuses.size === 0
     ? filteredStudents
     : filteredStudents.filter(student =>
         filteredAssignments.some(a =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, a.due_date))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
         )
       )
 
@@ -263,7 +440,7 @@ export default function GradebookGrid({ courseId, students, modules, assignments
     ? filteredAssignments
     : filteredAssignments.filter(a =>
         filteredStudents.some(student =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, a.due_date))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
         )
       )
 
@@ -303,49 +480,18 @@ export default function GradebookGrid({ courseId, students, modules, assignments
           } : undefined}
         />
 
-        <MultiSelectDropdown
-          label="Filter by assignment"
-          allLabel="All Assignments"
-          items={assignmentItems}
-          selected={selectedAssignments}
-          onToggle={toggleAssignment}
-          onClear={() => setSelectedAssignments(new Set())}
-          searchable
+        <AssignmentFilterDropdown
+          assignments={assignmentItems}
+          selectedAssignments={selectedAssignments}
+          onToggleAssignment={toggleAssignment}
+          onClearAssignments={() => setSelectedAssignments(new Set())}
+          selectedStatuses={selectedStatuses}
+          onToggleStatus={toggleStatus}
+          onClearStatuses={() => setSelectedStatuses(new Set())}
           dropdownWidth={600}
         />
 
         <span className="text-xs text-muted-text">{filteredAssignments.length} assignments · {filteredStudents.length} students</span>
-
-        {/* Status filter legend */}
-        <div className="flex items-center gap-2 flex-wrap ml-auto">
-          {selectedStatuses.size > 0 && (
-            <button
-              onClick={() => setSelectedStatuses(new Set())}
-              className="text-xs text-muted-text hover:text-dark-text transition-colors mr-1"
-            >
-              Clear filters ×
-            </button>
-          )}
-          {([
-            { key: 'complete' as StatusFilter,      icon: '✓', label: 'Complete',       cls: 'status-complete-btn' },
-            { key: 'needs_revision' as StatusFilter, icon: '✗', label: 'Needs Revision', cls: 'status-revision-btn' },
-            { key: 'ungraded' as StatusFilter,       icon: '●', label: 'Ungraded',       cls: 'status-needs-grading-btn' },
-            { key: 'late_missing' as StatusFilter,   icon: '–', label: 'Late / missing', cls: 'status-late-badge' },
-            { key: 'not_yet_due' as StatusFilter,    icon: ' ', label: 'Not yet due',    cls: 'border border-border' },
-          ] as const).map(({ key, icon, label, cls }) => {
-            const active = selectedStatuses.has(key)
-            return (
-              <button
-                key={key}
-                onClick={() => toggleStatus(key)}
-                className={`flex items-center gap-1 text-xs rounded px-1.5 py-0.5 transition-all ${active ? 'ring-2 ring-offset-1 ring-teal-primary/60' : 'opacity-70 hover:opacity-100'}`}
-              >
-                <span className={`inline-flex w-6 h-5 items-center justify-center text-xs font-bold rounded ${cls}`}>{icon}</span>
-                <span className={active ? 'underline font-medium' : ''}>{label}</span>
-              </button>
-            )
-          })}
-        </div>
       </div>
 
       <div className="overflow-x-auto border border-border rounded-xl">
@@ -420,7 +566,9 @@ export default function GradebookGrid({ courseId, students, modules, assignments
                       assignmentId={a.id}
                       studentId={student.id}
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
-                      dueDate={a.due_date}
+                      dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
+                      submissionRequired={a.submission_required}
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </tr>
@@ -505,7 +653,9 @@ export default function GradebookGrid({ courseId, students, modules, assignments
                       assignmentId={a.id}
                       studentId={student.id}
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
-                      dueDate={a.due_date}
+                      dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
+                      submissionRequired={a.submission_required}
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </tr>

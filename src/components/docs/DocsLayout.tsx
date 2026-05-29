@@ -28,6 +28,7 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'people', label: 'People & Enrollment' },
   { slug: 'roster', label: 'Roster & Progress' },
   { slug: 'gradebook', label: 'Gradebook' },
+  { slug: 'partnerships', label: 'Partnerships' },
   { slug: 'student-preview', label: 'Student Preview' },
   { slug: 'accessibility', label: 'Accessibility' },
 ]

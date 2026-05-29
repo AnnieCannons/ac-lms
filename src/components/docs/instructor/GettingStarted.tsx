@@ -48,12 +48,19 @@ export default function GettingStarted() {
         <li>All modules, days, and their structure</li>
         <li>All assignments (including instructions, checklist items, and publish status)</li>
         <li>All resources attached to days</li>
+        <li>All quizzes (questions, settings, and publish status)</li>
         <li>Course sections (syllabus, info pages)</li>
       </DocList>
 
+      <DocH3>Enrolling Instructors</DocH3>
+      <DocP>
+        The duplicate modal includes an <strong>Instructor</strong> picker. Select any instructors or staff members who
+        should have access to the new course — they will be enrolled automatically when the course is created. Leave
+        it empty if you want to add co-instructors later from the Users page.
+      </DocP>
+
       <DocH3>What Does Not Get Copied</DocH3>
       <DocList>
-        <li><strong>Quizzes</strong> — must be recreated or pasted in the new course</li>
         <li><strong>Student enrollments</strong> — the new course starts empty; add students separately</li>
         <li><strong>Submissions and grades</strong> — no student data is carried over</li>
         <li><strong>Grading groups</strong> — reset for the new cohort</li>
@@ -61,7 +68,7 @@ export default function GettingStarted() {
       </DocList>
       <DocNote>
         The new course is created with your account as the owner. Add co-instructors from the <strong>Users</strong>{' '}
-        page after opening the new course.
+        page after opening the new course, or pre-select them in the Instructor picker during duplication.
       </DocNote>
 
       <DocH2>Entering a Course</DocH2>
@@ -70,6 +77,7 @@ export default function GettingStarted() {
       <DocStep number={3}>The main area shows the Course Editor — your primary workspace for structuring the course.</DocStep>
 
       <DocH2>Instructor UI Overview</DocH2>
+      <DocP>Inside each course, the left sidebar gives access to:</DocP>
       <DocList>
         <li><strong>Course Editor</strong> — manage modules, days, assignments, and resources</li>
         <li><strong>Assignments</strong> — view all assignments; access the grading queue</li>
@@ -77,11 +85,19 @@ export default function GettingStarted() {
         <li><strong>Career Development</strong> — manage career dev content separate from the coding curriculum</li>
         <li><strong>Level Up Your Skills</strong> — optional bonus assignments with skill tags</li>
         <li><strong>Grades</strong> — course-wide submission overview and speed grader; a yellow badge shows how many submissions need grading</li>
+        <li><strong>Gradebook</strong> — full spreadsheet of every student's status on every published assignment</li>
         <li><strong>Grading Groups</strong> — assign students to specific graders; rotate groups weekly</li>
         <li><strong>Users</strong> — manage student enrollment and roles including TA; add people to the course</li>
         <li><strong>Roster</strong> — accommodation roster with per-student progress and inline grading</li>
         <li><strong>Trash</strong> — recover or permanently delete trashed modules, days, assignments, resources, and quizzes</li>
         <li><strong>Student Preview</strong> — view the course exactly as a student sees it</li>
+      </DocList>
+
+      <DocH3>Global Dashboard Pages</DocH3>
+      <DocP>From the main instructor dashboard (outside any course), two additional pages are available:</DocP>
+      <DocList>
+        <li><strong>Users</strong> — a global directory of all students grouped by active course, plus all staff and admins. Available to all instructors, staff, and admins.</li>
+        <li><strong>Partnerships</strong> — manage external organizations: partner records, contacts, types, tags, and status. Visible to staff and admins only.</li>
       </DocList>
 
       <DocH3>Top Navigation</DocH3>

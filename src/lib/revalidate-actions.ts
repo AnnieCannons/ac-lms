@@ -9,7 +9,7 @@ export async function revalidateAssignmentsPage(courseId: string) {
 
   // Verify the caller is an instructor/admin or a TA enrolled in this course
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'admin'
+  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
   if (!isInstructorOrAdmin) {
     const { data: enrollment } = await supabase
       .from('course_enrollments')

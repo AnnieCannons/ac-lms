@@ -7,7 +7,7 @@ async function getAuthedInstructor() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' as const }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return { error: 'Not authorized' as const }
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' as const }
   return { user, supabase, role: profile.role as string }
 }
 
@@ -239,6 +239,9 @@ export async function setAssignmentGrader(
 ): Promise<{ error?: string; success?: boolean }> {
   const auth = await getAuthedInstructor()
   if ('error' in auth) return { error: auth.error }
+
+  const hasAccess = await verifyInstructorCourseAccess(auth.supabase, auth.user.id, auth.role, courseId)
+  if (!hasAccess) return { error: 'Not authorized for this course' }
 
   const admin = createServiceSupabaseClient()
 

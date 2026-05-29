@@ -1,13 +1,16 @@
 import ResizableSidebar from './ResizableSidebar'
 import InstructorCourseNav from './InstructorCourseNav'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getPendingExtensionCount } from '@/lib/extension-actions'
 
-export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName: string }) {
+export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName?: string }) {
   let needsGrading = 0
   let firstUngradedAssignmentId: string | null = null
   let myGroupNeedsGrading = 0
   let myGroupFirstAssignmentId: string | null = null
   let isTa = false
+  let pendingExtensions = 0
+  let otherCurrentCourses: { id: string; name: string }[] = []
 
   try {
     const supabase = await createServerSupabaseClient()
@@ -15,7 +18,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
 
     if (user) {
       const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-      if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+      if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
         const { data: enrollment } = await supabase
           .from('course_enrollments')
           .select('role')
@@ -130,16 +133,46 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
     // Non-critical — badge and grader button degrade gracefully
   }
 
+  // Fetch other current courses for the dropdown (non-critical)
+  try {
+    const admin = createServiceSupabaseClient()
+    const { data: allCourses } = await admin
+      .from('courses')
+      .select('id, name, start_date, end_date, is_template, archived')
+      .order('start_date', { ascending: false })
+
+    const now = Date.now()
+    otherCurrentCourses = (allCourses ?? [])
+      .filter(c => {
+        if (c.id === courseId) return false
+        if (!c.start_date || c.is_template || c.archived) return false
+        const start = new Date(c.start_date).getTime()
+        const end = c.end_date ? new Date(c.end_date).getTime() : start + 105 * 24 * 60 * 60 * 1000
+        return now >= start && now <= end
+      })
+      .map(c => ({ id: c.id, name: c.name }))
+  } catch {
+    // Non-critical
+  }
+
+  try {
+    pendingExtensions = await getPendingExtensionCount(courseId)
+  } catch {
+    // Non-critical
+  }
+
   return (
     <ResizableSidebar>
       <InstructorCourseNav
         courseId={courseId}
-        courseName={courseName}
+        courseName={courseName ?? ''}
         needsGrading={needsGrading}
         firstUngradedAssignmentId={firstUngradedAssignmentId}
         myGroupNeedsGrading={myGroupNeedsGrading}
         myGroupFirstAssignmentId={myGroupFirstAssignmentId}
         isTa={isTa}
+        otherCurrentCourses={otherCurrentCourses}
+        pendingExtensions={pendingExtensions}
       />
     </ResizableSidebar>
   )

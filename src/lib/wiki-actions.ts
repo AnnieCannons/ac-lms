@@ -17,7 +17,7 @@ async function getInstructorOrAdminUser() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { user: null, role: null, error: 'Not authenticated' }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
     return { user: null, role: null, error: 'Unauthorized' }
   }
   return { user, role: profile.role, error: null }
@@ -74,10 +74,35 @@ export async function createWiki(params: {
   moduleDayId?: string
   title: string
 }): Promise<{ data?: WikiData; error?: string }> {
-  const { user, error: authError } = await getInstructorOrAdminUser()
-  if (!user) return { error: authError ?? 'Unauthorized' }
+  const { user, role, error: authError } = await getInstructorOrAdminUser()
+  if (!user || !role) return { error: authError ?? 'Unauthorized' }
 
   const admin = createServiceSupabaseClient()
+
+  // Verify the caller is enrolled as instructor (or is admin) in the target course
+  if (role !== 'admin') {
+    let courseId: string | null = null
+    if (params.moduleId) {
+      const { data: mod } = await admin.from('modules').select('course_id').eq('id', params.moduleId).single()
+      courseId = mod?.course_id ?? null
+    } else if (params.moduleDayId) {
+      const { data: day } = await admin.from('module_days').select('module_id').eq('id', params.moduleDayId).single()
+      if (day) {
+        const { data: mod } = await admin.from('modules').select('course_id').eq('id', day.module_id).single()
+        courseId = mod?.course_id ?? null
+      }
+    }
+    if (!courseId) return { error: 'Could not resolve course' }
+    const supabase = await createServerSupabaseClient()
+    const { data: enrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .eq('role', 'instructor')
+      .maybeSingle()
+    if (!enrollment) return { error: 'Not authorized' }
+  }
 
   const insertPayload: {
     title: string

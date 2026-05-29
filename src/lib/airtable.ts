@@ -3,9 +3,16 @@
 const BASE_ID = process.env.AIRTABLE_BASE_ID!
 const API_KEY = process.env.AIRTABLE_API_KEY!
 const ATTENDANCE_TABLE = process.env.AIRTABLE_TABLE_NAME || 'Attendance'
-const COURSE_YEAR = process.env.CURRENT_COURSE_YEAR || '2026'
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
+
+/** Escape a string for safe interpolation inside an Airtable formula string literal */
+function escapeAirtableString(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/[{}()]/g, (c) => `\\${c}`)
+}
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> }
 
@@ -38,17 +45,6 @@ async function paginate(table: string, base: URLSearchParams): Promise<AirtableR
   return all
 }
 
-function getCourseStartDate(courseName?: string | null): Date {
-  const name = courseName ?? ''
-  if (name.includes('ITP') || name.toLowerCase().includes('intro to programming')) {
-    return new Date(process.env.ITP_START_DATE || `${COURSE_YEAR}-06-01`)
-  }
-  if (name.includes('TCF') || name.toLowerCase().includes('coding foundation')) {
-    return new Date(process.env.TCF_START_DATE || `${COURSE_YEAR}-05-01`)
-  }
-  return new Date(`${COURSE_YEAR}-01-01`)
-}
-
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export type AttendanceRecord = {
@@ -76,10 +72,33 @@ export type ClassStudent = {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export async function fetchStudentAttendance(preferredName: string): Promise<AttendanceRecord[]> {
-  const safeName = preferredName.replace(/'/g, "\\'")
+export async function fetchStudentAttendance(preferredName: string, since?: string, until?: string, courseName?: string): Promise<AttendanceRecord[]> {
+  const safeName = escapeAirtableString(preferredName)
+
+  // If a course name is provided, verify this student is enrolled in that specific
+  // Airtable course before fetching attendance — prevents mixing up students with the
+  // same preferred name who are in different concurrent courses.
+  if (courseName) {
+    const safeCourseName = escapeAirtableString(courseName)
+    const sp = new URLSearchParams()
+    sp.set(
+      'filterByFormula',
+      `AND(LOWER({Preferred Name})='${safeName.toLowerCase()}', OR(FIND('${safeCourseName}', ARRAYJOIN({Current Course})), FIND('${safeCourseName}', ARRAYJOIN({Past Courses}))))`,
+    )
+    const enrolled = await paginate('Students', sp)
+    if (!enrolled.length) return []
+  }
+
+  const dateFilter = since && until
+    ? `AND(NOT(IS_BEFORE({Date}, '${since}')), NOT(IS_AFTER({Date}, '${until}')))`
+    : since
+      ? `NOT(IS_BEFORE({Date}, '${since}'))`
+      : ''
+  const nameFilter = `{PreferredNameText}='${safeName}'`
+  const formula = dateFilter ? `AND(${nameFilter}, ${dateFilter})` : nameFilter
+
   const p = new URLSearchParams()
-  p.set('filterByFormula', `{PreferredNameText}='${safeName}'`)
+  p.set('filterByFormula', formula)
   p.set('sort[0][field]', 'Date')
   p.set('sort[0][direction]', 'desc')
 
@@ -96,7 +115,7 @@ export async function fetchStudentAttendance(preferredName: string): Promise<Att
 }
 
 export async function fetchStudentProfile(preferredName: string): Promise<StudentProfile | null> {
-  const safeName = preferredName.replace(/'/g, "\\'")
+  const safeName = escapeAirtableString(preferredName)
   const p = new URLSearchParams()
   p.set('filterByFormula', `LOWER({Preferred Name})='${safeName.toLowerCase()}'`)
 
@@ -162,7 +181,7 @@ export async function fetchActiveClasses(): Promise<string[]> {
   const p = new URLSearchParams()
   p.set(
     'filterByFormula',
-    `AND(FIND('${COURSE_YEAR}', {Name}), NOT(FIND('Practicum', {Name})), IS_BEFORE({Start Date}, TODAY()))`,
+    `AND(NOT(FIND('Practicum', {Name})), IS_BEFORE({Start Date}, TODAY()))`,
   )
   p.set('sort[0][field]', 'Start Date')
   p.set('sort[0][direction]', 'desc')
@@ -177,7 +196,7 @@ export async function fetchActiveClasses(): Promise<string[]> {
 export async function fetchClassAttendance(className: string): Promise<ClassStudent[]> {
   // Resolve course record
   const cp = new URLSearchParams()
-  cp.set('filterByFormula', `{Name}='${className.replace(/'/g, "\\'")}'`)
+  cp.set('filterByFormula', `{Name}='${escapeAirtableString(className)}'`)
   const courseRecords = await paginate('Courses', cp)
   if (!courseRecords.length) throw new Error('Course not found')
 
@@ -189,7 +208,7 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   until.setHours(23, 59, 59, 999)
 
   // ARRAYJOIN on linked fields returns display names (not record IDs), so filter by course name
-  const safeClassName = className.replace(/'/g, "\\'")
+  const safeClassName = escapeAirtableString(className)
   const sp = new URLSearchParams()
   sp.set(
     'filterByFormula',
@@ -207,8 +226,8 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   ap.set(
     'filterByFormula',
     endDateStr
-      ? `AND(IS_AFTER({Date}, '${startDateStr}'), NOT(IS_AFTER({Date}, '${endDateStr}')))`
-      : `IS_AFTER({Date}, '${startDateStr}')`,
+      ? `AND(NOT(IS_BEFORE({Date}, '${startDateStr}')), NOT(IS_AFTER({Date}, '${endDateStr}')))`
+      : `NOT(IS_BEFORE({Date}, '${startDateStr}'))`,
   )
   const attendanceRecords = await paginate(ATTENDANCE_TABLE, ap)
 

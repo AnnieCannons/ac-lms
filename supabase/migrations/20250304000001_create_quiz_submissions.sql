@@ -15,3 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_quiz_submissions_student_id ON quiz_submissions(s
 COMMENT ON TABLE quiz_submissions IS 'Student quiz attempts; answers is array of { question_ident, choice_ident }.';
 COMMENT ON COLUMN quiz_submissions.answers IS 'Array of { question_ident: string, choice_ident: string }.';
 COMMENT ON COLUMN quiz_submissions.score_percent IS 'Optional: 0-100, computed from correct answers.';
+
+GRANT ALL ON TABLE public.quiz_submissions TO anon;
+GRANT ALL ON TABLE public.quiz_submissions TO authenticated;
+GRANT ALL ON TABLE public.quiz_submissions TO service_role;
