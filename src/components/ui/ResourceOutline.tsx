@@ -33,6 +33,7 @@ interface Assignment {
   title: string
   due_date: string | null
   published: boolean
+  is_bonus?: boolean
   submission_required?: boolean
 }
 
@@ -78,8 +79,8 @@ interface Props {
 const SKIP_DAYS_RESOURCES   = new Set(['Assignments', 'Resources', 'Wiki', 'Links'])
 const SKIP_DAYS_ASSIGNMENTS = new Set(['Resources', 'Wiki', 'Links'])
 
-function isBonusLike(_title?: string, isBonus?: boolean) {
-  return !!isBonus
+function isLevelUpAssignment(isBonus?: boolean, moduleCategory?: string | null) {
+  return !!isBonus || moduleCategory === 'level_up'
 }
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequired }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean }) {
@@ -97,8 +98,8 @@ function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequir
       <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned In</span>
     </span>
   )
-  // Bonus assignments: no status badge
-  if (isBonusLike(title, isBonus)) return null
+  // Level Up assignments: no status badge
+  if (isLevelUpAssignment(isBonus)) return null
   // No submission required: show Not Started but never Late (instructor marks complete manually)
   if (submissionRequired === false) {
     return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
@@ -362,7 +363,7 @@ function LinkResource({
   )
 }
 
-type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete'
+type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete' | 'level-up'
 
 const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -371,6 +372,7 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'late', label: 'Late' },
   { key: 'turned-in', label: 'Turned In' },
   { key: 'complete', label: 'Complete ✓' },
+  { key: 'level-up', label: 'Level Up' },
 ]
 
 const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string }> = {
@@ -380,18 +382,22 @@ const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string
   'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
   'needs-revision': { inactive: 'bg-red-500/20 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
   'complete':       { inactive: 'bg-green-600/20 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
+  'level-up':       { inactive: 'bg-purple-light text-purple-primary border border-purple-primary hover:opacity-80', active: 'bg-purple-primary text-white border border-purple-primary' },
 }
 
-function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean, submissionRequired?: boolean): boolean {
+function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean, moduleCategory?: string | null, submissionRequired?: boolean): boolean {
   const info = map[id]
+  const levelUp = isLevelUpAssignment(isBonus, moduleCategory)
+  // Level Up tab: only level_up module or bonus assignments
+  if (filter === 'level-up') return levelUp
+  // All other filters: exclude level up assignments
+  if (levelUp) return false
   if (filter === 'all') return true
   if (filter === 'complete') return info?.grade === 'complete'
   if (filter === 'turned-in') return (info?.status === 'submitted' || info?.status === 'graded') && !info?.grade
-  const bonus = isBonusLike(title, isBonus)
   const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
-  if (bonus && (filter === 'late' || filter === 'not-started')) return false
   if (submissionRequired === false && filter === 'late') return false
   if (filter === 'late') return isLate && notStarted && !info?.excused
   if (filter === 'not-started') return notStarted && !info?.excused
@@ -549,6 +555,9 @@ export default function ResourceOutline({
   const allPublishedAssignments = orderedModules.flatMap(m =>
     m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published).map(a => ({
       ...a,
+      isBonus: !!a.is_bonus,
+      isLevelUp: isLevelUpAssignment(a.is_bonus, m.category),
+      moduleCategory: m.category,
       moduleTitle: m.title as string,
       weekNumber: m.week_number as number | null,
     })))
@@ -557,12 +566,10 @@ export default function ResourceOutline({
   const filterCounts = submissionMap
     ? Object.fromEntries(FILTERS.map(f => [
         f.key,
-        f.key === 'all'
-          ? allPublishedAssignments.filter(a => !searchQ || a.title.toLowerCase().includes(searchQ)).length
-          : allPublishedAssignments.filter(a =>
-              matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title, undefined, a.submission_required) &&
-              (!searchQ || a.title.toLowerCase().includes(searchQ))
-            ).length,
+        allPublishedAssignments.filter(a =>
+          matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title, a.isBonus, a.moduleCategory, a.submission_required) &&
+          (!searchQ || a.title.toLowerCase().includes(searchQ))
+        ).length,
       ])) as Record<AssignmentFilter, number>
     : null
 
@@ -578,7 +585,7 @@ export default function ResourceOutline({
   const notStartedFlat = (!instructorView && filter === 'not-started' && submissionMap)
     ? (() => {
         const base = allPublishedAssignments.filter(a => {
-          if (isBonusLike(a.title)) return false
+          if (a.isLevelUp) return false
           const info = submissionMap[a.id]
           const notStarted = !info || (info.status === 'draft' && !info.grade)
           return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
@@ -587,6 +594,12 @@ export default function ResourceOutline({
         const upcoming = sortByDue(base.filter(a => a.submission_required === false || !a.due_date || localDate(a.due_date) >= todayLocal()))
         return { pastDue, upcoming }
       })()
+    : null
+
+  const levelUpFlat = (!instructorView && filter === 'level-up' && submissionMap)
+    ? sortByDue(allPublishedAssignments.filter(a =>
+        a.isLevelUp && (!searchQ || a.title.toLowerCase().includes(searchQ))
+      ))
     : null
 
   const skipDays = mode === 'assignments' ? SKIP_DAYS_ASSIGNMENTS : SKIP_DAYS_RESOURCES
@@ -604,7 +617,7 @@ export default function ResourceOutline({
         a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
       )
       if (!submissionMap || filter === 'all') return pub.length > 0
-      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, undefined, a.submission_required))
+      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, m.category, a.submission_required))
     })
   )
 
@@ -685,7 +698,39 @@ export default function ResourceOutline({
   return (
     <>
       {filterBar}
-      {notStartedFlat ? (
+      {levelUpFlat ? (
+        <div className="flex flex-col gap-2">
+          {levelUpFlat.length === 0 ? (
+            <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+              <p className="text-muted-text text-sm">No Level Up assignments yet.</p>
+            </div>
+          ) : levelUpFlat.map(a => (
+            <div
+              role="listitem"
+              key={a.id}
+              className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors gap-4"
+            >
+              <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                <p className="text-xs text-muted-text mt-0.5">
+                  {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
+                  {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                </p>
+              </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                {submissionMap?.[a.id]?.hasComments && (
+                  <Link href={`${assignmentHref(a.id)}#comments`} prefetch={false} title="View instructor comment" className="text-teal-primary hover:text-teal-primary/70 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </Link>
+                )}
+                <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} isBonus={true} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : notStartedFlat ? (
         <div className="flex flex-col gap-8">
           {notStartedFlat.pastDue.length === 0 && notStartedFlat.upcoming.length === 0 ? (
             <div className="bg-surface rounded-2xl border border-border p-12 text-center">
@@ -785,7 +830,7 @@ export default function ResourceOutline({
               )
               if (!submissionMap) return pub.length > 0
               if (filter === 'all') return pub.length > 0
-              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, undefined, a.submission_required))
+              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, module.category, a.submission_required))
             })
 
           if (days.length === 0) return null
@@ -830,7 +875,7 @@ export default function ResourceOutline({
                           ? (!searchQ || a.title.toLowerCase().includes(searchQ))
                           : (a.published &&
                              (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
-                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, undefined, a.submission_required)))
+                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, module.category, a.submission_required)))
                       )
                       .sort((a, b) => {
                         // In not-started view, sort late assignments first
