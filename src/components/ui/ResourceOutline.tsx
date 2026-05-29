@@ -393,14 +393,8 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
-<<<<<<< HEAD
-  if (bonus && (filter === 'late' || filter === 'not-started')) return false
   if (filter === 'late') return isLate && notStarted && !info?.excused
   if (filter === 'not-started') return notStarted && !info?.excused
-=======
-  if (filter === 'late') return isLate && notStarted
-  if (filter === 'not-started') return notStarted
->>>>>>> 7833dff (feat: add Level Up tab to student Grades page)
   return true
 }
 
