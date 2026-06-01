@@ -19,7 +19,7 @@ export default async function CoursesPage() {
     .eq('id', user.id)
     .single()
 
-  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'admin'
+  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 
   // If not instructor/admin, check if they're a TA or student in any course
   if (!isInstructorOrAdmin) {

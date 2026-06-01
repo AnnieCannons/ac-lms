@@ -138,11 +138,11 @@ function AcceptInviteForm() {
       return
     }
 
+    const isStaff = result.role === 'instructor' || result.role === 'staff' || result.role === 'admin'
     if (result.courseId) {
-      const base = result.role === 'instructor' ? '/instructor' : '/student'
-      router.push(`${base}/courses/${result.courseId}`)
+      router.push(`${isStaff ? '/instructor' : '/student'}/courses/${result.courseId}`)
     } else {
-      router.push('/student/courses')
+      router.push(isStaff ? '/instructor/courses' : '/student/courses')
     }
   }
 
