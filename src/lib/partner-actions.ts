@@ -64,7 +64,8 @@ export async function listPartners() {
       partner_type_assignments (partner_type),
       partner_contacts (id, name, title, email, is_primary),
       partner_department_status (department, stage),
-      partner_interactions (id, note, interaction_date, department, users(name))
+      partner_interactions (id, note, interaction_date, department, users(name)),
+      student_referrals (student_identifier, direction)
     `)
     .order('name')
 
@@ -187,6 +188,19 @@ export async function deletePartner(id: string) {
 
   revalidatePath('/instructor/partnerships')
   return { error: null }
+}
+
+export async function listPartnersWithGeo() {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, partners: [] }
+
+  const { data, error: dbError } = await supabase
+    .from('partners')
+    .select('id, name, city, state, multi_city, services_focus_area, partner_type_assignments(partner_type)')
+    .order('name')
+
+  if (dbError) return { error: dbError.message, partners: [] }
+  return { error: null, partners: data ?? [] }
 }
 
 export async function listStaffUsers() {

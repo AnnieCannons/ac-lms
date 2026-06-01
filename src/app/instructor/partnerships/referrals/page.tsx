@@ -4,7 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import ReferralDashboard from '@/components/ui/ReferralDashboard'
 import { listReferrals } from '@/lib/partner-interactions-actions'
-import { listPartners } from '@/lib/partner-actions'
+import { listPartnersWithGeo } from '@/lib/partner-actions'
 
 export default async function ReferralsPage() {
   const supabase = await createServerSupabaseClient()
@@ -14,12 +14,20 @@ export default async function ReferralsPage() {
   const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
   if (profile?.role !== 'staff' && profile?.role !== 'admin') redirect('/instructor')
 
-  const [{ referrals }, { partners }] = await Promise.all([
+  const [{ referrals }, { partners: rawPartners }] = await Promise.all([
     listReferrals(),
-    listPartners(),
+    listPartnersWithGeo(),
   ])
 
-  const partnerOptions = partners.map(p => ({ id: p.id, name: p.name }))
+  const partnerOptions = rawPartners.map(p => ({
+    id: p.id,
+    name: p.name,
+    city: p.city ?? null,
+    state: p.state ?? null,
+    multi_city: p.multi_city ?? false,
+    services_focus_area: p.services_focus_area ?? null,
+    partner_types: (p.partner_type_assignments ?? []).map((t: { partner_type: string }) => t.partner_type),
+  }))
 
   return (
     <div className="min-h-screen bg-background">
