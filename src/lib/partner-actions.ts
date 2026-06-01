@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { revalidatePath } from 'next/cache'
 
 export type PartnerStatus = 'prospect' | 'active' | 'inactive' | 'in_onboarding'
-export type PartnerType = 'service_provider' | 'corporate' | 'funder' | 'advisory' | 'mentorship' | 'media'
+export type PartnerType = 'service_provider' | 'corporate' | 'funder' | 'advisory' | 'mentorship' | 'apprenticeship' | 'media' | 'admissions_referral'
 
 export interface PartnerContact {
   id?: string
@@ -14,6 +14,8 @@ export interface PartnerContact {
   phone: string | null
   is_primary: boolean
   notes: string | null
+  linkedin_url?: string | null
+  website_url?: string | null
 }
 
 export interface PartnerFormData {
@@ -60,12 +62,23 @@ export async function listPartners() {
     .select(`
       id, name, city, state, status, last_interaction_date, internal_owner_id,
       partner_type_assignments (partner_type),
-      partner_contacts (id, name, title, email, is_primary)
+      partner_contacts (id, name, title, email, is_primary),
+      partner_department_status (department, stage),
+      partner_interactions (id, note, interaction_date, department, users(name))
     `)
     .order('name')
 
   if (dbError) return { error: dbError.message, partners: [] }
-  return { error: null, partners: data ?? [] }
+
+  // Sort interactions descending and keep only the most recent per partner
+  const partners = (data ?? []).map(p => {
+    const sorted = [...(p.partner_interactions ?? [])].sort(
+      (a, b) => new Date(b.interaction_date).getTime() - new Date(a.interaction_date).getTime()
+    )
+    return { ...p, latest_interaction: sorted[0] ?? null }
+  })
+
+  return { error: null, partners }
 }
 
 export async function getPartner(id: string) {

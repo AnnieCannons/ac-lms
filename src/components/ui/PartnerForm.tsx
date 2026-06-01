@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import type { PartnerFormData, PartnerContact, PartnerStatus, PartnerType } from '@/lib/partner-actions'
+import { findSimilarPartners } from '@/lib/partner-interactions-actions'
 
 const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'service_provider', label: 'Service Provider' },
@@ -10,7 +12,9 @@ const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'funder', label: 'Funder' },
   { value: 'advisory', label: 'Advisory' },
   { value: 'mentorship', label: 'Mentorship' },
+  { value: 'apprenticeship', label: 'Apprenticeship' },
   { value: 'media', label: 'Media' },
+  { value: 'admissions_referral', label: 'Admissions Referral' },
 ]
 
 const STATUSES: { value: PartnerStatus; label: string }[] = [
@@ -34,13 +38,15 @@ interface Props {
 }
 
 function emptyContact(): PartnerContact {
-  return { name: '', title: null, email: null, phone: null, is_primary: false, notes: null }
+  return { name: '', title: null, email: null, phone: null, is_primary: false, notes: null, linkedin_url: null, website_url: null }
 }
 
 export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [duplicates, setDuplicates] = useState<{ id: string; name: string; city: string | null; state: string | null }[]>([])
+  const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [name, setName] = useState(initialData?.name ?? '')
   const [city, setCity] = useState(initialData?.city ?? '')
@@ -59,6 +65,16 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const [contacts, setContacts] = useState<PartnerContact[]>(
     initialData?.contacts?.length ? initialData.contacts : [emptyContact()]
   )
+
+  function handleNameChange(value: string) {
+    setName(value)
+    if (dupTimerRef.current) clearTimeout(dupTimerRef.current)
+    if (value.trim().length < 3) { setDuplicates([]); return }
+    dupTimerRef.current = setTimeout(async () => {
+      const { matches } = await findSimilarPartners(value.trim(), partnerId)
+      setDuplicates(matches)
+    }, 400)
+  }
 
   function toggleType(type: PartnerType) {
     setPartnerTypes(prev =>
@@ -136,10 +152,20 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
             type="text"
             required
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={e => handleNameChange(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
             placeholder="Organization name"
           />
+          {duplicates.length > 0 && (
+            <div className="mt-1.5 rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 flex flex-col gap-1">
+              <span className="font-medium">Similar organizations already exist:</span>
+              {duplicates.map(d => (
+                <Link key={d.id} href={`/instructor/partnerships/${d.id}`} className="hover:underline">
+                  {d.name}{d.city ? ` — ${d.city}${d.state ? `, ${d.state}` : ''}` : ''}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -278,6 +304,28 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
                   onChange={e => updateContact(i, 'phone', e.target.value || null)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   placeholder="Phone number"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-dark-text mb-1">LinkedIn URL</label>
+                <input
+                  type="url"
+                  value={contact.linkedin_url ?? ''}
+                  onChange={e => updateContact(i, 'linkedin_url' as keyof PartnerContact, e.target.value || null)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  placeholder="https://linkedin.com/in/..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-dark-text mb-1">Website</label>
+                <input
+                  type="url"
+                  value={contact.website_url ?? ''}
+                  onChange={e => updateContact(i, 'website_url' as keyof PartnerContact, e.target.value || null)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  placeholder="https://..."
                 />
               </div>
             </div>

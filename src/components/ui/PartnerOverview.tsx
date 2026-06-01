@@ -1,0 +1,675 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import {
+  logInteraction,
+  deleteInteraction,
+  setDepartmentStatus,
+  removeDepartmentStatus,
+  type PartnerDepartment,
+} from '@/lib/partner-interactions-actions'
+import { DEPARTMENT_LABELS, DEPARTMENT_STAGES } from '@/lib/partner-constants'
+import PartnerForm from '@/components/ui/PartnerForm'
+import type { PartnerFormData, PartnerType } from '@/lib/partner-actions'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Contact {
+  id?: string
+  name: string
+  title: string | null
+  email: string | null
+  phone: string | null
+  is_primary: boolean
+  notes: string | null
+  linkedin_url?: string | null
+  website_url?: string | null
+}
+
+interface Interaction {
+  id: string
+  note: string
+  interaction_date: string
+  department: PartnerDepartment | null
+  created_at: string
+  user_id: string | null
+  users: { name: string } | null
+}
+
+interface DepartmentStatus {
+  id: string
+  department: PartnerDepartment
+  stage: string
+  updated_at: string
+  users: { name: string } | null
+}
+
+interface Partner {
+  id: string
+  name: string
+  city: string | null
+  state: string | null
+  multi_city: boolean
+  status: string
+  last_interaction_date: string | null
+  internal_owner_id: string | null
+  how_we_met: string | null
+  services_focus_area: string | null
+  meeting_notes: string | null
+  tags: string[]
+  referred_by: string | null
+  partner_type_assignments: { partner_type: PartnerType }[]
+  partner_contacts: Contact[]
+}
+
+interface StaffUser {
+  id: string
+  name: string
+}
+
+interface Props {
+  partner: Partner
+  interactions: Interaction[]
+  departmentStatuses: DepartmentStatus[]
+  staffUsers: StaffUser[]
+  onUpdatePartner: (data: PartnerFormData) => Promise<{ error: string | null }>
+  onDeletePartner: () => Promise<{ error: string | null }>
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STATUS_COLORS: Record<string, string> = {
+  prospect: 'bg-yellow-100 text-yellow-800',
+  active: 'bg-green-100 text-green-800',
+  inactive: 'bg-gray-100 text-gray-600',
+  in_onboarding: 'bg-blue-100 text-blue-800',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  prospect: 'Prospect',
+  active: 'Active',
+  inactive: 'Inactive',
+  in_onboarding: 'In Onboarding',
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  service_provider: 'Service Provider',
+  corporate: 'Corporate',
+  funder: 'Funder',
+  advisory: 'Advisory',
+  mentorship: 'Mentorship',
+  apprenticeship: 'Apprenticeship',
+  media: 'Media',
+  admissions_referral: 'Admissions Referral',
+}
+
+const DEPT_COLORS: Record<PartnerDepartment, string> = {
+  student_success: 'bg-purple-100 text-purple-800',
+  career_development: 'bg-teal-100 text-teal-800',
+  resourcefull: 'bg-blue-100 text-blue-800',
+  funding_partnerships: 'bg-green-100 text-green-800',
+  admissions: 'bg-orange-100 text-orange-800',
+}
+
+const ALL_DEPARTMENTS: PartnerDepartment[] = [
+  'student_success',
+  'career_development',
+  'resourcefull',
+  'funding_partnerships',
+  'admissions',
+]
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  })
+}
+
+function daysSince(dateStr: string | null) {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr + 'T00:00:00').getTime()
+  return Math.floor(diff / (1000 * 60 * 60 * 24))
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function IncompleteProfileBanner({ partner }: { partner: Partner }) {
+  const missing: string[] = []
+  if (!partner.city) missing.push('city')
+  if (!partner.partner_contacts.length) missing.push('at least one contact')
+  if (!partner.partner_type_assignments.length) missing.push('partner type')
+  if (!partner.internal_owner_id) missing.push('internal owner')
+
+  if (!missing.length) return null
+
+  return (
+    <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 flex items-start gap-2 mb-6">
+      <span className="shrink-0 mt-0.5">⚠</span>
+      <span>Incomplete profile — missing: {missing.join(', ')}.</span>
+    </div>
+  )
+}
+
+function DepartmentJourney({
+  department,
+  currentStage,
+  onStageChange,
+  onRemove,
+}: {
+  department: PartnerDepartment
+  currentStage: string
+  onStageChange: (dept: PartnerDepartment, stage: string) => void
+  onRemove: (dept: PartnerDepartment) => void
+}) {
+  const stages = DEPARTMENT_STAGES[department]
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${DEPT_COLORS[department]}`}>
+          {DEPARTMENT_LABELS[department]}
+        </span>
+        <button
+          type="button"
+          onClick={() => onRemove(department)}
+          className="text-xs text-muted-text hover:text-red-500 transition-colors"
+        >
+          Remove
+        </button>
+      </div>
+      <p className="text-xs text-muted-text">Select a stage:</p>
+      <div className="flex flex-wrap gap-1.5">
+        {stages.map(stage => (
+          <button
+            key={stage}
+            type="button"
+            onClick={() => onStageChange(department, stage)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              currentStage === stage
+                ? 'bg-dark-text text-background border-dark-text'
+                : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+            }`}
+          >
+            {stage}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AddDepartmentDropdown({
+  enrolledDepts,
+  onAdd,
+}: {
+  enrolledDepts: PartnerDepartment[]
+  onAdd: (dept: PartnerDepartment) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const unenrolled = ALL_DEPARTMENTS.filter(d => !enrolledDepts.includes(d))
+
+  if (unenrolled.length === 0) return null
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="text-sm text-teal-primary hover:underline"
+      >
+        + Add department
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-7 z-20 rounded-xl border border-border bg-surface shadow-lg py-1 min-w-48">
+            {unenrolled.map(dept => (
+              <button
+                key={dept}
+                type="button"
+                onClick={() => { onAdd(dept); setOpen(false) }}
+                className="w-full text-left px-4 py-2 text-sm text-dark-text hover:bg-background transition-colors"
+              >
+                {DEPARTMENT_LABELS[dept]}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function LogInteractionForm({
+  partnerId,
+  onLogged,
+}: {
+  partnerId: string
+  onLogged: (interaction: Interaction) => void
+}) {
+  const [note, setNote] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [department, setDepartment] = useState<PartnerDepartment | ''>('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!note.trim()) return
+    setSaving(true)
+    setError(null)
+
+    const result = await logInteraction({
+      partner_id: partnerId,
+      note: note.trim(),
+      interaction_date: date,
+      department: department || null,
+    })
+
+    setSaving(false)
+    if (result.error) { setError(result.error); return }
+
+    onLogged({
+      id: crypto.randomUUID(),
+      note: note.trim(),
+      interaction_date: date,
+      department: department || null,
+      created_at: new Date().toISOString(),
+      user_id: null,
+      users: null,
+    })
+    setNote('')
+    setDepartment('')
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+      <h3 className="text-xs font-semibold text-dark-text uppercase tracking-wide">Log Interaction</h3>
+      <textarea
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        rows={3}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+        placeholder="What happened? Who was involved, what was discussed or decided…"
+      />
+      <div className="flex flex-wrap gap-3">
+        <div>
+          <label className="block text-xs text-muted-text mb-1">Date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-text mb-1">Department (optional)</label>
+          <select
+            value={department}
+            onChange={e => setDepartment(e.target.value as PartnerDepartment | '')}
+            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          >
+            <option value="">All / General</option>
+            {ALL_DEPARTMENTS.map(d => (
+              <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <button
+        type="submit"
+        disabled={saving || !note.trim()}
+        className="self-start px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors disabled:opacity-50"
+      >
+        {saving ? 'Logging…' : 'Log'}
+      </button>
+    </form>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function PartnerOverview({
+  partner,
+  interactions: initialInteractions,
+  departmentStatuses: initialStatuses,
+  staffUsers,
+  onUpdatePartner,
+  onDeletePartner,
+}: Props) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  const [interactions, setInteractions] = useState<Interaction[]>(initialInteractions)
+  const [deptStatuses, setDeptStatuses] = useState<DepartmentStatus[]>(initialStatuses)
+  const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('overview')
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const types = partner.partner_type_assignments.map(t => TYPE_LABELS[t.partner_type] ?? t.partner_type)
+  const primaryContact = partner.partner_contacts.find(c => c.is_primary) ?? partner.partner_contacts[0]
+  const daysAgo = daysSince(partner.last_interaction_date)
+  const followUpNeeded = daysAgo !== null && daysAgo >= 30
+
+  function getStageFor(dept: PartnerDepartment) {
+    return deptStatuses.find(s => s.department === dept)?.stage ?? ''
+  }
+
+  function handleStageChange(dept: PartnerDepartment, stage: string) {
+    startTransition(async () => {
+      await setDepartmentStatus(partner.id, dept, stage)
+    })
+    setDeptStatuses(prev => {
+      const existing = prev.find(s => s.department === dept)
+      if (existing) {
+        return prev.map(s => s.department === dept ? { ...s, stage } : s)
+      }
+      return [...prev, { id: crypto.randomUUID(), department: dept, stage, updated_at: new Date().toISOString(), users: null }]
+    })
+  }
+
+  function handleAddDepartment(dept: PartnerDepartment) {
+    startTransition(async () => {
+      await setDepartmentStatus(partner.id, dept, '')
+    })
+    setDeptStatuses(prev => [...prev, { id: crypto.randomUUID(), department: dept, stage: '', updated_at: new Date().toISOString(), users: null }])
+  }
+
+  function handleRemoveDepartment(dept: PartnerDepartment) {
+    startTransition(async () => {
+      await removeDepartmentStatus(partner.id, dept)
+    })
+    setDeptStatuses(prev => prev.filter(s => s.department !== dept))
+  }
+
+  function handleInteractionLogged(interaction: Interaction) {
+    setInteractions(prev => [interaction, ...prev])
+  }
+
+  async function handleDeleteInteraction(id: string) {
+    await deleteInteraction(id, partner.id)
+    setInteractions(prev => prev.filter(i => i.id !== id))
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    const result = await onDeletePartner()
+    if (result.error) { setDeleting(false); return }
+    router.push('/instructor/partnerships')
+  }
+
+  const initialFormData: Partial<PartnerFormData> = {
+    name: partner.name,
+    city: partner.city,
+    state: partner.state,
+    multi_city: partner.multi_city,
+    how_we_met: partner.how_we_met,
+    services_focus_area: partner.services_focus_area,
+    status: partner.status as PartnerFormData['status'],
+    last_interaction_date: partner.last_interaction_date,
+    meeting_notes: partner.meeting_notes,
+    tags: partner.tags ?? [],
+    internal_owner_id: partner.internal_owner_id,
+    referred_by: partner.referred_by,
+    partner_types: partner.partner_type_assignments.map(t => t.partner_type),
+    contacts: partner.partner_contacts,
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* Header */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <h1 className="text-2xl font-bold text-dark-text">{partner.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-text">
+              {partner.city && (
+                <span>{partner.city}{partner.state ? `, ${partner.state}` : ''}{partner.multi_city ? ' + more' : ''}</span>
+              )}
+              {primaryContact && (
+                <>
+                  <span className="text-muted-text/50">·</span>
+                  <span>{primaryContact.name}{primaryContact.title ? `, ${primaryContact.title}` : ''}</span>
+                </>
+              )}
+            </div>
+          </div>
+          <span className={`shrink-0 text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_COLORS[partner.status] ?? 'bg-gray-100 text-gray-600'}`}>
+            {STATUS_LABELS[partner.status] ?? partner.status}
+          </span>
+        </div>
+
+        {/* Partner type badges */}
+        {types.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {types.map(t => (
+              <span key={t} className="text-xs bg-surface border border-border rounded px-2 py-0.5 text-muted-text">{t}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Last interaction + follow-up warning */}
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          {partner.last_interaction_date ? (
+            <span className="text-muted-text">
+              Last contact: <span className="text-dark-text font-medium">{formatDate(partner.last_interaction_date)}</span>
+              {daysAgo !== null && ` (${daysAgo}d ago)`}
+            </span>
+          ) : (
+            <span className="text-muted-text">No interactions logged yet</span>
+          )}
+          {followUpNeeded && (
+            <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-red-100 text-red-700">Follow-up needed</span>
+          )}
+        </div>
+      </div>
+
+      <IncompleteProfileBanner partner={partner} />
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        {(['overview', 'edit'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === tab
+                ? 'border-teal-primary text-teal-primary'
+                : 'border-transparent text-muted-text hover:text-dark-text'
+            }`}
+          >
+            {tab === 'overview' ? 'Overview' : 'Edit Profile'}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview tab */}
+      {activeTab === 'overview' && (
+        <div className="flex flex-col gap-8">
+
+          {/* Department journey statuses */}
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Department Journey</h2>
+            {deptStatuses.length === 0 && (
+              <p className="text-sm text-muted-text">This partner isn't associated with any department yet.</p>
+            )}
+            {deptStatuses.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {deptStatuses.map(ds => (
+                  <DepartmentJourney
+                    key={ds.department}
+                    department={ds.department}
+                    currentStage={ds.stage}
+                    onStageChange={handleStageChange}
+                    onRemove={handleRemoveDepartment}
+                  />
+                ))}
+              </div>
+            )}
+            <AddDepartmentDropdown
+              enrolledDepts={deptStatuses.map(s => s.department)}
+              onAdd={handleAddDepartment}
+            />
+            {isPending && <p className="text-xs text-muted-text">Saving…</p>}
+          </section>
+
+          {/* Contacts */}
+          {partner.partner_contacts.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Contacts</h2>
+              <div className="flex flex-col gap-2">
+                {partner.partner_contacts.map(contact => (
+                  <div key={contact.id ?? contact.name} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm text-dark-text">{contact.name}</span>
+                      {contact.is_primary && (
+                        <span className="text-xs bg-teal-100 text-teal-800 rounded-full px-2 py-0.5">Primary</span>
+                      )}
+                      {contact.title && <span className="text-xs text-muted-text">{contact.title}</span>}
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-text">
+                      {contact.email && <a href={`mailto:${contact.email}`} className="hover:text-teal-primary transition-colors">{contact.email}</a>}
+                      {contact.phone && <span>{contact.phone}</span>}
+                      {contact.linkedin_url && (
+                        <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-teal-primary transition-colors">LinkedIn</a>
+                      )}
+                      {contact.website_url && (
+                        <a href={contact.website_url} target="_blank" rel="noopener noreferrer" className="hover:text-teal-primary transition-colors">Website</a>
+                      )}
+                    </div>
+                    {contact.notes && <p className="text-xs text-muted-text mt-1">{contact.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Org details */}
+          <section className="flex flex-col gap-2">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Details</h2>
+            <dl className="flex flex-col gap-2">
+              {partner.how_we_met && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">How we met</dt>
+                  <dd className="text-dark-text">{partner.how_we_met}</dd>
+                </div>
+              )}
+              {partner.referred_by && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">Referred by</dt>
+                  <dd className="text-dark-text">{partner.referred_by}</dd>
+                </div>
+              )}
+              {partner.services_focus_area && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">Services / focus</dt>
+                  <dd className="text-dark-text whitespace-pre-line">{partner.services_focus_area}</dd>
+                </div>
+              )}
+              {partner.tags?.length > 0 && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">Tags</dt>
+                  <dd className="flex flex-wrap gap-1">
+                    {partner.tags.map(tag => (
+                      <span key={tag} className="text-xs bg-surface border border-border rounded-full px-2 py-0.5">{tag}</span>
+                    ))}
+                  </dd>
+                </div>
+              )}
+              {partner.meeting_notes && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">Meeting notes</dt>
+                  <dd className="text-dark-text whitespace-pre-line">{partner.meeting_notes}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          {/* Interaction log */}
+          <section className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Interaction History</h2>
+            <LogInteractionForm partnerId={partner.id} onLogged={handleInteractionLogged} />
+
+            {interactions.length === 0 ? (
+              <p className="text-sm text-muted-text">No interactions logged yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {interactions.map(interaction => (
+                  <div key={interaction.id} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-text">
+                        <span className="font-medium text-dark-text text-sm">{formatDate(interaction.interaction_date)}</span>
+                        {interaction.users?.name && <span>by {interaction.users.name}</span>}
+                        {interaction.department && (
+                          <span className={`rounded-full px-2 py-0.5 ${DEPT_COLORS[interaction.department]}`}>
+                            {DEPARTMENT_LABELS[interaction.department]}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteInteraction(interaction.id)}
+                        className="text-xs text-muted-text hover:text-red-500 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <p className="text-sm text-dark-text whitespace-pre-line">{interaction.note}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Danger zone */}
+          <section className="flex flex-col gap-3 border-t border-border pt-6">
+            {!confirmDelete ? (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="self-start text-sm text-red-500 hover:text-red-700 transition-colors"
+              >
+                Delete this partner…
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete'}
+                </button>
+                <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-muted-text hover:text-dark-text transition-colors">
+                  Cancel
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* Edit tab */}
+      {activeTab === 'edit' && (
+        <PartnerForm
+          initialData={initialFormData}
+          staffUsers={staffUsers}
+          onSubmit={async (data) => {
+            const result = await onUpdatePartner(data)
+            if (!result.error) setActiveTab('overview')
+            return result
+          }}
+          submitLabel="Save Changes"
+          partnerId={partner.id}
+        />
+      )}
+    </div>
+  )
+}
