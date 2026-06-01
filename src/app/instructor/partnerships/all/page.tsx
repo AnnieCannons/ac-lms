@@ -42,15 +42,23 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
 
         <div className="mb-8">
           <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Partnerships
+            ← Partners
           </Link>
-          <div className="flex items-center gap-3 mt-3">
-            <h1 className="text-2xl font-bold text-dark-text">{deptLabel ?? 'All Partners'}</h1>
-            {department && (
-              <span className={`text-xs font-semibold rounded-full px-2.5 py-1 ${DEPT_COLORS[department]}`}>
-                {filtered.length} partner{filtered.length !== 1 ? 's' : ''}
-              </span>
-            )}
+          <div className="flex items-center justify-between gap-3 mt-3">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-dark-text">{deptLabel ?? 'All Partners'}</h1>
+              {department && (
+                <span className={`text-xs font-semibold rounded-full px-2.5 py-1 ${DEPT_COLORS[department]}`}>
+                  {filtered.length} partner{filtered.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <Link
+              href={`/instructor/partnerships/map${department ? `?dept=${department}` : ''}`}
+              className="text-xs text-teal-primary hover:underline shrink-0"
+            >
+              Map View →
+            </Link>
           </div>
         </div>
 

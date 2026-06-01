@@ -49,7 +49,7 @@ export default async function InstructorDashboardPage() {
             >
               <div className="text-3xl">🤝</div>
               <div>
-                <p className="text-lg font-semibold text-dark-text group-hover:text-teal-primary transition-colors">Partnerships</p>
+                <p className="text-lg font-semibold text-dark-text group-hover:text-teal-primary transition-colors">Partners</p>
                 <p className="text-sm text-muted-text mt-1">Organizations &amp; contacts</p>
               </div>
             </Link>

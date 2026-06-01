@@ -78,10 +78,25 @@ function linkedIds(v: unknown): string[] {
 }
 
 /**
- * "State" in Airtable can be a single-select string like "New York" or "Nationwide".
- * Returns { state, multi_city }.
+ * "State" in Airtable is a Multiple Select — the API returns string[].
+ * A single value → store as state.
+ * Multiple values  → store joined as "New York, California" + multi_city=true.
+ * "Nationwide"     → state=null, multi_city=true.
  */
 function parseState(v: unknown): { state: string | null; multi_city: boolean } {
+  // Multiple select returns string[]
+  if (Array.isArray(v)) {
+    const vals = v
+      .filter((x): x is string => typeof x === 'string')
+      .map(s => s.trim())
+      .filter(Boolean)
+    if (vals.length === 0) return { state: null, multi_city: false }
+    if (vals.length === 1) return parseState(vals[0])   // recurse as single string
+    const hasNationwide = vals.some(s => s.toLowerCase() === 'nationwide')
+    if (hasNationwide) return { state: null, multi_city: true }
+    return { state: vals.join(', '), multi_city: true }
+  }
+  // Plain string fallback (single-select or formula)
   const s = str(v)
   if (!s) return { state: null, multi_city: false }
   if (s.toLowerCase() === 'nationwide') return { state: null, multi_city: true }
@@ -126,6 +141,63 @@ async function run() {
 
   let created = 0, skipped = 0, errors = 0
 
+  // ── State field diagnostics (always printed) ──────────────────────────────
+  {
+    // Show raw State value type/content for the first 5 records that have ANY value in 'State'
+    console.log(`State field diagnostics (first 5 records with any State value):`)
+    let shown = 0
+    for (const r of records) {
+      const raw = r.fields['State']
+      if (raw !== undefined && raw !== null && raw !== '') {
+        console.log(`  "${str(r.fields['Name'])}" → State raw: ${JSON.stringify(raw)} (type: ${typeof raw})`)
+        shown++
+        if (shown >= 5) break
+      }
+    }
+    if (shown === 0) {
+      // Show the first 3 records' ALL field names to find the real state field name
+      console.log(`  No records with a non-empty 'State' field. Dumping all field keys for first 3 records:`)
+      for (const r of records.slice(0, 3)) {
+        console.log(`  "${str(r.fields['Name'])}" fields:`, Object.keys(r.fields).join(', '))
+        // Also show any field whose key contains 'state' case-insensitive
+        const stateKeys = Object.keys(r.fields).filter(k => k.toLowerCase().includes('state'))
+        if (stateKeys.length) {
+          stateKeys.forEach(k => console.log(`    → "${k}": ${JSON.stringify(r.fields[k])}`))
+        }
+      }
+    }
+    console.log()
+
+    const withState = records.filter(r => {
+      const s = str(r.fields['State'])
+      return s !== null && s.toLowerCase() !== 'nationwide'
+    })
+    const nationwide = records.filter(r => str(r.fields['State'])?.toLowerCase() === 'nationwide')
+    const noState   = records.length - withState.length - nationwide.length
+    console.log(`State coverage in Airtable:`)
+    console.log(`  ${withState.length} have a state`)
+    console.log(`  ${nationwide.length} are Nationwide`)
+    console.log(`  ${noState} have no state\n`)
+  }
+
+  if (DRY_RUN) {
+    // In dry-run, just print per-record summary and stop
+    for (const record of records) {
+      const f = record.fields
+      const name = str(f['Name'])
+      if (!name) continue
+      const { state, multi_city } = parseState(f['State'])
+      const contactNames = parseContactNames(f['Main Contact'])
+      const linkedStudentIds = linkedIds(f['Students'])
+      console.log(`${name}`)
+      console.log(`  state=${state ?? '—'} multi_city=${multi_city}`)
+      console.log(`  contacts: ${contactNames.join(', ') || '(none)'}`)
+      console.log(`  students: ${linkedStudentIds.length}`)
+      console.log()
+    }
+    return
+  }
+
   for (const record of records) {
     const f = record.fields
     const name = str(f['Name'])
@@ -140,16 +212,6 @@ async function run() {
     const contactNames = parseContactNames(f['Main Contact'])
     const linkedStudentIds = linkedIds(f['Students'])
     const linkedAppIds = linkedIds(f['Admissions/Applications'])
-
-    console.log(`Processing: ${name}`)
-    if (DRY_RUN) {
-      console.log(`  state=${state ?? 'null'} multi_city=${multi_city} only_inbound=${onlyInbound}`)
-      console.log(`  contacts: ${contactNames.join(', ') || '(none)'} email: ${email ?? '(none)'}`)
-      console.log(`  students: ${linkedStudentIds.length}, applications: ${linkedAppIds.length}`)
-      console.log(`  resourcefull_onboarded: ${resourcefullOnboarded}`)
-      console.log()
-      continue
-    }
 
     try {
       // ── Insert or update partner (manual check to avoid partial-index upsert issue) ──
