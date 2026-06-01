@@ -209,11 +209,11 @@ export default function PartnerMap({ partners, department }: Props) {
       <div className="sticky top-6 flex flex-col gap-3">
 
         {/* Map */}
-        <div className="relative rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="relative rounded-xl border border-border bg-white dark:bg-gray-950 overflow-hidden">
 
           {/* Hover tooltip */}
           {tooltip && (
-            <div className="absolute top-3 left-3 z-10 rounded-lg bg-dark-text/90 text-white text-xs px-3 py-1.5 pointer-events-none shadow-md">
+            <div className="absolute top-3 left-3 z-10 rounded-lg bg-gray-900/95 text-white text-xs px-3 py-1.5 pointer-events-none shadow-md">
               <span className="font-semibold">{tooltip.name}</span>
               {' · '}
               <span>{tooltip.count} partner{tooltip.count !== 1 ? 's' : ''}</span>
