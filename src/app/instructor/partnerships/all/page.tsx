@@ -129,7 +129,7 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
               return (
                 <Link
                   key={partner.id}
-                  href={`/instructor/partnerships/${partner.id}`}
+                  href={`/instructor/partnerships/${partner.id}${department ? `?dept=${department}` : ''}`}
                   className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-5 py-4 hover:border-teal-primary hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-start justify-between gap-4">

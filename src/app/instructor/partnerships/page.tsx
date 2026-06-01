@@ -31,20 +31,6 @@ const DEPT_ROUTES: Record<PartnerDepartment, string> = {
 
 const ALL_DEPARTMENTS = Object.keys(DEPARTMENT_LABELS) as PartnerDepartment[]
 
-const STATUS_COLORS: Record<string, string> = {
-  prospect: 'bg-yellow-100 text-yellow-800',
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-gray-100 text-gray-600',
-  in_onboarding: 'bg-blue-100 text-blue-800',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  prospect: 'Prospect',
-  active: 'Active',
-  inactive: 'Inactive',
-  in_onboarding: 'In Onboarding',
-}
-
 const TYPE_LABELS: Record<string, string> = {
   service_provider: 'Service Provider',
   corporate: 'Corporate',
@@ -193,12 +179,9 @@ export default async function PartnershipsPage() {
                           {primaryContact && <><span className="text-muted-text/50">·</span><span>{primaryContact.name}</span></>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {followUpNeeded && <span className="text-xs font-medium rounded-full px-2 py-0.5 bg-red-100 text-red-700">Follow-up</span>}
-                        <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_COLORS[partner.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {STATUS_LABELS[partner.status] ?? partner.status}
-                        </span>
-                      </div>
+                      {followUpNeeded && (
+                        <span className="text-xs font-medium rounded-full px-2 py-0.5 bg-red-100 text-red-700 shrink-0">Follow-up</span>
+                      )}
                     </div>
 
                     {types.length > 0 && (
