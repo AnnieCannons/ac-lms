@@ -35,7 +35,7 @@ export default async function ReferralsPage() {
       <main className="max-w-4xl mx-auto px-6 py-10">
         <div className="mb-8">
           <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Partnerships
+            ← Partners
           </Link>
           <h1 className="text-2xl font-bold text-dark-text mt-3">Student Referrals</h1>
           <p className="text-sm text-muted-text mt-1">Track inbound and outbound referrals; log outcomes.</p>

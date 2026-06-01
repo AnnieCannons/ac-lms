@@ -75,7 +75,7 @@ export default async function PartnershipsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-dark-text">Partnerships</h1>
+            <h1 className="text-2xl font-bold text-dark-text">Partners</h1>
             <div className="flex items-center gap-3 mt-1">
               <p className="text-sm text-muted-text">{partners.length} organization{partners.length !== 1 ? 's' : ''} total</p>
               {followUpCount > 0 && (
@@ -122,9 +122,14 @@ export default async function PartnershipsPage() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-semibold text-muted-text uppercase tracking-wide">All Partners</h2>
-            <Link href="/instructor/partnerships/referrals" className="text-xs text-teal-primary hover:underline">
-              Student Referrals →
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/instructor/partnerships/map" className="text-xs text-teal-primary hover:underline">
+                Map View →
+              </Link>
+              <Link href="/instructor/partnerships/referrals" className="text-xs text-teal-primary hover:underline">
+                Student Referrals →
+              </Link>
+            </div>
           </div>
 
           {partners.length === 0 ? (

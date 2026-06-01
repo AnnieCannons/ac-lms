@@ -21,7 +21,7 @@ export default async function NewPartnerPage() {
       <main className="max-w-2xl mx-auto px-6 py-10">
         <div className="mb-8">
           <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Partnerships
+            ← Partners
           </Link>
           <h1 className="text-2xl font-bold text-dark-text mt-3">Add Partner</h1>
         </div>

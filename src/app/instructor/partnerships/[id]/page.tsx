@@ -57,7 +57,7 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
       <main className="max-w-4xl mx-auto px-6 py-10">
         <div className="mb-8">
           <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Partnerships
+            ← Partners
           </Link>
         </div>
 
