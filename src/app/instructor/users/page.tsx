@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import AllUsersView from '@/components/ui/AllUsersView'
 import AddPeopleButton from '@/components/ui/AddPeopleButton'
+import PendingInvitesTable from '@/components/ui/PendingInvitesTable'
 
 function isCurrentCourse(startDate: string | null | undefined, endDate: string | null | undefined): boolean {
   if (!startDate) return false
@@ -29,11 +30,13 @@ export default async function GlobalUsersPage() {
     { data: allStudentUsers },
     { data: allEnrollments },
     { data: staffUsers },
+    { data: pendingInvites },
   ] = await Promise.all([
     admin.from('courses').select('id, name, start_date, end_date, is_template, archived').order('start_date', { ascending: false }),
     admin.from('users').select('id, name, email').eq('role', 'student').order('name'),
     admin.from('course_enrollments').select('course_id, user_id').eq('role', 'student'),
     admin.from('users').select('id, name, email, role').in('role', ['instructor', 'staff', 'admin']).order('name'),
+    admin.from('invitations').select('id, email, role, invited_at, resent_at, course_id, courses(name)').eq('status', 'pending').order('invited_at', { ascending: false }),
   ])
 
   const activeCourses = (allCourses ?? []).filter(c => !c.is_template && !c.archived && isCurrentCourse(c.start_date, c.end_date))
@@ -93,6 +96,25 @@ export default async function GlobalUsersPage() {
           currentUserRole={profile?.role as 'instructor' | 'staff' | 'admin'}
           hideStudents
         />
+
+        {/* Pending Invites */}
+        {(pendingInvites ?? []).length > 0 && (
+          <div className="mt-10">
+            <PendingInvitesTable
+              invites={(pendingInvites ?? []).map(i => ({
+                id: i.id,
+                email: i.email,
+                role: i.role,
+                invited_at: i.invited_at,
+                resent_at: i.resent_at,
+                courseName: Array.isArray(i.courses)
+                  ? (i.courses[0] as { name: string } | undefined)?.name ?? null
+                  : (i.courses as { name: string } | null)?.name ?? null,
+              }))}
+              currentUserRole={profile?.role as 'instructor' | 'staff' | 'admin'}
+            />
+          </div>
+        )}
 
         {/* Students by course */}
         <div className="mt-10 space-y-10">
