@@ -14,8 +14,8 @@ export default async function StudentCoursesPage() {
     .eq('id', user.id)
     .single()
 
-  // Instructors/admins don't belong here
-  if (profile?.role === 'instructor' || profile?.role === 'admin') {
+  // Instructors/staff/admins don't belong here
+  if (profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin') {
     redirect('/instructor/courses')
   }
 

@@ -12,6 +12,6 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  const isInstructor = profile?.role === 'instructor' || profile?.role === 'admin'
-  redirect(isInstructor ? '/instructor' : '/student/courses')
+  const isInstructor = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
+  redirect(isInstructor ? '/instructor/courses' : '/student/courses')
 }
