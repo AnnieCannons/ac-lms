@@ -44,6 +44,7 @@ function formatDate(dateStr: string) {
 function PartnerCard({ p, department }: { p: Partner; department?: string }) {
   const primaryContact = p.partner_contacts.find(c => c.is_primary) ?? p.partner_contacts[0]
   const inbound = p.student_referrals.filter(r => r.direction === 'inbound')
+  const outbound = p.student_referrals.filter(r => r.direction === 'outbound')
 
   return (
     <Link
@@ -64,14 +65,28 @@ function PartnerCard({ p, department }: { p: Partner; department?: string }) {
         </div>
       </div>
 
-      {inbound.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 text-xs">
-          <span className="text-muted-text shrink-0">{inbound.length} referred:</span>
-          {inbound.map(r => (
-            <span key={r.student_identifier} className="bg-background border border-border rounded-full px-1.5 py-0.5 text-muted-text">
-              {r.student_identifier}
-            </span>
-          ))}
+      {(inbound.length > 0 || outbound.length > 0) && (
+        <div className="flex flex-col gap-0.5">
+          {inbound.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-xs">
+              <span className="text-muted-text shrink-0">{inbound.length} referred in:</span>
+              {inbound.map(r => (
+                <span key={r.student_identifier} className="bg-background border border-border rounded-full px-1.5 py-0.5 text-muted-text">
+                  {r.student_identifier}
+                </span>
+              ))}
+            </div>
+          )}
+          {outbound.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-xs">
+              <span className="text-muted-text shrink-0">{outbound.length} referred out:</span>
+              {outbound.map(r => (
+                <span key={r.student_identifier} className="bg-background border border-border rounded-full px-1.5 py-0.5 text-muted-text">
+                  {r.student_identifier}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -112,6 +112,9 @@ export default function PartnerList({ partners, department }: Props) {
             const inboundStudents = partner.student_referrals
               .filter(r => r.direction === 'inbound')
               .map(r => r.student_identifier)
+            const outboundStudents = partner.student_referrals
+              .filter(r => r.direction === 'outbound')
+              .map(r => r.student_identifier)
             const showTypes = !department
             const showStatus = !department
 
@@ -159,12 +162,24 @@ export default function PartnerList({ partners, department }: Props) {
                   </div>
                 )}
 
-                {inboundStudents.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                    <span className="text-muted-text shrink-0">{inboundStudents.length} referred:</span>
-                    {inboundStudents.map(name => (
-                      <span key={name} className="bg-background border border-border rounded-full px-2 py-0.5 text-muted-text">{name}</span>
-                    ))}
+                {(inboundStudents.length > 0 || outboundStudents.length > 0) && (
+                  <div className="flex flex-col gap-1">
+                    {inboundStudents.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="text-muted-text shrink-0">{inboundStudents.length} referred in:</span>
+                        {inboundStudents.map(name => (
+                          <span key={name} className="bg-background border border-border rounded-full px-2 py-0.5 text-muted-text">{name}</span>
+                        ))}
+                      </div>
+                    )}
+                    {outboundStudents.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="text-muted-text shrink-0">{outboundStudents.length} referred out:</span>
+                        {outboundStudents.map(name => (
+                          <span key={name} className="bg-background border border-border rounded-full px-2 py-0.5 text-muted-text">{name}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
