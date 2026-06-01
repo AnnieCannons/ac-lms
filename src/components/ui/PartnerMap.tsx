@@ -156,7 +156,7 @@ export default function PartnerMap({ partners, department }: Props) {
   function getFill(stateName: string) {
     const count = partnersByState[stateName]?.length ?? 0
     if (selectedStates.has(stateName)) return '#0f766e'
-    if (count === 0) return '#E5E7EB'
+    if (count === 0) return '#94a3b8'   // slate-400 — visible on both light and dark backgrounds
     return `rgba(13,148,136,${(0.15 + (count / maxCount) * 0.70).toFixed(2)})`
   }
 
@@ -242,15 +242,15 @@ export default function PartnerMap({ partners, department }: Props) {
                       style={{
                         default: {
                           fill: getFill(stateName),
-                          stroke: '#fff',
-                          strokeWidth: 0.5,
+                          stroke: '#1e293b',
+                          strokeWidth: 0.7,
                           outline: 'none',
                           cursor: count > 0 ? 'pointer' : 'default',
                         },
                         hover: {
-                          fill: count > 0 ? '#0d9488' : '#D1D5DB',
-                          stroke: '#fff',
-                          strokeWidth: 0.5,
+                          fill: count > 0 ? '#0d9488' : '#7c8fa6',
+                          stroke: '#1e293b',
+                          strokeWidth: 0.7,
                           outline: 'none',
                           cursor: count > 0 ? 'pointer' : 'default',
                         },
@@ -266,7 +266,7 @@ export default function PartnerMap({ partners, department }: Props) {
           {/* Legend */}
           <div className="flex items-center gap-3 px-3 pb-2.5 text-xs text-muted-text flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-2.5 rounded-sm bg-gray-200 inline-block" />
+              <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: '#94a3b8' }} />
               None
             </div>
             <div className="flex items-center gap-0.5">
