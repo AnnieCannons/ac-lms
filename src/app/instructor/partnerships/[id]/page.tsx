@@ -10,14 +10,16 @@ import {
   listStaffUsers,
   type PartnerType,
 } from '@/lib/partner-actions'
-import { listInteractions, getDepartmentStatuses } from '@/lib/partner-interactions-actions'
+import { listInteractions, getDepartmentStatuses, type PartnerDepartment } from '@/lib/partner-interactions-actions'
 
 interface Props {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ dept?: string }>
 }
 
-export default async function PartnerDetailPage({ params }: Props) {
+export default async function PartnerDetailPage({ params, searchParams }: Props) {
   const { id } = await params
+  const { dept } = await searchParams
 
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -62,6 +64,7 @@ export default async function PartnerDetailPage({ params }: Props) {
           interactions={interactions as Parameters<typeof PartnerOverview>[0]['interactions']}
           departmentStatuses={departmentStatuses as Parameters<typeof PartnerOverview>[0]['departmentStatuses']}
           staffUsers={staffUsers}
+          defaultDepartment={dept as PartnerDepartment | undefined}
           onUpdatePartner={updatePartner.bind(null, id)}
           onDeletePartner={deletePartner.bind(null, id)}
         />

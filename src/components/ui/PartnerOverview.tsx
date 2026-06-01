@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
   logInteraction,
   deleteInteraction,
@@ -69,11 +68,14 @@ interface StaffUser {
   name: string
 }
 
+type ActiveTab = 'overview' | PartnerDepartment | 'edit'
+
 interface Props {
   partner: Partner
   interactions: Interaction[]
   departmentStatuses: DepartmentStatus[]
   staffUsers: StaffUser[]
+  defaultDepartment?: PartnerDepartment | null
   onUpdatePartner: (data: PartnerFormData) => Promise<{ error: string | null }>
   onDeletePartner: () => Promise<{ error: string | null }>
 }
@@ -129,8 +131,7 @@ function formatDate(dateStr: string) {
 
 function daysSince(dateStr: string | null) {
   if (!dateStr) return null
-  const diff = Date.now() - new Date(dateStr + 'T00:00:00').getTime()
-  return Math.floor(diff / (1000 * 60 * 60 * 24))
+  return Math.floor((Date.now() - new Date(dateStr + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24))
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -141,18 +142,17 @@ function IncompleteProfileBanner({ partner }: { partner: Partner }) {
   if (!partner.partner_contacts.length) missing.push('at least one contact')
   if (!partner.partner_type_assignments.length) missing.push('partner type')
   if (!partner.internal_owner_id) missing.push('internal owner')
-
   if (!missing.length) return null
 
   return (
-    <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 flex items-start gap-2 mb-6">
+    <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 flex items-start gap-2">
       <span className="shrink-0 mt-0.5">⚠</span>
       <span>Incomplete profile — missing: {missing.join(', ')}.</span>
     </div>
   )
 }
 
-function DepartmentJourney({
+function StageSelector({
   department,
   currentStage,
   onStageChange,
@@ -166,20 +166,7 @@ function DepartmentJourney({
   const stages = DEPARTMENT_STAGES[department]
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${DEPT_COLORS[department]}`}>
-          {DEPARTMENT_LABELS[department]}
-        </span>
-        <button
-          type="button"
-          onClick={() => onRemove(department)}
-          className="text-xs text-muted-text hover:text-red-500 transition-colors"
-        >
-          Remove
-        </button>
-      </div>
-      <p className="text-xs text-muted-text">Select a stage:</p>
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-1.5">
         {stages.map(stage => (
           <button
@@ -196,6 +183,13 @@ function DepartmentJourney({
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={() => onRemove(department)}
+        className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
+      >
+        Remove from {DEPARTMENT_LABELS[department]}
+      </button>
     </div>
   )
 }
@@ -209,7 +203,6 @@ function AddDepartmentDropdown({
 }) {
   const [open, setOpen] = useState(false)
   const unenrolled = ALL_DEPARTMENTS.filter(d => !enrolledDepts.includes(d))
-
   if (unenrolled.length === 0) return null
 
   return (
@@ -219,7 +212,7 @@ function AddDepartmentDropdown({
         onClick={() => setOpen(o => !o)}
         className="text-sm text-teal-primary hover:underline"
       >
-        + Add department
+        + Add to department
       </button>
       {open && (
         <>
@@ -244,14 +237,16 @@ function AddDepartmentDropdown({
 
 function LogInteractionForm({
   partnerId,
+  defaultDepartment,
   onLogged,
 }: {
   partnerId: string
+  defaultDepartment?: PartnerDepartment
   onLogged: (interaction: Interaction) => void
 }) {
   const [note, setNote] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [department, setDepartment] = useState<PartnerDepartment | ''>('')
+  const [department, setDepartment] = useState<PartnerDepartment | ''>(defaultDepartment ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -281,7 +276,6 @@ function LogInteractionForm({
       users: null,
     })
     setNote('')
-    setDepartment('')
   }
 
   return (
@@ -304,19 +298,21 @@ function LogInteractionForm({
             className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
           />
         </div>
-        <div>
-          <label className="block text-xs text-muted-text mb-1">Department (optional)</label>
-          <select
-            value={department}
-            onChange={e => setDepartment(e.target.value as PartnerDepartment | '')}
-            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-          >
-            <option value="">All / General</option>
-            {ALL_DEPARTMENTS.map(d => (
-              <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>
-            ))}
-          </select>
-        </div>
+        {!defaultDepartment && (
+          <div>
+            <label className="block text-xs text-muted-text mb-1">Department (optional)</label>
+            <select
+              value={department}
+              onChange={e => setDepartment(e.target.value as PartnerDepartment | '')}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            >
+              <option value="">All / General</option>
+              {ALL_DEPARTMENTS.map(d => (
+                <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button
@@ -330,6 +326,46 @@ function LogInteractionForm({
   )
 }
 
+function InteractionList({
+  interactions,
+  onDelete,
+}: {
+  interactions: Interaction[]
+  onDelete: (id: string) => void
+}) {
+  if (interactions.length === 0) {
+    return <p className="text-sm text-muted-text">No interactions logged yet.</p>
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {interactions.map(interaction => (
+        <div key={interaction.id} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-text">
+              <span className="font-medium text-dark-text text-sm">{formatDate(interaction.interaction_date)}</span>
+              {interaction.users?.name && <span>by {interaction.users.name}</span>}
+              {interaction.department && (
+                <span className={`rounded-full px-2 py-0.5 ${DEPT_COLORS[interaction.department]}`}>
+                  {DEPARTMENT_LABELS[interaction.department]}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onDelete(interaction.id)}
+              className="text-xs text-muted-text hover:text-red-500 transition-colors"
+            >
+              Remove
+            </button>
+          </div>
+          <p className="text-sm text-dark-text whitespace-pre-line">{interaction.note}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PartnerOverview({
@@ -337,6 +373,7 @@ export default function PartnerOverview({
   interactions: initialInteractions,
   departmentStatuses: initialStatuses,
   staffUsers,
+  defaultDepartment,
   onUpdatePartner,
   onDeletePartner,
 }: Props) {
@@ -345,7 +382,12 @@ export default function PartnerOverview({
 
   const [interactions, setInteractions] = useState<Interaction[]>(initialInteractions)
   const [deptStatuses, setDeptStatuses] = useState<DepartmentStatus[]>(initialStatuses)
-  const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('overview')
+
+  const initialTab: ActiveTab =
+    defaultDepartment && initialStatuses.some(s => s.department === defaultDepartment)
+      ? defaultDepartment
+      : 'overview'
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -364,9 +406,7 @@ export default function PartnerOverview({
     })
     setDeptStatuses(prev => {
       const existing = prev.find(s => s.department === dept)
-      if (existing) {
-        return prev.map(s => s.department === dept ? { ...s, stage } : s)
-      }
+      if (existing) return prev.map(s => s.department === dept ? { ...s, stage } : s)
       return [...prev, { id: crypto.randomUUID(), department: dept, stage, updated_at: new Date().toISOString(), users: null }]
     })
   }
@@ -376,6 +416,7 @@ export default function PartnerOverview({
       await setDepartmentStatus(partner.id, dept, '')
     })
     setDeptStatuses(prev => [...prev, { id: crypto.randomUUID(), department: dept, stage: '', updated_at: new Date().toISOString(), users: null }])
+    setActiveTab(dept)
   }
 
   function handleRemoveDepartment(dept: PartnerDepartment) {
@@ -383,6 +424,7 @@ export default function PartnerOverview({
       await removeDepartmentStatus(partner.id, dept)
     })
     setDeptStatuses(prev => prev.filter(s => s.department !== dept))
+    setActiveTab('overview')
   }
 
   function handleInteractionLogged(interaction: Interaction) {
@@ -418,32 +460,32 @@ export default function PartnerOverview({
     contacts: partner.partner_contacts,
   }
 
+  const tabs: { id: ActiveTab; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    ...deptStatuses.map(ds => ({ id: ds.department as ActiveTab, label: DEPARTMENT_LABELS[ds.department] })),
+    { id: 'edit', label: 'Edit Profile' },
+  ]
+
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Header */}
+      {/* Header — global org info only, no status badge */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <h1 className="text-2xl font-bold text-dark-text">{partner.name}</h1>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-text">
-              {partner.city && (
-                <span>{partner.city}{partner.state ? `, ${partner.state}` : ''}{partner.multi_city ? ' + more' : ''}</span>
-              )}
-              {primaryContact && (
-                <>
-                  <span className="text-muted-text/50">·</span>
-                  <span>{primaryContact.name}{primaryContact.title ? `, ${primaryContact.title}` : ''}</span>
-                </>
-              )}
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl font-bold text-dark-text">{partner.name}</h1>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-text">
+            {partner.city && (
+              <span>{partner.city}{partner.state ? `, ${partner.state}` : ''}{partner.multi_city ? ' + more' : ''}</span>
+            )}
+            {primaryContact && (
+              <>
+                <span className="text-muted-text/50">·</span>
+                <span>{primaryContact.name}{primaryContact.title ? `, ${primaryContact.title}` : ''}</span>
+              </>
+            )}
           </div>
-          <span className={`shrink-0 text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_COLORS[partner.status] ?? 'bg-gray-100 text-gray-600'}`}>
-            {STATUS_LABELS[partner.status] ?? partner.status}
-          </span>
         </div>
 
-        {/* Partner type badges */}
         {types.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {types.map(t => (
@@ -452,7 +494,6 @@ export default function PartnerOverview({
           </div>
         )}
 
-        {/* Last interaction + follow-up warning */}
         <div className="flex flex-wrap items-center gap-3 text-sm">
           {partner.last_interaction_date ? (
             <span className="text-muted-text">
@@ -470,55 +511,61 @@ export default function PartnerOverview({
 
       <IncompleteProfileBanner partner={partner} />
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {(['overview', 'edit'] as const).map(tab => (
+      {/* Tabs: Overview | [one per enrolled dept] | Edit Profile */}
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {tabs.map(tab => (
           <button
-            key={tab}
+            key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === tab.id
                 ? 'border-teal-primary text-teal-primary'
                 : 'border-transparent text-muted-text hover:text-dark-text'
             }`}
           >
-            {tab === 'overview' ? 'Overview' : 'Edit Profile'}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Overview tab */}
+      {/* Overview tab — global fields + dept summary + all interactions */}
       {activeTab === 'overview' && (
         <div className="flex flex-col gap-8">
 
-          {/* Department journey statuses */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Department Journey</h2>
-            {deptStatuses.length === 0 && (
-              <p className="text-sm text-muted-text">This partner isn't associated with any department yet.</p>
-            )}
-            {deptStatuses.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {deptStatuses.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Departments</h2>
+              <div className="flex flex-wrap gap-2">
                 {deptStatuses.map(ds => (
-                  <DepartmentJourney
+                  <button
                     key={ds.department}
-                    department={ds.department}
-                    currentStage={ds.stage}
-                    onStageChange={handleStageChange}
-                    onRemove={handleRemoveDepartment}
-                  />
+                    type="button"
+                    onClick={() => setActiveTab(ds.department)}
+                    className={`text-xs font-medium rounded-full px-3 py-1 hover:opacity-80 transition-opacity ${DEPT_COLORS[ds.department]}`}
+                  >
+                    {DEPARTMENT_LABELS[ds.department]}{ds.stage ? `: ${ds.stage}` : ''}
+                  </button>
                 ))}
               </div>
-            )}
-            <AddDepartmentDropdown
-              enrolledDepts={deptStatuses.map(s => s.department)}
-              onAdd={handleAddDepartment}
-            />
-            {isPending && <p className="text-xs text-muted-text">Saving…</p>}
-          </section>
+              <AddDepartmentDropdown
+                enrolledDepts={deptStatuses.map(s => s.department)}
+                onAdd={handleAddDepartment}
+              />
+            </section>
+          )}
 
-          {/* Contacts */}
+          {deptStatuses.length === 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Departments</h2>
+              <p className="text-sm text-muted-text">This partner isn't associated with any department yet.</p>
+              <AddDepartmentDropdown
+                enrolledDepts={[]}
+                onAdd={handleAddDepartment}
+              />
+            </section>
+          )}
+
           {partner.partner_contacts.length > 0 && (
             <section className="flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Contacts</h2>
@@ -549,10 +596,17 @@ export default function PartnerOverview({
             </section>
           )}
 
-          {/* Org details */}
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Details</h2>
             <dl className="flex flex-col gap-2">
+              <div className="flex gap-2 text-sm">
+                <dt className="text-muted-text shrink-0 w-36">Status</dt>
+                <dd>
+                  <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${STATUS_COLORS[partner.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {STATUS_LABELS[partner.status] ?? partner.status}
+                  </span>
+                </dd>
+              </div>
               {partner.how_we_met && (
                 <div className="flex gap-2 text-sm">
                   <dt className="text-muted-text shrink-0 w-36">How we met</dt>
@@ -590,43 +644,12 @@ export default function PartnerOverview({
             </dl>
           </section>
 
-          {/* Interaction log */}
           <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Interaction History</h2>
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">All Interactions</h2>
             <LogInteractionForm partnerId={partner.id} onLogged={handleInteractionLogged} />
-
-            {interactions.length === 0 ? (
-              <p className="text-sm text-muted-text">No interactions logged yet.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {interactions.map(interaction => (
-                  <div key={interaction.id} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-text">
-                        <span className="font-medium text-dark-text text-sm">{formatDate(interaction.interaction_date)}</span>
-                        {interaction.users?.name && <span>by {interaction.users.name}</span>}
-                        {interaction.department && (
-                          <span className={`rounded-full px-2 py-0.5 ${DEPT_COLORS[interaction.department]}`}>
-                            {DEPARTMENT_LABELS[interaction.department]}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteInteraction(interaction.id)}
-                        className="text-xs text-muted-text hover:text-red-500 transition-colors"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <p className="text-sm text-dark-text whitespace-pre-line">{interaction.note}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <InteractionList interactions={interactions} onDelete={handleDeleteInteraction} />
           </section>
 
-          {/* Danger zone */}
           <section className="flex flex-col gap-3 border-t border-border pt-6">
             {!confirmDelete ? (
               <button
@@ -637,7 +660,7 @@ export default function PartnerOverview({
                 Delete this partner…
               </button>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
                 <button
                   type="button"
@@ -656,7 +679,39 @@ export default function PartnerOverview({
         </div>
       )}
 
-      {/* Edit tab */}
+      {/* Department tabs — stage selector + dept-scoped interaction log */}
+      {deptStatuses.map(ds => activeTab === ds.department && (
+        <div key={ds.department} className="flex flex-col gap-8">
+
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Journey Stage</h2>
+            <StageSelector
+              department={ds.department}
+              currentStage={getStageFor(ds.department)}
+              onStageChange={handleStageChange}
+              onRemove={handleRemoveDepartment}
+            />
+            {isPending && <p className="text-xs text-muted-text">Saving…</p>}
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">
+              {DEPARTMENT_LABELS[ds.department]} Interactions
+            </h2>
+            <LogInteractionForm
+              partnerId={partner.id}
+              defaultDepartment={ds.department}
+              onLogged={handleInteractionLogged}
+            />
+            <InteractionList
+              interactions={interactions.filter(i => i.department === ds.department)}
+              onDelete={handleDeleteInteraction}
+            />
+          </section>
+        </div>
+      ))}
+
+      {/* Edit Profile tab */}
       {activeTab === 'edit' && (
         <PartnerForm
           initialData={initialFormData}
