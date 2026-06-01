@@ -465,9 +465,9 @@ export async function acceptInvite(
     .eq('id', user.id)
     .maybeSingle()
 
-  // Use invite role if it's instructor/admin — the trigger defaults everyone to 'student'
+  // Use invite role if it's instructor/staff/admin — the trigger defaults everyone to 'student'
   // so we must not let that override the actual intended role from the invite.
-  const profileRole = (role === 'instructor' || role === 'admin')
+  const profileRole = (role === 'instructor' || role === 'staff' || role === 'admin')
     ? role
     : (existingProfile?.role ?? role)
   const { error: profileError } = await admin
