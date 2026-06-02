@@ -18,6 +18,8 @@ export interface PartnerContact {
   website_url?: string | null
 }
 
+export type PartnerDepartment = 'student_success' | 'career_development' | 'resourcefull' | 'funding_partnerships' | 'admissions'
+
 export interface PartnerFormData {
   name: string
   city: string | null
@@ -33,6 +35,7 @@ export interface PartnerFormData {
   referred_by: string | null
   partner_types: PartnerType[]
   contacts: PartnerContact[]
+  departments: PartnerDepartment[]
 }
 
 async function requireStaffOrAdmin() {
@@ -104,7 +107,7 @@ export async function createPartner(formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, ...partnerFields } = formData
+  const { partner_types, contacts, departments, ...partnerFields } = formData
 
   const { data: partner, error: insertError } = await supabase
     .from('partners')
@@ -123,6 +126,12 @@ export async function createPartner(formData: PartnerFormData) {
   if (contacts.length > 0) {
     await supabase.from('partner_contacts').insert(
       contacts.map(c => ({ ...c, partner_id: partner.id }))
+    )
+  }
+
+  if (departments.length > 0) {
+    await supabase.from('partner_department_status').insert(
+      departments.map(d => ({ partner_id: partner.id, department: d, stage: 'Prospect' }))
     )
   }
 
