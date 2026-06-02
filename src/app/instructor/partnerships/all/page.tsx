@@ -53,12 +53,20 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
                 </span>
               )}
             </div>
-            <Link
-              href={`/instructor/partnerships/map${department ? `?dept=${department}` : ''}`}
-              className="text-xs text-teal-primary hover:underline shrink-0"
-            >
-              Map View →
-            </Link>
+            <div className="flex items-center gap-4 shrink-0">
+              <Link
+                href={`/instructor/partnerships/map${department ? `?dept=${department}` : ''}`}
+                className="text-xs text-teal-primary hover:underline"
+              >
+                Map View →
+              </Link>
+              <Link
+                href={`/instructor/partnerships/new${department ? `?dept=${department}` : ''}`}
+                className="px-3 py-1.5 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
+              >
+                + Add Partner
+              </Link>
+            </div>
           </div>
         </div>
 

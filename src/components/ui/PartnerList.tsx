@@ -38,17 +38,6 @@ interface Props {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<string, string> = {
-  service_provider:   'Service Provider',
-  corporate:          'Corporate',
-  funder:             'Funder',
-  advisory:           'Advisory',
-  mentorship:         'Mentorship',
-  apprenticeship:     'Apprenticeship',
-  media:              'Media',
-  admissions_referral:'Admissions Referral',
-}
-
 const STATUS_COLORS: Record<string, string> = {
   prospect:     'bg-yellow-100 text-yellow-800 border border-yellow-200',
   active:       'bg-green-100 text-green-800 border border-green-200',
@@ -115,7 +104,7 @@ export default function PartnerList({ partners, department }: Props) {
             const outboundStudents = partner.student_referrals
               .filter(r => r.direction === 'outbound')
               .map(r => r.student_identifier)
-            const showTypes = !department
+            const showDepts = !department
             const showStatus = !department
 
             return (
@@ -152,11 +141,11 @@ export default function PartnerList({ partners, department }: Props) {
                   </div>
                 </div>
 
-                {showTypes && partner.partner_type_assignments.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {partner.partner_type_assignments.map(t => (
-                      <span key={t.partner_type} className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-muted-text">
-                        {TYPE_LABELS[t.partner_type] ?? t.partner_type}
+                {showDepts && partner.partner_department_status.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {partner.partner_department_status.map(s => (
+                      <span key={s.department} className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${DEPT_COLORS[s.department as PartnerDepartment]}`}>
+                        {DEPARTMENT_LABELS[s.department as PartnerDepartment] ?? s.department}
                       </span>
                     ))}
                   </div>

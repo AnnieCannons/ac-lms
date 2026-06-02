@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { PartnerFormData, PartnerContact, PartnerStatus, PartnerType } from '@/lib/partner-actions'
+import type { PartnerFormData, PartnerContact, PartnerStatus, PartnerType, PartnerDepartment } from '@/lib/partner-actions'
+import { DEPARTMENT_LABELS } from '@/lib/partner-constants'
 import { findSimilarPartners } from '@/lib/partner-interactions-actions'
+
+const ALL_DEPARTMENTS = Object.entries(DEPARTMENT_LABELS) as [PartnerDepartment, string][]
 
 const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'service_provider', label: 'Service Provider' },
@@ -35,13 +38,15 @@ interface Props {
   onSubmit: (data: PartnerFormData) => Promise<{ error: string | null; id?: string }>
   submitLabel: string
   partnerId?: string
+  defaultDepartment?: PartnerDepartment
+  redirectTo?: string
 }
 
 function emptyContact(): PartnerContact {
   return { name: '', title: null, email: null, phone: null, is_primary: false, notes: null, linkedin_url: null, website_url: null }
 }
 
-export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId }: Props) {
+export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -65,6 +70,15 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const [contacts, setContacts] = useState<PartnerContact[]>(
     initialData?.contacts?.length ? initialData.contacts : [emptyContact()]
   )
+  const [departments, setDepartments] = useState<PartnerDepartment[]>(
+    initialData?.departments ?? (defaultDepartment ? [defaultDepartment] : [])
+  )
+
+  function toggleDepartment(dept: PartnerDepartment) {
+    setDepartments(prev =>
+      prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]
+    )
+  }
 
   function handleNameChange(value: string) {
     setName(value)
@@ -129,6 +143,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
       referred_by: referredBy.trim() || null,
       partner_types: partnerTypes,
       contacts: contacts.filter(c => c.name.trim()),
+      departments,
     })
 
     setSaving(false)
@@ -136,7 +151,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
       setServerError(result.error)
       return
     }
-    router.push('/instructor/partnerships')
+    router.push(redirectTo ?? '/instructor/partnerships')
   }
 
   return (
@@ -231,6 +246,28 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
               }`}
             >
               {t.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Departments */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Departments</h2>
+        <p className="text-xs text-muted-text -mt-1">Which teams will work with this partner?</p>
+        <div className="flex flex-wrap gap-2">
+          {ALL_DEPARTMENTS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => toggleDepartment(value)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                departments.includes(value)
+                  ? 'bg-teal-primary text-white border-teal-primary'
+                  : 'bg-background text-muted-text border-border hover:border-teal-primary'
+              }`}
+            >
+              {label}
             </button>
           ))}
         </div>
