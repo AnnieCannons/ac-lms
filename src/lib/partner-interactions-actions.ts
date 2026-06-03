@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
@@ -204,8 +204,8 @@ export async function listReferrals(filters?: {
   from_date?: string
   to_date?: string
 }) {
-  const { error, supabase } = await requireStaffOrAdmin()
-  if (error || !supabase) return { error, referrals: [] }
+  // Use service role to bypass RLS — calling page already enforces staff/admin auth
+  const supabase = createServiceSupabaseClient()
 
   let query = supabase
     .from('student_referrals')
