@@ -545,7 +545,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
       } else {
         succeeded.push(org.name)
         setReferrals(prev => [{
-          id: crypto.randomUUID(),
+          id: result.id ?? crypto.randomUUID(),
           student_identifier: selectedStudent.name,
           direction: 'outbound',
           referral_date: referralDate,
@@ -577,6 +577,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
       setReferralServiceCategories([])
       setSelectedCategories([])
       setLocationQuery('')
+      setActiveTab('history')
     }
   }
 
@@ -837,7 +838,11 @@ export default function ReferralDashboard({ initialReferrals, partners, students
           </div>
         )}
 
-        {/* Success banner */}
+      </div>}
+
+      {/* ══ REFERRAL HISTORY ══ */}
+      {activeTab === 'history' && <section className="flex flex-col gap-4">
+        {/* Success banner — shown after a referral is logged */}
         {justReferred && (
           <div className="rounded-xl border border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-700 px-4 py-3 flex items-start gap-3">
             <span className="text-green-600 text-lg leading-none mt-0.5">✓</span>
@@ -857,10 +862,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
             </button>
           </div>
         )}
-      </div>}
 
-      {/* ══ REFERRAL HISTORY ══ */}
-      {activeTab === 'history' && <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-dark-text">Referral History</h2>
           <span className="text-xs text-muted-text">{referrals.length} total</span>
