@@ -150,6 +150,11 @@ export interface ReferralFormData {
   is_veteran: boolean
   is_neurodivergent: boolean
   other_flags: string[]
+  // Extended fields (new columns)
+  student_user_id?: string | null
+  service_category?: string | null
+  outcome_success?: boolean | null
+  staff_notes?: string | null
 }
 
 export async function createReferral(data: ReferralFormData) {

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { DEPARTMENT_LABELS, DEPT_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
+import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ interface Partner {
   state: string | null
   status: string
   last_interaction_date: string | null
+  service_categories: string[] | null
   partner_contacts: PartnerContact[]
   partner_type_assignments: PartnerTypeAssignment[]
   partner_department_status: DeptStatus[]
@@ -31,9 +33,15 @@ interface Partner {
   latest_interaction: Interaction | null
 }
 
+export type SortOption = 'name' | 'referrals_in' | 'referrals_out' | 'last_interaction'
+
 interface Props {
   partners: Partner[]
   department?: PartnerDepartment
+  /** Which sort options to show. Defaults to ['name'] */
+  sortOptions?: SortOption[]
+  /** Show service category filter bar */
+  showCategoryFilter?: boolean
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -49,38 +57,176 @@ const STATUS_LABELS: Record<string, string> = {
   prospect: 'Prospect', active: 'Active', inactive: 'Inactive', in_onboarding: 'In Onboarding',
 }
 
+const SORT_LABELS: Record<SortOption, string> = {
+  name:             'Name',
+  referrals_in:     'Most referred in',
+  referrals_out:    'Most referred out',
+  last_interaction: 'Recent activity',
+}
+
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   })
 }
 
+// ─── Sort bar (reusable) ──────────────────────────────────────────────────────
+
+export function PartnerSortBar({
+  options,
+  value,
+  onChange,
+}: {
+  options: SortOption[]
+  value: SortOption
+  onChange: (s: SortOption) => void
+}) {
+  if (options.length <= 1) return null
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-xs text-muted-text shrink-0">Sort:</span>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map(opt => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              value === opt
+                ? 'bg-teal-primary text-white border-teal-primary'
+                : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+            }`}
+          >
+            {SORT_LABELS[opt]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Category filter bar (reusable) ──────────────────────────────────────────
+
+export function PartnerCategoryFilter({
+  available,
+  selected,
+  onChange,
+}: {
+  available: string[]
+  selected: Set<string>
+  onChange: (cats: Set<string>) => void
+}) {
+  if (available.length === 0) return null
+
+  function toggle(cat: string) {
+    const next = new Set(selected)
+    next.has(cat) ? next.delete(cat) : next.add(cat)
+    onChange(next)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-text uppercase tracking-wide">Filter by service</span>
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => onChange(new Set())}
+            className="text-xs text-muted-text hover:text-dark-text transition-colors"
+          >
+            Clear ({selected.size})
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {available.map(cat => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => toggle(cat)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              selected.has(cat)
+                ? 'bg-teal-primary text-white border-teal-primary'
+                : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PartnerList({ partners, department }: Props) {
+export default function PartnerList({ partners, department, sortOptions = ['name'], showCategoryFilter = false }: Props) {
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortOption>(sortOptions[0] ?? 'name')
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
 
-  const filtered = partners.filter(p => {
-    if (!search.trim()) return true
-    const q = search.toLowerCase()
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.state?.toLowerCase().includes(q) ||
-      p.city?.toLowerCase().includes(q) ||
-      p.partner_contacts.some(c => c.name.toLowerCase().includes(q))
-    )
-  })
+  // Only show categories that at least one partner in this list has
+  const availableCategories = useMemo(() => {
+    const present = new Set<string>()
+    for (const p of partners) {
+      for (const c of p.service_categories ?? []) present.add(c)
+    }
+    return SERVICE_CATEGORIES.filter(c => present.has(c))
+  }, [partners])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    const base = partners.filter(p => {
+      if (q && !(
+        p.name.toLowerCase().includes(q) ||
+        p.state?.toLowerCase().includes(q) ||
+        p.city?.toLowerCase().includes(q) ||
+        p.partner_contacts.some(c => c.name.toLowerCase().includes(q))
+      )) return false
+      if (selectedCategories.size > 0) {
+        const partnerCats = new Set(p.service_categories ?? [])
+        if (![...selectedCategories].every(c => partnerCats.has(c))) return false
+      }
+      return true
+    })
+
+    return base.sort((a, b) => {
+      switch (sort) {
+        case 'referrals_in':
+          return b.student_referrals.filter(r => r.direction === 'inbound').length
+               - a.student_referrals.filter(r => r.direction === 'inbound').length
+        case 'referrals_out':
+          return b.student_referrals.filter(r => r.direction === 'outbound').length
+               - a.student_referrals.filter(r => r.direction === 'outbound').length
+        case 'last_interaction':
+          return (b.last_interaction_date ?? '').localeCompare(a.last_interaction_date ?? '')
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name)
+      }
+    })
+  }, [partners, search, sort])
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Search */}
-      <input
-        type="text"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Search by name, state, or contact…"
-        className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-      />
+      {/* Search + Sort + Filter */}
+      <div className="flex flex-col gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, state, or contact…"
+          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        />
+        <PartnerSortBar options={sortOptions} value={sort} onChange={setSort} />
+        {showCategoryFilter && availableCategories.length > 0 && (
+          <PartnerCategoryFilter
+            available={availableCategories}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+          />
+        )}
+      </div>
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-text py-8 text-center">
@@ -90,14 +236,11 @@ export default function PartnerList({ partners, department }: Props) {
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {search.trim() && (
+          {(search.trim() || selectedCategories.size > 0) && (
             <p className="text-xs text-muted-text">{filtered.length} of {partners.length} partners</p>
           )}
           {filtered.map(partner => {
             const primaryContact = partner.partner_contacts.find(c => c.is_primary) ?? partner.partner_contacts[0]
-            const deptStatus = department
-              ? partner.partner_department_status.find(s => s.department === department)
-              : null
             const inboundStudents = partner.student_referrals
               .filter(r => r.direction === 'inbound')
               .map(r => r.student_identifier)
@@ -106,6 +249,9 @@ export default function PartnerList({ partners, department }: Props) {
               .map(r => r.student_identifier)
             const showDepts = !department
             const showStatus = !department
+
+            const isNationwide = partner.state === 'Nationwide'
+            const stateDisplay = isNationwide ? 'Nationwide' : (partner.state?.split(',')[0].trim() ?? null)
 
             return (
               <Link
@@ -118,19 +264,18 @@ export default function PartnerList({ partners, department }: Props) {
                     <p className="font-semibold text-dark-text group-hover:text-teal-primary transition-colors truncate">
                       {partner.name}
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-text">
-                      {(partner.city || partner.state) && (
-                        <span>{[partner.city, partner.state].filter(Boolean).join(', ')}</span>
-                      )}
-                      {primaryContact && (
-                        <><span className="text-muted-text/50">·</span><span>{primaryContact.name}</span></>
-                      )}
-                    </div>
+                    {primaryContact && (
+                      <p className="text-xs text-muted-text">{primaryContact.name}</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {deptStatus?.stage && (
-                      <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${DEPT_COLORS[department!]}`}>
-                        {deptStatus.stage}
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                    {stateDisplay && (
+                      <span className={`text-xs font-medium rounded-full px-2.5 py-1 border ${
+                        isNationwide
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40'
+                          : 'bg-background border-border text-muted-text'
+                      }`}>
+                        {stateDisplay}
                       </span>
                     )}
                     {showStatus && (
@@ -146,6 +291,16 @@ export default function PartnerList({ partners, department }: Props) {
                     {partner.partner_department_status.map(s => (
                       <span key={s.department} className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${DEPT_COLORS[s.department as PartnerDepartment]}`}>
                         {DEPARTMENT_LABELS[s.department as PartnerDepartment] ?? s.department}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {(partner.service_categories ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {(partner.service_categories ?? []).map(cat => (
+                      <span key={cat} className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-muted-text">
+                        {cat}
                       </span>
                     ))}
                   </div>
