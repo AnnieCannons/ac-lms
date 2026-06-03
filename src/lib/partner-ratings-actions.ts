@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { notifyStaff } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -28,16 +29,46 @@ export async function getStudentCurrentCourse(studentUserId: string): Promise<st
 
   const { data } = await supabase
     .from('course_enrollments')
-    .select('courses(title, start_date)')
+    .select('courses(name, start_date)')
     .eq('user_id', studentUserId)
     .eq('role', 'student')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  if (!data) return null
-  const course = Array.isArray(data.courses) ? data.courses[0] : data.courses
-  return (course as { title: string } | null)?.title ?? null
+  if (!data || data.length === 0) return null
+
+  // A course is "current" if start_date is within the last 105 days
+  // (same logic as the current badge on course list pages)
+  const now = Date.now()
+  const cutoffMs = now - 105 * 24 * 60 * 60 * 1000
+
+  const courses = data
+    .map(row => {
+      const c = Array.isArray(row.courses) ? row.courses[0] : row.courses
+      return c as { name: string; start_date: string } | null
+    })
+    .filter((c): c is { name: string; start_date: string } => {
+      if (!c?.start_date) return false
+      const ms = new Date(c.start_date + 'T00:00:00').getTime()
+      return ms >= cutoffMs && ms <= now
+    })
+    .sort((a, b) =>
+      new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    )
+
+  // Fall back to most recently started course if none are "current"
+  if (courses.length === 0) {
+    const all = data
+      .map(row => {
+        const c = Array.isArray(row.courses) ? row.courses[0] : row.courses
+        return c as { name: string; start_date: string } | null
+      })
+      .filter((c): c is { name: string; start_date: string } => !!c?.start_date)
+      .sort((a, b) =>
+        new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+      )
+    return all[0]?.name ?? null
+  }
+
+  return courses[0].name
 }
 
 export async function listStudents() {
@@ -102,6 +133,22 @@ export async function createRating(data: RatingFormData) {
   })
 
   if (dbError) return { error: dbError.message }
+
+  // Ping staff when a student completes their rating form
+  if (data.reviewer_type === 'student') {
+    const service = createServiceSupabaseClient()
+    const [{ data: studentRow }, { data: partnerRow }] = await Promise.all([
+      service.from('users').select('name').eq('id', user.id).single(),
+      service.from('partners').select('name').eq('id', data.partner_id).single(),
+    ])
+    if (studentRow && partnerRow) {
+      const categoryText = data.service_category ? ` for ${data.service_category}` : ''
+      const stars = '★'.repeat(data.score) + '☆'.repeat(5 - data.score)
+      await notifyStaff(
+        `${studentRow.name} has completed their rating for ${partnerRow.name}${categoryText}. ${stars}`
+      )
+    }
+  }
 
   revalidatePath('/instructor/partnerships/referrals')
   revalidatePath('/instructor/partnerships/referrals/submissions')

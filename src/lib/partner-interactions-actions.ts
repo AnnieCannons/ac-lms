@@ -4,6 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
+import { notifyStaff, notifyByEmail } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -162,10 +163,11 @@ export async function createReferral(data: ReferralFormData) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { error: dbError } = await supabase.from('student_referrals').insert({
-    ...data,
-    logged_by: user!.id,
-  })
+  const { data: inserted, error: dbError } = await supabase
+    .from('student_referrals')
+    .insert({ ...data, logged_by: user!.id })
+    .select('id')
+    .single()
   if (dbError) return { error: dbError.message }
 
   // Auto-tag the partner as Student Success when an outbound referral is made
@@ -178,6 +180,51 @@ export async function createReferral(data: ReferralFormData) {
       )
     revalidatePath('/instructor/partnerships/all')
     revalidatePath(`/instructor/partnerships/${data.partner_id}`)
+  }
+
+  // If this is an outbound referral with a linked student, check whether we
+  // should immediately send the rating-request ping (referral date is 60+ days ago)
+  // or let the nightly cron handle it when the time comes.
+  if (
+    data.direction === 'outbound' &&
+    data.student_user_id &&
+    data.partner_id &&
+    inserted?.id
+  ) {
+    const referralDate = new Date(data.referral_date + 'T00:00:00')
+    const daysSince = (Date.now() - referralDate.getTime()) / (1000 * 60 * 60 * 24)
+
+    if (daysSince >= 60) {
+      // Fetch student email + partner name to build the message
+      const service = createServiceSupabaseClient()
+      const [{ data: studentRow }, { data: partnerRow }] = await Promise.all([
+        service.from('users').select('name, email').eq('id', data.student_user_id).single(),
+        service.from('partners').select('name').eq('id', data.partner_id).single(),
+      ])
+
+      if (studentRow && partnerRow) {
+        const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
+        const ratingUrl = `${APP_URL}/student/referrals/rate/${inserted.id}`
+        const categoryText = data.service_category ? ` for ${data.service_category}` : ''
+        const studentMsg =
+          `Hi ${studentRow.name}! We referred you to ${partnerRow.name}${categoryText} a while back. ` +
+          `If you had a chance to connect with them, we'd love to hear how it went: ${ratingUrl}`
+
+        // DM the student
+        await notifyByEmail(studentRow.email, studentMsg)
+
+        // Ping staff
+        await notifyStaff(
+          `${studentRow.name} has received their invitation to rate their referral to ${partnerRow.name}${categoryText}.`
+        )
+
+        // Mark sent so the nightly cron doesn't double-send
+        await supabase
+          .from('student_referrals')
+          .update({ rating_request_sent_at: new Date().toISOString() })
+          .eq('id', inserted.id)
+      }
+    }
   }
 
   revalidatePath('/instructor/partnerships/referrals')

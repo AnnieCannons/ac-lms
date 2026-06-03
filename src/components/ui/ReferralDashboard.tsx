@@ -171,11 +171,13 @@ function OrgCard({
   partner,
   selected,
   alreadyReferred,
+  highlightCategories,
   onToggle,
 }: {
   partner: Partner
   selected: boolean
   alreadyReferred: boolean
+  highlightCategories: string[]
   onToggle: () => void
 }) {
   const isNationwide = partner.state === 'Nationwide'
@@ -238,14 +240,21 @@ function OrgCard({
 
         {(partner.service_categories ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
-            {(partner.service_categories ?? []).map(cat => (
-              <span
-                key={cat}
-                className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-muted-text"
-              >
-                {cat}
-              </span>
-            ))}
+            {(partner.service_categories ?? []).map(cat => {
+              const isMatch = highlightCategories.length > 0 && highlightCategories.includes(cat)
+              return (
+                <span
+                  key={cat}
+                  className={`text-xs rounded px-1.5 py-0.5 font-medium border transition-colors ${
+                    isMatch
+                      ? 'bg-teal-primary/15 border-teal-primary/40 text-teal-primary'
+                      : 'bg-background border-border text-muted-text'
+                  }`}
+                >
+                  {cat}
+                </span>
+              )
+            })}
           </div>
         )}
 
@@ -433,11 +442,14 @@ export default function ReferralDashboard({ initialReferrals, partners, students
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedOrgIds, setSelectedOrgIds] = useState<Set<string>>(new Set())
   const [referralDate, setReferralDate] = useState(new Date().toISOString().slice(0, 10))
-  const [referralServiceCategory, setReferralServiceCategory] = useState('')
+  const [referralServiceCategories, setReferralServiceCategories] = useState<string[]>([])
   const [referralNotes, setReferralNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [justReferred, setJustReferred] = useState<{ student: string; orgs: string[] } | null>(null)
+
+  // ── Tab state ──
+  const [activeTab, setActiveTab] = useState<'refer' | 'history'>('refer')
 
   // ── History state ──
   const [referrals, setReferrals] = useState<Referral[]>(initialReferrals)
@@ -480,9 +492,12 @@ export default function ReferralDashboard({ initialReferrals, partners, students
   }, [referrals, selectedStudent])
 
   function toggleCategory(cat: string) {
-    setSelectedCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    )
+    setSelectedCategories(prev => {
+      const next = prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+      // Keep referral service categories in sync with filter selection
+      setReferralServiceCategories(next)
+      return next
+    })
   }
 
   function toggleOrg(id: string) {
@@ -512,7 +527,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
         partner_id: org.id,
         referral_date: referralDate,
         referral_type: null,
-        service_category: referralServiceCategory || selectedCategories[0] || null,
+        service_category: referralServiceCategories.length > 0 ? referralServiceCategories.join(',') : null,
         outcome_rating: null,
         outcome_notes: referralNotes.trim() || null,
         student_city: null,
@@ -558,6 +573,10 @@ export default function ReferralDashboard({ initialReferrals, partners, students
       setJustReferred({ student: selectedStudent.name, orgs: succeeded })
       setSelectedOrgIds(new Set())
       setReferralNotes('')
+      setReferralDate(new Date().toISOString().slice(0, 10))
+      setReferralServiceCategories([])
+      setSelectedCategories([])
+      setLocationQuery('')
     }
   }
 
@@ -582,10 +601,28 @@ export default function ReferralDashboard({ initialReferrals, partners, students
   const activeFilters = locationQuery.trim().length >= 2 || selectedCategories.length > 0
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
+
+      {/* ── Tabs ── */}
+      <div className="flex gap-1 border-b border-border">
+        {(['refer', 'history'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === tab
+                ? 'border-teal-primary text-teal-primary'
+                : 'border-transparent text-muted-text hover:text-dark-text'
+            }`}
+          >
+            {tab === 'refer' ? 'Make a Referral' : `History (${referrals.length})`}
+          </button>
+        ))}
+      </div>
 
       {/* ══ FIND & REFER ══ */}
-      <div className="flex flex-col gap-7">
+      {activeTab === 'refer' && <div className="flex flex-col gap-7">
 
         {/* Step 1: Student */}
         <div className="flex flex-col gap-2">
@@ -609,6 +646,48 @@ export default function ReferralDashboard({ initialReferrals, partners, students
               }}
             />
           )}
+        </div>
+
+        {/* Referral date + course — always visible so Robyn can backdate before choosing orgs */}
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xs font-semibold text-muted-text uppercase tracking-wide">Referral details</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-dark-text mb-1">Date</label>
+              <input
+                type="date"
+                value={referralDate}
+                onChange={e => setReferralDate(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+              {(() => {
+                const daysSince = (Date.now() - new Date(referralDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)
+                if (daysSince >= 60) {
+                  return <p className="text-xs text-teal-primary mt-1">Rating invite will send immediately.</p>
+                }
+                const sendDate = new Date(new Date(referralDate + 'T00:00:00').getTime() + 60 * 24 * 60 * 60 * 1000)
+                return (
+                  <p className="text-xs text-muted-text mt-1">
+                    Rating invite sends{' '}
+                    {sendDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.
+                  </p>
+                )
+              })()}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-dark-text mb-1">
+                Current course
+                {courseLoading && <span className="text-muted-text font-normal ml-1">Loading…</span>}
+              </label>
+              <input
+                type="text"
+                value={courseName}
+                onChange={e => setCourseName(e.target.value)}
+                placeholder={courseLoading ? 'Loading…' : 'e.g. Advanced Backend — Jan 2026'}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Step 2: Location + Categories */}
@@ -677,6 +756,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
                   partner={p}
                   selected={selectedOrgIds.has(p.id)}
                   alreadyReferred={alreadyReferredOrgIds.has(p.id)}
+                  highlightCategories={selectedCategories}
                   onToggle={() => toggleOrg(p.id)}
                 />
               ))}
@@ -700,41 +780,30 @@ export default function ReferralDashboard({ initialReferrals, partners, students
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-dark-text mb-1">Date</label>
-                <input
-                  type="date"
-                  value={referralDate}
-                  onChange={e => setReferralDate(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-dark-text mb-1">Service needed</label>
-                <select
-                  value={referralServiceCategory || selectedCategories[0] || ''}
-                  onChange={e => setReferralServiceCategory(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                >
-                  <option value="">— None / Unknown —</option>
-                  {SERVICE_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-dark-text mb-1">
-                  Current course
-                  {courseLoading && <span className="text-muted-text font-normal ml-1">Loading…</span>}
-                </label>
-                <input
-                  type="text"
-                  value={courseName}
-                  onChange={e => setCourseName(e.target.value)}
-                  placeholder={courseLoading ? 'Loading…' : 'e.g. Advanced Backend — Jan 2026'}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-dark-text mb-2">Services needed</label>
+              <div className="flex flex-wrap gap-2">
+                {SERVICE_CATEGORIES.map(cat => {
+                  const checked = referralServiceCategories.includes(cat)
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() =>
+                        setReferralServiceCategories(prev =>
+                          prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        checked
+                          ? 'bg-teal-primary text-white border-teal-primary'
+                          : 'bg-background border-border text-muted-text hover:border-teal-primary hover:text-dark-text'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -788,10 +857,10 @@ export default function ReferralDashboard({ initialReferrals, partners, students
             </button>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ══ REFERRAL HISTORY ══ */}
-      <section className="border-t border-border pt-8 flex flex-col gap-4">
+      {activeTab === 'history' && <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-dark-text">Referral History</h2>
           <span className="text-xs text-muted-text">{referrals.length} total</span>
@@ -865,7 +934,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
             ))}
           </div>
         )}
-      </section>
+      </section>}
     </div>
   )
 }
