@@ -155,6 +155,7 @@ export interface ReferralFormData {
   service_category?: string | null
   outcome_success?: boolean | null
   staff_notes?: string | null
+  course_name?: string | null
 }
 
 export async function createReferral(data: ReferralFormData) {

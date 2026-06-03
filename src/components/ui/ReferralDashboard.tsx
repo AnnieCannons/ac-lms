@@ -9,6 +9,7 @@ import {
   type ReferralFormData,
 } from '@/lib/partner-interactions-actions'
 import { SERVICE_CATEGORIES } from '@/lib/service-categories'
+import { getStudentCurrentCourse } from '@/lib/partner-ratings-actions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -426,6 +427,8 @@ function LocationAutocomplete({
 export default function ReferralDashboard({ initialReferrals, partners, students = [] }: Props) {
   // ── Find & Refer state ──
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [courseName, setCourseName] = useState('')
+  const [courseLoading, setCourseLoading] = useState(false)
   const [locationQuery, setLocationQuery] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedOrgIds, setSelectedOrgIds] = useState<Set<string>>(new Set())
@@ -519,6 +522,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
         other_flags: [],
         outcome_success: null,
         staff_notes: null,
+        course_name: courseName.trim() || null,
       })
 
       if (result.error) {
@@ -592,7 +596,17 @@ export default function ReferralDashboard({ initialReferrals, partners, students
             <StudentSelector
               students={students}
               selected={selectedStudent}
-              onSelect={s => { setSelectedStudent(s); setJustReferred(null) }}
+              onSelect={async s => {
+                setSelectedStudent(s)
+                setJustReferred(null)
+                setCourseName('')
+                if (s) {
+                  setCourseLoading(true)
+                  const name = await getStudentCurrentCourse(s.id)
+                  setCourseName(name ?? '')
+                  setCourseLoading(false)
+                }
+              }}
             />
           )}
         </div>
@@ -708,6 +722,19 @@ export default function ReferralDashboard({ initialReferrals, partners, students
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-dark-text mb-1">
+                  Current course
+                  {courseLoading && <span className="text-muted-text font-normal ml-1">Loading…</span>}
+                </label>
+                <input
+                  type="text"
+                  value={courseName}
+                  onChange={e => setCourseName(e.target.value)}
+                  placeholder={courseLoading ? 'Loading…' : 'e.g. Advanced Backend — Jan 2026'}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
               </div>
             </div>
 
