@@ -29,4 +29,5 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          STAFF_NOTIFY_EMAIL: ${{ secrets.STAFF_NOTIFY_EMAIL }}
         run: npx ts-node --esm scripts/send-referral-followups.ts

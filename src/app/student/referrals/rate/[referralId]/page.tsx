@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentReferralRateForm from '@/components/ui/StudentReferralRateForm'
@@ -10,6 +10,7 @@ interface Props {
 export default async function RateReferralPage({ params }: Props) {
   const { referralId } = await params
 
+  // Auth: verify logged-in student
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -22,8 +23,10 @@ export default async function RateReferralPage({ params }: Props) {
 
   if (profile?.role !== 'student') redirect('/login')
 
-  // Load referral and verify it belongs to this student
-  const { data: referral, error: referralError } = await supabase
+  // Use service role to fetch referral + partner name (bypasses partner RLS)
+  const service = createServiceSupabaseClient()
+
+  const { data: referral, error: referralError } = await service
     .from('student_referrals')
     .select(`
       id, referral_date, service_category, student_user_id, partner_id,
@@ -54,19 +57,20 @@ export default async function RateReferralPage({ params }: Props) {
     )
   }
 
-  // Check if a student rating already exists for this referral
-  const { data: existingRating } = await supabase
+  // Check for existing student ratings on this referral
+  const { data: existingRatings } = await service
     .from('partner_ratings')
-    .select('id')
+    .select('id, service_category')
     .eq('referral_id', referralId)
     .eq('reviewer_type', 'student')
-    .maybeSingle()
 
   const partnerName = Array.isArray(referral.partners)
     ? (referral.partners[0]?.name ?? 'this organization')
     : ((referral.partners as { name: string } | null)?.name ?? 'this organization')
 
-  if (existingRating) {
+  const alreadyRated = (existingRatings ?? []).length > 0
+
+  if (alreadyRated) {
     return (
       <div className="min-h-screen bg-background">
         <StudentTopNav name={profile?.name} />
@@ -94,10 +98,28 @@ export default async function RateReferralPage({ params }: Props) {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-dark-text">Rate your experience</h1>
           <p className="text-sm text-muted-text mt-1">
-            You were referred to <span className="font-medium text-dark-text">{partnerName}</span>.
-            {referral.service_category && (
-              <> They helped with <span className="font-medium text-dark-text">{referral.service_category}</span>.</>
+            {referral.service_category ? (
+              <>
+                You were referred to{' '}
+                <span className="font-semibold text-dark-text">{partnerName}</span>{' '}
+                for help with{' '}
+                <span className="font-semibold text-dark-text">
+                  {referral.service_category
+                    .split(',')
+                    .map((s: string) => s.trim())
+                    .filter(Boolean)
+                    .join(' and ')}
+                </span>.
+              </>
+            ) : (
+              <>
+                You were referred to{' '}
+                <span className="font-semibold text-dark-text">{partnerName}</span>.
+              </>
             )}
+          </p>
+          <p className="text-sm text-muted-text mt-2">
+            Your ratings help us understand which organizations are most helpful so we can make better referrals for future students.
           </p>
           <p className="text-xs text-muted-text mt-2">
             Referral date:{' '}
@@ -111,7 +133,11 @@ export default async function RateReferralPage({ params }: Props) {
           referralId={referralId}
           partnerId={referral.partner_id ?? ''}
           partnerName={partnerName}
-          serviceCategory={referral.service_category ?? 'General'}
+          serviceCategories={
+            referral.service_category
+              ? referral.service_category.split(',').map((s: string) => s.trim()).filter(Boolean)
+              : ['General']
+          }
         />
       </main>
     </div>

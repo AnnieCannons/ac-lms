@@ -20,6 +20,7 @@ const SUPABASE_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const SLACK_BOT_TOKEN      = process.env.SLACK_BOT_TOKEN
 const APP_URL              = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
+const STAFF_NOTIFY_EMAIL   = process.env.STAFF_NOTIFY_EMAIL   // e.g. robyn@anniecannons.com
 const DRY_RUN              = process.argv.includes('--dry-run')
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -46,7 +47,7 @@ interface ReferralRow {
   users: { name: string; email: string } | { name: string; email: string }[] | null
 }
 
-// ─── Slack helpers ────────────────────────────────────────────────────────────
+// ─── Slack helpers (inline — script runs outside Next.js, can't import from src/) ──
 
 async function slackLookupByEmail(email: string): Promise<string | null> {
   if (!SLACK_BOT_TOKEN) return null
@@ -80,6 +81,33 @@ async function slackPostMessage(channel: string, text: string): Promise<boolean>
     console.warn('  Slack request failed:', e)
     return false
   }
+}
+
+// ─── Staff notification ───────────────────────────────────────────────────────
+
+let _staffSlackId: string | null | undefined = undefined
+
+async function notifyStaff(studentName: string, partnerName: string, serviceCategory: string | null) {
+  if (!SLACK_BOT_TOKEN || !STAFF_NOTIFY_EMAIL) return
+
+  if (_staffSlackId === undefined) {
+    _staffSlackId = await slackLookupByEmail(STAFF_NOTIFY_EMAIL)
+    if (!_staffSlackId) {
+      console.warn(`  Could not find Slack user for STAFF_NOTIFY_EMAIL (${STAFF_NOTIFY_EMAIL})`)
+    }
+  }
+  if (!_staffSlackId) return
+
+  const categoryText = serviceCategory ? ` for ${serviceCategory}` : ''
+  const text = `${studentName} has received their invitation to rate their referral to ${partnerName}${categoryText}.`
+
+  if (DRY_RUN) {
+    console.log(`  [dry-run] Would notify staff: ${text}`)
+    return
+  }
+
+  const sent = await slackPostMessage(_staffSlackId, text)
+  console.log(`  Staff Slack notify: ${sent ? 'sent' : 'FAILED'}`)
 }
 
 // ─── Notification helpers ─────────────────────────────────────────────────────
@@ -130,6 +158,7 @@ async function sendNotification(
         const sent = await slackPostMessage(slackId, slackMessage)
         console.log(`  Slack DM to ${slackId}: ${sent ? 'sent' : 'FAILED'}`)
       }
+      await notifyStaff(student.name, partnerName, referral.service_category)
     } else {
       console.log(`  No Slack user found for ${student.email} — skipping Slack DM`)
     }
