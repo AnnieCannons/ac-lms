@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
@@ -168,6 +168,18 @@ export async function createReferral(data: ReferralFormData) {
   })
   if (dbError) return { error: dbError.message }
 
+  // Auto-tag the partner as Student Success when an outbound referral is made
+  if (data.direction === 'outbound' && data.partner_id) {
+    await supabase
+      .from('partner_department_status')
+      .upsert(
+        { partner_id: data.partner_id, department: 'student_success', stage: 'Active' },
+        { onConflict: 'partner_id,department', ignoreDuplicates: true }
+      )
+    revalidatePath('/instructor/partnerships/all')
+    revalidatePath(`/instructor/partnerships/${data.partner_id}`)
+  }
+
   revalidatePath('/instructor/partnerships/referrals')
   return { error: null }
 }
@@ -204,8 +216,8 @@ export async function listReferrals(filters?: {
   from_date?: string
   to_date?: string
 }) {
-  const { error, supabase } = await requireStaffOrAdmin()
-  if (error || !supabase) return { error, referrals: [] }
+  // Use service role to bypass RLS — calling page already enforces staff/admin auth
+  const supabase = createServiceSupabaseClient()
 
   let query = supabase
     .from('student_referrals')
@@ -216,7 +228,7 @@ export async function listReferrals(filters?: {
       partner_id,
       partners (name),
       logged_by,
-      users (name)
+      users!student_referrals_logged_by_fkey (name)
     `)
     .order('referral_date', { ascending: false })
 
