@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   createReferral,
   updateReferral,
@@ -63,30 +63,7 @@ function formatDate(dateStr: string) {
   })
 }
 
-function StarRating({ rating, onChange }: { rating: number | null; onChange?: (r: number) => void }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map(n => (
-        <button
-          key={n}
-          type={onChange ? 'button' : undefined}
-          onClick={onChange ? () => onChange(n) : undefined}
-          className={`text-lg leading-none ${n <= (rating ?? 0) ? 'text-yellow-400' : 'text-border'} ${onChange ? 'hover:text-yellow-300 cursor-pointer' : 'cursor-default'}`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  )
-}
 
-const OUTCOME_LABELS: Record<number, string> = {
-  1: 'Not helpful',
-  2: 'Somewhat helpful',
-  3: 'Helpful',
-  4: 'Very helpful',
-  5: 'Excellent',
-}
 
 // ─── Student Selector ─────────────────────────────────────────────────────────
 
@@ -270,25 +247,71 @@ function OrgCard({
 
 function ReferralRow({
   referral,
-  partners,
   onUpdated,
   onDeleted,
 }: {
   referral: Referral
-  partners: Partner[]
   onUpdated: (id: string, data: Partial<ReferralFormData>) => void
   onDeleted: (id: string) => void
 }) {
-  const [editingRating, setEditingRating] = useState(false)
-  const [savingRating, setSavingRating] = useState(false)
+  const starsRef = useRef<HTMLDivElement>(null)
+  // Use refs for values needed inside native event listeners (avoids stale closures)
+  const ratingRef = useRef<number | null>(referral.outcome_rating)
+  const savingRef = useRef(false)
+  const onUpdatedRef = useRef(onUpdated)
+  useEffect(() => { onUpdatedRef.current = onUpdated }, [onUpdated])
 
-  async function handleRatingChange(rating: number) {
-    setSavingRating(true)
-    await updateReferral(referral.id, { outcome_rating: rating })
-    onUpdated(referral.id, { outcome_rating: rating })
-    setSavingRating(false)
-    setEditingRating(false)
-  }
+  // Paint star colors directly in DOM — no React re-render needed
+  const paintStars = useCallback((fill: number) => {
+    starsRef.current?.querySelectorAll<HTMLSpanElement>('[data-n]').forEach(el => {
+      el.style.color = Number(el.dataset.n) <= fill ? '#FACC15' : '#9CA3AF'
+    })
+  }, [])
+
+  useEffect(() => {
+    // Set initial colors after mount
+    paintStars(ratingRef.current ?? 0)
+
+    const container = starsRef.current
+    if (!container) return
+
+    const onClick = async (e: MouseEvent) => {
+      const star = (e.target as HTMLElement).closest<HTMLElement>('[data-n]')
+      if (!star || savingRef.current) return
+      const n = Number(star.dataset.n)
+      ratingRef.current = n
+      savingRef.current = true
+      paintStars(n)
+      try {
+        await updateReferral(referral.id, { outcome_rating: n })
+        onUpdatedRef.current(referral.id, { outcome_rating: n })
+      } finally {
+        savingRef.current = false
+      }
+    }
+
+    const onMouseOver = (e: MouseEvent) => {
+      if (savingRef.current) return
+      const star = (e.target as HTMLElement).closest<HTMLElement>('[data-n]')
+      if (star) paintStars(Number(star.dataset.n))
+    }
+
+    const onMouseOut = (e: MouseEvent) => {
+      if (savingRef.current) return
+      const star = (e.target as HTMLElement).closest<HTMLElement>('[data-n]')
+      if (star) paintStars(ratingRef.current ?? 0)
+    }
+
+    container.addEventListener('click', onClick)
+    container.addEventListener('mouseover', onMouseOver)
+    container.addEventListener('mouseout', onMouseOut)
+
+    return () => {
+      container.removeEventListener('click', onClick)
+      container.removeEventListener('mouseover', onMouseOver)
+      container.removeEventListener('mouseout', onMouseOut)
+    }
+  }, [referral.id, paintStars])
 
   async function handleDelete() {
     await deleteReferral(referral.id)
@@ -317,20 +340,19 @@ function ReferralRow({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {editingRating ? (
-            <div className="flex items-center gap-1">
-              <StarRating rating={referral.outcome_rating} onChange={handleRatingChange} />
-              {savingRating && <span className="text-xs text-muted-text">Saving…</span>}
-              <button type="button" onClick={() => setEditingRating(false)} className="text-xs text-muted-text hover:text-dark-text ml-1">cancel</button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setEditingRating(true)} className="flex items-center gap-1 group">
-              <StarRating rating={referral.outcome_rating} />
-              <span className="text-xs text-muted-text group-hover:text-teal-primary hidden sm:inline">
-                {referral.outcome_rating ? OUTCOME_LABELS[referral.outcome_rating] : 'Rate'}
+          {/* Stars: native DOM event listeners via useEffect — bypasses React event delegation */}
+          <div ref={starsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <span
+                key={n}
+                data-n={n}
+                style={{ fontSize: '1.25rem', lineHeight: 1, color: '#9CA3AF', padding: '0 2px', userSelect: 'none' }}
+                aria-label={`${n} star${n !== 1 ? 's' : ''}`}
+              >
+                ★
               </span>
-            </button>
-          )}
+            ))}
+          </div>
           <button
             type="button"
             onClick={handleDelete}
@@ -929,7 +951,6 @@ export default function ReferralDashboard({ initialReferrals, partners, students
               <ReferralRow
                 key={r.id}
                 referral={r}
-                partners={partners}
                 onUpdated={handleUpdated}
                 onDeleted={handleDeleted}
               />
