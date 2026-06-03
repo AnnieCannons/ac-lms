@@ -2,8 +2,8 @@ name: Referral Follow-up Emails
 
 on:
   schedule:
-    # Runs every day at 9am Pacific (17:00 UTC)
-    - cron: '0 17 * * *'
+    # Runs every day at 5:30am Pacific (13:30 UTC)
+    - cron: '30 13 * * *'
   workflow_dispatch:
     # Also allows manual trigger from GitHub Actions tab
 
