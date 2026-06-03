@@ -20,7 +20,7 @@ export default async function RateReferralPage({ params }: Props) {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'student') redirect('/instructor')
+  if (profile?.role !== 'student') redirect('/login')
 
   // Load referral and verify it belongs to this student
   const { data: referral, error: referralError } = await supabase
