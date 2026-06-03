@@ -168,6 +168,18 @@ export async function createReferral(data: ReferralFormData) {
   })
   if (dbError) return { error: dbError.message }
 
+  // Auto-tag the partner as Student Success when an outbound referral is made
+  if (data.direction === 'outbound' && data.partner_id) {
+    await supabase
+      .from('partner_department_status')
+      .upsert(
+        { partner_id: data.partner_id, department: 'student_success', stage: 'Active' },
+        { onConflict: 'partner_id,department', ignoreDuplicates: true }
+      )
+    revalidatePath('/instructor/partnerships/all')
+    revalidatePath(`/instructor/partnerships/${data.partner_id}`)
+  }
+
   revalidatePath('/instructor/partnerships/referrals')
   return { error: null }
 }
