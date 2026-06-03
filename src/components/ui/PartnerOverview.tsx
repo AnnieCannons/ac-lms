@@ -179,7 +179,7 @@ function StageSelector({
             onClick={() => onStageChange(department, stage)}
             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
               currentStage === stage
-                ? 'bg-dark-text text-background border-dark-text'
+                ? 'bg-teal-primary text-white border-teal-primary'
                 : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
             }`}
           >

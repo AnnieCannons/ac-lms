@@ -4,7 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import { listPartners } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS, DEPT_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
-import PartnerList from '@/components/ui/PartnerList'
+import PartnerList, { type SortOption } from '@/components/ui/PartnerList'
 
 interface Props {
   searchParams: Promise<{ dept?: string }>
@@ -88,7 +88,16 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
             </Link>
           </div>
         ) : (
-          <PartnerList partners={filtered as unknown as Parameters<typeof PartnerList>[0]['partners']} department={department} />
+          <PartnerList
+            partners={filtered as unknown as Parameters<typeof PartnerList>[0]['partners']}
+            department={department}
+            sortOptions={
+              department === 'admissions'      ? ['name', 'referrals_in', 'last_interaction'] :
+              department === 'student_success' ? ['name', 'referrals_out', 'last_interaction'] :
+              ['name', 'last_interaction']
+            }
+            showCategoryFilter={department === 'admissions' || department === 'resourcefull' || !department}
+          />
         )}
       </main>
     </div>

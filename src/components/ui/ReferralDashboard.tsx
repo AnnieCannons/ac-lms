@@ -8,6 +8,7 @@ import {
   type ReferralDirection,
   type ReferralFormData,
 } from '@/lib/partner-interactions-actions'
+import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,7 +19,14 @@ interface Partner {
   state: string | null
   multi_city: boolean
   services_focus_area: string | null
+  service_categories?: string[]
   partner_types: string[]
+}
+
+interface Student {
+  id: string
+  name: string
+  email: string
 }
 
 interface Referral {
@@ -43,6 +51,8 @@ interface Referral {
 interface Props {
   initialReferrals: Referral[]
   partners: Partner[]
+  /** LMS student accounts for linking referrals to a real user */
+  students?: Student[]
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -152,10 +162,12 @@ function GeoSearch({ partners }: { partners: Partner[] }) {
 function LogReferralForm({
   partners,
   allReferrals,
+  lmsStudents = [],
   onLogged,
 }: {
   partners: Partner[]
   allReferrals: Referral[]
+  lmsStudents?: Student[]
   onLogged: (referral: Referral) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -166,16 +178,20 @@ function LogReferralForm({
   const [showSuggestions, setShowSuggestions] = useState(false)
 
   const [studentId, setStudentId] = useState('')
+  const [studentUserId, setStudentUserId] = useState<string | null>(null)
   const [direction, setDirection] = useState<ReferralDirection>('outbound')
   const [partnerId, setPartnerId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [referralType, setReferralType] = useState('')
+  const [serviceCategory, setServiceCategory] = useState('')
   const [city, setCity] = useState('')
   const [openToRelocation, setOpenToRelocation] = useState(false)
   const [isVeteran, setIsVeteran] = useState(false)
   const [isNeurodivergent, setIsNeurodivergent] = useState(false)
   const [outcomeRating, setOutcomeRating] = useState<number | null>(null)
   const [outcomeNotes, setOutcomeNotes] = useState('')
+  const [staffNotes, setStaffNotes] = useState('')
+  const [outcomeSuccess, setOutcomeSuccess] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!open || airtableNames.length > 0) return
@@ -196,9 +212,11 @@ function LogReferralForm({
     : []
 
   function reset() {
-    setStudentId(''); setDirection('outbound'); setPartnerId(''); setDate(new Date().toISOString().slice(0, 10))
-    setReferralType(''); setCity(''); setOpenToRelocation(false); setIsVeteran(false)
+    setStudentId(''); setStudentUserId(null); setDirection('outbound'); setPartnerId('')
+    setDate(new Date().toISOString().slice(0, 10)); setReferralType(''); setServiceCategory('')
+    setCity(''); setOpenToRelocation(false); setIsVeteran(false)
     setIsNeurodivergent(false); setOutcomeRating(null); setOutcomeNotes('')
+    setStaffNotes(''); setOutcomeSuccess(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -219,6 +237,10 @@ function LogReferralForm({
       is_veteran: isVeteran,
       is_neurodivergent: isNeurodivergent,
       other_flags: [],
+      student_user_id: studentUserId,
+      service_category: serviceCategory.trim() || null,
+      outcome_success: outcomeSuccess,
+      staff_notes: staffNotes.trim() || null,
     }
 
     const result = await createReferral(data)
@@ -336,6 +358,19 @@ function LogReferralForm({
           />
         </div>
         <div>
+          <label className="block text-xs font-medium text-dark-text mb-1">Service Category</label>
+          <select
+            value={serviceCategory}
+            onChange={e => setServiceCategory(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          >
+            <option value="">— None / Unknown —</option>
+            {SERVICE_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="block text-xs font-medium text-dark-text mb-1">Student City</label>
           <input
             type="text"
@@ -345,6 +380,23 @@ function LogReferralForm({
             placeholder="City"
           />
         </div>
+        {lmsStudents.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-dark-text mb-1">
+              Link to LMS Account <span className="text-muted-text font-normal">(optional — enables student rating request)</span>
+            </label>
+            <select
+              value={studentUserId ?? ''}
+              onChange={e => setStudentUserId(e.target.value || null)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            >
+              <option value="">— Not linked —</option>
+              {lmsStudents.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {studentHistory.length > 0 && (
@@ -393,6 +445,29 @@ function LogReferralForm({
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
           placeholder="How did the referral go?"
         />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-dark-text mb-1">Staff Notes <span className="text-muted-text font-normal">(internal)</span></label>
+        <textarea
+          value={staffNotes}
+          onChange={e => setStaffNotes(e.target.value)}
+          rows={2}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+          placeholder="Internal notes not shared with student…"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-4 text-sm">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={outcomeSuccess === true}
+            onChange={e => setOutcomeSuccess(e.target.checked ? true : null)}
+            className="rounded border-border text-teal-primary focus:ring-teal-primary"
+          />
+          Mark as successful outcome
+        </label>
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -513,7 +588,7 @@ function ReferralRow({
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
-export default function ReferralDashboard({ initialReferrals, partners }: Props) {
+export default function ReferralDashboard({ initialReferrals, partners, students = [] }: Props) {
   const [referrals, setReferrals] = useState<Referral[]>(initialReferrals)
   const [filterStudent, setFilterStudent] = useState('')
   const [filterDirection, setFilterDirection] = useState<ReferralDirection | 'all'>('all')
@@ -606,7 +681,7 @@ export default function ReferralDashboard({ initialReferrals, partners }: Props)
 
       {/* Log + Filters */}
       <div className="flex flex-col gap-4">
-        <LogReferralForm partners={partners} allReferrals={referrals} onLogged={handleLogged} />
+        <LogReferralForm partners={partners} allReferrals={referrals} lmsStudents={students} onLogged={handleLogged} />
 
         <div className="flex flex-wrap gap-3 items-end">
           <div>

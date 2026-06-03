@@ -36,6 +36,7 @@ export interface PartnerFormData {
   partner_types: PartnerType[]
   contacts: PartnerContact[]
   departments: PartnerDepartment[]
+  service_categories: string[]
 }
 
 async function requireStaffOrAdmin() {
@@ -63,7 +64,7 @@ export async function listPartners() {
   const { data, error: dbError } = await supabase
     .from('partners')
     .select(`
-      id, name, city, state, status, last_interaction_date, internal_owner_id,
+      id, name, city, state, status, last_interaction_date, internal_owner_id, service_categories,
       partner_type_assignments (partner_type),
       partner_contacts (id, name, title, email, is_primary),
       partner_department_status (department, stage),
@@ -111,7 +112,7 @@ export async function createPartner(formData: PartnerFormData) {
 
   const { data: partner, error: insertError } = await supabase
     .from('partners')
-    .insert(partnerFields)
+    .insert({ ...partnerFields, service_categories: partnerFields.service_categories ?? [] })
     .select('id')
     .single()
 
@@ -205,7 +206,11 @@ export async function listPartnersWithGeo() {
 
   const { data, error: dbError } = await supabase
     .from('partners')
-    .select('id, name, city, state, multi_city, services_focus_area, partner_type_assignments(partner_type)')
+    .select(`
+      id, name, city, state, multi_city, services_focus_area, service_categories,
+      partner_type_assignments (partner_type),
+      partner_department_status (department)
+    `)
     .order('name')
 
   if (dbError) return { error: dbError.message, partners: [] }

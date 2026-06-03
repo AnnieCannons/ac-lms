@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { ComposableMap, Geographies, Geography } = require('react-simple-maps')
 import Link from 'next/link'
@@ -107,15 +107,24 @@ function PartnerCard({ p, department }: { p: Partner; department?: string }) {
 export default function PartnerMap({ partners, department }: Props) {
   const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set())
   const [tooltip, setTooltip] = useState<{ name: string; count: number } | null>(null)
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    const update = () => setIsDark(document.documentElement.classList.contains('dark'))
+    update()
+    const observer = new MutationObserver(update)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
   const [search, setSearch] = useState('')
   const [stateDropdownOpen, setStateDropdownOpen] = useState(false)
   const [stateSearch, setStateSearch] = useState('')
 
-  // state name → partners[]
+  // state name → partners[] (excludes Nationwide)
   const partnersByState = useMemo(() => {
     const map: Record<string, Partner[]> = {}
     for (const p of partners) {
-      if (!p.state) continue
+      if (!p.state || p.state === 'Nationwide') continue
       for (const s of p.state.split(',').map(s => s.trim()).filter(Boolean)) {
         if (!map[s]) map[s] = []
         map[s].push(p)
@@ -127,6 +136,7 @@ export default function PartnerMap({ partners, department }: Props) {
   const maxCount = Math.max(...Object.values(partnersByState).map(a => a.length), 1)
   const statesRepresented = Object.keys(partnersByState).length
   const noStateCount = partners.filter(p => !p.state).length
+  const nationwideCount = partners.filter(p => p.state === 'Nationwide').length
 
   // Alphabetical list of states that have partners, filtered by dropdown search
   const allStatesWithPartners = useMemo(() =>
@@ -170,9 +180,14 @@ export default function PartnerMap({ partners, department }: Props) {
 
   function getFill(stateName: string) {
     const count = partnersByState[stateName]?.length ?? 0
-    if (selectedStates.has(stateName)) return '#0f766e'
-    if (count === 0) return '#94a3b8'   // slate-400 — visible on both light and dark backgrounds
-    return `rgba(13,148,136,${(0.15 + (count / maxCount) * 0.70).toFixed(2)})`
+    if (selectedStates.has(stateName)) return isDark ? '#2dd4bf' : '#0f766e'
+    if (count === 0) return isDark ? '#334155' : '#94a3b8'
+    // Dark mode: use teal-400 base (lighter) so it stands out from the navy bg
+    // Light mode: use teal-600 base
+    const opacity = (0.25 + (count / maxCount) * 0.70).toFixed(2)
+    return isDark
+      ? `rgba(45,212,191,${opacity})`   // teal-400
+      : `rgba(13,148,136,${opacity})`   // teal-600
   }
 
   return (
@@ -257,19 +272,21 @@ export default function PartnerMap({ partners, department }: Props) {
                       style={{
                         default: {
                           fill: getFill(stateName),
-                          stroke: '#1e293b',
-                          strokeWidth: 0.7,
+                          stroke: isDark ? '#64748b' : '#1e293b',
+                          strokeWidth: isDark ? 1 : 0.7,
                           outline: 'none',
                           cursor: count > 0 ? 'pointer' : 'default',
                         },
                         hover: {
-                          fill: count > 0 ? '#0d9488' : '#7c8fa6',
-                          stroke: '#1e293b',
-                          strokeWidth: 0.7,
+                          fill: count > 0
+                            ? (isDark ? '#5eead4' : '#0d9488')
+                            : (isDark ? '#475569' : '#7c8fa6'),
+                          stroke: isDark ? '#94a3b8' : '#1e293b',
+                          strokeWidth: isDark ? 1 : 0.7,
                           outline: 'none',
                           cursor: count > 0 ? 'pointer' : 'default',
                         },
-                        pressed: { fill: '#0f766e', outline: 'none' },
+                        pressed: { fill: isDark ? '#2dd4bf' : '#0f766e', outline: 'none' },
                       }}
                     />
                   )
@@ -281,12 +298,14 @@ export default function PartnerMap({ partners, department }: Props) {
           {/* Legend */}
           <div className="flex items-center gap-3 px-3 pb-2.5 text-xs text-muted-text flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: '#94a3b8' }} />
+              <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: isDark ? '#334155' : '#94a3b8' }} />
               None
             </div>
             <div className="flex items-center gap-0.5">
-              {[0.15, 0.35, 0.55, 0.75, 0.85].map((o, i) => (
-                <span key={i} className="w-4 h-2.5 rounded-sm inline-block" style={{ background: `rgba(13,148,136,${o})` }} />
+              {[0.25, 0.45, 0.60, 0.75, 0.95].map((o, i) => (
+                <span key={i} className="w-4 h-2.5 rounded-sm inline-block" style={{
+                  background: isDark ? `rgba(45,212,191,${o})` : `rgba(13,148,136,${o})`
+                }} />
               ))}
               <span className="ml-1">More →</span>
             </div>
@@ -392,6 +411,9 @@ export default function PartnerMap({ partners, department }: Props) {
         {/* Stats */}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-text">
           <span><span className="font-semibold text-dark-text">{statesRepresented}</span> states</span>
+          {nationwideCount > 0 && (
+            <span><span className="font-semibold text-dark-text">{nationwideCount}</span> nationwide</span>
+          )}
           {noStateCount > 0 && (
             <span><span className="font-semibold text-dark-text">{noStateCount}</span> no state on file</span>
           )}
