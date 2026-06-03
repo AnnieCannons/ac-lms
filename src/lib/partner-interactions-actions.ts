@@ -228,7 +228,7 @@ export async function listReferrals(filters?: {
       partner_id,
       partners (name),
       logged_by,
-      users (name)
+      users!student_referrals_logged_by_fkey (name)
     `)
     .order('referral_date', { ascending: false })
 
