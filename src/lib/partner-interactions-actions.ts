@@ -228,7 +228,7 @@ export async function createReferral(data: ReferralFormData) {
   }
 
   revalidatePath('/instructor/partnerships/referrals')
-  return { error: null }
+  return { error: null, id: inserted.id }
 }
 
 export async function updateReferral(id: string, data: Partial<ReferralFormData>) {
@@ -242,7 +242,8 @@ export async function updateReferral(id: string, data: Partial<ReferralFormData>
 
   if (dbError) return { error: dbError.message }
 
-  revalidatePath('/instructor/partnerships/referrals')
+  // No revalidatePath here — the client handles optimistic updates via onUpdated.
+  // revalidatePath would trigger an RSC re-render mid-interaction and lose local state.
   return { error: null }
 }
 
