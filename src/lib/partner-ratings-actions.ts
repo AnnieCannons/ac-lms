@@ -23,6 +23,23 @@ async function requireStaffOrAdmin() {
 
 // ─── Students ────────────────────────────────────────────────────────────────
 
+export async function getStudentCurrentCourse(studentUserId: string): Promise<string | null> {
+  const supabase = createServiceSupabaseClient()
+
+  const { data } = await supabase
+    .from('course_enrollments')
+    .select('courses(title, start_date)')
+    .eq('user_id', studentUserId)
+    .eq('role', 'student')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!data) return null
+  const course = Array.isArray(data.courses) ? data.courses[0] : data.courses
+  return (course as { title: string } | null)?.title ?? null
+}
+
 export async function listStudents() {
   // Use service role client to bypass RLS — the calling page already enforces staff/admin auth
   const supabase = createServiceSupabaseClient()
