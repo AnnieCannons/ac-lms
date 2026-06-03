@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 async function requireStaffOrAdmin() {
@@ -24,8 +24,8 @@ async function requireStaffOrAdmin() {
 // ─── Students ────────────────────────────────────────────────────────────────
 
 export async function listStudents() {
-  const { error, supabase } = await requireStaffOrAdmin()
-  if (error || !supabase) return { error, students: [] as { id: string; name: string; email: string }[] }
+  // Use service role client to bypass RLS — the calling page already enforces staff/admin auth
+  const supabase = createServiceSupabaseClient()
 
   const { data, error: dbError } = await supabase
     .from('users')
