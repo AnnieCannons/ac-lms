@@ -232,7 +232,7 @@ export async function listReferrals(filters?: {
     `)
     .order('referral_date', { ascending: false })
 
-  if (filters?.direction) query = query.eq('direction', filters.direction)
+  query = query.eq('direction', filters?.direction ?? 'outbound')
   if (filters?.partner_id) query = query.eq('partner_id', filters.partner_id)
   if (filters?.from_date) query = query.gte('referral_date', filters.from_date)
   if (filters?.to_date) query = query.lte('referral_date', filters.to_date)
