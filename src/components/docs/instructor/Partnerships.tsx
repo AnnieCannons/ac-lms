@@ -85,6 +85,17 @@ export default function Partnerships() {
       <DocNote>
         Status is just a label — it doesn&apos;t affect access or permissions anywhere in the system.
       </DocNote>
+
+      <DocH2>Referrals &amp; Ratings</DocH2>
+      <DocP>
+        You can log student referrals to partner organizations, send rating invites, and track
+        feedback from the <strong>Referrals</strong> tab on any partner record or from the global
+        <strong> Referrals</strong> list. See the{' '}
+        <a href="/docs/instructor/referrals" className="text-teal-primary underline">
+          Referrals &amp; Ratings
+        </a>{' '}
+        guide for the full workflow, including how to update the Slack notification recipient.
+      </DocP>
     </>
   )
 }
