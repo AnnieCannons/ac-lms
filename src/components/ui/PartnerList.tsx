@@ -31,6 +31,7 @@ interface Partner {
   partner_department_status: DeptStatus[]
   student_referrals: StudentReferral[]
   latest_interaction: Interaction | null
+  combined_student_rating?: { avg: number; count: number } | null
 }
 
 export type SortOption = 'name' | 'referrals_in' | 'referrals_out' | 'last_interaction'
@@ -266,6 +267,16 @@ export default function PartnerList({ partners, department, sortOptions = ['name
                     </p>
                     {primaryContact && (
                       <p className="text-xs text-muted-text">{primaryContact.name}</p>
+                    )}
+                    {partner.combined_student_rating && (
+                      <p className="text-xs">
+                        <span className="text-yellow-500 font-semibold">
+                          {partner.combined_student_rating.avg.toFixed(1)} ★
+                        </span>
+                        <span className="text-muted-text ml-1">
+                          combined reviews ({partner.combined_student_rating.count})
+                        </span>
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
