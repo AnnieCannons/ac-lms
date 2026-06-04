@@ -185,6 +185,8 @@ export async function createReferral(data: ReferralFormData) {
   // If this is an outbound referral with a linked student, check whether we
   // should immediately send the rating-request ping (referral date is 60+ days ago)
   // or let the nightly cron handle it when the time comes.
+  console.log(`[referral debug] direction=${data.direction}, student_user_id=${JSON.stringify(data.student_user_id)}, partner_id=${data.partner_id}, inserted_id=${inserted?.id}`)
+
   if (
     data.direction === 'outbound' &&
     data.student_user_id &&
@@ -194,13 +196,17 @@ export async function createReferral(data: ReferralFormData) {
     const referralDate = new Date(data.referral_date + 'T00:00:00')
     const daysSince = (Date.now() - referralDate.getTime()) / (1000 * 60 * 60 * 24)
 
+    console.log(`[referral] daysSince=${daysSince.toFixed(1)}, student_user_id=${data.student_user_id}, partner_id=${data.partner_id}`)
+
     if (daysSince >= 60) {
       // Fetch student email + partner name to build the message
       const service = createServiceSupabaseClient()
-      const [{ data: studentRow }, { data: partnerRow }] = await Promise.all([
+      const [{ data: studentRow, error: sErr }, { data: partnerRow, error: pErr }] = await Promise.all([
         service.from('users').select('name, email').eq('id', data.student_user_id).single(),
         service.from('partners').select('name').eq('id', data.partner_id).single(),
       ])
+
+      console.log(`[referral] studentRow=${JSON.stringify(studentRow)}, sErr=${sErr?.message}, partnerRow=${JSON.stringify(partnerRow)}, pErr=${pErr?.message}`)
 
       if (studentRow && partnerRow) {
         const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
@@ -211,19 +217,25 @@ export async function createReferral(data: ReferralFormData) {
           `If you had a chance to connect with them, we'd love to hear how it went: ${ratingUrl}`
 
         // DM the student
-        await notifyByEmail(studentRow.email, studentMsg)
+        const studentSent = await notifyByEmail(studentRow.email, studentMsg)
+        console.log(`[referral] notifyByEmail(${studentRow.email}) → ${studentSent}`)
 
         // Ping staff
         await notifyStaff(
           `${studentRow.name} has received their invitation to rate their referral to ${partnerRow.name}${categoryText}.`
         )
+        console.log(`[referral] notifyStaff done`)
 
         // Mark sent so the nightly cron doesn't double-send
         await supabase
           .from('student_referrals')
           .update({ rating_request_sent_at: new Date().toISOString() })
           .eq('id', inserted.id)
+      } else {
+        console.warn(`[referral] skipping notification — studentRow or partnerRow missing`)
       }
+    } else {
+      console.log(`[referral] not yet 60 days — notification deferred to cron`)
     }
   }
 

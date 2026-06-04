@@ -468,7 +468,7 @@ export default function ReferralDashboard({ initialReferrals, partners, students
   const [referralNotes, setReferralNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [justReferred, setJustReferred] = useState<{ student: string; orgs: string[] } | null>(null)
+  const [justReferred, setJustReferred] = useState<{ student: string; orgs: string[]; sentImmediately: boolean } | null>(null)
 
   // ── Tab state ──
   const [activeTab, setActiveTab] = useState<'refer' | 'history'>('refer')
@@ -592,7 +592,8 @@ export default function ReferralDashboard({ initialReferrals, partners, students
     if (errors.length > 0) setSubmitError(errors.join('; '))
 
     if (succeeded.length > 0) {
-      setJustReferred({ student: selectedStudent.name, orgs: succeeded })
+      const daysSince = (Date.now() - new Date(referralDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)
+      setJustReferred({ student: selectedStudent.name, orgs: succeeded, sentImmediately: daysSince >= 60 })
       setSelectedOrgIds(new Set())
       setReferralNotes('')
       setReferralDate(new Date().toISOString().slice(0, 10))
@@ -872,7 +873,9 @@ export default function ReferralDashboard({ initialReferrals, partners, students
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">Referral logged!</p>
               <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
                 {justReferred.student} referred to {justReferred.orgs.join(', ')}.
-                {' '}They&apos;ll receive a follow-up request in 60 days.
+                {' '}{justReferred.sentImmediately
+                  ? 'A rating invite has been sent to the student.'
+                  : 'They\'ll receive a follow-up request in 60 days.'}
               </p>
             </div>
             <button

@@ -45,12 +45,19 @@ export async function slackPostMessage(channel: string, text: string): Promise<b
 
 /** Send a DM to the staff notify address (STAFF_NOTIFY_EMAIL env var). */
 export async function notifyStaff(text: string): Promise<void> {
-  if (!SLACK_BOT_TOKEN || !STAFF_NOTIFY_EMAIL) return
+  if (!SLACK_BOT_TOKEN || !STAFF_NOTIFY_EMAIL) {
+    console.warn('[slack] notifyStaff: missing SLACK_BOT_TOKEN or STAFF_NOTIFY_EMAIL')
+    return
+  }
 
   if (_staffSlackId === undefined) {
     _staffSlackId = await slackLookupByEmail(STAFF_NOTIFY_EMAIL)
+    console.log(`[slack] looked up ${STAFF_NOTIFY_EMAIL} → ${_staffSlackId}`)
   }
-  if (!_staffSlackId) return
+  if (!_staffSlackId) {
+    console.warn(`[slack] notifyStaff: could not find Slack ID for ${STAFF_NOTIFY_EMAIL}`)
+    return
+  }
 
   await slackPostMessage(_staffSlackId, text)
 }
