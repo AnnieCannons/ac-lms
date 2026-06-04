@@ -18,14 +18,12 @@ export default function InstructorChecklist({
   items,
   initialResponses,
   submissionId,
-  gradedById,
   courseId,
   studentCheckedIds,
 }: {
   items: Item[];
   initialResponses: Response[];
   submissionId: string;
-  gradedById: string;
   courseId: string;
   studentCheckedIds: Set<string>;
 }) {
@@ -42,7 +40,7 @@ export default function InstructorChecklist({
     // Optimistic update
     setResponseMap((prev) => new Map(prev).set(itemId, newValue));
 
-    const result = await toggleChecklistResponse(submissionId, itemId, newValue, gradedById, courseId);
+    const result = await toggleChecklistResponse(submissionId, itemId, newValue, courseId);
     if (result.error) {
       // Revert on failure
       setResponseMap((prev) => new Map(prev).set(itemId, !newValue));

@@ -6,10 +6,13 @@ export async function updateUserName(name: string): Promise<{ error?: string }> 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  const trimmed = name.trim()
+  if (!trimmed || trimmed.length > 200) return { error: 'Name must be between 1 and 200 characters' }
+
   const admin = createServiceSupabaseClient()
   const { error } = await admin
     .from('users')
-    .update({ name: name.trim() })
+    .update({ name: trimmed })
     .eq('id', user.id)
 
   if (error) return { error: error.message }

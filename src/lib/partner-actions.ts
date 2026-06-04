@@ -39,6 +39,17 @@ export interface PartnerFormData {
   service_categories: string[]
 }
 
+function validateContactUrls(contacts: PartnerContact[]): string | null {
+  for (const c of contacts) {
+    for (const field of [c.linkedin_url, c.website_url]) {
+      if (field && !field.startsWith('https://') && !field.startsWith('http://')) {
+        return `Invalid URL: "${field}" — must start with http:// or https://`
+      }
+    }
+  }
+  return null
+}
+
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -117,6 +128,8 @@ export async function createPartner(formData: PartnerFormData) {
   if (error || !supabase) return { error }
 
   const { partner_types, contacts, departments, ...partnerFields } = formData
+  const urlError = validateContactUrls(contacts)
+  if (urlError) return { error: urlError }
 
   const { data: partner, error: insertError } = await supabase
     .from('partners')
@@ -153,6 +166,8 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   if (error || !supabase) return { error }
 
   const { partner_types, contacts, ...partnerFields } = formData
+  const urlError = validateContactUrls(contacts)
+  if (urlError) return { error: urlError }
 
   const { error: updateError } = await supabase
     .from('partners')
@@ -186,7 +201,7 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
         phone: contact.phone,
         is_primary: contact.is_primary,
         notes: contact.notes,
-      }).eq('id', contact.id)
+      }).eq('id', contact.id).eq('partner_id', id)
     } else {
       await supabase.from('partner_contacts').insert({ ...contact, partner_id: id })
     }

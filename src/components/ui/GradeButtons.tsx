@@ -11,14 +11,12 @@ export default function GradeButtons({
   submissionId,
   initialGrade,
   initialGradedAt,
-  gradedById,
   nextUrl,
   courseId,
 }: {
   submissionId: string;
   initialGrade: Grade;
   initialGradedAt: string | null;
-  gradedById: string;
   /** When set, shows a "Next →" link after grading. No longer auto-navigates. */
   nextUrl?: string | null;
   courseId?: string;
@@ -38,7 +36,7 @@ export default function GradeButtons({
     setSaving(true);
     setGrade(newGrade);
     setGradedAt(now);
-    const result = await saveGrade(submissionId, newGrade, gradedById, courseId);
+    const result = await saveGrade(submissionId, newGrade, courseId);
     if (result.error) {
       console.error("Failed to save grade:", result.error);
       setGrade(grade);

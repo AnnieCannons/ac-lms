@@ -216,8 +216,17 @@ export async function POST(req: NextRequest) {
     : { data: [], error: null }
   if (quizzesError) return NextResponse.json({ error: quizzesError.message }, { status: 500 })
 
-  // Instructor enrollments
-  const validInstructorIds: string[] = Array.isArray(instructorIds) ? instructorIds.filter(Boolean) : []
+  // Instructor enrollments — verify each ID is actually an instructor/admin/staff before enrolling
+  const candidateIds: string[] = Array.isArray(instructorIds) ? instructorIds.filter(Boolean) : []
+  let validInstructorIds: string[] = []
+  if (candidateIds.length > 0) {
+    const { data: validUsers } = await service
+      .from('users')
+      .select('id')
+      .in('id', candidateIds)
+      .in('role', ['instructor', 'staff', 'admin'])
+    validInstructorIds = (validUsers ?? []).map(u => u.id)
+  }
   if (validInstructorIds.length > 0) {
     const enrollmentInserts = validInstructorIds.map(id => ({
       course_id: newCourse.id,

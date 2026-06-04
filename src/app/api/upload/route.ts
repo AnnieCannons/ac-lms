@@ -4,6 +4,21 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 const ALLOWED_BUCKETS = ['lms-submissions', 'lms-resources']
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 
+const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/']
+const ALLOWED_MIME_EXACT = new Set([
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+])
+
+function isAllowedMimeType(mimeType: string): boolean {
+  return ALLOWED_MIME_PREFIXES.some(p => mimeType.startsWith(p)) || ALLOWED_MIME_EXACT.has(mimeType)
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -36,6 +51,12 @@ export async function POST(request: NextRequest) {
   // Enforce file size limit
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return NextResponse.json({ error: 'File exceeds 20 MB limit' }, { status: 413 })
+  }
+
+  // Validate MIME type
+  const mimeType = file.type || ''
+  if (!isAllowedMimeType(mimeType)) {
+    return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
   }
 
   // Students may only upload to lms-submissions, and only under their own user ID

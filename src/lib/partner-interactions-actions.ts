@@ -75,7 +75,11 @@ export async function deleteInteraction(id: string, partnerId: string) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { error: dbError } = await supabase.from('partner_interactions').delete().eq('id', id)
+  const { error: dbError } = await supabase
+    .from('partner_interactions')
+    .delete()
+    .eq('id', id)
+    .eq('partner_id', partnerId)
   if (dbError) return { error: dbError.message }
 
   revalidatePath(`/instructor/partnerships/${partnerId}`)
@@ -276,7 +280,9 @@ export async function listReferrals(filters?: {
   from_date?: string
   to_date?: string
 }) {
-  // Use service role to bypass RLS — calling page already enforces staff/admin auth
+  const { error } = await requireStaffOrAdmin()
+  if (error) return { error, referrals: [] }
+
   const supabase = createServiceSupabaseClient()
 
   let query = supabase
