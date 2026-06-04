@@ -74,18 +74,20 @@ export default async function RateReferralPage({ params }: Props) {
     return (
       <div className="min-h-screen bg-background">
         <StudentTopNav name={profile?.name} />
-        <main className="max-w-lg mx-auto px-6 py-16 text-center flex flex-col items-center gap-4">
-          <div className="text-4xl">★</div>
-          <h1 className="text-xl font-bold text-dark-text">Thank you!</h1>
-          <p className="text-muted-text text-sm">
-            Your rating for <span className="font-medium text-dark-text">{partnerName}</span> has already been submitted. We appreciate your feedback.
-          </p>
-          <a
-            href="/student/courses"
-            className="mt-4 px-5 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
-          >
-            Back to my courses
-          </a>
+        <main className="max-w-lg mx-auto px-6 py-10">
+          <div className="rounded-xl border border-border bg-surface px-6 py-10 text-center flex flex-col items-center gap-4">
+            <div className="text-5xl text-yellow-400">★</div>
+            <h2 className="text-lg font-bold text-dark-text">Thank you for your feedback!</h2>
+            <p className="text-sm text-muted-text">
+              Your rating for <span className="font-medium text-dark-text">{partnerName}</span> has been submitted. This helps us improve our partnerships.
+            </p>
+            <a
+              href="/student/courses"
+              className="mt-2 px-5 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
+            >
+              Back to my courses
+            </a>
+          </div>
         </main>
       </div>
     )
