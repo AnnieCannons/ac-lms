@@ -14,6 +14,7 @@ import {
 import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS } from '@/lib/partner-constants'
 import PartnerForm from '@/components/ui/PartnerForm'
 import type { PartnerFormData, PartnerType } from '@/lib/partner-actions'
+import type { PartnerRatingSummaryRow } from '@/lib/partner-ratings-actions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ interface Props {
   interactions: Interaction[]
   departmentStatuses: DepartmentStatus[]
   studentReferrals: Referral[]
+  ratingSummary?: PartnerRatingSummaryRow[]
   staffUsers: StaffUser[]
   defaultDepartment?: PartnerDepartment | null
   onUpdatePartner: (data: PartnerFormData) => Promise<{ error: string | null }>
@@ -540,6 +542,7 @@ export default function PartnerOverview({
   interactions: initialInteractions,
   departmentStatuses: initialStatuses,
   studentReferrals,
+  ratingSummary = [],
   staffUsers,
   defaultDepartment,
   onUpdatePartner,
@@ -733,6 +736,45 @@ export default function PartnerOverview({
               />
             </section>
           )}
+
+          {/* Ratings summary */}
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Ratings</h2>
+            {ratingSummary.length === 0 ? (
+              <p className="text-sm text-muted-text">No ratings submitted yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {ratingSummary.map(row => (
+                  <div key={row.service_category} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-2">
+                    <p className="text-sm font-semibold text-dark-text">{row.service_category}</p>
+                    <div className="flex flex-col gap-1">
+                      {[
+                        { label: 'Students', data: row.student },
+                        { label: 'Staff', data: row.staff },
+                      ].map(({ label, data }) => (
+                        <div key={label} className="flex items-center gap-2 text-xs">
+                          <span className="text-muted-text w-16 shrink-0">{label}</span>
+                          {data ? (
+                            <>
+                              <span className="flex gap-0.5">
+                                {[1,2,3,4,5].map(n => (
+                                  <span key={n} style={{ color: n <= Math.round(data.avg) ? '#FACC15' : '#9CA3AF' }}>★</span>
+                                ))}
+                              </span>
+                              <span className="font-semibold text-dark-text">{data.avg.toFixed(1)}</span>
+                              <span className="text-muted-text">({data.count} {data.count === 1 ? 'rating' : 'ratings'})</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-text">—</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           {partner.partner_contacts.length > 0 && (
             <section className="flex flex-col gap-3">

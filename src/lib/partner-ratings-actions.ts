@@ -194,6 +194,54 @@ export async function getPartnerRatings(partnerId: string) {
   return { error: null, ratings }
 }
 
+// ─── Get rating summary for a partner (student + staff, per service category) ──
+
+export interface PartnerRatingSummaryRow {
+  service_category: string
+  student: { avg: number; count: number } | null
+  staff: { avg: number; count: number } | null
+}
+
+export async function getPartnerRatingSummary(partnerId: string) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, summary: [] as PartnerRatingSummaryRow[] }
+
+  const { data, error: dbError } = await supabase
+    .from('partner_ratings')
+    .select('service_category, score, reviewer_type')
+    .eq('partner_id', partnerId)
+
+  if (dbError) return { error: dbError.message, summary: [] as PartnerRatingSummaryRow[] }
+
+  const rows = data ?? []
+
+  // Build map: category → { student: number[], staff: number[] }
+  const map: Record<string, { student: number[]; staff: number[] }> = {}
+  for (const row of rows) {
+    const cat = row.service_category ?? 'General'
+    if (!map[cat]) map[cat] = { student: [], staff: [] }
+    if (row.reviewer_type === 'student') map[cat].student.push(row.score)
+    else if (row.reviewer_type === 'staff') map[cat].staff.push(row.score)
+  }
+
+  const avg = (scores: number[]) =>
+    scores.length === 0 ? null : { avg: scores.reduce((a, b) => a + b, 0) / scores.length, count: scores.length }
+
+  const summary: PartnerRatingSummaryRow[] = Object.entries(map).map(([cat, { student, staff }]) => ({
+    service_category: cat,
+    student: avg(student),
+    staff: avg(staff),
+  }))
+
+  // Sort by most-rated first
+  summary.sort((a, b) =>
+    ((b.student?.count ?? 0) + (b.staff?.count ?? 0)) -
+    ((a.student?.count ?? 0) + (a.staff?.count ?? 0))
+  )
+
+  return { error: null, summary }
+}
+
 // ─── Get ratings for a referral ───────────────────────────────────────────────
 
 export async function getRatingsForReferral(referralId: string) {
