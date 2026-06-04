@@ -9,6 +9,7 @@ interface Props {
   partnerId: string
   partnerName: string
   serviceCategories: string[]
+  initiallyRated?: boolean
 }
 
 const SCORE_LABELS: Record<number, string> = {
@@ -74,6 +75,7 @@ export default function StudentReferralRateForm({
   partnerId,
   partnerName,
   serviceCategories,
+  initiallyRated = false,
 }: Props) {
   const [ratings, setRatings] = useState<ServiceRating[]>(
     serviceCategories.map((cat, i) => ({
@@ -86,7 +88,7 @@ export default function StudentReferralRateForm({
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
+  const [done, setDone] = useState(initiallyRated)
 
   function updateRating(id: string, patch: Partial<ServiceRating>) {
     setRatings(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r))
