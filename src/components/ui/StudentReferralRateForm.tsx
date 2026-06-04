@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createRating } from '@/lib/partner-ratings-actions'
 import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 
@@ -76,7 +75,6 @@ export default function StudentReferralRateForm({
   partnerName,
   serviceCategories,
 }: Props) {
-  const router = useRouter()
   const [ratings, setRatings] = useState<ServiceRating[]>(
     serviceCategories.map((cat, i) => ({
       id: i === 0 ? 'primary' : `pre-${i}`,
@@ -139,7 +137,6 @@ export default function StudentReferralRateForm({
 
     setSaving(false)
     setDone(true)
-    setTimeout(() => router.push('/student/courses'), 2500)
   }
 
   if (done) {
@@ -150,7 +147,12 @@ export default function StudentReferralRateForm({
         <p className="text-sm text-muted-text">
           Your rating for <span className="font-medium text-dark-text">{partnerName}</span> has been submitted. This helps us improve our partnerships.
         </p>
-        <p className="text-xs text-muted-text">Redirecting you to your courses…</p>
+        <a
+          href="/student/courses"
+          className="mt-2 px-5 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
+        >
+          Back to my courses
+        </a>
       </div>
     )
   }

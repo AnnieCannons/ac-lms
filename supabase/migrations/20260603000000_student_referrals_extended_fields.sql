@@ -11,6 +11,8 @@ ALTER TABLE student_referrals
   ADD COLUMN IF NOT EXISTS rating_request_sent_at timestamptz;
 
 -- Allow students to read their own referrals (for the rate page)
-CREATE POLICY "students can read own referrals"
-  ON student_referrals FOR SELECT
-  USING (student_user_id = auth.uid());
+DO $$ BEGIN
+  CREATE POLICY "students can read own referrals"
+    ON student_referrals FOR SELECT
+    USING (student_user_id = auth.uid());
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
