@@ -18,6 +18,8 @@ interface Interaction {
   users: { name: string } | null
 }
 
+interface PartnerLocationRow { city: string | null; state: string | null; sort_order: number }
+
 interface Partner {
   id: string
   name: string
@@ -29,6 +31,7 @@ interface Partner {
   partner_contacts: PartnerContact[]
   partner_type_assignments: PartnerTypeAssignment[]
   partner_department_status: DeptStatus[]
+  partner_locations?: PartnerLocationRow[]
   student_referrals: StudentReferral[]
   latest_interaction: Interaction | null
   combined_student_rating?: { avg: number; count: number } | null
@@ -182,6 +185,7 @@ export default function PartnerList({ partners, department, sortOptions = ['name
         p.name.toLowerCase().includes(q) ||
         p.state?.toLowerCase().includes(q) ||
         p.city?.toLowerCase().includes(q) ||
+        (p.partner_locations ?? []).some(l => l.state?.toLowerCase().includes(q) || l.city?.toLowerCase().includes(q)) ||
         p.partner_contacts.some(c => c.name.toLowerCase().includes(q))
       )) return false
       if (selectedCategories.size > 0) {
@@ -252,7 +256,16 @@ export default function PartnerList({ partners, department, sortOptions = ['name
             const showStatus = !department
 
             const isNationwide = partner.state === 'Nationwide'
-            const stateDisplay = isNationwide ? 'Nationwide' : (partner.state?.split(',')[0].trim() ?? null)
+            // Build location badges from partner_locations if available, else fall back to legacy state
+            const locationLabels: string[] = isNationwide
+              ? ['Nationwide']
+              : (partner.partner_locations ?? []).length > 0
+                ? [...(partner.partner_locations ?? [])]
+                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .map(l => l.state ?? l.city ?? '')
+                    .filter(Boolean)
+                    .filter((v, i, arr) => arr.indexOf(v) === i) // dedupe
+                : partner.state ? [partner.state] : []
 
             return (
               <Link
@@ -280,15 +293,15 @@ export default function PartnerList({ partners, department, sortOptions = ['name
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                    {stateDisplay && (
-                      <span className={`text-xs font-medium rounded-full px-2.5 py-1 border ${
+                    {locationLabels.map(label => (
+                      <span key={label} className={`text-xs font-medium rounded-full px-2.5 py-1 border ${
                         isNationwide
                           ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40'
                           : 'bg-background border-border text-muted-text'
                       }`}>
-                        {stateDisplay}
+                        {label}
                       </span>
-                    )}
+                    ))}
                     {showStatus && (
                       <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_COLORS[partner.status] ?? 'bg-gray-100 text-gray-600'}`}>
                         {STATUS_LABELS[partner.status] ?? partner.status}

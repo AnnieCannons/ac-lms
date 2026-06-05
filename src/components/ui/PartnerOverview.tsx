@@ -57,6 +57,7 @@ interface Partner {
   status: string
   last_interaction_date: string | null
   internal_owner_id: string | null
+  website: string | null
   how_we_met: string | null
   services_focus_area: string | null
   meeting_notes: string | null
@@ -64,6 +65,7 @@ interface Partner {
   referred_by: string | null
   partner_type_assignments: { partner_type: PartnerType }[]
   partner_contacts: Contact[]
+  partner_locations?: { id: string; city: string | null; state: string | null; sort_order: number }[]
 }
 
 interface Referral {
@@ -614,11 +616,22 @@ export default function PartnerOverview({
     router.push('/instructor/partnerships')
   }
 
+  // Build locations list: prefer partner_locations rows, fall back to legacy city/state
+  const savedLocations = (partner.partner_locations ?? [])
+    .sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
+    .map((l: { city: string | null; state: string | null }) => ({ city: l.city, state: l.state }))
+  const legacyLocation = (partner.city || partner.state)
+    ? [{ city: partner.city ?? null, state: partner.state ?? null }]
+    : []
+  const initialLocations = savedLocations.length > 0 ? savedLocations : legacyLocation
+
   const initialFormData: Partial<PartnerFormData> = {
     name: partner.name,
     city: partner.city,
     state: partner.state,
     multi_city: partner.multi_city,
+    locations: initialLocations,
+    website: partner.website,
     how_we_met: partner.how_we_met,
     services_focus_area: partner.services_focus_area,
     status: partner.status as PartnerFormData['status'],
@@ -817,6 +830,16 @@ export default function PartnerOverview({
                   </span>
                 </dd>
               </div>
+              {partner.website && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">Website</dt>
+                  <dd>
+                    <a href={partner.website} target="_blank" rel="noopener noreferrer" className="text-teal-primary hover:underline break-all">
+                      {partner.website}
+                    </a>
+                  </dd>
+                </div>
+              )}
               {partner.how_we_met && (
                 <div className="flex gap-2 text-sm">
                   <dt className="text-muted-text shrink-0 w-36">How we met</dt>
@@ -950,7 +973,7 @@ export default function PartnerOverview({
           submitLabel="Save Changes"
           partnerId={partner.id}
           redirectTo={defaultDepartment
-            ? `/instructor/partnerships?dept=${defaultDepartment}`
+            ? `/instructor/partnerships/all?dept=${defaultDepartment}`
             : '/instructor/partnerships'
           }
         />

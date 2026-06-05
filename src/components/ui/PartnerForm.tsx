@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { PartnerFormData, PartnerContact, PartnerStatus, PartnerType, PartnerDepartment } from '@/lib/partner-actions'
+import type { PartnerFormData, PartnerContact, PartnerLocation, PartnerStatus, PartnerType, PartnerDepartment } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS } from '@/lib/partner-constants'
 import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 import { findSimilarPartners } from '@/lib/partner-interactions-actions'
@@ -18,7 +18,7 @@ const US_STATES = [
   'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
   'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
   'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
-  'Wisconsin', 'Wyoming',
+  'Wisconsin', 'Wyoming', 'Washington, DC',
 ]
 
 const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
@@ -61,6 +61,8 @@ function emptyContact(): PartnerContact {
 function StateCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [input, setInput] = useState(value)
   const [open, setOpen] = useState(false)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const filtered = input.trim()
@@ -73,12 +75,24 @@ function StateCombobox({ value, onChange }: { value: string; onChange: (v: strin
     setOpen(false)
   }
 
+  function openDropdown() {
+    // Calculate fixed position so dropdown escapes any overflow:hidden parent
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      })
+    }
+    setOpen(true)
+  }
+
   function handleBlur(e: React.FocusEvent) {
     if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-      // If typed value doesn't match a state exactly, revert to last valid value
-      if (!US_STATES.includes(input)) {
-        setInput(value)
-      }
+      if (!US_STATES.includes(input)) setInput(value)
       setOpen(false)
     }
   }
@@ -87,18 +101,19 @@ function StateCombobox({ value, onChange }: { value: string; onChange: (v: strin
   useEffect(() => { setInput(value) }, [value])
 
   return (
-    <div ref={containerRef} className="relative" onBlur={handleBlur}>
+    <div ref={containerRef} onBlur={handleBlur}>
       <input
+        ref={inputRef}
         type="text"
         value={input}
-        onChange={e => { setInput(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
+        onChange={e => { setInput(e.target.value); openDropdown() }}
+        onFocus={openDropdown}
         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
         placeholder="Type to search states…"
         autoComplete="off"
       />
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+        <ul style={dropdownStyle} className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
           {filtered.map(s => (
             <li
               key={s}
@@ -122,10 +137,11 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [name, setName] = useState(initialData?.name ?? '')
-  const [city, setCity] = useState(initialData?.city ?? '')
-  const [state, setState] = useState(initialData?.state ?? '')
-  const [multiCity, setMultiCity] = useState(initialData?.multi_city ?? false)
+  const [website, setWebsite] = useState(initialData?.website ?? '')
   const [nationwide, setNationwide] = useState(initialData?.state === 'Nationwide')
+  const [locations, setLocations] = useState<PartnerLocation[]>(
+    initialData?.locations?.length ? initialData.locations : [{ city: null, state: null }]
+  )
   const [howWeMet, setHowWeMet] = useState(initialData?.how_we_met ?? '')
   const [servicesFocus, setServicesFocus] = useState(initialData?.services_focus_area ?? '')
   const [status, setStatus] = useState<PartnerStatus>(initialData?.status ?? 'prospect')
@@ -148,6 +164,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const [serviceCategories, setServiceCategories] = useState<string[]>(
     initialData?.service_categories ?? []
   )
+  const [customCatInput, setCustomCatInput] = useState('')
 
   function toggleDepartment(dept: PartnerDepartment) {
     setDepartments(prev =>
@@ -211,11 +228,16 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
     setSaving(true)
     setServerError(null)
 
+    const cleanLocations = nationwide ? [] : locations.filter(l => l.city?.trim() || l.state?.trim())
+    const primaryLoc = cleanLocations[0] ?? null
+
     const result = await onSubmit({
       name: name.trim(),
-      city: nationwide ? null : (city.trim() || null),
-      state: nationwide ? 'Nationwide' : (state.trim() || null),
-      multi_city: nationwide ? true : multiCity,
+      city: nationwide ? null : (primaryLoc?.city ?? null),
+      state: nationwide ? 'Nationwide' : (primaryLoc?.state ?? null),
+      multi_city: nationwide ? true : cleanLocations.length > 1,
+      locations: cleanLocations,
+      website: website.trim() || null,
       how_we_met: howWeMet.trim() || null,
       services_focus_area: servicesFocus.trim() || null,
       status,
@@ -271,44 +293,64 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
           <input
             type="checkbox"
             checked={nationwide}
-            onChange={e => {
-              setNationwide(e.target.checked)
-              if (e.target.checked) { setCity(''); setState(''); setMultiCity(false) }
-            }}
+            onChange={e => setNationwide(e.target.checked)}
             className="rounded border-border text-teal-primary focus:ring-teal-primary"
           />
           Nationwide (operates across the US)
         </label>
 
         {!nationwide && (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-dark-text mb-1">City</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  placeholder="City"
-                />
+          <div className="flex flex-col gap-2">
+            {locations.map((loc, i) => (
+              <div key={i} className="grid grid-cols-2 gap-3 items-end">
+                <div>
+                  {i === 0 && <label className="block text-sm font-medium text-dark-text mb-1">City</label>}
+                  <input
+                    type="text"
+                    value={loc.city ?? ''}
+                    onChange={e => setLocations(prev => prev.map((l, j) => j === i ? { ...l, city: e.target.value || null } : l))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    placeholder="City"
+                  />
+                </div>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    {i === 0 && <label className="block text-sm font-medium text-dark-text mb-1">State</label>}
+                    <StateCombobox value={loc.state ?? ''} onChange={v => setLocations(prev => prev.map((l, j) => j === i ? { ...l, state: v || null } : l))} />
+                  </div>
+                  {locations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setLocations(prev => prev.filter((_, j) => j !== i))}
+                      className="pb-2 text-muted-text hover:text-red-500 transition-colors text-lg leading-none"
+                      title="Remove location"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="relative">
-                <label className="block text-sm font-medium text-dark-text mb-1">State</label>
-                <StateCombobox value={state} onChange={setState} />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
-              <input
-                type="checkbox"
-                checked={multiCity}
-                onChange={e => setMultiCity(e.target.checked)}
-                className="rounded border-border text-teal-primary focus:ring-teal-primary"
-              />
-              Operates in multiple cities / states
-            </label>
-          </>
+            ))}
+            <button
+              type="button"
+              onClick={() => setLocations(prev => [...prev, { city: null, state: null }])}
+              className="self-start text-sm text-teal-primary hover:underline"
+            >
+              + Add location
+            </button>
+          </div>
         )}
+
+        <div>
+          <label className="block text-sm font-medium text-dark-text mb-1">Website</label>
+          <input
+            type="url"
+            value={website}
+            onChange={e => setWebsite(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            placeholder="https://example.org"
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-dark-text mb-1">Status</label>
@@ -386,6 +428,47 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
               {cat}
             </button>
           ))}
+          {/* Custom categories (not in predefined list) shown as removable pills */}
+          {serviceCategories.filter(c => !(SERVICE_CATEGORIES as readonly string[]).includes(c)).map(cat => (
+            <span key={cat} className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-sm border bg-teal-primary text-white border-teal-primary">
+              {cat}
+              <button
+                type="button"
+                onClick={() => setServiceCategories(prev => prev.filter(c => c !== cat))}
+                className="hover:opacity-70 leading-none text-base"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-1">
+          <input
+            type="text"
+            value={customCatInput}
+            onChange={e => setCustomCatInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                const t = customCatInput.trim()
+                if (t && !serviceCategories.includes(t)) setServiceCategories(prev => [...prev, t])
+                setCustomCatInput('')
+              }
+            }}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            placeholder="Add a custom category…"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const t = customCatInput.trim()
+              if (t && !serviceCategories.includes(t)) setServiceCategories(prev => [...prev, t])
+              setCustomCatInput('')
+            }}
+            className="px-3 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
+          >
+            +
+          </button>
         </div>
       </section>
 

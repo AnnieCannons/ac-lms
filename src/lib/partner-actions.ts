@@ -20,11 +20,19 @@ export interface PartnerContact {
 
 export type PartnerDepartment = 'student_success' | 'career_development' | 'resourcefull' | 'funding_partnerships' | 'admissions'
 
+export interface PartnerLocation {
+  id?: string
+  city: string | null
+  state: string | null
+}
+
 export interface PartnerFormData {
   name: string
   city: string | null
   state: string | null
   multi_city: boolean
+  locations: PartnerLocation[]
+  website: string | null
   how_we_met: string | null
   services_focus_area: string | null
   status: PartnerStatus
@@ -81,7 +89,8 @@ export async function listPartners() {
       partner_department_status (department, stage),
       partner_interactions (id, note, interaction_date, department, users(name)),
       student_referrals (student_identifier, direction),
-      partner_ratings (score, reviewer_type)
+      partner_ratings (score, reviewer_type),
+      partner_locations (city, state, sort_order)
     `)
     .order('name')
 
@@ -114,7 +123,8 @@ export async function getPartner(id: string) {
     .select(`
       *,
       partner_type_assignments (partner_type),
-      partner_contacts (*)
+      partner_contacts (*),
+      partner_locations (id, city, state, sort_order)
     `)
     .eq('id', id)
     .single()
@@ -127,13 +137,23 @@ export async function createPartner(formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, departments, ...partnerFields } = formData
+  const { partner_types, contacts, departments, locations, ...partnerFields } = formData
   const urlError = validateContactUrls(contacts)
   if (urlError) return { error: urlError }
 
+  // Sync primary city/state from first location
+  const primaryLocation = locations[0] ?? null
+  const syncedFields = {
+    ...partnerFields,
+    city: primaryLocation?.city ?? partnerFields.city,
+    state: primaryLocation?.state ?? partnerFields.state,
+    multi_city: locations.length > 1 ? true : partnerFields.multi_city,
+    service_categories: partnerFields.service_categories ?? [],
+  }
+
   const { data: partner, error: insertError } = await supabase
     .from('partners')
-    .insert({ ...partnerFields, service_categories: partnerFields.service_categories ?? [] })
+    .insert(syncedFields)
     .select('id')
     .single()
 
@@ -157,6 +177,12 @@ export async function createPartner(formData: PartnerFormData) {
     )
   }
 
+  if (locations.length > 0) {
+    await supabase.from('partner_locations').insert(
+      locations.map((l, i) => ({ partner_id: partner.id, city: l.city, state: l.state, sort_order: i }))
+    )
+  }
+
   revalidatePath('/instructor/partnerships')
   return { error: null, id: partner.id }
 }
@@ -165,13 +191,22 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, departments, ...partnerFields } = formData
+  const { partner_types, contacts, departments, locations, ...partnerFields } = formData
   const urlError = validateContactUrls(contacts)
   if (urlError) return { error: urlError }
 
+  // Sync primary city/state from first location
+  const primaryLocation = locations[0] ?? null
+  const syncedFields = {
+    ...partnerFields,
+    city: primaryLocation?.city ?? partnerFields.city,
+    state: primaryLocation?.state ?? partnerFields.state,
+    multi_city: locations.length > 1 ? true : partnerFields.multi_city,
+  }
+
   const { error: updateError } = await supabase
     .from('partners')
-    .update(partnerFields)
+    .update(syncedFields)
     .eq('id', id)
 
   if (updateError) return { error: updateError.message }
@@ -189,6 +224,14 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   if (departments.length > 0) {
     await supabase.from('partner_department_status').insert(
       departments.map(d => ({ partner_id: id, department: d, stage: 'Prospect' }))
+    )
+  }
+
+  // Replace locations
+  await supabase.from('partner_locations').delete().eq('partner_id', id)
+  if (locations.length > 0) {
+    await supabase.from('partner_locations').insert(
+      locations.map((l, i) => ({ partner_id: id, city: l.city, state: l.state, sort_order: i }))
     )
   }
 
