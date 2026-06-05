@@ -10,6 +10,17 @@ import { findSimilarPartners } from '@/lib/partner-interactions-actions'
 
 const ALL_DEPARTMENTS = Object.entries(DEPARTMENT_LABELS) as [PartnerDepartment, string][]
 
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+  'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+  'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+  'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+  'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+  'Wisconsin', 'Wyoming',
+]
+
 const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'service_provider', label: 'Service Provider' },
   { value: 'corporate', label: 'Corporate' },
@@ -47,6 +58,62 @@ function emptyContact(): PartnerContact {
   return { name: '', title: null, email: null, phone: null, is_primary: false, notes: null, linkedin_url: null, website_url: null }
 }
 
+function StateCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [input, setInput] = useState(value)
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const filtered = input.trim()
+    ? US_STATES.filter(s => s.toLowerCase().includes(input.toLowerCase()))
+    : US_STATES
+
+  function select(s: string) {
+    onChange(s)
+    setInput(s)
+    setOpen(false)
+  }
+
+  function handleBlur(e: React.FocusEvent) {
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      // If typed value doesn't match a state exactly, revert to last valid value
+      if (!US_STATES.includes(input)) {
+        setInput(value)
+      }
+      setOpen(false)
+    }
+  }
+
+  // Keep input in sync if parent value changes externally
+  useEffect(() => { setInput(value) }, [value])
+
+  return (
+    <div ref={containerRef} className="relative" onBlur={handleBlur}>
+      <input
+        type="text"
+        value={input}
+        onChange={e => { setInput(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        placeholder="Type to search states…"
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+          {filtered.map(s => (
+            <li
+              key={s}
+              onMouseDown={() => select(s)}
+              className={`px-3 py-2 text-sm cursor-pointer hover:bg-border/30 ${s === value ? 'text-teal-primary font-medium' : 'text-dark-text'}`}
+            >
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
@@ -72,9 +139,12 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const [contacts, setContacts] = useState<PartnerContact[]>(
     initialData?.contacts?.length ? initialData.contacts : [emptyContact()]
   )
-  const [departments, setDepartments] = useState<PartnerDepartment[]>(
-    initialData?.departments ?? (defaultDepartment ? [defaultDepartment] : [])
-  )
+  const [departments, setDepartments] = useState<PartnerDepartment[]>(() => {
+    const base: PartnerDepartment[] = initialData?.departments ?? (defaultDepartment ? [defaultDepartment] : [])
+    const hasAdmissionsReferral = (initialData?.partner_types ?? []).includes('admissions_referral')
+    if (hasAdmissionsReferral && !base.includes('admissions')) return [...base, 'admissions']
+    return base
+  })
   const [serviceCategories, setServiceCategories] = useState<string[]>(
     initialData?.service_categories ?? []
   )
@@ -102,9 +172,11 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   }
 
   function toggleType(type: PartnerType) {
-    setPartnerTypes(prev =>
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    )
+    const adding = !partnerTypes.includes(type)
+    setPartnerTypes(prev => adding ? [...prev, type] : prev.filter(t => t !== type))
+    if (type === 'admissions_referral' && adding) {
+      setDepartments(prev => prev.includes('admissions') ? prev : [...prev, 'admissions'])
+    }
   }
 
   function addTag() {
@@ -221,15 +293,9 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
                   placeholder="City"
                 />
               </div>
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-medium text-dark-text mb-1">State</label>
-                <input
-                  type="text"
-                  value={state}
-                  onChange={e => setState(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  placeholder="State"
-                />
+                <StateCombobox value={state} onChange={setState} />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
