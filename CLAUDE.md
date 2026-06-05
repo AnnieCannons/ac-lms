@@ -138,6 +138,29 @@ SUPABASE_SERVICE_ROLE_KEY   # Required for cross-user/admin queries
 
 ---
 
+## Build Order
+
+Work through these sections in order. Check off each one when complete before moving to the next.
+
+- [ ] 1. Flashcard home page — `/flashcards`, deck grid + activity grid placeholder
+- [ ] 2. Create a deck — form to create and save a new deck
+- [ ] 3. Add cards to a deck — card editor with rich text editor
+- [ ] 4. Study session — flip cards, rate them, SM-2 algorithm
+- [ ] 5. Sharing & importing — share link generation, import a deck
+- [ ] 6. Stats & activity grid — GitHub-style grid, stats page
+- [ ] 7. Badges — award system
+- [ ] 8. Help page & tooltips
+- [ ] 9. Database migrations — create all flashcard tables in Supabase
+- [ ] 10. Swap fake data for real Supabase queries throughout
+- [ ] 11. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
+- [ ] 12. Middleware — add `/flashcards` route protection
+- [ ] 13. PWA / offline support
+- [ ] 14. Accessibility pass
+
+**Note:** Sections 1–8 use fake/seed data so we can build without being blocked on database access. The seed data should match the exact shape of the real database schema so swapping it out later is a clean find-and-replace.
+
+---
+
 ## Working Agreement
 - Build section by section, one piece at a time — do not build multiple features in a single step
 - Test each piece works before moving on to the next
