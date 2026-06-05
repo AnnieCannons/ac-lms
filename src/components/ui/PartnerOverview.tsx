@@ -949,6 +949,10 @@ export default function PartnerOverview({
           }}
           submitLabel="Save Changes"
           partnerId={partner.id}
+          redirectTo={defaultDepartment
+            ? `/instructor/partnerships?dept=${defaultDepartment}`
+            : '/instructor/partnerships'
+          }
         />
       )}
     </div>

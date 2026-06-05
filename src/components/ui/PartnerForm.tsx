@@ -10,6 +10,17 @@ import { findSimilarPartners } from '@/lib/partner-interactions-actions'
 
 const ALL_DEPARTMENTS = Object.entries(DEPARTMENT_LABELS) as [PartnerDepartment, string][]
 
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+  'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+  'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+  'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+  'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+  'Wisconsin', 'Wyoming',
+]
+
 const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'service_provider', label: 'Service Provider' },
   { value: 'corporate', label: 'Corporate' },
@@ -223,13 +234,16 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
               </div>
               <div>
                 <label className="block text-sm font-medium text-dark-text mb-1">State</label>
-                <input
-                  type="text"
+                <select
                   value={state}
                   onChange={e => setState(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  placeholder="State"
-                />
+                >
+                  <option value="">Select state</option>
+                  {US_STATES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
