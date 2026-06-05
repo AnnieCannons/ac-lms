@@ -37,7 +37,6 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
         assignmentId,
         studentId,
         next ? 'complete' : null,
-        currentUserId,
         courseId,
       )
       setLoading(false)

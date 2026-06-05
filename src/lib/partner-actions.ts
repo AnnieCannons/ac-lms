@@ -39,6 +39,17 @@ export interface PartnerFormData {
   service_categories: string[]
 }
 
+function validateContactUrls(contacts: PartnerContact[]): string | null {
+  for (const c of contacts) {
+    for (const field of [c.linkedin_url, c.website_url]) {
+      if (field && !field.startsWith('https://') && !field.startsWith('http://')) {
+        return `Invalid URL: "${field}" — must start with http:// or https://`
+      }
+    }
+  }
+  return null
+}
+
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -69,18 +80,26 @@ export async function listPartners() {
       partner_contacts (id, name, title, email, is_primary),
       partner_department_status (department, stage),
       partner_interactions (id, note, interaction_date, department, users(name)),
-      student_referrals (student_identifier, direction)
+      student_referrals (student_identifier, direction),
+      partner_ratings (score, reviewer_type)
     `)
     .order('name')
 
   if (dbError) return { error: dbError.message, partners: [] }
 
   // Sort interactions descending and keep only the most recent per partner
+  // Also compute a combined student rating (avg of all student scores)
   const partners = (data ?? []).map(p => {
     const sorted = [...(p.partner_interactions ?? [])].sort(
       (a, b) => new Date(b.interaction_date).getTime() - new Date(a.interaction_date).getTime()
     )
-    return { ...p, latest_interaction: sorted[0] ?? null }
+    const studentScores = (p.partner_ratings ?? [])
+      .filter((r: { reviewer_type: string; score: number }) => r.reviewer_type === 'student')
+      .map((r: { reviewer_type: string; score: number }) => r.score)
+    const combined_student_rating = studentScores.length > 0
+      ? { avg: studentScores.reduce((a: number, b: number) => a + b, 0) / studentScores.length, count: studentScores.length }
+      : null
+    return { ...p, latest_interaction: sorted[0] ?? null, combined_student_rating }
   })
 
   return { error: null, partners }
@@ -109,6 +128,8 @@ export async function createPartner(formData: PartnerFormData) {
   if (error || !supabase) return { error }
 
   const { partner_types, contacts, departments, ...partnerFields } = formData
+  const urlError = validateContactUrls(contacts)
+  if (urlError) return { error: urlError }
 
   const { data: partner, error: insertError } = await supabase
     .from('partners')
@@ -145,6 +166,8 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   if (error || !supabase) return { error }
 
   const { partner_types, contacts, ...partnerFields } = formData
+  const urlError = validateContactUrls(contacts)
+  if (urlError) return { error: urlError }
 
   const { error: updateError } = await supabase
     .from('partners')
@@ -178,7 +201,7 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
         phone: contact.phone,
         is_primary: contact.is_primary,
         notes: contact.notes,
-      }).eq('id', contact.id)
+      }).eq('id', contact.id).eq('partner_id', id)
     } else {
       await supabase.from('partner_contacts').insert({ ...contact, partner_id: id })
     }

@@ -466,7 +466,6 @@ export default async function GradingPage({
               submissionId={submission.id}
               initialGrade={currentGrade}
               initialGradedAt={submission.status === 'submitted' ? null : (submission.graded_at ?? null)}
-              gradedById={user.id}
               courseId={id}
               nextUrl={
                 isStudentMode
@@ -579,7 +578,6 @@ export default async function GradingPage({
               items={checklistItems.map(i => ({ id: i.id, text: i.text, description: i.description ?? null }))}
               initialResponses={checklistResponses ?? []}
               submissionId={submission.id}
-              gradedById={user.id}
               courseId={id}
               studentCheckedIds={studentCheckedIds}
             />

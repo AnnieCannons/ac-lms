@@ -25,6 +25,9 @@ async function requireStaffOrAdmin() {
 // ─── Students ────────────────────────────────────────────────────────────────
 
 export async function getStudentCurrentCourse(studentUserId: string): Promise<string | null> {
+  const { error } = await requireStaffOrAdmin()
+  if (error) return null
+
   const supabase = createServiceSupabaseClient()
 
   const { data } = await supabase
@@ -72,7 +75,9 @@ export async function getStudentCurrentCourse(studentUserId: string): Promise<st
 }
 
 export async function listStudents() {
-  // Use service role client to bypass RLS — the calling page already enforces staff/admin auth
+  const { error } = await requireStaffOrAdmin()
+  if (error) return { error, students: [] as { id: string; name: string; email: string }[] }
+
   const supabase = createServiceSupabaseClient()
 
   const { data, error: dbError } = await supabase
@@ -120,7 +125,33 @@ export async function createRating(data: RatingFormData) {
     return { error: 'Not authorized' }
   }
 
-  if (data.score < 1 || data.score > 5) return { error: 'Score must be between 1 and 5' }
+  if (data.score < 1 || data.score > 5 || !Number.isInteger(data.score)) {
+    return { error: 'Score must be an integer between 1 and 5' }
+  }
+
+  // Students may only rate a referral that belongs to them
+  if (data.reviewer_type === 'student' && data.referral_id) {
+    const { data: referral } = await supabaseClient
+      .from('student_referrals')
+      .select('student_user_id')
+      .eq('id', data.referral_id)
+      .single()
+    if (!referral || referral.student_user_id !== user.id) {
+      return { error: 'Not authorized' }
+    }
+  }
+
+  // Prevent duplicate ratings for the same referral + reviewer
+  if (data.referral_id) {
+    const { data: existing } = await supabaseClient
+      .from('partner_ratings')
+      .select('id')
+      .eq('referral_id', data.referral_id)
+      .eq('reviewer_id', user.id)
+      .eq('service_category', data.service_category)
+      .maybeSingle()
+    if (existing) return { error: 'You have already submitted a rating for this referral' }
+  }
 
   const { error: dbError } = await supabaseClient.from('partner_ratings').insert({
     partner_id: data.partner_id,

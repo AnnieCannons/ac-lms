@@ -13,6 +13,7 @@ import Accessibility from '@/components/docs/instructor/Accessibility'
 import CareerDev from '@/components/docs/instructor/CareerDev'
 import Gradebook from '@/components/docs/instructor/Gradebook'
 import Partnerships from '@/components/docs/instructor/Partnerships'
+import Referrals from '@/components/docs/instructor/Referrals'
 
 export const revalidate = 3600
 
@@ -27,6 +28,7 @@ const SECTIONS: Record<string, React.ComponentType> = {
   'roster': Roster,
   'gradebook': Gradebook,
   'partnerships': Partnerships,
+  'referrals': Referrals,
   'student-preview': StudentPreview,
   'accessibility': Accessibility,
 }

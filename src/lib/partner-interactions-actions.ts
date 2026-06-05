@@ -75,7 +75,11 @@ export async function deleteInteraction(id: string, partnerId: string) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { error: dbError } = await supabase.from('partner_interactions').delete().eq('id', id)
+  const { error: dbError } = await supabase
+    .from('partner_interactions')
+    .delete()
+    .eq('id', id)
+    .eq('partner_id', partnerId)
   if (dbError) return { error: dbError.message }
 
   revalidatePath(`/instructor/partnerships/${partnerId}`)
@@ -276,7 +280,9 @@ export async function listReferrals(filters?: {
   from_date?: string
   to_date?: string
 }) {
-  // Use service role to bypass RLS — calling page already enforces staff/admin auth
+  const { error } = await requireStaffOrAdmin()
+  if (error) return { error, referrals: [] }
+
   const supabase = createServiceSupabaseClient()
 
   let query = supabase
@@ -288,7 +294,8 @@ export async function listReferrals(filters?: {
       partner_id,
       partners (name),
       logged_by,
-      users!student_referrals_logged_by_fkey (name)
+      users!student_referrals_logged_by_fkey (name),
+      partner_ratings (score, reviewer_type)
     `)
     .order('referral_date', { ascending: false })
 
@@ -299,7 +306,19 @@ export async function listReferrals(filters?: {
 
   const { data, error: dbError } = await query
   if (dbError) return { error: dbError.message, referrals: [] }
-  return { error: null, referrals: data ?? [] }
+
+  // Compute average student rating per referral
+  const referrals = (data ?? []).map(r => {
+    const scores = (r.partner_ratings ?? [])
+      .filter((pr: { reviewer_type: string; score: number }) => pr.reviewer_type === 'student')
+      .map((pr: { reviewer_type: string; score: number }) => pr.score)
+    const student_avg_rating = scores.length > 0
+      ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length
+      : null
+    return { ...r, student_avg_rating }
+  })
+
+  return { error: null, referrals }
 }
 
 // ─── Duplicate detection ─────────────────────────────────────────────────────

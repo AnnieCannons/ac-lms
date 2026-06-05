@@ -29,6 +29,7 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'roster', label: 'Roster & Progress' },
   { slug: 'gradebook', label: 'Gradebook' },
   { slug: 'partnerships', label: 'Partnerships' },
+  { slug: 'referrals', label: 'Referrals & Ratings' },
   { slug: 'student-preview', label: 'Student Preview' },
   { slug: 'accessibility', label: 'Accessibility' },
 ]
@@ -62,7 +63,7 @@ export default function DocsLayout({ children, guide, section, isInstructor, bac
             <span className="ml-3 text-base font-semibold text-muted-text">Documentation</span>
           </span>
           <Link href={backUrl} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Back to Course
+            ← Back
           </Link>
         </div>
 

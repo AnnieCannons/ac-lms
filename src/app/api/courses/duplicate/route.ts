@@ -18,21 +18,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Non-admins can only duplicate courses they are enrolled in as instructor
+  let service: ReturnType<typeof createServiceSupabaseClient>
+  try { service = createServiceSupabaseClient() } catch {
+    return NextResponse.json({ error: 'Service role not configured' }, { status: 500 })
+  }
+
+  // Non-admins can only duplicate courses they are enrolled in (as instructor or ta)
   if (profile?.role !== 'admin') {
-    const { data: enrollment } = await authClient
+    const { data: enrollment } = await service
       .from('course_enrollments')
       .select('id')
       .eq('course_id', sourceCourseId)
       .eq('user_id', user.id)
-      .eq('role', 'instructor')
+      .in('role', ['instructor', 'ta'])
       .maybeSingle()
     if (!enrollment) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  let service: ReturnType<typeof createServiceSupabaseClient>
-  try { service = createServiceSupabaseClient() } catch {
-    return NextResponse.json({ error: 'Service role not configured' }, { status: 500 })
   }
 
   // ── FETCH PHASE ──────────────────────────────────────────────────────────
@@ -216,8 +216,17 @@ export async function POST(req: NextRequest) {
     : { data: [], error: null }
   if (quizzesError) return NextResponse.json({ error: quizzesError.message }, { status: 500 })
 
-  // Instructor enrollments
-  const validInstructorIds: string[] = Array.isArray(instructorIds) ? instructorIds.filter(Boolean) : []
+  // Instructor enrollments — verify each ID is actually an instructor/admin/staff before enrolling
+  const candidateIds: string[] = Array.isArray(instructorIds) ? instructorIds.filter(Boolean) : []
+  let validInstructorIds: string[] = []
+  if (candidateIds.length > 0) {
+    const { data: validUsers } = await service
+      .from('users')
+      .select('id')
+      .in('id', candidateIds)
+      .in('role', ['instructor', 'staff', 'admin'])
+    validInstructorIds = (validUsers ?? []).map(u => u.id)
+  }
   if (validInstructorIds.length > 0) {
     const enrollmentInserts = validInstructorIds.map(id => ({
       course_id: newCourse.id,
