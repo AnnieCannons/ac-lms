@@ -165,7 +165,7 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, ...partnerFields } = formData
+  const { partner_types, contacts, departments, ...partnerFields } = formData
   const urlError = validateContactUrls(contacts)
   if (urlError) return { error: urlError }
 
@@ -181,6 +181,14 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   if (partner_types.length > 0) {
     await supabase.from('partner_type_assignments').insert(
       partner_types.map(t => ({ partner_id: id, partner_type: t }))
+    )
+  }
+
+  // Replace department assignments
+  await supabase.from('partner_department_status').delete().eq('partner_id', id)
+  if (departments.length > 0) {
+    await supabase.from('partner_department_status').insert(
+      departments.map(d => ({ partner_id: id, department: d, stage: 'Prospect' }))
     )
   }
 
