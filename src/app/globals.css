@@ -299,6 +299,27 @@ html.theme-dark .badge-amber { background-color: #2a1800; color: #fbbf24; border
 .alert-error { background-color: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 0.5rem; }
 html.theme-dark .alert-error { background-color: #1f0a0a; border-color: #4a1515; color: #f87171; }
 
+/* EmailListBuilder filter button active states — dept-aware colors, dark mode safe */
+.filter-btn-admissions { background-color: #fff7ed; color: #9a3412; border-color: #fdba74; }
+html.theme-dark .filter-btn-admissions { background-color: #2a0f00; color: #fb923c; border-color: #7c2d12; }
+
+.filter-btn-student-success { background-color: #faf5ff; color: #6b21a8; border-color: #d8b4fe; }
+html.theme-dark .filter-btn-student-success { background-color: var(--color-purple-light); color: var(--color-purple-primary); border-color: #5b21b6; }
+
+.filter-btn-career-dev { background-color: var(--color-teal-light); color: var(--color-teal-primary); border-color: var(--color-teal-primary); }
+
+.filter-btn-resourcefull { background-color: #eff6ff; color: #1e40af; border-color: #93c5fd; }
+html.theme-dark .filter-btn-resourcefull { background-color: #060d2e; color: #93c5fd; border-color: #1e3a8a; }
+
+.filter-btn-funding { background-color: #f0fdf4; color: #166534; border-color: #86efac; }
+html.theme-dark .filter-btn-funding { background-color: #051a0e; color: #4ade80; border-color: #14532d; }
+
+/* Remove contact button in email list builder */
+.contact-remove-btn { border-color: #fca5a5; color: #ef4444; }
+.contact-remove-btn:hover { background-color: #fee2e2; }
+html.theme-dark .contact-remove-btn { border-color: #7f1d1d; color: #f87171; }
+html.theme-dark .contact-remove-btn:hover { background-color: #1f0a0a; }
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
