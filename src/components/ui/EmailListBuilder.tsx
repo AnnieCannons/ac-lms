@@ -28,11 +28,11 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const DEPT_BADGE: Record<PartnerDepartment, string> = {
-  student_success: 'bg-purple-100 text-purple-800',
-  career_development: 'bg-teal-100 text-teal-800',
-  resourcefull: 'bg-blue-100 text-blue-800',
-  funding_partnerships: 'bg-green-100 text-green-800',
-  admissions: 'bg-orange-100 text-orange-800',
+  student_success: 'filter-btn-student-success',
+  career_development: 'filter-btn-career-dev',
+  resourcefull: 'filter-btn-resourcefull',
+  funding_partnerships: 'filter-btn-funding',
+  admissions: 'filter-btn-admissions',
 }
 
 interface Partner {
@@ -105,6 +105,7 @@ export default function EmailListBuilder({ partners }: Props) {
     logInteractions: true,
   })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   // Unique states from partner data
@@ -228,6 +229,7 @@ export default function EmailListBuilder({ partners }: Props) {
   }
 
   const openSaveModal = () => {
+    setSaveError(null)
     setSaveModal({
       open: true,
       name: buildAutoName(filters, includedContacts.length),
@@ -239,8 +241,9 @@ export default function EmailListBuilder({ partners }: Props) {
   }
 
   const handleSave = async () => {
-    if (!saveModal.department) return
+    if (!saveModal.department || !saveModal.subject.trim()) return
     setSaving(true)
+    setSaveError(null)
 
     const recipients: EmailListRecipient[] = includedContacts.map(c => ({
       partnerId: c.partnerId,
@@ -253,7 +256,7 @@ export default function EmailListBuilder({ partners }: Props) {
 
     const { error } = await saveEmailList({
       name: saveModal.name,
-      subject: saveModal.subject,
+      subject: saveModal.subject.trim(),
       department: saveModal.department as PartnerDepartment,
       filtersUsed: filters as unknown as Record<string, unknown>,
       recipients,
@@ -262,7 +265,11 @@ export default function EmailListBuilder({ partners }: Props) {
     })
 
     setSaving(false)
-    if (!error) {
+
+    if (error) {
+      setSaveError(error)
+    } else {
+      setSaveModal(s => ({ ...s, open: false }))
       router.push('/instructor/partnerships/email-lists')
     }
   }
@@ -280,8 +287,8 @@ export default function EmailListBuilder({ partners }: Props) {
             onClick={() => setFilters(f => ({ ...f, referredIn: !f.referredIn }))}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               filters.referredIn
-                ? 'bg-orange-100 text-orange-800 border-orange-300'
-                : 'bg-background text-muted-text border-border hover:border-orange-300'
+                ? 'filter-btn-admissions'
+                : 'bg-background text-muted-text border-border hover:border-teal-primary'
             }`}
           >
             Referred In (Admissions)
@@ -290,8 +297,8 @@ export default function EmailListBuilder({ partners }: Props) {
             onClick={() => setFilters(f => ({ ...f, referredTo: !f.referredTo }))}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               filters.referredTo
-                ? 'bg-purple-100 text-purple-800 border-purple-300'
-                : 'bg-background text-muted-text border-border hover:border-purple-300'
+                ? 'filter-btn-student-success'
+                : 'bg-background text-muted-text border-border hover:border-teal-primary'
             }`}
           >
             Referred To (Student Success)
@@ -330,7 +337,7 @@ export default function EmailListBuilder({ partners }: Props) {
                   onClick={() => toggleFilter('departments', dept)}
                   className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
                     filters.departments.includes(dept)
-                      ? `${DEPT_BADGE[dept]} border-current`
+                      ? DEPT_BADGE[dept]
                       : 'bg-background text-muted-text border-border hover:border-teal-primary'
                   }`}
                 >
@@ -477,7 +484,7 @@ export default function EmailListBuilder({ partners }: Props) {
                     className={`shrink-0 text-xs px-2 py-1 rounded border transition-colors ${
                       isRemoved
                         ? 'border-teal-primary text-teal-primary hover:bg-teal-light'
-                        : 'border-red-200 text-red-500 hover:bg-red-50'
+                        : 'contact-remove-btn'
                     }`}
                   >
                     {isRemoved ? 'Add back' : 'Remove'}
@@ -593,8 +600,8 @@ export default function EmailListBuilder({ partners }: Props) {
       {/* Save Modal */}
       {saveModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-surface rounded-xl border border-border w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="bg-surface rounded-xl border border-border w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h3 className="text-base font-semibold text-dark-text">Save Email List</h3>
               <button
                 onClick={() => setSaveModal(s => ({ ...s, open: false }))}
@@ -603,7 +610,7 @@ export default function EmailListBuilder({ partners }: Props) {
                 ✕
               </button>
             </div>
-            <div className="px-5 py-5 flex flex-col gap-4">
+            <div className="px-5 py-5 flex flex-col gap-4 overflow-y-auto">
 
               {/* Name */}
               <div>
@@ -678,8 +685,14 @@ export default function EmailListBuilder({ partners }: Props) {
               <p className="text-xs text-muted-text">
                 Saving will record {includedContacts.length} recipient{includedContacts.length !== 1 ? 's' : ''} from {filteredPartners.length} partner{filteredPartners.length !== 1 ? 's' : ''}.
               </p>
+
+              {saveError && (
+                <p className="alert-error text-xs px-3 py-2">
+                  Error: {saveError}
+                </p>
+              )}
             </div>
-            <div className="flex gap-3 px-5 py-4 border-t border-border">
+            <div className="flex gap-3 px-5 py-4 border-t border-border shrink-0">
               <button
                 onClick={() => setSaveModal(s => ({ ...s, open: false }))}
                 className="flex-1 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:text-dark-text transition-colors"
