@@ -1,7 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
-import Link from 'next/link'
-import InstructorTopNav from '@/components/ui/InstructorTopNav'
+import { notFound } from 'next/navigation'
 import PartnerOverview from '@/components/ui/PartnerOverview'
 import {
   getPartner,
@@ -21,13 +18,6 @@ interface Props {
 export default async function PartnerDetailPage({ params, searchParams }: Props) {
   const { id } = await params
   const { dept } = await searchParams
-
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
-  if (profile?.role !== 'staff' && profile?.role !== 'admin') redirect('/instructor')
 
   const [
     { partner },
@@ -55,27 +45,18 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
-      <main className="max-w-4xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Partners
-          </Link>
-        </div>
-
-        <PartnerOverview
-          partner={partnerData}
-          interactions={interactions as Parameters<typeof PartnerOverview>[0]['interactions']}
-          departmentStatuses={departmentStatuses as Parameters<typeof PartnerOverview>[0]['departmentStatuses']}
-          studentReferrals={studentReferrals as Parameters<typeof PartnerOverview>[0]['studentReferrals']}
-          ratingSummary={ratingSummary}
-          staffUsers={staffUsers}
-          defaultDepartment={dept as PartnerDepartment | undefined}
-          onUpdatePartner={updatePartner.bind(null, id)}
-          onDeletePartner={deletePartner.bind(null, id)}
-        />
-      </main>
-    </div>
+    <main className="max-w-4xl mx-auto px-6 py-10">
+      <PartnerOverview
+        partner={partnerData}
+        interactions={interactions as Parameters<typeof PartnerOverview>[0]['interactions']}
+        departmentStatuses={departmentStatuses as Parameters<typeof PartnerOverview>[0]['departmentStatuses']}
+        studentReferrals={studentReferrals as Parameters<typeof PartnerOverview>[0]['studentReferrals']}
+        ratingSummary={ratingSummary}
+        staffUsers={staffUsers}
+        defaultDepartment={dept as PartnerDepartment | undefined}
+        onUpdatePartner={updatePartner.bind(null, id)}
+        onDeletePartner={deletePartner.bind(null, id)}
+      />
+    </main>
   )
 }

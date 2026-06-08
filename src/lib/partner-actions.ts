@@ -85,7 +85,7 @@ export async function listPartners() {
     .select(`
       id, name, city, state, status, last_interaction_date, internal_owner_id, service_categories,
       partner_type_assignments (partner_type),
-      partner_contacts (id, name, title, email, is_primary),
+      partner_contacts (id, name, title, email, is_primary, website_url),
       partner_department_status (department, stage),
       partner_interactions (id, note, interaction_date, department, users(name)),
       student_referrals (student_identifier, direction),

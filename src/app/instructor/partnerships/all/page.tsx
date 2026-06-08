@@ -1,7 +1,5 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import { listPartners } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS, DEPT_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
 import PartnerList, { type SortOption } from '@/components/ui/PartnerList'
@@ -12,13 +10,6 @@ interface Props {
 
 export default async function DepartmentPartnersPage({ searchParams }: Props) {
   const { dept } = await searchParams
-
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
-  if (profile?.role !== 'staff' && profile?.role !== 'admin') redirect('/instructor')
 
   const department = dept as PartnerDepartment | undefined
   const deptLabel = department ? DEPARTMENT_LABELS[department] : null
@@ -36,9 +27,7 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
     : partners
 
   return (
-    <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
-      <main className="max-w-4xl mx-auto px-6 py-10">
+    <main className="max-w-4xl mx-auto px-6 py-10">
 
         <div className="mb-8">
           <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
@@ -99,7 +88,6 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
             showCategoryFilter={department === 'admissions' || department === 'resourcefull' || !department}
           />
         )}
-      </main>
-    </div>
+    </main>
   )
 }
