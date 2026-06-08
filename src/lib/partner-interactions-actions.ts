@@ -1,9 +1,10 @@
 'use server'
 
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
+import { notifyStaff, notifyByEmail } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -74,7 +75,11 @@ export async function deleteInteraction(id: string, partnerId: string) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { error: dbError } = await supabase.from('partner_interactions').delete().eq('id', id)
+  const { error: dbError } = await supabase
+    .from('partner_interactions')
+    .delete()
+    .eq('id', id)
+    .eq('partner_id', partnerId)
   if (dbError) return { error: dbError.message }
 
   revalidatePath(`/instructor/partnerships/${partnerId}`)
@@ -150,20 +155,96 @@ export interface ReferralFormData {
   is_veteran: boolean
   is_neurodivergent: boolean
   other_flags: string[]
+  // Extended fields (new columns)
+  student_user_id?: string | null
+  service_category?: string | null
+  outcome_success?: boolean | null
+  staff_notes?: string | null
+  course_name?: string | null
 }
 
 export async function createReferral(data: ReferralFormData) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { error: dbError } = await supabase.from('student_referrals').insert({
-    ...data,
-    logged_by: user!.id,
-  })
+  const { data: inserted, error: dbError } = await supabase
+    .from('student_referrals')
+    .insert({ ...data, logged_by: user!.id })
+    .select('id')
+    .single()
   if (dbError) return { error: dbError.message }
 
+  // Auto-tag the partner as Student Success when an outbound referral is made
+  if (data.direction === 'outbound' && data.partner_id) {
+    await supabase
+      .from('partner_department_status')
+      .upsert(
+        { partner_id: data.partner_id, department: 'student_success', stage: 'Active' },
+        { onConflict: 'partner_id,department', ignoreDuplicates: true }
+      )
+    revalidatePath('/instructor/partnerships/all')
+    revalidatePath(`/instructor/partnerships/${data.partner_id}`)
+  }
+
+  // If this is an outbound referral with a linked student, check whether we
+  // should immediately send the rating-request ping (referral date is 60+ days ago)
+  // or let the nightly cron handle it when the time comes.
+  console.log(`[referral debug] direction=${data.direction}, student_user_id=${JSON.stringify(data.student_user_id)}, partner_id=${data.partner_id}, inserted_id=${inserted?.id}`)
+
+  if (
+    data.direction === 'outbound' &&
+    data.student_user_id &&
+    data.partner_id &&
+    inserted?.id
+  ) {
+    const referralDate = new Date(data.referral_date + 'T00:00:00')
+    const daysSince = (Date.now() - referralDate.getTime()) / (1000 * 60 * 60 * 24)
+
+    console.log(`[referral] daysSince=${daysSince.toFixed(1)}, student_user_id=${data.student_user_id}, partner_id=${data.partner_id}`)
+
+    if (daysSince >= 60) {
+      // Fetch student email + partner name to build the message
+      const service = createServiceSupabaseClient()
+      const [{ data: studentRow, error: sErr }, { data: partnerRow, error: pErr }] = await Promise.all([
+        service.from('users').select('name, email').eq('id', data.student_user_id).single(),
+        service.from('partners').select('name').eq('id', data.partner_id).single(),
+      ])
+
+      console.log(`[referral] studentRow=${JSON.stringify(studentRow)}, sErr=${sErr?.message}, partnerRow=${JSON.stringify(partnerRow)}, pErr=${pErr?.message}`)
+
+      if (studentRow && partnerRow) {
+        const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
+        const ratingUrl = `${APP_URL}/student/referrals/rate/${inserted.id}`
+        const categoryText = data.service_category ? ` for ${data.service_category}` : ''
+        const studentMsg =
+          `Hi ${studentRow.name}! We referred you to ${partnerRow.name}${categoryText} a while back. ` +
+          `If you had a chance to connect with them, we'd love to hear how it went: ${ratingUrl}`
+
+        // DM the student
+        const studentSent = await notifyByEmail(studentRow.email, studentMsg)
+        console.log(`[referral] notifyByEmail(${studentRow.email}) → ${studentSent}`)
+
+        // Ping staff
+        await notifyStaff(
+          `${studentRow.name} has received their invitation to rate their referral to ${partnerRow.name}${categoryText}.`
+        )
+        console.log(`[referral] notifyStaff done`)
+
+        // Mark sent so the nightly cron doesn't double-send
+        await supabase
+          .from('student_referrals')
+          .update({ rating_request_sent_at: new Date().toISOString() })
+          .eq('id', inserted.id)
+      } else {
+        console.warn(`[referral] skipping notification — studentRow or partnerRow missing`)
+      }
+    } else {
+      console.log(`[referral] not yet 60 days — notification deferred to cron`)
+    }
+  }
+
   revalidatePath('/instructor/partnerships/referrals')
-  return { error: null }
+  return { error: null, id: inserted.id }
 }
 
 export async function updateReferral(id: string, data: Partial<ReferralFormData>) {
@@ -177,7 +258,8 @@ export async function updateReferral(id: string, data: Partial<ReferralFormData>
 
   if (dbError) return { error: dbError.message }
 
-  revalidatePath('/instructor/partnerships/referrals')
+  // No revalidatePath here — the client handles optimistic updates via onUpdated.
+  // revalidatePath would trigger an RSC re-render mid-interaction and lose local state.
   return { error: null }
 }
 
@@ -198,8 +280,10 @@ export async function listReferrals(filters?: {
   from_date?: string
   to_date?: string
 }) {
-  const { error, supabase } = await requireStaffOrAdmin()
-  if (error || !supabase) return { error, referrals: [] }
+  const { error } = await requireStaffOrAdmin()
+  if (error) return { error, referrals: [] }
+
+  const supabase = createServiceSupabaseClient()
 
   let query = supabase
     .from('student_referrals')
@@ -210,18 +294,31 @@ export async function listReferrals(filters?: {
       partner_id,
       partners (name),
       logged_by,
-      users (name)
+      users!student_referrals_logged_by_fkey (name),
+      partner_ratings (score, reviewer_type)
     `)
     .order('referral_date', { ascending: false })
 
-  if (filters?.direction) query = query.eq('direction', filters.direction)
+  query = query.eq('direction', filters?.direction ?? 'outbound')
   if (filters?.partner_id) query = query.eq('partner_id', filters.partner_id)
   if (filters?.from_date) query = query.gte('referral_date', filters.from_date)
   if (filters?.to_date) query = query.lte('referral_date', filters.to_date)
 
   const { data, error: dbError } = await query
   if (dbError) return { error: dbError.message, referrals: [] }
-  return { error: null, referrals: data ?? [] }
+
+  // Compute average student rating per referral
+  const referrals = (data ?? []).map(r => {
+    const scores = (r.partner_ratings ?? [])
+      .filter((pr: { reviewer_type: string; score: number }) => pr.reviewer_type === 'student')
+      .map((pr: { reviewer_type: string; score: number }) => pr.score)
+    const student_avg_rating = scores.length > 0
+      ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length
+      : null
+    return { ...r, student_avg_rating }
+  })
+
+  return { error: null, referrals }
 }
 
 // ─── Duplicate detection ─────────────────────────────────────────────────────

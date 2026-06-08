@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { listPartners } from '@/lib/partner-actions'
-import { DEPARTMENT_LABELS, type PartnerDepartment } from '@/lib/partner-constants'
+import { DEPARTMENT_LABELS, DEPT_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
+import PartnerList from '@/components/ui/PartnerList'
 
-const DEPT_COLORS: Record<PartnerDepartment, { card: string; badge: string; dot: string }> = {
-  student_success:     { card: 'border-purple-200 hover:border-purple-400',  badge: 'bg-purple-100 text-purple-800',  dot: 'bg-purple-400' },
-  career_development:  { card: 'border-teal-200 hover:border-teal-400',      badge: 'bg-teal-100 text-teal-800',      dot: 'bg-teal-400' },
-  resourcefull:        { card: 'border-blue-200 hover:border-blue-400',       badge: 'bg-blue-100 text-blue-800',      dot: 'bg-blue-400' },
-  funding_partnerships:{ card: 'border-green-200 hover:border-green-400',    badge: 'bg-green-100 text-green-800',    dot: 'bg-green-400' },
-  admissions:          { card: 'border-orange-200 hover:border-orange-400',  badge: 'bg-orange-100 text-orange-800',  dot: 'bg-orange-400' },
+const DEPT_CARD_COLORS: Record<PartnerDepartment, string> = {
+  student_success:      'border-purple-200 hover:border-purple-400',
+  career_development:   'border-teal-200 hover:border-teal-400',
+  resourcefull:         'border-blue-200 hover:border-blue-400',
+  funding_partnerships: 'border-green-200 hover:border-green-400',
+  admissions:           'border-orange-200 hover:border-orange-400',
 }
 
 const DEPT_DESCRIPTIONS: Record<PartnerDepartment, string> = {
@@ -28,24 +29,9 @@ const DEPT_ROUTES: Record<PartnerDepartment, string> = {
 
 const ALL_DEPARTMENTS = Object.keys(DEPARTMENT_LABELS) as PartnerDepartment[]
 
-const TYPE_LABELS: Record<string, string> = {
-  service_provider: 'Service Provider',
-  corporate: 'Corporate',
-  funder: 'Funder',
-  advisory: 'Advisory',
-  mentorship: 'Mentorship',
-  apprenticeship: 'Apprenticeship',
-  media: 'Media',
-  admissions_referral: 'Admissions Referral',
-}
-
 function daysSince(dateStr: string | null): number | null {
   if (!dateStr) return null
   return Math.floor((Date.now() - new Date(dateStr + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24))
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default async function PartnershipsPage() {
@@ -77,7 +63,7 @@ export default async function PartnershipsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-dark-text">Partnerships</h1>
+            <h1 className="text-2xl font-bold text-dark-text">Partners</h1>
             <div className="flex items-center gap-3 mt-1">
               <p className="text-sm text-muted-text">{partners.length} organization{partners.length !== 1 ? 's' : ''} total</p>
               {followUpCount > 0 && (
@@ -100,16 +86,15 @@ export default async function PartnershipsPage() {
           <h2 className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-4">Departments</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {ALL_DEPARTMENTS.map(dept => {
-              const colors = DEPT_COLORS[dept]
               const count = deptCounts[dept]
               return (
                 <Link
                   key={dept}
                   href={DEPT_ROUTES[dept]}
-                  className={`rounded-xl border-2 bg-surface px-5 py-4 flex flex-col gap-2 hover:shadow-sm transition-all group ${colors.card}`}
+                  className={`rounded-xl border-2 bg-surface px-5 py-4 flex flex-col gap-2 hover:shadow-sm transition-all group ${DEPT_CARD_COLORS[dept]}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`text-xs font-semibold rounded-full px-2.5 py-0.5 ${colors.badge}`}>
+                    <span className={`text-xs font-semibold rounded-full px-2.5 py-0.5 ${DEPT_COLORS[dept]}`}>
                       {DEPARTMENT_LABELS[dept]}
                     </span>
                     <span className="text-xs text-muted-text">{count} partner{count !== 1 ? 's' : ''}</span>
@@ -125,9 +110,14 @@ export default async function PartnershipsPage() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-semibold text-muted-text uppercase tracking-wide">All Partners</h2>
-            <Link href="/instructor/partnerships/referrals" className="text-xs text-teal-primary hover:underline">
-              Student Referrals →
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/instructor/partnerships/map" className="text-xs text-teal-primary hover:underline">
+                Map View →
+              </Link>
+              <Link href="/instructor/partnerships/referrals" className="text-xs text-teal-primary hover:underline">
+                Student Referrals →
+              </Link>
+            </div>
           </div>
 
           {partners.length === 0 ? (
@@ -139,75 +129,7 @@ export default async function PartnershipsPage() {
               </Link>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {partners.map((partner) => {
-                const types = (partner.partner_type_assignments ?? []).map(
-                  (t: { partner_type: string }) => TYPE_LABELS[t.partner_type] ?? t.partner_type
-                )
-                const primaryContact = (partner.partner_contacts ?? []).find((c: { is_primary: boolean }) => c.is_primary)
-                const deptStatuses = (partner.partner_department_status ?? []) as { department: PartnerDepartment; stage: string }[]
-                const latest = partner.latest_interaction as unknown as {
-                  note: string; interaction_date: string
-                  department: PartnerDepartment | null; users: { name: string } | null
-                } | null
-                const daysAgo = daysSince(partner.last_interaction_date)
-                const followUpNeeded = daysAgo !== null && daysAgo >= 30
-
-                return (
-                  <Link
-                    key={partner.id}
-                    href={`/instructor/partnerships/${partner.id}`}
-                    className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-5 py-4 hover:border-teal-primary hover:shadow-sm transition-all group"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <p className="font-semibold text-dark-text group-hover:text-teal-primary transition-colors truncate">{partner.name}</p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-text">
-                          {partner.city && <span>{partner.city}{partner.state ? `, ${partner.state}` : ''}</span>}
-                          {primaryContact && <><span className="text-muted-text/50">·</span><span>{primaryContact.name}</span></>}
-                        </div>
-                      </div>
-                      {followUpNeeded && (
-                        <span className="text-xs font-medium rounded-full px-2 py-0.5 bg-red-100 text-red-700 shrink-0">Follow-up</span>
-                      )}
-                    </div>
-
-                    {types.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {types.map((t: string) => (
-                          <span key={t} className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-muted-text">{t}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {deptStatuses.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {deptStatuses.map(ds => (
-                          <span key={ds.department} className={`text-xs rounded-full px-2.5 py-0.5 font-medium ${DEPT_COLORS[ds.department]?.badge ?? 'bg-gray-100 text-gray-600'}`}>
-                            {DEPARTMENT_LABELS[ds.department]}: {ds.stage}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {latest ? (
-                      <div className="flex items-start gap-2 text-xs text-muted-text border-t border-border pt-2.5">
-                        <span className="shrink-0 font-medium text-dark-text/70">{formatDate(latest.interaction_date)}</span>
-                        {latest.users?.name && <span className="shrink-0">by {latest.users.name}</span>}
-                        {latest.department && (
-                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 ${DEPT_COLORS[latest.department]?.badge}`}>
-                            {DEPARTMENT_LABELS[latest.department]}
-                          </span>
-                        )}
-                        <span className="truncate text-muted-text/80">{latest.note}</span>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-text/60 border-t border-border pt-2.5">No interactions logged</p>
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
+            <PartnerList partners={partners as Parameters<typeof PartnerList>[0]['partners']} />
           )}
         </section>
     </main>

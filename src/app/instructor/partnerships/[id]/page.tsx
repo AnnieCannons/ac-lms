@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import PartnerOverview from '@/components/ui/PartnerOverview'
 import {
   getPartner,
@@ -8,7 +7,8 @@ import {
   listStaffUsers,
   type PartnerType,
 } from '@/lib/partner-actions'
-import { listInteractions, getDepartmentStatuses, type PartnerDepartment } from '@/lib/partner-interactions-actions'
+import { listInteractions, getDepartmentStatuses, listReferrals, type PartnerDepartment } from '@/lib/partner-interactions-actions'
+import { getPartnerRatingSummary } from '@/lib/partner-ratings-actions'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -24,11 +24,15 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
     { users: staffUsers },
     { interactions },
     { statuses: departmentStatuses },
+    { referrals: studentReferrals },
+    { summary: ratingSummary },
   ] = await Promise.all([
     getPartner(id),
     listStaffUsers(),
     listInteractions(id),
     getDepartmentStatuses(id),
+    listReferrals({ partner_id: id }),
+    getPartnerRatingSummary(id),
   ])
 
   if (!partner) notFound()
@@ -46,6 +50,8 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
         partner={partnerData}
         interactions={interactions as Parameters<typeof PartnerOverview>[0]['interactions']}
         departmentStatuses={departmentStatuses as Parameters<typeof PartnerOverview>[0]['departmentStatuses']}
+        studentReferrals={studentReferrals as Parameters<typeof PartnerOverview>[0]['studentReferrals']}
+        ratingSummary={ratingSummary}
         staffUsers={staffUsers}
         defaultDepartment={dept as PartnerDepartment | undefined}
         onUpdatePartner={updatePartner.bind(null, id)}

@@ -18,11 +18,21 @@ export interface PartnerContact {
   website_url?: string | null
 }
 
+export type PartnerDepartment = 'student_success' | 'career_development' | 'resourcefull' | 'funding_partnerships' | 'admissions'
+
+export interface PartnerLocation {
+  id?: string
+  city: string | null
+  state: string | null
+}
+
 export interface PartnerFormData {
   name: string
   city: string | null
   state: string | null
   multi_city: boolean
+  locations: PartnerLocation[]
+  website: string | null
   how_we_met: string | null
   services_focus_area: string | null
   status: PartnerStatus
@@ -33,6 +43,19 @@ export interface PartnerFormData {
   referred_by: string | null
   partner_types: PartnerType[]
   contacts: PartnerContact[]
+  departments: PartnerDepartment[]
+  service_categories: string[]
+}
+
+function validateContactUrls(contacts: PartnerContact[]): string | null {
+  for (const c of contacts) {
+    for (const field of [c.linkedin_url, c.website_url]) {
+      if (field && !field.startsWith('https://') && !field.startsWith('http://')) {
+        return `Invalid URL: "${field}" — must start with http:// or https://`
+      }
+    }
+  }
+  return null
 }
 
 async function requireStaffOrAdmin() {
@@ -60,22 +83,32 @@ export async function listPartners() {
   const { data, error: dbError } = await supabase
     .from('partners')
     .select(`
-      id, name, city, state, status, last_interaction_date, internal_owner_id,
+      id, name, city, state, status, last_interaction_date, internal_owner_id, service_categories,
       partner_type_assignments (partner_type),
       partner_contacts (id, name, title, email, is_primary, website_url),
       partner_department_status (department, stage),
-      partner_interactions (id, note, interaction_date, department, users(name))
+      partner_interactions (id, note, interaction_date, department, users(name)),
+      student_referrals (student_identifier, direction),
+      partner_ratings (score, reviewer_type),
+      partner_locations (city, state, sort_order)
     `)
     .order('name')
 
   if (dbError) return { error: dbError.message, partners: [] }
 
   // Sort interactions descending and keep only the most recent per partner
+  // Also compute a combined student rating (avg of all student scores)
   const partners = (data ?? []).map(p => {
     const sorted = [...(p.partner_interactions ?? [])].sort(
       (a, b) => new Date(b.interaction_date).getTime() - new Date(a.interaction_date).getTime()
     )
-    return { ...p, latest_interaction: sorted[0] ?? null }
+    const studentScores = (p.partner_ratings ?? [])
+      .filter((r: { reviewer_type: string; score: number }) => r.reviewer_type === 'student')
+      .map((r: { reviewer_type: string; score: number }) => r.score)
+    const combined_student_rating = studentScores.length > 0
+      ? { avg: studentScores.reduce((a: number, b: number) => a + b, 0) / studentScores.length, count: studentScores.length }
+      : null
+    return { ...p, latest_interaction: sorted[0] ?? null, combined_student_rating }
   })
 
   return { error: null, partners }
@@ -90,7 +123,8 @@ export async function getPartner(id: string) {
     .select(`
       *,
       partner_type_assignments (partner_type),
-      partner_contacts (*)
+      partner_contacts (*),
+      partner_locations (id, city, state, sort_order)
     `)
     .eq('id', id)
     .single()
@@ -103,11 +137,23 @@ export async function createPartner(formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, ...partnerFields } = formData
+  const { partner_types, contacts, departments, locations, ...partnerFields } = formData
+  const urlError = validateContactUrls(contacts)
+  if (urlError) return { error: urlError }
+
+  // Sync primary city/state from first location
+  const primaryLocation = locations[0] ?? null
+  const syncedFields = {
+    ...partnerFields,
+    city: primaryLocation?.city ?? partnerFields.city,
+    state: primaryLocation?.state ?? partnerFields.state,
+    multi_city: locations.length > 1 ? true : partnerFields.multi_city,
+    service_categories: partnerFields.service_categories ?? [],
+  }
 
   const { data: partner, error: insertError } = await supabase
     .from('partners')
-    .insert(partnerFields)
+    .insert(syncedFields)
     .select('id')
     .single()
 
@@ -125,6 +171,18 @@ export async function createPartner(formData: PartnerFormData) {
     )
   }
 
+  if (departments.length > 0) {
+    await supabase.from('partner_department_status').insert(
+      departments.map(d => ({ partner_id: partner.id, department: d, stage: 'Prospect' }))
+    )
+  }
+
+  if (locations.length > 0) {
+    await supabase.from('partner_locations').insert(
+      locations.map((l, i) => ({ partner_id: partner.id, city: l.city, state: l.state, sort_order: i }))
+    )
+  }
+
   revalidatePath('/instructor/partnerships')
   return { error: null, id: partner.id }
 }
@@ -133,11 +191,22 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, ...partnerFields } = formData
+  const { partner_types, contacts, departments, locations, ...partnerFields } = formData
+  const urlError = validateContactUrls(contacts)
+  if (urlError) return { error: urlError }
+
+  // Sync primary city/state from first location
+  const primaryLocation = locations[0] ?? null
+  const syncedFields = {
+    ...partnerFields,
+    city: primaryLocation?.city ?? partnerFields.city,
+    state: primaryLocation?.state ?? partnerFields.state,
+    multi_city: locations.length > 1 ? true : partnerFields.multi_city,
+  }
 
   const { error: updateError } = await supabase
     .from('partners')
-    .update(partnerFields)
+    .update(syncedFields)
     .eq('id', id)
 
   if (updateError) return { error: updateError.message }
@@ -147,6 +216,22 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   if (partner_types.length > 0) {
     await supabase.from('partner_type_assignments').insert(
       partner_types.map(t => ({ partner_id: id, partner_type: t }))
+    )
+  }
+
+  // Replace department assignments
+  await supabase.from('partner_department_status').delete().eq('partner_id', id)
+  if (departments.length > 0) {
+    await supabase.from('partner_department_status').insert(
+      departments.map(d => ({ partner_id: id, department: d, stage: 'Prospect' }))
+    )
+  }
+
+  // Replace locations
+  await supabase.from('partner_locations').delete().eq('partner_id', id)
+  if (locations.length > 0) {
+    await supabase.from('partner_locations').insert(
+      locations.map((l, i) => ({ partner_id: id, city: l.city, state: l.state, sort_order: i }))
     )
   }
 
@@ -167,7 +252,7 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
         phone: contact.phone,
         is_primary: contact.is_primary,
         notes: contact.notes,
-      }).eq('id', contact.id)
+      }).eq('id', contact.id).eq('partner_id', id)
     } else {
       await supabase.from('partner_contacts').insert({ ...contact, partner_id: id })
     }
@@ -187,6 +272,23 @@ export async function deletePartner(id: string) {
 
   revalidatePath('/instructor/partnerships')
   return { error: null }
+}
+
+export async function listPartnersWithGeo() {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, partners: [] }
+
+  const { data, error: dbError } = await supabase
+    .from('partners')
+    .select(`
+      id, name, city, state, multi_city, services_focus_area, service_categories,
+      partner_type_assignments (partner_type),
+      partner_department_status (department)
+    `)
+    .order('name')
+
+  if (dbError) return { error: dbError.message, partners: [] }
+  return { error: null, partners: data ?? [] }
 }
 
 export async function listStaffUsers() {

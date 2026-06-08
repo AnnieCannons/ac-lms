@@ -7,11 +7,14 @@ import {
   deleteInteraction,
   setDepartmentStatus,
   removeDepartmentStatus,
+  createReferral,
+  deleteReferral,
   type PartnerDepartment,
 } from '@/lib/partner-interactions-actions'
-import { DEPARTMENT_LABELS, DEPARTMENT_STAGES } from '@/lib/partner-constants'
+import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS } from '@/lib/partner-constants'
 import PartnerForm from '@/components/ui/PartnerForm'
 import type { PartnerFormData, PartnerType } from '@/lib/partner-actions'
+import type { PartnerRatingSummaryRow } from '@/lib/partner-ratings-actions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +57,7 @@ interface Partner {
   status: string
   last_interaction_date: string | null
   internal_owner_id: string | null
+  website: string | null
   how_we_met: string | null
   services_focus_area: string | null
   meeting_notes: string | null
@@ -61,6 +65,15 @@ interface Partner {
   referred_by: string | null
   partner_type_assignments: { partner_type: PartnerType }[]
   partner_contacts: Contact[]
+  partner_locations?: { id: string; city: string | null; state: string | null; sort_order: number }[]
+}
+
+interface Referral {
+  id: string
+  student_identifier: string
+  direction: string
+  referral_date: string
+  referral_type: string | null
 }
 
 interface StaffUser {
@@ -74,6 +87,8 @@ interface Props {
   partner: Partner
   interactions: Interaction[]
   departmentStatuses: DepartmentStatus[]
+  studentReferrals: Referral[]
+  ratingSummary?: PartnerRatingSummaryRow[]
   staffUsers: StaffUser[]
   defaultDepartment?: PartnerDepartment | null
   onUpdatePartner: (data: PartnerFormData) => Promise<{ error: string | null }>
@@ -107,13 +122,6 @@ const TYPE_LABELS: Record<string, string> = {
   admissions_referral: 'Admissions Referral',
 }
 
-const DEPT_COLORS: Record<PartnerDepartment, string> = {
-  student_success: 'bg-purple-100 text-purple-800',
-  career_development: 'bg-teal-100 text-teal-800',
-  resourcefull: 'bg-blue-100 text-blue-800',
-  funding_partnerships: 'bg-green-100 text-green-800',
-  admissions: 'bg-orange-100 text-orange-800',
-}
 
 const ALL_DEPARTMENTS: PartnerDepartment[] = [
   'student_success',
@@ -175,7 +183,7 @@ function StageSelector({
             onClick={() => onStageChange(department, stage)}
             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
               currentStage === stage
-                ? 'bg-dark-text text-background border-dark-text'
+                ? 'bg-teal-primary text-white border-teal-primary'
                 : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
             }`}
           >
@@ -366,12 +374,177 @@ function InteractionList({
   )
 }
 
+// ─── Student Referrals Section ───────────────────────────────────────────────
+
+function StudentReferralsSection({
+  partnerId,
+  referrals: initialReferrals,
+  direction,
+}: {
+  partnerId: string
+  referrals: Referral[]
+  direction: 'inbound' | 'outbound'
+}) {
+  const [referrals, setReferrals] = useState<Referral[]>(initialReferrals.filter(r => r.direction === direction))
+  const [studentName, setStudentName] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [allNames, setAllNames] = useState<string[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+
+  // Fetch Airtable student names once on first focus
+  const namesFetched = useState(false)
+  async function fetchNames() {
+    if (namesFetched[0]) return
+    namesFetched[1](true)
+    try {
+      const res = await fetch('/api/partnerships/students')
+      if (res.ok) {
+        const data = await res.json()
+        setAllNames(data.names ?? [])
+      }
+    } catch { /* silent */ }
+  }
+
+  const filtered = studentName.length >= 2
+    ? allNames.filter(n => n.toLowerCase().includes(studentName.toLowerCase())).slice(0, 8)
+    : []
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    if (!studentName.trim()) return
+    setSaving(true)
+    setError(null)
+    const result = await createReferral({
+      student_identifier: studentName.trim(),
+      direction,
+      partner_id: partnerId,
+      referral_date: date,
+      referral_type: null,
+      outcome_rating: null,
+      outcome_notes: null,
+      student_city: null,
+      open_to_relocation: false,
+      is_veteran: false,
+      is_neurodivergent: false,
+      other_flags: [],
+    })
+    setSaving(false)
+    if (result.error) { setError(result.error); return }
+    setReferrals(prev => [{
+      id: crypto.randomUUID(),
+      student_identifier: studentName.trim(),
+      direction,
+      referral_date: date,
+      referral_type: null,
+    }, ...prev])
+    setStudentName('')
+    setDate(new Date().toISOString().slice(0, 10))
+  }
+
+  async function handleRemove(id: string) {
+    await deleteReferral(id)
+    setReferrals(prev => prev.filter(r => r.id !== id))
+  }
+
+  const label = direction === 'inbound' ? 'referred to AnnieCannons' : 'referred by AnnieCannons'
+  const placeholder = direction === 'inbound'
+    ? 'Student name (referred to us)'
+    : 'Student name (we referred out)'
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">
+        Student Referrals
+      </h2>
+
+      {/* Add referral form */}
+      <form onSubmit={handleAdd} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+        <h3 className="text-xs font-semibold text-dark-text uppercase tracking-wide">Log a Referral</h3>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
+          {/* Autocomplete name input */}
+          <div className="relative flex-1">
+            <label className="block text-xs text-muted-text mb-1">Student name</label>
+            <input
+              type="text"
+              value={studentName}
+              onFocus={() => { fetchNames(); setShowDropdown(true) }}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+              onChange={e => { setStudentName(e.target.value); setShowDropdown(true) }}
+              placeholder={placeholder}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+            {showDropdown && filtered.length > 0 && (
+              <div className="absolute left-0 top-full mt-1 z-30 w-full rounded-xl border border-border bg-surface shadow-lg max-h-48 overflow-y-auto">
+                {filtered.map(name => (
+                  <button
+                    key={name}
+                    type="button"
+                    onMouseDown={() => { setStudentName(name); setShowDropdown(false) }}
+                    className="w-full text-left px-4 py-2 text-sm text-dark-text hover:bg-background transition-colors"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Date */}
+          <div>
+            <label className="block text-xs text-muted-text mb-1">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving || !studentName.trim()}
+            className="px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors disabled:opacity-50 shrink-0"
+          >
+            {saving ? 'Saving…' : 'Add'}
+          </button>
+        </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </form>
+
+      {/* Existing referrals */}
+      {referrals.length === 0 ? (
+        <p className="text-sm text-muted-text">No students {label} yet.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {referrals.map(r => (
+            <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-dark-text">{r.student_identifier}</span>
+                <span className="text-xs text-muted-text">{formatDate(r.referral_date)}{r.referral_type ? ` · ${r.referral_type}` : ''}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(r.id)}
+                className="text-xs text-muted-text hover:text-red-500 transition-colors shrink-0"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PartnerOverview({
   partner,
   interactions: initialInteractions,
   departmentStatuses: initialStatuses,
+  studentReferrals,
+  ratingSummary = [],
   staffUsers,
   defaultDepartment,
   onUpdatePartner,
@@ -443,11 +616,22 @@ export default function PartnerOverview({
     router.push('/instructor/partnerships')
   }
 
+  // Build locations list: prefer partner_locations rows, fall back to legacy city/state
+  const savedLocations = (partner.partner_locations ?? [])
+    .sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
+    .map((l: { city: string | null; state: string | null }) => ({ city: l.city, state: l.state }))
+  const legacyLocation = (partner.city || partner.state)
+    ? [{ city: partner.city ?? null, state: partner.state ?? null }]
+    : []
+  const initialLocations = savedLocations.length > 0 ? savedLocations : legacyLocation
+
   const initialFormData: Partial<PartnerFormData> = {
     name: partner.name,
     city: partner.city,
     state: partner.state,
     multi_city: partner.multi_city,
+    locations: initialLocations,
+    website: partner.website,
     how_we_met: partner.how_we_met,
     services_focus_area: partner.services_focus_area,
     status: partner.status as PartnerFormData['status'],
@@ -566,6 +750,45 @@ export default function PartnerOverview({
             </section>
           )}
 
+          {/* Ratings summary */}
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Ratings</h2>
+            {ratingSummary.length === 0 ? (
+              <p className="text-sm text-muted-text">No ratings submitted yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {ratingSummary.map(row => (
+                  <div key={row.service_category} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-2">
+                    <p className="text-sm font-semibold text-dark-text">{row.service_category}</p>
+                    <div className="flex flex-col gap-1">
+                      {[
+                        { label: 'Students', data: row.student },
+                        { label: 'Staff', data: row.staff },
+                      ].map(({ label, data }) => (
+                        <div key={label} className="flex items-center gap-2 text-xs">
+                          <span className="text-muted-text w-16 shrink-0">{label}</span>
+                          {data ? (
+                            <>
+                              <span className="flex gap-0.5">
+                                {[1,2,3,4,5].map(n => (
+                                  <span key={n} style={{ color: n <= Math.round(data.avg) ? '#FACC15' : '#9CA3AF' }}>★</span>
+                                ))}
+                              </span>
+                              <span className="font-semibold text-dark-text">{data.avg.toFixed(1)}</span>
+                              <span className="text-muted-text">({data.count} {data.count === 1 ? 'rating' : 'ratings'})</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-text">—</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           {partner.partner_contacts.length > 0 && (
             <section className="flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Contacts</h2>
@@ -607,6 +830,16 @@ export default function PartnerOverview({
                   </span>
                 </dd>
               </div>
+              {partner.website && (
+                <div className="flex gap-2 text-sm">
+                  <dt className="text-muted-text shrink-0 w-36">Website</dt>
+                  <dd>
+                    <a href={partner.website} target="_blank" rel="noopener noreferrer" className="text-teal-primary hover:underline break-all">
+                      {partner.website}
+                    </a>
+                  </dd>
+                </div>
+              )}
               {partner.how_we_met && (
                 <div className="flex gap-2 text-sm">
                   <dt className="text-muted-text shrink-0 w-36">How we met</dt>
@@ -694,6 +927,22 @@ export default function PartnerOverview({
             {isPending && <p className="text-xs text-muted-text">Saving…</p>}
           </section>
 
+          {/* Student referrals — inbound for Admissions, outbound for Student Success */}
+          {ds.department === 'admissions' && (
+            <StudentReferralsSection
+              partnerId={partner.id}
+              referrals={studentReferrals}
+              direction="inbound"
+            />
+          )}
+          {ds.department === 'student_success' && (
+            <StudentReferralsSection
+              partnerId={partner.id}
+              referrals={studentReferrals}
+              direction="outbound"
+            />
+          )}
+
           <section className="flex flex-col gap-4">
             <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">
               {DEPARTMENT_LABELS[ds.department]} Interactions
@@ -723,6 +972,10 @@ export default function PartnerOverview({
           }}
           submitLabel="Save Changes"
           partnerId={partner.id}
+          redirectTo={defaultDepartment
+            ? `/instructor/partnerships/all?dept=${defaultDepartment}`
+            : '/instructor/partnerships'
+          }
         />
       )}
     </div>

@@ -69,7 +69,30 @@ export async function bulkAddPeopleToCourse(
       redirectTo: `${appUrl}/accept-invite`,
     })
 
-    if (inviteError) return { email, error: inviteError.message }
+    if (inviteError) {
+      const alreadyRegistered =
+        inviteError.message.toLowerCase().includes('already been registered') ||
+        inviteError.status === 422
+
+      if (!alreadyRegistered) return { email, error: inviteError.message }
+
+      // User exists in Supabase auth but is missing from the users table.
+      // Recover their UUID via generateLink (no email is sent), then re-enroll.
+      const { data: linkData } = await admin.auth.admin.generateLink({ type: 'recovery', email })
+      const userId = linkData?.user?.id
+      if (!userId) return { email, error: 'Could not locate existing account for this email.' }
+
+      await admin.from('users').upsert(
+        { id: userId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
+        { onConflict: 'id' }
+      )
+      const { error: enrollError } = await admin.from('course_enrollments').upsert(
+        { course_id: courseId, user_id: userId, role },
+        { onConflict: 'course_id,user_id' }
+      )
+      if (enrollError) return { email, error: enrollError.message }
+      return { email, added: true }
+    }
 
     // Immediately enroll using the invited user's ID
     const invitedUserId = inviteData?.user?.id
@@ -144,7 +167,28 @@ export async function addPersonToCourse(
     redirectTo: `${appUrl}/accept-invite`,
   })
 
-  if (inviteError) return { error: inviteError.message }
+  if (inviteError) {
+    const alreadyRegistered =
+      inviteError.message.toLowerCase().includes('already been registered') ||
+      inviteError.status === 422
+
+    if (!alreadyRegistered) return { error: inviteError.message }
+
+    const { data: linkData } = await admin.auth.admin.generateLink({ type: 'recovery', email })
+    const userId = linkData?.user?.id
+    if (!userId) return { error: 'Could not locate existing account for this email.' }
+
+    await admin.from('users').upsert(
+      { id: userId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
+      { onConflict: 'id' }
+    )
+    const { error: enrollError } = await admin.from('course_enrollments').upsert(
+      { course_id: courseId, user_id: userId, role },
+      { onConflict: 'course_id,user_id' }
+    )
+    if (enrollError) return { error: enrollError.message }
+    return { added: true }
+  }
 
   // Immediately enroll using the invited user's ID so enrollment doesn't
   // depend on the user accepting first (the trigger may not have run yet,

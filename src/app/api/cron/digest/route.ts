@@ -3,10 +3,21 @@ import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getResend } from '@/lib/resend'
 import DigestEmail from '@/emails/DigestEmail'
 import React from 'react'
+import { timingSafeEqual } from 'crypto'
+
+function verifyCronSecret(authHeader: string | null): boolean {
+  const secret = process.env.CRON_SECRET
+  if (!secret || !authHeader) return false
+  const expected = `Bearer ${secret}`
+  try {
+    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req.headers.get('authorization'))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

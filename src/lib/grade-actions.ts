@@ -20,6 +20,20 @@ export async function saveAnswerKey(
   }
 
   const admin = createServiceSupabaseClient()
+
+  // Verify the assignment belongs to this course to prevent cross-course mutation
+  const { data: owned } = await admin
+    .from('assignments')
+    .select('module_days!inner(modules!inner(course_id))')
+    .eq('id', assignmentId)
+    .single()
+  const assignmentCourseId = (() => {
+    const md = Array.isArray(owned?.module_days) ? owned.module_days[0] : owned?.module_days
+    const mod = Array.isArray(md?.modules) ? md.modules[0] : md?.modules
+    return mod?.course_id
+  })()
+  if (assignmentCourseId !== courseId) return { error: 'Not authorized' }
+
   const { error } = await admin.from('assignments').update({ answer_key_url: url }).eq('id', assignmentId)
   if (error) return { error: error.message }
   revalidatePath(`/instructor/courses/${courseId}`)
@@ -30,7 +44,6 @@ export async function markCompleteNoSubmission(
   assignmentId: string,
   studentId: string,
   grade: 'complete' | null,
-  gradedById: string,
   courseId?: string,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
@@ -70,7 +83,7 @@ export async function markCompleteNoSubmission(
   const now = grade ? new Date().toISOString() : null
   const { error } = await admin
     .from('submissions')
-    .update({ grade, status: grade ? 'graded' : 'submitted', graded_at: now, graded_by: grade ? gradedById : null })
+    .update({ grade, status: grade ? 'graded' : 'submitted', graded_at: now, graded_by: grade ? user.id : null })
     .eq('id', submissionId)
 
   if (error) return { error: error.message }
@@ -111,7 +124,6 @@ export async function markCompleteNoSubmission(
 export async function saveGrade(
   submissionId: string,
   grade: 'complete' | 'incomplete' | null,
-  gradedById: string,
   courseId?: string,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
@@ -143,7 +155,7 @@ export async function saveGrade(
       grade,
       status: grade ? 'graded' : 'submitted',
       graded_at: now,
-      graded_by: grade ? gradedById : null,
+      graded_by: grade ? user.id : null,
     })
     .eq('id', submissionId)
 
@@ -192,7 +204,6 @@ export async function toggleChecklistResponse(
   submissionId: string,
   checklistItemId: string,
   checked: boolean,
-  gradedById: string,
   courseId: string,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
@@ -210,7 +221,7 @@ export async function toggleChecklistResponse(
   const { error } = await admin
     .from('checklist_responses')
     .upsert(
-      { submission_id: submissionId, checklist_item_id: checklistItemId, checked, graded_by: gradedById },
+      { submission_id: submissionId, checklist_item_id: checklistItemId, checked, graded_by: user.id },
       { onConflict: 'submission_id,checklist_item_id' }
     )
 

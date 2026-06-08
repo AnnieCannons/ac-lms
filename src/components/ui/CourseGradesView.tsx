@@ -246,7 +246,7 @@ function SpeedGrader({
   const grade = async (submissionId: string, result: 'complete' | 'incomplete') => {
     if (grading[submissionId]) return
     setGrading(prev => ({ ...prev, [submissionId]: true }))
-    const { error } = await saveGrade(submissionId, result, instructorId, courseId)
+    const { error } = await saveGrade(submissionId, result, courseId)
     if (error) {
       setGrading(prev => ({ ...prev, [submissionId]: false }))
       return

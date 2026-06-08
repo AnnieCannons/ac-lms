@@ -3,8 +3,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { PartnerFormData, PartnerContact, PartnerStatus, PartnerType } from '@/lib/partner-actions'
+import type { PartnerFormData, PartnerContact, PartnerLocation, PartnerStatus, PartnerType, PartnerDepartment } from '@/lib/partner-actions'
+import { DEPARTMENT_LABELS } from '@/lib/partner-constants'
+import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 import { findSimilarPartners } from '@/lib/partner-interactions-actions'
+
+const ALL_DEPARTMENTS = Object.entries(DEPARTMENT_LABELS) as [PartnerDepartment, string][]
+
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+  'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+  'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+  'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+  'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+  'Wisconsin', 'Wyoming', 'Washington, DC',
+]
 
 const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'service_provider', label: 'Service Provider' },
@@ -35,13 +50,86 @@ interface Props {
   onSubmit: (data: PartnerFormData) => Promise<{ error: string | null; id?: string }>
   submitLabel: string
   partnerId?: string
+  defaultDepartment?: PartnerDepartment
+  redirectTo?: string
 }
 
 function emptyContact(): PartnerContact {
   return { name: '', title: null, email: null, phone: null, is_primary: false, notes: null, linkedin_url: null, website_url: null }
 }
 
-export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId }: Props) {
+function StateCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [input, setInput] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const filtered = input.trim()
+    ? US_STATES.filter(s => s.toLowerCase().includes(input.toLowerCase()))
+    : US_STATES
+
+  function select(s: string) {
+    onChange(s)
+    setInput(s)
+    setOpen(false)
+  }
+
+  function openDropdown() {
+    // Calculate fixed position so dropdown escapes any overflow:hidden parent
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      })
+    }
+    setOpen(true)
+  }
+
+  function handleBlur(e: React.FocusEvent) {
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      if (!US_STATES.includes(input)) setInput(value)
+      setOpen(false)
+    }
+  }
+
+  // Keep input in sync if parent value changes externally
+  useEffect(() => { setInput(value) }, [value])
+
+  return (
+    <div ref={containerRef} onBlur={handleBlur}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={input}
+        onChange={e => { setInput(e.target.value); openDropdown() }}
+        onFocus={openDropdown}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        placeholder="Type to search states…"
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <ul style={dropdownStyle} className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+          {filtered.map(s => (
+            <li
+              key={s}
+              onMouseDown={() => select(s)}
+              className={`px-3 py-2 text-sm cursor-pointer hover:bg-border/30 ${s === value ? 'text-teal-primary font-medium' : 'text-dark-text'}`}
+            >
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -49,9 +137,11 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [name, setName] = useState(initialData?.name ?? '')
-  const [city, setCity] = useState(initialData?.city ?? '')
-  const [state, setState] = useState(initialData?.state ?? '')
-  const [multiCity, setMultiCity] = useState(initialData?.multi_city ?? false)
+  const [website, setWebsite] = useState(initialData?.website ?? '')
+  const [nationwide, setNationwide] = useState(initialData?.state === 'Nationwide')
+  const [locations, setLocations] = useState<PartnerLocation[]>(
+    initialData?.locations?.length ? initialData.locations : [{ city: null, state: null }]
+  )
   const [howWeMet, setHowWeMet] = useState(initialData?.how_we_met ?? '')
   const [servicesFocus, setServicesFocus] = useState(initialData?.services_focus_area ?? '')
   const [status, setStatus] = useState<PartnerStatus>(initialData?.status ?? 'prospect')
@@ -65,6 +155,28 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const [contacts, setContacts] = useState<PartnerContact[]>(
     initialData?.contacts?.length ? initialData.contacts : [emptyContact()]
   )
+  const [departments, setDepartments] = useState<PartnerDepartment[]>(() => {
+    const base: PartnerDepartment[] = initialData?.departments ?? (defaultDepartment ? [defaultDepartment] : [])
+    const hasAdmissionsReferral = (initialData?.partner_types ?? []).includes('admissions_referral')
+    if (hasAdmissionsReferral && !base.includes('admissions')) return [...base, 'admissions']
+    return base
+  })
+  const [serviceCategories, setServiceCategories] = useState<string[]>(
+    initialData?.service_categories ?? []
+  )
+  const [customCatInput, setCustomCatInput] = useState('')
+
+  function toggleDepartment(dept: PartnerDepartment) {
+    setDepartments(prev =>
+      prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]
+    )
+  }
+
+  function toggleServiceCategory(cat: string) {
+    setServiceCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    )
+  }
 
   function handleNameChange(value: string) {
     setName(value)
@@ -77,9 +189,11 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   }
 
   function toggleType(type: PartnerType) {
-    setPartnerTypes(prev =>
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    )
+    const adding = !partnerTypes.includes(type)
+    setPartnerTypes(prev => adding ? [...prev, type] : prev.filter(t => t !== type))
+    if (type === 'admissions_referral' && adding) {
+      setDepartments(prev => prev.includes('admissions') ? prev : [...prev, 'admissions'])
+    }
   }
 
   function addTag() {
@@ -114,11 +228,16 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
     setSaving(true)
     setServerError(null)
 
+    const cleanLocations = nationwide ? [] : locations.filter(l => l.city?.trim() || l.state?.trim())
+    const primaryLoc = cleanLocations[0] ?? null
+
     const result = await onSubmit({
       name: name.trim(),
-      city: city.trim() || null,
-      state: state.trim() || null,
-      multi_city: multiCity,
+      city: nationwide ? null : (primaryLoc?.city ?? null),
+      state: nationwide ? 'Nationwide' : (primaryLoc?.state ?? null),
+      multi_city: nationwide ? true : cleanLocations.length > 1,
+      locations: cleanLocations,
+      website: website.trim() || null,
       how_we_met: howWeMet.trim() || null,
       services_focus_area: servicesFocus.trim() || null,
       status,
@@ -129,6 +248,8 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
       referred_by: referredBy.trim() || null,
       partner_types: partnerTypes,
       contacts: contacts.filter(c => c.name.trim()),
+      departments,
+      service_categories: serviceCategories,
     })
 
     setSaving(false)
@@ -136,7 +257,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
       setServerError(result.error)
       return
     }
-    router.push('/instructor/partnerships')
+    router.push(redirectTo ?? '/instructor/partnerships')
   }
 
   return (
@@ -168,38 +289,68 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-dark-text mb-1">City</label>
-            <input
-              type="text"
-              value={city}
-              onChange={e => setCity(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              placeholder="City"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-dark-text mb-1">State</label>
-            <input
-              type="text"
-              value={state}
-              onChange={e => setState(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              placeholder="State"
-            />
-          </div>
-        </div>
-
         <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
           <input
             type="checkbox"
-            checked={multiCity}
-            onChange={e => setMultiCity(e.target.checked)}
+            checked={nationwide}
+            onChange={e => setNationwide(e.target.checked)}
             className="rounded border-border text-teal-primary focus:ring-teal-primary"
           />
-          Operates in multiple cities
+          Nationwide (operates across the US)
         </label>
+
+        {!nationwide && (
+          <div className="flex flex-col gap-2">
+            {locations.map((loc, i) => (
+              <div key={i} className="grid grid-cols-2 gap-3 items-end">
+                <div>
+                  {i === 0 && <label className="block text-sm font-medium text-dark-text mb-1">City</label>}
+                  <input
+                    type="text"
+                    value={loc.city ?? ''}
+                    onChange={e => setLocations(prev => prev.map((l, j) => j === i ? { ...l, city: e.target.value || null } : l))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    placeholder="City"
+                  />
+                </div>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    {i === 0 && <label className="block text-sm font-medium text-dark-text mb-1">State</label>}
+                    <StateCombobox value={loc.state ?? ''} onChange={v => setLocations(prev => prev.map((l, j) => j === i ? { ...l, state: v || null } : l))} />
+                  </div>
+                  {locations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setLocations(prev => prev.filter((_, j) => j !== i))}
+                      className="pb-2 text-muted-text hover:text-red-500 transition-colors text-lg leading-none"
+                      title="Remove location"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setLocations(prev => [...prev, { city: null, state: null }])}
+              className="self-start text-sm text-teal-primary hover:underline"
+            >
+              + Add location
+            </button>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-dark-text mb-1">Website</label>
+          <input
+            type="url"
+            value={website}
+            onChange={e => setWebsite(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            placeholder="https://example.org"
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-dark-text mb-1">Status</label>
@@ -233,6 +384,91 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
               {t.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Departments */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Departments</h2>
+        <p className="text-xs text-muted-text -mt-1">Which teams will work with this partner?</p>
+        <div className="flex flex-wrap gap-2">
+          {ALL_DEPARTMENTS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => toggleDepartment(value)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                departments.includes(value)
+                  ? 'bg-teal-primary text-white border-teal-primary'
+                  : 'bg-background text-muted-text border-border hover:border-teal-primary'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Service Categories */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Services Provided</h2>
+        <p className="text-xs text-muted-text -mt-1">What types of support does this org offer?</p>
+        <div className="flex flex-wrap gap-2">
+          {SERVICE_CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => toggleServiceCategory(cat)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                serviceCategories.includes(cat)
+                  ? 'bg-teal-primary text-white border-teal-primary'
+                  : 'bg-background text-muted-text border-border hover:border-teal-primary'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+          {/* Custom categories (not in predefined list) shown as removable pills */}
+          {serviceCategories.filter(c => !(SERVICE_CATEGORIES as readonly string[]).includes(c)).map(cat => (
+            <span key={cat} className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-sm border bg-teal-primary text-white border-teal-primary">
+              {cat}
+              <button
+                type="button"
+                onClick={() => setServiceCategories(prev => prev.filter(c => c !== cat))}
+                className="hover:opacity-70 leading-none text-base"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-1">
+          <input
+            type="text"
+            value={customCatInput}
+            onChange={e => setCustomCatInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                const t = customCatInput.trim()
+                if (t && !serviceCategories.includes(t)) setServiceCategories(prev => [...prev, t])
+                setCustomCatInput('')
+              }
+            }}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            placeholder="Add a custom category…"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const t = customCatInput.trim()
+              if (t && !serviceCategories.includes(t)) setServiceCategories(prev => [...prev, t])
+              setCustomCatInput('')
+            }}
+            className="px-3 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
+          >
+            +
+          </button>
         </div>
       </section>
 
