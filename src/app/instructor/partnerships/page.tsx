@@ -1,7 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import { listPartners } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS, type PartnerDepartment } from '@/lib/partner-constants'
 
@@ -52,13 +49,6 @@ function formatDate(dateStr: string) {
 }
 
 export default async function PartnershipsPage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single()
-  if (profile?.role !== 'staff' && profile?.role !== 'admin') redirect('/instructor')
-
   const { partners } = await listPartners()
 
   const followUpCount = partners.filter(p => {
@@ -82,9 +72,7 @@ export default async function PartnershipsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <InstructorTopNav name={profile?.name} role={profile?.role} />
-      <main className="max-w-5xl mx-auto px-6 py-10">
+    <main className="max-w-5xl mx-auto px-6 py-10">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
@@ -222,7 +210,6 @@ export default async function PartnershipsPage() {
             </div>
           )}
         </section>
-      </main>
-    </div>
+    </main>
   )
 }
