@@ -593,8 +593,8 @@ export default function EmailListBuilder({ partners }: Props) {
       {/* Save Modal */}
       {saveModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-surface rounded-xl border border-border w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="bg-surface rounded-xl border border-border w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h3 className="text-base font-semibold text-dark-text">Save Email List</h3>
               <button
                 onClick={() => setSaveModal(s => ({ ...s, open: false }))}
@@ -603,7 +603,7 @@ export default function EmailListBuilder({ partners }: Props) {
                 ✕
               </button>
             </div>
-            <div className="px-5 py-5 flex flex-col gap-4">
+            <div className="px-5 py-5 flex flex-col gap-4 overflow-y-auto">
 
               {/* Name */}
               <div>
@@ -679,7 +679,7 @@ export default function EmailListBuilder({ partners }: Props) {
                 Saving will record {includedContacts.length} recipient{includedContacts.length !== 1 ? 's' : ''} from {filteredPartners.length} partner{filteredPartners.length !== 1 ? 's' : ''}.
               </p>
             </div>
-            <div className="flex gap-3 px-5 py-4 border-t border-border">
+            <div className="flex gap-3 px-5 py-4 border-t border-border shrink-0">
               <button
                 onClick={() => setSaveModal(s => ({ ...s, open: false }))}
                 className="flex-1 px-4 py-2 rounded-lg border border-border text-sm text-muted-text hover:text-dark-text transition-colors"
