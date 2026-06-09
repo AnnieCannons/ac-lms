@@ -4,6 +4,9 @@ import { useState, useMemo, useEffect } from 'react'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { ComposableMap, Geographies, Geography } = require('react-simple-maps')
 import Link from 'next/link'
+import { PartnerCategoryFilter, PartnerStageFilter } from '@/components/ui/PartnerList'
+import { SERVICE_CATEGORIES } from '@/lib/service-categories'
+import { DEPARTMENT_STAGES, type PartnerDepartment } from '@/lib/partner-constants'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -17,6 +20,7 @@ interface Partner {
   multi_city: boolean
   status: string
   last_interaction_date: string | null
+  service_categories?: string[] | null
   partner_contacts: { name: string; is_primary: boolean }[]
   partner_department_status: { department: string; stage: string }[]
   partner_type_assignments: { partner_type: string }[]
@@ -119,6 +123,27 @@ export default function PartnerMap({ partners, department }: Props) {
   const [search, setSearch] = useState('')
   const [stateDropdownOpen, setStateDropdownOpen] = useState(false)
   const [stateSearch, setStateSearch] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set())
+
+  const availableStages = useMemo(() => {
+    const dept = department as PartnerDepartment | undefined
+    if (!dept || !DEPARTMENT_STAGES[dept]?.length) return []
+    const present = new Set<string>()
+    for (const p of partners) {
+      const s = p.partner_department_status.find(ds => ds.department === dept)
+      if (s?.stage) present.add(s.stage)
+    }
+    return DEPARTMENT_STAGES[dept].filter(s => present.has(s))
+  }, [partners, department])
+
+  const availableCategories = useMemo(() => {
+    const present = new Set<string>()
+    for (const p of partners) {
+      for (const c of p.service_categories ?? []) present.add(c)
+    }
+    return SERVICE_CATEGORIES.filter(c => present.has(c))
+  }, [partners])
 
   // state name → partners[] (excludes Nationwide)
   const partnersByState = useMemo(() => {
@@ -148,7 +173,7 @@ export default function PartnerMap({ partners, department }: Props) {
     [partnersByState, stateSearch]
   )
 
-  // Partners to show in left list — filtered by selected states, then search
+  // Partners to show in left list — filtered by selected states, search, and service categories
   const listPartners = useMemo(() => {
     const base = selectedStates.size === 0
       ? [...partners]
@@ -160,15 +185,27 @@ export default function PartnerMap({ partners, department }: Props) {
 
     const sorted = base.sort((a, b) => a.name.localeCompare(b.name))
 
-    if (!search.trim()) return sorted
-    const q = search.toLowerCase()
-    return sorted.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.state?.toLowerCase().includes(q) ||
-      p.city?.toLowerCase().includes(q) ||
-      p.partner_contacts.some(c => c.name.toLowerCase().includes(q))
-    )
-  }, [partners, partnersByState, selectedStates, search])
+    const bySearch = !search.trim() ? sorted : (() => {
+      const q = search.toLowerCase()
+      return sorted.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.state?.toLowerCase().includes(q) ||
+        p.city?.toLowerCase().includes(q) ||
+        p.partner_contacts.some(c => c.name.toLowerCase().includes(q))
+      )
+    })()
+
+    const byCategory = selectedCategories.size === 0 ? bySearch : bySearch.filter(p => {
+      const cats = new Set(p.service_categories ?? [])
+      return [...selectedCategories].every(c => cats.has(c))
+    })
+
+    if (selectedStages.size === 0 || !department) return byCategory
+    return byCategory.filter(p => {
+      const stage = p.partner_department_status.find(ds => ds.department === department)?.stage ?? ''
+      return selectedStages.has(stage)
+    })
+  }, [partners, partnersByState, selectedStates, search, selectedCategories, selectedStages, department])
 
   function toggleState(stateName: string) {
     setSelectedStates(prev => {
@@ -191,52 +228,10 @@ export default function PartnerMap({ partners, department }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_420px] lg:items-start">
 
-      {/* ── Left: partner list ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-
-        {/* List header */}
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">
-            {selectedStates.size > 0
-              ? `${[...selectedStates].join(', ')} · ${listPartners.length} partner${listPartners.length !== 1 ? 's' : ''}`
-              : `${listPartners.length} partner${listPartners.length !== 1 ? 's' : ''}`
-            }
-          </p>
-          {selectedStates.size > 0 && (
-            <button
-              onClick={() => setSelectedStates(new Set())}
-              className="text-xs text-muted-text hover:text-dark-text transition-colors"
-            >
-              Show all
-            </button>
-          )}
-        </div>
-
-        {/* Search */}
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name, state, or contact…"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-        />
-
-        {/* Cards */}
-        {listPartners.length === 0 ? (
-          <p className="text-sm text-muted-text py-8 text-center">No partners match.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {listPartners.map(p => (
-              <PartnerCard key={p.id} p={p} department={department} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Right: sticky map ──────────────────────────────────────────── */}
-      <div className="sticky top-6 flex flex-col gap-3">
+      {/* ── Right: sticky map — rendered first in HTML so it appears at top on narrow screens ── */}
+      <div className="flex flex-col gap-3 lg:order-2 lg:sticky lg:top-6 min-w-0">
 
         {/* Map */}
         <div className="relative rounded-xl border border-border bg-white dark:bg-gray-950 overflow-hidden">
@@ -421,6 +416,63 @@ export default function PartnerMap({ partners, department }: Props) {
             <span className="italic text-muted-text/60">Click to filter · multi-select supported</span>
           )}
         </div>
+      </div>
+
+      {/* ── Left: partner list — lg:order-1 places it in the left column on wide screens ── */}
+      <div className="flex flex-col gap-3 lg:order-1 min-w-0">
+
+        {/* List header */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">
+            {selectedStates.size > 0
+              ? `${[...selectedStates].join(', ')} · ${listPartners.length} partner${listPartners.length !== 1 ? 's' : ''}`
+              : `${listPartners.length} partner${listPartners.length !== 1 ? 's' : ''}`
+            }
+          </p>
+          {selectedStates.size > 0 && (
+            <button
+              onClick={() => setSelectedStates(new Set())}
+              className="text-xs text-muted-text hover:text-dark-text transition-colors"
+            >
+              Show all
+            </button>
+          )}
+        </div>
+
+        {/* Search */}
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, state, or contact…"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        />
+
+        {availableStages.length > 0 && (
+          <PartnerStageFilter
+            available={availableStages}
+            selected={selectedStages}
+            onChange={setSelectedStages}
+          />
+        )}
+        {availableCategories.length > 0 && (
+          <PartnerCategoryFilter
+            available={availableCategories}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+          />
+        )}
+
+        {/* Cards */}
+        {listPartners.length === 0 ? (
+          <p className="text-sm text-muted-text py-8 text-center">No partners match.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {listPartners.map(p => (
+              <PartnerCard key={p.id} p={p} department={department} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { listPartners } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS, DEPT_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
 import PartnerList, { type SortOption } from '@/components/ui/PartnerList'
+import BackLink from '@/components/ui/BackLink'
 
 interface Props {
   searchParams: Promise<{ dept?: string }>
@@ -30,9 +31,7 @@ export default async function DepartmentPartnersPage({ searchParams }: Props) {
     <main className="max-w-4xl mx-auto px-6 py-10">
 
         <div className="mb-8">
-          <Link href="/instructor/partnerships" className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-            ← Partners
-          </Link>
+          <BackLink href="/instructor/partnerships">Partners</BackLink>
           <div className="flex items-center justify-between gap-3 mt-3">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-dark-text">{deptLabel ?? 'All Partners'}</h1>

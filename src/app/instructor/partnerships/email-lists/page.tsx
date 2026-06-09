@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { listEmailLists } from '@/lib/email-list-actions'
+import BackLink from '@/components/ui/BackLink'
 import { DEPARTMENT_LABELS, type PartnerDepartment } from '@/lib/partner-constants'
 import EmailListHistory from '@/components/ui/EmailListHistory'
 
@@ -16,19 +17,22 @@ export default async function EmailListsPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-10">
-      <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-dark-text">Email Lists</h1>
-          <p className="text-sm text-muted-text mt-1">
-            Build filtered contact lists and track email outreach history.
-          </p>
+      <div className="mb-8">
+        <BackLink href="/instructor/partnerships">Partners</BackLink>
+        <div className="flex items-center justify-between mt-3 gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-dark-text">Email Lists</h1>
+            <p className="text-sm text-muted-text mt-1">
+              Build filtered contact lists and track email outreach history.
+            </p>
+          </div>
+          <Link
+            href="/instructor/partnerships/email-lists/new"
+            className="px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
+          >
+            + New Email List
+          </Link>
         </div>
-        <Link
-          href="/instructor/partnerships/email-lists/new"
-          className="px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
-        >
-          + New Email List
-        </Link>
       </div>
 
       {lists.length === 0 ? (

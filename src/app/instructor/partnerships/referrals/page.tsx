@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import ReferralDashboard from '@/components/ui/ReferralDashboard'
+import BackLink from '@/components/ui/BackLink'
 import { listReferrals } from '@/lib/partner-interactions-actions'
 import { listPartnersWithGeo } from '@/lib/partner-actions'
 import { listStudents } from '@/lib/partner-ratings-actions'
@@ -36,7 +37,8 @@ export default async function ReferralsPage() {
   return (
     <main className="max-w-5xl mx-auto px-6 py-10">
       <div className="mb-8">
-        <div className="flex items-center justify-between">
+        <BackLink href="/instructor/partnerships">Partners</BackLink>
+        <div className="flex items-center justify-between mt-3">
           <div>
             <h1 className="text-2xl font-bold text-dark-text">Student Referrals</h1>
             <p className="text-sm text-muted-text mt-1">Find an org and log a referral; track outcomes and ratings.</p>
