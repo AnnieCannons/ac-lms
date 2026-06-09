@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { DEPARTMENT_LABELS, DEPT_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
+import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS, STAGE_COLORS, type PartnerDepartment } from '@/lib/partner-constants'
 import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -162,12 +162,77 @@ export function PartnerCategoryFilter({
   )
 }
 
+// ─── Stage filter bar (reusable) ─────────────────────────────────────────────
+
+export function PartnerStageFilter({
+  available,
+  selected,
+  onChange,
+}: {
+  available: string[]
+  selected: Set<string>
+  onChange: (stages: Set<string>) => void
+}) {
+  if (available.length === 0) return null
+
+  function toggle(stage: string) {
+    const next = new Set(selected)
+    next.has(stage) ? next.delete(stage) : next.add(stage)
+    onChange(next)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-text uppercase tracking-wide">Filter by status</span>
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => onChange(new Set())}
+            className="text-xs text-muted-text hover:text-dark-text transition-colors"
+          >
+            Clear ({selected.size})
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {available.map(stage => (
+          <button
+            key={stage}
+            type="button"
+            onClick={() => toggle(stage)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              selected.has(stage)
+                ? STAGE_COLORS[stage] ?? 'bg-teal-primary text-white border-teal-primary'
+                : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+            }`}
+          >
+            {stage}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PartnerList({ partners, department, sortOptions = ['name'], showCategoryFilter = false }: Props) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortOption>(sortOptions[0] ?? 'name')
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set())
+
+  // Stages that actually appear on at least one partner in this list
+  const availableStages = useMemo(() => {
+    if (!department || !DEPARTMENT_STAGES[department]?.length) return []
+    const present = new Set<string>()
+    for (const p of partners) {
+      const s = p.partner_department_status.find(ds => ds.department === department)
+      if (s?.stage) present.add(s.stage)
+    }
+    return DEPARTMENT_STAGES[department].filter(s => present.has(s))
+  }, [partners, department])
 
   // Only show categories that at least one partner in this list has
   const availableCategories = useMemo(() => {
@@ -192,6 +257,10 @@ export default function PartnerList({ partners, department, sortOptions = ['name
         const partnerCats = new Set(p.service_categories ?? [])
         if (![...selectedCategories].every(c => partnerCats.has(c))) return false
       }
+      if (selectedStages.size > 0 && department) {
+        const stage = p.partner_department_status.find(ds => ds.department === department)?.stage ?? ''
+        if (!selectedStages.has(stage)) return false
+      }
       return true
     })
 
@@ -210,7 +279,7 @@ export default function PartnerList({ partners, department, sortOptions = ['name
           return a.name.localeCompare(b.name)
       }
     })
-  }, [partners, search, sort])
+  }, [partners, search, sort, selectedCategories, selectedStages, department])
 
   return (
     <div className="flex flex-col gap-4">
@@ -224,6 +293,13 @@ export default function PartnerList({ partners, department, sortOptions = ['name
           className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
         />
         <PartnerSortBar options={sortOptions} value={sort} onChange={setSort} />
+        {availableStages.length > 0 && (
+          <PartnerStageFilter
+            available={availableStages}
+            selected={selectedStages}
+            onChange={setSelectedStages}
+          />
+        )}
         {showCategoryFilter && availableCategories.length > 0 && (
           <PartnerCategoryFilter
             available={availableCategories}
@@ -241,7 +317,7 @@ export default function PartnerList({ partners, department, sortOptions = ['name
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {(search.trim() || selectedCategories.size > 0) && (
+          {filtered.length !== partners.length && (
             <p className="text-xs text-muted-text">{filtered.length} of {partners.length} partners</p>
           )}
           {filtered.map(partner => {
@@ -302,11 +378,6 @@ export default function PartnerList({ partners, department, sortOptions = ['name
                         {label}
                       </span>
                     ))}
-                    {showStatus && (
-                      <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${STATUS_COLORS[partner.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {STATUS_LABELS[partner.status] ?? partner.status}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -315,10 +386,24 @@ export default function PartnerList({ partners, department, sortOptions = ['name
                     {partner.partner_department_status.map(s => (
                       <span key={s.department} className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${DEPT_COLORS[s.department as PartnerDepartment]}`}>
                         {DEPARTMENT_LABELS[s.department as PartnerDepartment] ?? s.department}
+                        {s.stage && DEPARTMENT_STAGES[s.department as PartnerDepartment]?.length > 0 ? ` · ${s.stage}` : ''}
                       </span>
                     ))}
                   </div>
                 )}
+
+                {/* Stage badge when viewing a dept that tracks stages */}
+                {department && DEPARTMENT_STAGES[department]?.length > 0 && (() => {
+                  const stage = partner.partner_department_status.find(s => s.department === department)?.stage
+                  if (!stage) return null
+                  return (
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${STAGE_COLORS[stage] ?? DEPT_COLORS[department]}`}>
+                        {stage}
+                      </span>
+                    </div>
+                  )
+                })()}
 
                 {(partner.service_categories ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-1">

@@ -304,3 +304,68 @@ export async function listStaffUsers() {
 
   return { error: null, users: data ?? [] }
 }
+
+export async function archiveContact(contactId: string, archived: boolean) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partner_contacts')
+    .update({ is_archived: archived })
+    .eq('id', contactId)
+
+  if (dbError) return { error: dbError.message }
+  return { error: null }
+}
+
+export interface ContactData {
+  name: string
+  title: string | null
+  email: string | null
+  phone: string | null
+  is_primary: boolean
+  notes: string | null
+  linkedin_url: string | null
+  website_url: string | null
+  departments: string[] | null
+}
+
+export async function createContact(partnerId: string, data: ContactData) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, contact: null }
+
+  const { data: row, error: dbError } = await supabase
+    .from('partner_contacts')
+    .insert({ ...data, partner_id: partnerId })
+    .select('*')
+    .single()
+
+  if (dbError) return { error: dbError.message, contact: null }
+  return { error: null, contact: row }
+}
+
+export async function updateContact(contactId: string, data: Partial<ContactData>) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partner_contacts')
+    .update(data)
+    .eq('id', contactId)
+
+  if (dbError) return { error: dbError.message }
+  return { error: null }
+}
+
+export async function deleteContact(contactId: string) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partner_contacts')
+    .delete()
+    .eq('id', contactId)
+
+  if (dbError) return { error: dbError.message }
+  return { error: null }
+}

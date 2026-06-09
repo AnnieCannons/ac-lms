@@ -1,5 +1,6 @@
 import { listPartners } from '@/lib/partner-actions'
 import EmailListBuilder from '@/components/ui/EmailListBuilder'
+import BackLink from '@/components/ui/BackLink'
 
 export default async function NewEmailListPage() {
   const { partners } = await listPartners()
@@ -24,7 +25,8 @@ export default async function NewEmailListPage() {
   return (
     <main className="max-w-4xl mx-auto px-6 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-dark-text">New Email List</h1>
+        <BackLink href="/instructor/partnerships/email-lists">Email Lists</BackLink>
+        <h1 className="text-2xl font-bold text-dark-text mt-3">New Email List</h1>
         <p className="text-sm text-muted-text mt-1">
           Filter partners, review contacts, then copy or save the list.
         </p>

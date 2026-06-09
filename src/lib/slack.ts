@@ -69,3 +69,26 @@ export async function notifyByEmail(email: string, text: string): Promise<boolea
   if (!slackId) return false
   return slackPostMessage(slackId, text)
 }
+
+/** Schedule a Slack DM to an email address at a future unix timestamp. Returns true if scheduled. */
+export async function scheduleSlackDM(email: string, text: string, postAt: number): Promise<boolean> {
+  if (!SLACK_BOT_TOKEN) return false
+  const slackId = await slackLookupByEmail(email)
+  if (!slackId) return false
+  try {
+    const res = await fetch('https://slack.com/api/chat.scheduleMessage', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ channel: slackId, text, post_at: postAt }),
+    })
+    const json = await res.json() as { ok: boolean; error?: string }
+    if (!json.ok) console.warn(`Slack scheduleMessage error: ${json.error}`)
+    return json.ok
+  } catch (e) {
+    console.warn('Slack scheduleMessage failed:', e)
+    return false
+  }
+}

@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import PartnerForm from '@/components/ui/PartnerForm'
 import { createPartner, listStaffUsers, type PartnerDepartment } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS } from '@/lib/partner-constants'
+import BackLink from '@/components/ui/BackLink'
 
 interface Props {
   searchParams: Promise<{ dept?: string }>
@@ -15,7 +15,7 @@ export default async function NewPartnerPage({ searchParams }: Props) {
   const backHref = department
     ? `/instructor/partnerships/all?dept=${department}`
     : '/instructor/partnerships'
-  const backLabel = department ? `← ${DEPARTMENT_LABELS[department]}` : '← Partners'
+  const backLabel = department ? DEPARTMENT_LABELS[department] : 'Partners'
   const redirectTo = department
     ? `/instructor/partnerships/all?dept=${department}`
     : '/instructor/partnerships'
@@ -23,9 +23,7 @@ export default async function NewPartnerPage({ searchParams }: Props) {
   return (
     <main className="max-w-2xl mx-auto px-6 py-10">
       <div className="mb-8">
-        <Link href={backHref} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-          {backLabel}
-        </Link>
+        <BackLink href={backHref}>{backLabel}</BackLink>
         <h1 className="text-2xl font-bold text-dark-text mt-3">Add Partner</h1>
       </div>
 

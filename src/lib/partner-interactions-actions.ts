@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
-import { notifyStaff, notifyByEmail } from '@/lib/slack'
+import { notifyStaff, notifyByEmail, scheduleSlackDM } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -31,6 +31,7 @@ export async function logInteraction(data: {
   note: string
   interaction_date: string
   department?: PartnerDepartment | null
+  remind_in_days?: number | null
 }) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
@@ -50,6 +51,20 @@ export async function logInteraction(data: {
     .update({ last_interaction_date: data.interaction_date })
     .eq('id', data.partner_id)
     .lt('last_interaction_date', data.interaction_date)
+
+  // Schedule Slack follow-up reminder if requested
+  if (data.remind_in_days && user?.email) {
+    const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
+    const { data: partnerRow } = await supabase
+      .from('partners').select('name').eq('id', data.partner_id).single()
+    const partnerName = partnerRow?.name ?? 'partner'
+    const postAt = Math.floor(Date.now() / 1000) + data.remind_in_days * 86400
+    await scheduleSlackDM(
+      user.email,
+      `⏰ Follow-up reminder: ${partnerName}\n${APP_URL}/instructor/partnerships/${data.partner_id}`,
+      postAt
+    )
+  }
 
   revalidatePath(`/instructor/partnerships/${data.partner_id}`)
   revalidatePath('/instructor/partnerships')
