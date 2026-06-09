@@ -24,7 +24,7 @@ export async function saveAnswerKey(
   // Verify the assignment belongs to this course to prevent cross-course mutation
   const { data: owned } = await admin
     .from('assignments')
-    .select('module_days!inner(modules!inner(course_id))')
+    .select('module_days!module_day_id(modules(course_id))')
     .eq('id', assignmentId)
     .single()
   const assignmentCourseId = (() => {
