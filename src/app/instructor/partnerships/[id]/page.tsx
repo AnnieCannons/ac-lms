@@ -8,7 +8,7 @@ import {
   listStaffUsers,
   type PartnerType,
 } from '@/lib/partner-actions'
-import { listInteractions, getDepartmentStatuses, listReferrals, type PartnerDepartment } from '@/lib/partner-interactions-actions'
+import { listInteractions, getDepartmentStatuses, listReferrals, getAllStageHistory, type PartnerDepartment } from '@/lib/partner-interactions-actions'
 import { getPartnerRatingSummary } from '@/lib/partner-ratings-actions'
 import { DEPARTMENT_LABELS } from '@/lib/partner-constants'
 
@@ -28,6 +28,7 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
     { statuses: departmentStatuses },
     { referrals: studentReferrals },
     { summary: ratingSummary },
+    { history: rawStageHistory },
   ] = await Promise.all([
     getPartner(id),
     listStaffUsers(),
@@ -35,9 +36,17 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
     getDepartmentStatuses(id),
     listReferrals({ partner_id: id }),
     getPartnerRatingSummary(id),
+    getAllStageHistory(id),
   ])
 
   if (!partner) notFound()
+
+  // Group history by department for easy lookup in PartnerOverview
+  const stageHistoryByDept = (rawStageHistory ?? []).reduce<Record<string, typeof rawStageHistory>>((acc, h) => {
+    if (!acc[h.department]) acc[h.department] = []
+    acc[h.department].push(h)
+    return acc
+  }, {})
 
   const backHref = dept && dept in DEPARTMENT_LABELS
     ? `/instructor/partnerships/all?dept=${dept}`
@@ -64,6 +73,7 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
         departmentStatuses={departmentStatuses as Parameters<typeof PartnerOverview>[0]['departmentStatuses']}
         studentReferrals={studentReferrals as Parameters<typeof PartnerOverview>[0]['studentReferrals']}
         ratingSummary={ratingSummary}
+        stageHistories={stageHistoryByDept as Parameters<typeof PartnerOverview>[0]['stageHistories']}
         staffUsers={staffUsers}
         defaultDepartment={dept as PartnerDepartment | undefined}
         onUpdatePartner={updatePartner.bind(null, id)}

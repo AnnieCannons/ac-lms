@@ -11,9 +11,10 @@ import {
   deleteReferral,
   type PartnerDepartment,
 } from '@/lib/partner-interactions-actions'
-import { archiveContact, createContact, updateContact, deleteContact, type ContactData } from '@/lib/partner-actions'
+import { archiveContact, createContact, updateContact, deleteContact, setPartnerOwner, setDoNotEmail, type ContactData } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS } from '@/lib/partner-constants'
 import PartnerForm from '@/components/ui/PartnerForm'
+import StageHistory, { type StageHistoryEntry } from '@/components/ui/StageHistory'
 import type { PartnerFormData, PartnerType } from '@/lib/partner-actions'
 import type { PartnerRatingSummaryRow } from '@/lib/partner-ratings-actions'
 
@@ -60,7 +61,12 @@ interface Partner {
   status: string
   last_interaction_date: string | null
   internal_owner_id: string | null
+  internal_owner_name?: string | null
   website: string | null
+  service_categories?: string[]
+  do_not_email?: boolean
+  do_not_email_notes?: string | null
+  do_not_email_set_at?: string | null
   how_we_met: string | null
   services_focus_area: string | null
   meeting_notes: string | null
@@ -92,6 +98,7 @@ interface Props {
   departmentStatuses: DepartmentStatus[]
   studentReferrals: Referral[]
   ratingSummary?: PartnerRatingSummaryRow[]
+  stageHistories?: Record<string, StageHistoryEntry[]>
   staffUsers: StaffUser[]
   defaultDepartment?: PartnerDepartment | null
   onUpdatePartner: (data: PartnerFormData) => Promise<{ error: string | null }>
@@ -120,6 +127,7 @@ const ALL_DEPARTMENTS: PartnerDepartment[] = [
 ]
 
 const REMINDER_OPTIONS = [
+  { label: '2 min (test)', days: 2 / (24 * 60) },
   { label: '1 week', days: 7 },
   { label: '2 weeks', days: 14 },
   { label: '1 month', days: 30 },
@@ -137,22 +145,6 @@ function daysSince(dateStr: string | null) {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
-
-function IncompleteProfileBanner({ partner }: { partner: Partner }) {
-  const missing: string[] = []
-  if (!partner.city) missing.push('city')
-  if (!partner.partner_contacts.length) missing.push('at least one contact')
-  if (!partner.partner_type_assignments.length) missing.push('partner type')
-  if (!partner.internal_owner_id) missing.push('internal owner')
-  if (!missing.length) return null
-
-  return (
-    <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 flex items-start gap-2">
-      <span className="shrink-0 mt-0.5">⚠</span>
-      <span>Incomplete profile — missing: {missing.join(', ')}.</span>
-    </div>
-  )
-}
 
 function DeptOverviewTable({
   deptStatuses,
@@ -775,6 +767,121 @@ function ContactsSection({
   )
 }
 
+function ProfileView({
+  partner,
+  types,
+  deptStatuses,
+  onEdit,
+}: {
+  partner: Partner
+  types: string[]
+  deptStatuses: DepartmentStatus[]
+  onEdit: () => void
+}) {
+  const location = [partner.city, partner.state].filter(Boolean).join(', ')
+    + (partner.multi_city ? ' + more' : '')
+  const serviceCategories = partner.service_categories ?? []
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-sm text-teal-primary hover:underline"
+        >
+          Edit
+        </button>
+      </div>
+
+      <dl className="flex flex-col gap-3">
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Name</dt>
+          <dd className="text-dark-text font-medium">{partner.name}</dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Location</dt>
+          <dd className={location ? 'text-dark-text' : 'text-muted-text'}>
+            {location || '—'}
+          </dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Website</dt>
+          <dd>
+            {partner.website
+              ? <a href={partner.website} target="_blank" rel="noopener noreferrer"
+                  className="text-teal-primary hover:underline break-all">{partner.website}</a>
+              : <span className="text-muted-text">—</span>}
+          </dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Departments</dt>
+          <dd>
+            {deptStatuses.length > 0
+              ? <div className="flex flex-wrap gap-1">
+                  {deptStatuses.map(ds => (
+                    <span key={ds.department} className={`text-xs font-medium rounded-full px-2.5 py-1 ${DEPT_COLORS[ds.department]}`}>
+                      {DEPARTMENT_LABELS[ds.department]}
+                    </span>
+                  ))}
+                </div>
+              : <span className="text-muted-text">—</span>}
+          </dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Partner Type</dt>
+          <dd>
+            {types.length > 0
+              ? <div className="flex flex-wrap gap-1">
+                  {types.map(t => (
+                    <span key={t} className="text-xs bg-surface border border-border rounded px-2 py-0.5">{t}</span>
+                  ))}
+                </div>
+              : <span className="text-muted-text">—</span>}
+          </dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Services Provided</dt>
+          <dd>
+            {serviceCategories.length > 0
+              ? <div className="flex flex-wrap gap-1">
+                  {serviceCategories.map(cat => (
+                    <span key={cat} className="text-xs bg-surface border border-border rounded px-2 py-0.5">{cat}</span>
+                  ))}
+                </div>
+              : <span className="text-muted-text">—</span>}
+          </dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Notes</dt>
+          <dd className={partner.services_focus_area ? 'text-dark-text whitespace-pre-line' : 'text-muted-text'}>
+            {partner.services_focus_area || '—'}
+          </dd>
+        </div>
+
+        <div className="flex gap-3 text-sm">
+          <dt className="text-muted-text shrink-0 w-36">Tags</dt>
+          <dd>
+            {partner.tags?.length > 0
+              ? <div className="flex flex-wrap gap-1">
+                  {partner.tags.map(tag => (
+                    <span key={tag} className="text-xs bg-surface border border-border rounded-full px-2 py-0.5">{tag}</span>
+                  ))}
+                </div>
+              : <span className="text-muted-text">—</span>}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
 function DetailsSection({ partner }: { partner: Partner }) {
   const hasDetails = partner.website || partner.how_we_met || partner.referred_by ||
     partner.services_focus_area || (partner.tags?.length > 0) || partner.meeting_notes
@@ -1000,6 +1107,7 @@ export default function PartnerOverview({
   departmentStatuses: initialStatuses,
   studentReferrals,
   ratingSummary = [],
+  stageHistories: initialHistories = {},
   staffUsers,
   defaultDepartment,
   onUpdatePartner,
@@ -1011,6 +1119,11 @@ export default function PartnerOverview({
   const [interactions, setInteractions] = useState<Interaction[]>(initialInteractions)
   const [deptStatuses, setDeptStatuses] = useState<DepartmentStatus[]>(initialStatuses)
   const [contacts, setContacts] = useState<Contact[]>(partner.partner_contacts)
+  const [histories, setHistories] = useState<Record<string, StageHistoryEntry[]>>(initialHistories)
+  const [ownerId, setOwnerId] = useState(partner.internal_owner_id ?? '')
+  const [doNotEmail, setDoNotEmailState] = useState(partner.do_not_email ?? false)
+  const [doNotEmailNotes, setDoNotEmailNotes] = useState(partner.do_not_email_notes ?? '')
+  const [showDneForm, setShowDneForm] = useState(false)
 
   const initialTab: ActiveTab =
     (defaultDepartment && initialStatuses.some(s => s.department === defaultDepartment))
@@ -1020,6 +1133,7 @@ export default function PartnerOverview({
         : 'edit'
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab)
+  const [editingProfile, setEditingProfile] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -1041,6 +1155,10 @@ export default function PartnerOverview({
       if (existing) return prev.map(s => s.department === dept ? { ...s, stage } : s)
       return [...prev, { id: crypto.randomUUID(), department: dept, stage, updated_at: new Date().toISOString(), users: null }]
     })
+    setHistories(prev => ({
+      ...prev,
+      [dept]: [...(prev[dept] ?? []), { id: crypto.randomUUID(), stage, changed_at: new Date().toISOString(), users: null }],
+    }))
   }
 
   function handleAddDepartment(dept: PartnerDepartment) {
@@ -1048,6 +1166,10 @@ export default function PartnerOverview({
       await setDepartmentStatus(partner.id, dept, '')
     })
     setDeptStatuses(prev => [...prev, { id: crypto.randomUUID(), department: dept, stage: '', updated_at: new Date().toISOString(), users: null }])
+    setHistories(prev => ({
+      ...prev,
+      [dept]: [{ id: crypto.randomUUID(), stage: '', changed_at: new Date().toISOString(), users: null }],
+    }))
     setActiveTab(dept)
   }
 
@@ -1057,6 +1179,7 @@ export default function PartnerOverview({
     })
     const remaining = deptStatuses.filter(s => s.department !== dept)
     setDeptStatuses(remaining)
+    setHistories(prev => { const next = { ...prev }; delete next[dept]; return next })
     setActiveTab(remaining.length > 0 ? remaining[0].department : 'edit')
   }
 
@@ -1091,6 +1214,22 @@ export default function PartnerOverview({
     setContacts(prev => prev.filter(c => c.id !== contactId))
   }
 
+  function handleSetDoNotEmail(value: boolean, notes: string) {
+    setDoNotEmailState(value)
+    setDoNotEmailNotes(value ? notes : '')
+    setShowDneForm(false)
+    startTransition(async () => {
+      await setDoNotEmail(partner.id, value, notes)
+    })
+  }
+
+  function handleOwnerChange(newOwnerId: string) {
+    setOwnerId(newOwnerId)
+    startTransition(async () => {
+      await setPartnerOwner(partner.id, newOwnerId || null)
+    })
+  }
+
   async function handleDelete() {
     setDeleting(true)
     const result = await onDeletePartner()
@@ -1123,11 +1262,13 @@ export default function PartnerOverview({
     referred_by: partner.referred_by,
     partner_types: partner.partner_type_assignments.map(t => t.partner_type),
     contacts: partner.partner_contacts,
+    departments: initialStatuses.map(s => s.department),
+    service_categories: partner.service_categories ?? [],
   }
 
   const tabs: { id: ActiveTab; label: string }[] = [
     ...deptStatuses.map(ds => ({ id: ds.department as ActiveTab, label: DEPARTMENT_LABELS[ds.department] })),
-    { id: 'edit', label: 'Edit Profile' },
+    { id: 'edit', label: 'Profile' },
   ]
 
   return (
@@ -1170,10 +1311,11 @@ export default function PartnerOverview({
           {followUpNeeded && (
             <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-red-100 text-red-700">Follow-up needed</span>
           )}
+          {doNotEmail && (
+            <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-red-600 text-white">⊘ Do not email</span>
+          )}
         </div>
       </div>
-
-      <IncompleteProfileBanner partner={partner} />
 
       {/* Department overview table — always visible */}
       <DeptOverviewTable
@@ -1242,7 +1384,132 @@ export default function PartnerOverview({
       {deptStatuses.map(ds => activeTab === ds.department && (
         <div key={ds.department} className="flex flex-col gap-8">
 
-          {/* Interactions first */}
+          {/* Status + history at the top */}
+          {DEPARTMENT_STAGES[ds.department].length > 0 ? (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Status</h2>
+              <div className="flex items-start gap-8">
+                <div className="flex flex-col gap-2 shrink-0">
+                  <select
+                    value={getStageFor(ds.department)}
+                    onChange={e => handleStageChange(ds.department, e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary min-w-52"
+                  >
+                    <option value="">— Select status —</option>
+                    {DEPARTMENT_STAGES[ds.department].map(stage => (
+                      <option key={stage} value={stage}>{stage}</option>
+                    ))}
+                  </select>
+                  {isPending && <p className="text-xs text-muted-text">Saving…</p>}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveDepartment(ds.department)}
+                    className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
+                  >
+                    Remove from {DEPARTMENT_LABELS[ds.department]}
+                  </button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <StageHistory history={histories[ds.department] ?? []} />
+                </div>
+              </div>
+              {/* Internal Owner */}
+              <div className="flex items-center gap-3 pt-1">
+                <label className="text-xs text-muted-text shrink-0">Internal owner</label>
+                <select
+                  value={ownerId}
+                  onChange={e => handleOwnerChange(e.target.value)}
+                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                >
+                  <option value="">Unassigned</option>
+                  {staffUsers.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+            </section>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-muted-text shrink-0">Internal owner</label>
+                <select
+                  value={ownerId}
+                  onChange={e => handleOwnerChange(e.target.value)}
+                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                >
+                  <option value="">Unassigned</option>
+                  {staffUsers.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemoveDepartment(ds.department)}
+                className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
+              >
+                Remove from {DEPARTMENT_LABELS[ds.department]}
+              </button>
+            </div>
+          )}
+
+          {/* Do not email control */}
+          <div className="flex flex-col gap-2">
+            {doNotEmail ? (
+              <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-red-700">⊘ Do not email</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDoNotEmail(false, '')}
+                    className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-md bg-red-700 text-white hover:bg-red-900 transition-colors"
+                  >
+                    Remove flag
+                  </button>
+                </div>
+                {doNotEmailNotes && (
+                  <p className="text-sm text-red-800 whitespace-pre-line">{doNotEmailNotes}</p>
+                )}
+              </div>
+            ) : showDneForm ? (
+              <div className="rounded-lg border border-border bg-surface p-4 flex flex-col gap-3">
+                <p className="text-xs font-semibold text-dark-text uppercase tracking-wide">Mark as do not email</p>
+                <textarea
+                  value={doNotEmailNotes}
+                  onChange={e => setDoNotEmailNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Why should this org not be emailed? (e.g. 3 unanswered emails since March)"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+                />
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSetDoNotEmail(true, doNotEmailNotes)}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowDneForm(false); setDoNotEmailNotes('') }}
+                    className="text-xs text-muted-text hover:text-dark-text transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowDneForm(true)}
+                className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
+              >
+                Mark as do not email…
+              </button>
+            )}
+          </div>
+
+          {/* Interactions */}
           <section className="flex flex-col gap-4">
             <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">
               {DEPARTMENT_LABELS[ds.department]} Interactions
@@ -1257,31 +1524,6 @@ export default function PartnerOverview({
               onDelete={handleDeleteInteraction}
             />
           </section>
-
-          {/* Journey stage — only for depts that have defined stages */}
-          {DEPARTMENT_STAGES[ds.department].length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Journey Stage</h2>
-              <StageSelector
-                department={ds.department}
-                currentStage={getStageFor(ds.department)}
-                onStageChange={handleStageChange}
-                onRemove={handleRemoveDepartment}
-              />
-              {isPending && <p className="text-xs text-muted-text">Saving…</p>}
-            </section>
-          )}
-          {DEPARTMENT_STAGES[ds.department].length === 0 && (
-            <div className="self-start">
-              <button
-                type="button"
-                onClick={() => handleRemoveDepartment(ds.department)}
-                className="text-xs text-muted-text hover:text-red-500 transition-colors"
-              >
-                Remove from {DEPARTMENT_LABELS[ds.department]}
-              </button>
-            </div>
-          )}
 
           {/* Contacts */}
           <ContactsSection
@@ -1316,53 +1558,59 @@ export default function PartnerOverview({
         </div>
       ))}
 
-      {/* Edit Profile tab */}
+      {/* Profile tab */}
       {activeTab === 'edit' && (
         <div className="flex flex-col gap-8">
-          <PartnerForm
-            initialData={initialFormData}
-            staffUsers={staffUsers}
-            onSubmit={async (data) => {
-              const result = await onUpdatePartner(data)
-              if (!result.error) {
-                setActiveTab(deptStatuses.length > 0 ? deptStatuses[0].department : 'edit')
-              }
-              return result
-            }}
-            submitLabel="Save Changes"
-            partnerId={partner.id}
-            redirectTo={defaultDepartment
-              ? `/instructor/partnerships/all?dept=${defaultDepartment}`
-              : '/instructor/partnerships'
-            }
-          />
-
-          <section className="flex flex-col gap-3 border-t border-border pt-6">
-            {!confirmDelete ? (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="self-start text-sm text-red-500 hover:text-red-700 transition-colors"
-              >
-                Delete this partner…
-              </button>
-            ) : (
-              <div className="flex items-center gap-3 flex-wrap">
-                <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {deleting ? 'Deleting…' : 'Yes, delete'}
-                </button>
-                <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-muted-text hover:text-dark-text transition-colors">
-                  Cancel
-                </button>
-              </div>
-            )}
-          </section>
+          {!editingProfile ? (
+            <>
+              <ProfileView
+                partner={partner}
+                types={types}
+                deptStatuses={deptStatuses}
+                onEdit={() => setEditingProfile(true)}
+              />
+              <section className="flex flex-col gap-3 border-t border-border pt-6">
+                {!confirmDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="self-start text-sm text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    Delete this partner…
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {deleting ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                    <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-muted-text hover:text-dark-text transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </section>
+            </>
+          ) : (
+            <PartnerForm
+              initialData={initialFormData}
+              staffUsers={staffUsers}
+              hideRelational
+              onSubmit={async (data) => {
+                const result = await onUpdatePartner(data)
+                if (!result.error) setEditingProfile(false)
+                return result
+              }}
+              onCancel={() => setEditingProfile(false)}
+              submitLabel="Save Changes"
+              partnerId={partner.id}
+            />
+          )}
         </div>
       )}
     </div>

@@ -52,6 +52,10 @@ interface Props {
   partnerId?: string
   defaultDepartment?: PartnerDepartment
   redirectTo?: string
+  /** When editing an existing partner, contacts and owner are managed in the dept tabs */
+  hideRelational?: boolean
+  /** If provided, Cancel uses this instead of router.back() */
+  onCancel?: () => void
 }
 
 function emptyContact(): PartnerContact {
@@ -129,7 +133,7 @@ function StateCombobox({ value, onChange }: { value: string; onChange: (v: strin
   )
 }
 
-export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo }: Props) {
+export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo, hideRelational = false, onCancel }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -352,39 +356,6 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">Status</label>
-          <select
-            value={status}
-            onChange={e => setStatus(e.target.value as PartnerStatus)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-          >
-            {STATUSES.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      {/* Partner types */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Partner Type(s)</h2>
-        <div className="flex flex-wrap gap-2">
-          {PARTNER_TYPES.map(t => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => toggleType(t.value)}
-              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                partnerTypes.includes(t.value)
-                  ? 'bg-teal-primary text-white border-teal-primary'
-                  : 'bg-background text-muted-text border-border hover:border-teal-primary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
       </section>
 
       {/* Departments */}
@@ -404,6 +375,27 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
               }`}
             >
               {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Partner types */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Partner Type(s)</h2>
+        <div className="flex flex-wrap gap-2">
+          {PARTNER_TYPES.map(t => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => toggleType(t.value)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                partnerTypes.includes(t.value)
+                  ? 'bg-teal-primary text-white border-teal-primary'
+                  : 'bg-background text-muted-text border-border hover:border-teal-primary'
+              }`}
+            >
+              {t.label}
             </button>
           ))}
         </div>
@@ -472,8 +464,8 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
         </div>
       </section>
 
-      {/* Contacts */}
-      <section className="flex flex-col gap-4">
+      {/* Contacts — hidden when editing (managed in dept tabs) */}
+      {!hideRelational && <section className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Contacts</h2>
         {contacts.map((contact, i) => (
           <div key={i} className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-3">
@@ -584,82 +576,71 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
         >
           + Add contact
         </button>
-      </section>
+      </section>}
 
-      {/* Relationship */}
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Relationship</h2>
+      {/* Relationship — hidden when editing (owner is in dept tabs; others are background info for creation) */}
+      {!hideRelational && (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Relationship</h2>
 
-        <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">Internal Owner</label>
-          <select
-            value={internalOwner}
-            onChange={e => setInternalOwner(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-          >
-            <option value="">Unassigned</option>
-            {staffUsers.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-text mb-1">Internal Owner</label>
+            <select
+              value={internalOwner}
+              onChange={e => setInternalOwner(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            >
+              <option value="">Unassigned</option>
+              {staffUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">How We Met</label>
-          <input
-            type="text"
-            value={howWeMet}
-            onChange={e => setHowWeMet(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-            placeholder="e.g. referral from X, cold outreach, event"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-text mb-1">How We Met</label>
+            <input
+              type="text"
+              value={howWeMet}
+              onChange={e => setHowWeMet(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              placeholder="e.g. referral from X, cold outreach, event"
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">Referred By</label>
-          <input
-            type="text"
-            value={referredBy}
-            onChange={e => setReferredBy(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-            placeholder="Person or org that referred them"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-text mb-1">Referred By</label>
+            <input
+              type="text"
+              value={referredBy}
+              onChange={e => setReferredBy(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              placeholder="Person or org that referred them"
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">Last Interaction Date</label>
-          <input
-            type="date"
-            value={lastInteraction}
-            onChange={e => setLastInteraction(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-          />
-        </div>
-      </section>
+          <div>
+            <label className="block text-sm font-medium text-dark-text mb-1">Last Interaction Date</label>
+            <input
+              type="date"
+              value={lastInteraction}
+              onChange={e => setLastInteraction(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+          </div>
+        </section>
+      )}
 
       {/* Details */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Details</h2>
-
         <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">Services / Focus Area</label>
+          <label className="block text-sm font-medium text-dark-text mb-1">Notes</label>
           <textarea
             value={servicesFocus}
             onChange={e => setServicesFocus(e.target.value)}
             rows={3}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-            placeholder="What this org does; eligibility criteria"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">Meeting Notes</label>
-          <textarea
-            value={meetingNotes}
-            onChange={e => setMeetingNotes(e.target.value)}
-            rows={4}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-            placeholder="Timestamped notes, unique things to remember"
+            placeholder="Eligibility criteria, anything notable about this org…"
           />
         </div>
 
@@ -707,7 +688,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => onCancel ? onCancel() : router.back()}
           className="px-5 py-2.5 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
         >
           Cancel

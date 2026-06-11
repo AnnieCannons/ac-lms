@@ -53,7 +53,7 @@ export async function logInteraction(data: {
     .lt('last_interaction_date', data.interaction_date)
 
   // Schedule Slack follow-up reminder if requested
-  if (data.remind_in_days && user?.email) {
+  if (data.remind_in_days != null && data.remind_in_days > 0 && user?.email) {
     const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
     const { data: partnerRow } = await supabase
       .from('partners').select('name').eq('id', data.partner_id).single()
@@ -151,6 +151,29 @@ export async function removeDepartmentStatus(partnerId: string, department: Part
 
   revalidatePath(`/instructor/partnerships/${partnerId}`)
   return { error: null }
+}
+
+type HistoryRow = { id: string; department: string; stage: string; changed_at: string; users: { name: string } | null }
+
+export async function getAllStageHistory(partnerId: string): Promise<{ error: string | null; history: HistoryRow[] }> {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error: error ?? null, history: [] }
+
+  const { data, error: dbError } = await supabase
+    .from('partner_department_status_history')
+    .select('id, department, stage, changed_at, users(name)')
+    .eq('partner_id', partnerId)
+    .order('changed_at', { ascending: true })
+
+  if (dbError) return { error: dbError.message, history: [] }
+  const history: HistoryRow[] = (data ?? []).map(row => ({
+    id: row.id,
+    department: row.department,
+    stage: row.stage,
+    changed_at: row.changed_at,
+    users: Array.isArray(row.users) ? (row.users[0] ?? null) : row.users,
+  }))
+  return { error: null, history }
 }
 
 // ─── Referrals ───────────────────────────────────────────────────────────────
