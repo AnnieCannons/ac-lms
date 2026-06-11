@@ -126,24 +126,16 @@ export default function PartnerMap({ partners, department }: Props) {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set())
 
+  // Full stage list for the department — every stage is filterable, even if
+  // no partner currently sits in it (keeps the filter set complete).
   const availableStages = useMemo(() => {
     const dept = department as PartnerDepartment | undefined
     if (!dept || !DEPARTMENT_STAGES[dept]?.length) return []
-    const present = new Set<string>()
-    for (const p of partners) {
-      const s = p.partner_department_status.find(ds => ds.department === dept)
-      if (s?.stage) present.add(s.stage)
-    }
-    return DEPARTMENT_STAGES[dept].filter(s => present.has(s))
-  }, [partners, department])
+    return DEPARTMENT_STAGES[dept]
+  }, [department])
 
-  const availableCategories = useMemo(() => {
-    const present = new Set<string>()
-    for (const p of partners) {
-      for (const c of p.service_categories ?? []) present.add(c)
-    }
-    return SERVICE_CATEGORIES.filter(c => present.has(c))
-  }, [partners])
+  // Full service taxonomy (incl. "Other"), not just categories already in use.
+  const availableCategories = useMemo(() => [...SERVICE_CATEGORIES], [])
 
   // state name → partners[] (excludes Nationwide)
   const partnersByState = useMemo(() => {

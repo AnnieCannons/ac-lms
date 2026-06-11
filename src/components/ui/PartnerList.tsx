@@ -224,25 +224,16 @@ export default function PartnerList({ partners, department, sortOptions = ['name
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set())
 
-  // Stages that actually appear on at least one partner in this list
+  // All stages defined for this department — shown as filters even when no
+  // partner currently sits in a given stage, so the filter set stays complete.
   const availableStages = useMemo(() => {
     if (!department || !DEPARTMENT_STAGES[department]?.length) return []
-    const present = new Set<string>()
-    for (const p of partners) {
-      const s = p.partner_department_status.find(ds => ds.department === department)
-      if (s?.stage) present.add(s.stage)
-    }
-    return DEPARTMENT_STAGES[department].filter(s => present.has(s))
-  }, [partners, department])
+    return DEPARTMENT_STAGES[department]
+  }, [department])
 
-  // Only show categories that at least one partner in this list has
-  const availableCategories = useMemo(() => {
-    const present = new Set<string>()
-    for (const p of partners) {
-      for (const c of p.service_categories ?? []) present.add(c)
-    }
-    return SERVICE_CATEGORIES.filter(c => present.has(c))
-  }, [partners])
+  // Full service taxonomy (incl. "Other") — every category is filterable,
+  // not just those already assigned to a partner.
+  const availableCategories = useMemo(() => [...SERVICE_CATEGORIES], [])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -314,7 +305,9 @@ export default function PartnerList({ partners, department, sortOptions = ['name
         <p className="text-sm text-muted-text py-8 text-center">
           {partners.length === 0
             ? `No partners in ${department ? DEPARTMENT_LABELS[department] : 'this view'} yet.`
-            : `No partners match "${search}".`}
+            : search.trim()
+              ? `No partners match "${search}".`
+              : 'No partners match the selected filters.'}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
