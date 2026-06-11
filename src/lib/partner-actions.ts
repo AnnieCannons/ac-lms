@@ -45,6 +45,7 @@ export interface PartnerFormData {
   contacts: PartnerContact[]
   departments: PartnerDepartment[]
   service_categories: string[]
+  service_categories_other: string | null
 }
 
 function validateContactUrls(contacts: PartnerContact[]): string | null {
@@ -83,7 +84,7 @@ export async function listPartners() {
   const { data, error: dbError } = await supabase
     .from('partners')
     .select(`
-      id, name, city, state, status, last_interaction_date, internal_owner_id, service_categories,
+      id, name, city, state, status, last_interaction_date, internal_owner_id, service_categories, service_categories_other,
       do_not_email, do_not_email_notes, do_not_email_set_at,
       partner_type_assignments (partner_type),
       partner_contacts (id, name, title, email, is_primary, website_url),
@@ -319,8 +320,8 @@ export async function listPartnersWithGeo() {
 }
 
 export async function listStaffUsers() {
-  const { error } = await requireStaffOrAdmin()
-  if (error) return { error, users: [] }
+  const { error, user } = await requireStaffOrAdmin()
+  if (error || !user) return { error: error ?? 'No user', users: [], currentUserId: null }
 
   const admin = createServiceSupabaseClient()
   const { data } = await admin
@@ -329,7 +330,7 @@ export async function listStaffUsers() {
     .in('role', ['staff', 'admin'])
     .order('name')
 
-  return { error: null, users: data ?? [] }
+  return { error: null, users: data ?? [], currentUserId: user.id }
 }
 
 export async function archiveContact(contactId: string, archived: boolean) {

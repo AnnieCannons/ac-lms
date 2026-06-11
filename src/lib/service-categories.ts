@@ -4,6 +4,7 @@
  */
 
 export const SERVICE_CATEGORIES = [
+  'Case Management',
   'Childcare / Family Support',
   'Domestic Violence Services',
   'Financial Assistance',
@@ -13,8 +14,11 @@ export const SERVICE_CATEGORIES = [
   'Housing',
   'Immigration Services',
   'Job Training / Employment',
+  'Leadership Development',
   'Legal Aid',
   'Mental Health / Counseling',
+  'Other',
+  'Peer Support / Group Support',
   'Substance Use Recovery',
   'Youth Services',
 ] as const
@@ -23,6 +27,18 @@ export type ServiceCategory = typeof SERVICE_CATEGORIES[number]
 
 /** Keywords used to auto-tag partners from free-text fields */
 export const CATEGORY_KEYWORDS: Record<ServiceCategory, string[]> = {
+  'Case Management': [
+    'case management', 'case manager', 'care coordination', 'wraparound', 'service coordination',
+  ],
+  'Leadership Development': [
+    'leadership', 'leadership development', 'mentoring', 'coaching', 'professional development',
+    'civic engagement', 'advocacy training',
+  ],
+  'Other': [],
+  'Peer Support / Group Support': [
+    'peer support', 'group support', 'support group', 'peer mentor', 'community support',
+    'mutual aid', 'peer-led',
+  ],
   'Housing': [
     'housing', 'shelter', 'homeless', 'transitional housing', 'home', 'rapid rehousing',
     'affordable housing', 'eviction', 'residential', 'housing program', 'housing options',

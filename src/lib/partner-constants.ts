@@ -23,6 +23,7 @@ export const DEPT_COLORS: Record<PartnerDepartment, string> = {
 
 export const STAGE_COLORS: Record<string, string> = {
   // ResourceFull
+  'Identified for outreach':      'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700/40',
   'Invited to join':              'bg-teal-100 text-teal-800 border border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-700/40',
   'Invited to rejoin':            'bg-cyan-100 text-cyan-800 border border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-700/40',
   'Coordinating/In Conversation': 'bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700/40',
@@ -47,7 +48,7 @@ export const STAGE_COLORS: Record<string, string> = {
 export const DEPARTMENT_STAGES: Record<PartnerDepartment, string[]> = {
   student_success: [],
   career_development: ['Prospect', 'In Conversation', 'Active Mentorship', 'Active Apprenticeship', 'Alumni', 'Inactive'],
-  resourcefull: ['Invited to join', 'Invited to rejoin', 'Coordinating/In Conversation', 'Meeting Scheduled', 'Sign up in progress', 'Onboarded', 'Seeking contact'],
+  resourcefull: ['Identified for outreach', 'Invited to join', 'Invited to rejoin', 'Coordinating/In Conversation', 'Meeting Scheduled', 'Sign up in progress', 'Onboarded', 'Seeking contact'],
   funding_partnerships: ['Prospect', 'In Conversation', 'Committed', 'Received', 'Lapsed'],
   admissions: [],
 }

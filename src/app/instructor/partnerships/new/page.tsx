@@ -9,7 +9,7 @@ interface Props {
 
 export default async function NewPartnerPage({ searchParams }: Props) {
   const { dept } = await searchParams
-  const { users: staffUsers } = await listStaffUsers()
+  const { users: staffUsers, currentUserId } = await listStaffUsers()
 
   const department = (dept && dept in DEPARTMENT_LABELS) ? dept as PartnerDepartment : undefined
   const backHref = department
@@ -33,6 +33,7 @@ export default async function NewPartnerPage({ searchParams }: Props) {
         submitLabel="Create Partner"
         defaultDepartment={department}
         redirectTo={redirectTo}
+        initialData={currentUserId ? { internal_owner_id: currentUserId } : undefined}
       />
     </main>
   )
