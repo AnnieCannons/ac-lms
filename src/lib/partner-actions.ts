@@ -84,6 +84,7 @@ export async function listPartners() {
     .from('partners')
     .select(`
       id, name, city, state, status, last_interaction_date, internal_owner_id, service_categories,
+      do_not_email, do_not_email_notes, do_not_email_set_at,
       partner_type_assignments (partner_type),
       partner_contacts (id, name, title, email, is_primary, website_url),
       partner_department_status (department, stage),
@@ -219,11 +220,21 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
     )
   }
 
-  // Replace department assignments
-  await supabase.from('partner_department_status').delete().eq('partner_id', id)
-  if (departments.length > 0) {
+  // Diff department assignments — only add new / remove dropped; never touch existing stages
+  const { data: currentDepts } = await supabase
+    .from('partner_department_status')
+    .select('department')
+    .eq('partner_id', id)
+  const currentDeptNames = (currentDepts ?? []).map((d: { department: string }) => d.department)
+  const removed = currentDeptNames.filter((d: string) => !departments.includes(d as PartnerDepartment))
+  const added = departments.filter(d => !currentDeptNames.includes(d))
+  if (removed.length > 0) {
+    await supabase.from('partner_department_status').delete()
+      .eq('partner_id', id).in('department', removed)
+  }
+  if (added.length > 0) {
     await supabase.from('partner_department_status').insert(
-      departments.map(d => ({ partner_id: id, department: d, stage: 'Prospect' }))
+      added.map(d => ({ partner_id: id, department: d, stage: '' }))
     )
   }
 
@@ -235,31 +246,47 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
     )
   }
 
-  // Upsert contacts: delete removed, insert new, update existing
-  const existingIds = contacts.filter(c => c.id).map(c => c.id!)
-  await supabase
-    .from('partner_contacts')
-    .delete()
-    .eq('partner_id', id)
-    .not('id', 'in', existingIds.length > 0 ? `(${existingIds.join(',')})` : '(null)')
-
-  for (const contact of contacts) {
-    if (contact.id) {
-      await supabase.from('partner_contacts').update({
-        name: contact.name,
-        title: contact.title,
-        email: contact.email,
-        phone: contact.phone,
-        is_primary: contact.is_primary,
-        notes: contact.notes,
-      }).eq('id', contact.id).eq('partner_id', id)
-    } else {
-      await supabase.from('partner_contacts').insert({ ...contact, partner_id: id })
-    }
-  }
+  // Contacts are managed via the department tab UI — skip here to avoid clobbering them.
 
   revalidatePath('/instructor/partnerships')
   revalidatePath(`/instructor/partnerships/${id}`)
+  return { error: null }
+}
+
+export async function setDoNotEmail(
+  partnerId: string,
+  value: boolean,
+  notes: string
+) {
+  const { error, supabase, user } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partners')
+    .update({
+      do_not_email: value,
+      do_not_email_notes: value ? notes.trim() || null : null,
+      do_not_email_set_at: value ? new Date().toISOString() : null,
+      do_not_email_set_by: value ? user!.id : null,
+    })
+    .eq('id', partnerId)
+
+  if (dbError) return { error: dbError.message }
+  revalidatePath(`/instructor/partnerships/${partnerId}`)
+  return { error: null }
+}
+
+export async function setPartnerOwner(partnerId: string, ownerId: string | null) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partners')
+    .update({ internal_owner_id: ownerId || null })
+    .eq('id', partnerId)
+
+  if (dbError) return { error: dbError.message }
+  revalidatePath(`/instructor/partnerships/${partnerId}`)
   return { error: null }
 }
 

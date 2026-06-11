@@ -41,6 +41,8 @@ interface Partner {
   city: string | null
   state: string | null
   status: string
+  do_not_email?: boolean
+  do_not_email_notes?: string | null
   partner_type_assignments: { partner_type: string }[]
   partner_contacts: { id: string; name: string; email: string | null; is_primary: boolean; website_url?: string | null }[]
   partner_department_status: { department: string }[]
@@ -107,6 +109,7 @@ export default function EmailListBuilder({ partners }: Props) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [dneModal, setDneModal] = useState<{ partnerName: string; notes: string; contactKey: string } | null>(null)
 
   // Unique states from partner data
   const availableStates = useMemo(() => {
@@ -168,6 +171,13 @@ export default function EmailListBuilder({ partners }: Props) {
     }
     return entries
   }, [filteredPartners])
+
+  // Quick lookup for do_not_email flags
+  const partnersById = useMemo(() => {
+    const map: Record<string, Partner> = {}
+    for (const p of partners) map[p.id] = p
+    return map
+  }, [partners])
 
   // Only contacts with emails can be included in the list
   const emailableContacts = useMemo(() => allContacts.filter(c => c.email), [allContacts])
@@ -441,15 +451,19 @@ export default function EmailListBuilder({ partners }: Props) {
           {allContacts.map(c => {
             const isFormOnly = !c.email && c.websiteUrl
             const isRemoved = excluded.has(c.key)
+            const partner = partnersById[c.partnerId]
+            const isDne = !!partner?.do_not_email
             return (
               <div
                 key={c.key}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border transition-colors ${
-                  isFormOnly
-                    ? 'border-border bg-background'
-                    : isRemoved
-                      ? 'border-border bg-background opacity-40'
-                      : 'border-border bg-surface'
+                  isDne && !isRemoved
+                    ? 'border-red-300 bg-red-50/30'
+                    : isFormOnly
+                      ? 'border-border bg-background'
+                      : isRemoved
+                        ? 'border-border bg-background opacity-40'
+                        : 'border-border bg-surface'
                 }`}
               >
                 <div className="flex-1 min-w-0">
@@ -464,6 +478,15 @@ export default function EmailListBuilder({ partners }: Props) {
                     )}
                     {isFormOnly && (
                       <span className="text-xs bg-background border border-border text-muted-text rounded px-1.5 py-0.5 shrink-0">Form only</span>
+                    )}
+                    {isDne && !isRemoved && (
+                      <button
+                        type="button"
+                        onClick={() => setDneModal({ partnerName: c.partnerName, notes: partner?.do_not_email_notes ?? '', contactKey: c.key })}
+                        className="text-xs font-medium bg-red-100 text-red-700 rounded px-1.5 py-0.5 shrink-0 hover:bg-red-200 transition-colors"
+                      >
+                        ⊘ Do not email
+                      </button>
                     )}
                   </div>
                   <p className="text-xs text-muted-text truncate">{c.partnerName} · {c.contactName}</p>
@@ -709,6 +732,54 @@ export default function EmailListBuilder({ partners }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Do-not-email modal */}
+      {dneModal && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDneModal(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-surface rounded-2xl border border-border shadow-xl w-full max-w-md flex flex-col gap-4 p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-semibold text-dark-text">⊘ Do not email</h2>
+                  <p className="text-sm text-muted-text mt-0.5">{dneModal.partnerName}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDneModal(null)}
+                  className="text-muted-text hover:text-dark-text text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              {dneModal.notes ? (
+                <p className="text-sm text-dark-text whitespace-pre-line bg-background rounded-lg px-4 py-3 border border-border">
+                  {dneModal.notes}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-text italic">No notes provided.</p>
+              )}
+              <p className="text-xs text-muted-text">This org has been marked as do-not-email. You can still include them in this list if appropriate.</p>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setDneModal(null)}
+                  className="px-4 py-2 rounded-lg bg-surface border border-border text-sm text-dark-text hover:border-teal-primary transition-colors"
+                >
+                  Keep in list
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { toggleContact(dneModal.contactKey); setDneModal(null) }}
+                  className="px-4 py-2 rounded-lg bg-background border border-border text-sm text-muted-text hover:border-red-400 hover:text-red-600 transition-colors"
+                >
+                  Remove from list
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
