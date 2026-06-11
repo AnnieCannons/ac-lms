@@ -64,6 +64,7 @@ interface Partner {
   internal_owner_name?: string | null
   website: string | null
   service_categories?: string[]
+  service_categories_other?: string | null
   do_not_email?: boolean
   do_not_email_notes?: string | null
   do_not_email_set_at?: string | null
@@ -124,13 +125,6 @@ const ALL_DEPARTMENTS: PartnerDepartment[] = [
   'resourcefull',
   'funding_partnerships',
   'admissions',
-]
-
-const REMINDER_OPTIONS = [
-  { label: '2 min (test)', days: 2 / (24 * 60) },
-  { label: '1 week', days: 7 },
-  { label: '2 weeks', days: 14 },
-  { label: '1 month', days: 30 },
 ]
 
 function formatDate(dateStr: string) {
@@ -218,48 +212,6 @@ function DeptOverviewTable({
   )
 }
 
-function StageSelector({
-  department,
-  currentStage,
-  onStageChange,
-  onRemove,
-}: {
-  department: PartnerDepartment
-  currentStage: string
-  onStageChange: (dept: PartnerDepartment, stage: string) => void
-  onRemove: (dept: PartnerDepartment) => void
-}) {
-  const stages = DEPARTMENT_STAGES[department]
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-1.5">
-        {stages.map(stage => (
-          <button
-            key={stage}
-            type="button"
-            onClick={() => onStageChange(department, stage)}
-            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-              currentStage === stage
-                ? 'bg-teal-primary text-white border-teal-primary'
-                : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
-            }`}
-          >
-            {stage}
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={() => onRemove(department)}
-        className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
-      >
-        Remove from {DEPARTMENT_LABELS[department]}
-      </button>
-    </div>
-  )
-}
-
 function AddDepartmentDropdown({
   enrolledDepts,
   onAdd,
@@ -301,14 +253,20 @@ function AddDepartmentDropdown({
   )
 }
 
+type RemindUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
+
 function LogInteractionForm({
   partnerId,
   defaultDepartment,
+  availableStages = [],
   onLogged,
+  onStageUpdated,
 }: {
   partnerId: string
   defaultDepartment?: PartnerDepartment
+  availableStages?: string[]
   onLogged: (interaction: Interaction) => void
+  onStageUpdated?: (stage: string) => void
 }) {
   const [note, setNote] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -316,8 +274,21 @@ function LogInteractionForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showReminder, setShowReminder] = useState(false)
-  const [remindInDays, setRemindInDays] = useState<number | null>(null)
+  const [remindValue, setRemindValue] = useState(1)
+  const [remindUnit, setRemindUnit] = useState<RemindUnit>('weeks')
   const [reminderConfirmed, setReminderConfirmed] = useState<string | null>(null)
+  const [updateStatus, setUpdateStatus] = useState(false)
+  const [newStage, setNewStage] = useState('')
+
+  function getRemindInDays() {
+    switch (remindUnit) {
+      case 'minutes': return remindValue / (24 * 60)
+      case 'hours': return remindValue / 24
+      case 'days': return remindValue
+      case 'weeks': return remindValue * 7
+      case 'months': return remindValue * 30
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -330,11 +301,15 @@ function LogInteractionForm({
       note: note.trim(),
       interaction_date: date,
       department: department || null,
-      remind_in_days: showReminder ? remindInDays : null,
+      remind_in_days: showReminder ? getRemindInDays() : null,
     })
 
-    setSaving(false)
-    if (result.error) { setError(result.error); return }
+    if (result.error) { setSaving(false); setError(result.error); return }
+
+    if (updateStatus && newStage && defaultDepartment) {
+      await setDepartmentStatus(partnerId, defaultDepartment, newStage)
+      onStageUpdated?.(newStage)
+    }
 
     onLogged({
       id: crypto.randomUUID(),
@@ -346,12 +321,14 @@ function LogInteractionForm({
       users: null,
     })
     setNote('')
-    if (showReminder && remindInDays) {
-      const opt = REMINDER_OPTIONS.find(o => o.days === remindInDays)
-      setReminderConfirmed(opt?.label ?? `${remindInDays} days`)
+    if (showReminder) {
+      const unitLabel = remindValue === 1 ? remindUnit.replace(/s$/, '') : remindUnit
+      setReminderConfirmed(`${remindValue} ${unitLabel}`)
       setShowReminder(false)
-      setRemindInDays(null)
     }
+    setUpdateStatus(false)
+    setNewStage('')
+    setSaving(false)
   }
 
   return (
@@ -391,42 +368,72 @@ function LogInteractionForm({
         )}
       </div>
 
-      {/* Slack follow-up reminder */}
       <div className="flex flex-col gap-2 border-t border-border pt-3">
+        {/* Also update status */}
+        {availableStages.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={updateStatus}
+                onChange={e => setUpdateStatus(e.target.checked)}
+                className="rounded border-border accent-teal-primary"
+              />
+              <span className="text-xs text-muted-text">Also update status</span>
+            </label>
+            {updateStatus && (
+              <div className="pl-5">
+                <select
+                  value={newStage}
+                  onChange={e => setNewStage(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                >
+                  <option value="">— Select new status —</option>
+                  {availableStages.map(stage => (
+                    <option key={stage} value={stage}>{stage}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Slack reminder */}
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={showReminder}
-            onChange={e => {
-              setShowReminder(e.target.checked)
-              if (!e.target.checked) setRemindInDays(null)
-            }}
+            onChange={e => setShowReminder(e.target.checked)}
             className="rounded border-border accent-teal-primary"
           />
           <span className="text-xs text-muted-text">Send me a Slack follow-up reminder</span>
         </label>
         {showReminder && (
-          <div className="flex flex-wrap gap-1.5 pl-5">
-            {REMINDER_OPTIONS.map(opt => (
-              <button
-                key={opt.days}
-                type="button"
-                onClick={() => setRemindInDays(remindInDays === opt.days ? null : opt.days)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                  remindInDays === opt.days
-                    ? 'bg-teal-primary text-white border-teal-primary'
-                    : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 pl-5">
+            <input
+              type="number"
+              min={1}
+              value={remindValue}
+              onChange={e => setRemindValue(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+            <select
+              value={remindUnit}
+              onChange={e => setRemindUnit(e.target.value as RemindUnit)}
+              className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            >
+              <option value="minutes">minutes</option>
+              <option value="hours">hours</option>
+              <option value="days">days</option>
+              <option value="weeks">weeks</option>
+              <option value="months">months</option>
+            </select>
           </div>
         )}
       </div>
 
       {reminderConfirmed && (
-        <p className="text-xs text-teal-primary">✓ Slack reminder scheduled in {reminderConfirmed}</p>
+        <p className="text-xs text-teal-primary">✓ Slack reminder set for {reminderConfirmed}</p>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button
@@ -851,7 +858,11 @@ function ProfileView({
             {serviceCategories.length > 0
               ? <div className="flex flex-wrap gap-1">
                   {serviceCategories.map(cat => (
-                    <span key={cat} className="text-xs bg-surface border border-border rounded px-2 py-0.5">{cat}</span>
+                    <span key={cat} className="text-xs bg-surface border border-border rounded px-2 py-0.5">
+                      {cat === 'Other' && partner.service_categories_other
+                        ? `Other: ${partner.service_categories_other}`
+                        : cat}
+                    </span>
                   ))}
                 </div>
               : <span className="text-muted-text">—</span>}
@@ -1139,17 +1150,17 @@ export default function PartnerOverview({
 
   const types = partner.partner_type_assignments.map(t => TYPE_LABELS[t.partner_type] ?? t.partner_type)
   const primaryContact = partner.partner_contacts.find(c => c.is_primary) ?? partner.partner_contacts[0]
-  const daysAgo = daysSince(partner.last_interaction_date)
+  const lastInteractionDate = interactions.length > 0
+    ? interactions.reduce((latest, i) => (i.interaction_date > latest ? i.interaction_date : latest), interactions[0].interaction_date)
+    : null
+  const daysAgo = daysSince(lastInteractionDate)
   const followUpNeeded = daysAgo !== null && daysAgo >= 30
 
   function getStageFor(dept: PartnerDepartment) {
     return deptStatuses.find(s => s.department === dept)?.stage ?? ''
   }
 
-  function handleStageChange(dept: PartnerDepartment, stage: string) {
-    startTransition(async () => {
-      await setDepartmentStatus(partner.id, dept, stage)
-    })
+  function updateStageInState(dept: PartnerDepartment, stage: string) {
     setDeptStatuses(prev => {
       const existing = prev.find(s => s.department === dept)
       if (existing) return prev.map(s => s.department === dept ? { ...s, stage } : s)
@@ -1159,6 +1170,13 @@ export default function PartnerOverview({
       ...prev,
       [dept]: [...(prev[dept] ?? []), { id: crypto.randomUUID(), stage, changed_at: new Date().toISOString(), users: null }],
     }))
+  }
+
+  function handleStageChange(dept: PartnerDepartment, stage: string) {
+    startTransition(async () => {
+      await setDepartmentStatus(partner.id, dept, stage)
+    })
+    updateStageInState(dept, stage)
   }
 
   function handleAddDepartment(dept: PartnerDepartment) {
@@ -1264,6 +1282,7 @@ export default function PartnerOverview({
     contacts: partner.partner_contacts,
     departments: initialStatuses.map(s => s.department),
     service_categories: partner.service_categories ?? [],
+    service_categories_other: partner.service_categories_other ?? null,
   }
 
   const tabs: { id: ActiveTab; label: string }[] = [
@@ -1274,20 +1293,22 @@ export default function PartnerOverview({
   return (
     <div className="flex flex-col gap-6">
 
+      {/* Header + department overview side by side */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
       {/* Header */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 flex-1 min-w-0">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-2xl font-bold text-dark-text">{partner.name}</h1>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-text">
-            {partner.city && (
-              <span>{partner.city}{partner.state ? `, ${partner.state}` : ''}{partner.multi_city ? ' + more' : ''}</span>
-            )}
-            {primaryContact && (
-              <>
-                <span className="text-muted-text/50">·</span>
-                <span>{primaryContact.name}{primaryContact.title ? `, ${primaryContact.title}` : ''}</span>
-              </>
-            )}
+            {[
+              partner.city ? `${partner.city}${partner.state ? `, ${partner.state}` : ''}${partner.multi_city ? ' + more' : ''}` : null,
+              primaryContact ? `${primaryContact.name}${primaryContact.title ? `, ${primaryContact.title}` : ''}` : null,
+            ].filter(Boolean).map((part, i) => (
+              <span key={i} className="flex items-center gap-2">
+                {i > 0 && <span className="text-muted-text/50">·</span>}
+                <span>{part}</span>
+              </span>
+            ))}
           </div>
         </div>
 
@@ -1300,9 +1321,9 @@ export default function PartnerOverview({
         )}
 
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          {partner.last_interaction_date ? (
+          {lastInteractionDate ? (
             <span className="text-muted-text">
-              Last contact: <span className="text-dark-text font-medium">{formatDate(partner.last_interaction_date)}</span>
+              Last contact: <span className="text-dark-text font-medium">{formatDate(lastInteractionDate)}</span>
               {daysAgo !== null && ` (${daysAgo}d ago)`}
             </span>
           ) : (
@@ -1317,13 +1338,16 @@ export default function PartnerOverview({
         </div>
       </div>
 
-      {/* Department overview table — always visible */}
-      <DeptOverviewTable
-        deptStatuses={deptStatuses}
-        studentReferrals={studentReferrals}
-        onTabClick={(dept) => setActiveTab(dept)}
-        onAddDept={handleAddDepartment}
-      />
+      {/* Department overview table */}
+      <div className="lg:w-[26rem] lg:shrink-0">
+        <DeptOverviewTable
+          deptStatuses={deptStatuses}
+          studentReferrals={studentReferrals}
+          onTabClick={(dept) => setActiveTab(dept)}
+          onAddDept={handleAddDepartment}
+        />
+      </div>
+      </div>
 
       {/* Ratings summary (global, shown above tabs if any exist) */}
       {ratingSummary.length > 0 && (
@@ -1381,79 +1405,85 @@ export default function PartnerOverview({
       </div>
 
       {/* Department tabs */}
-      {deptStatuses.map(ds => activeTab === ds.department && (
-        <div key={ds.department} className="flex flex-col gap-8">
+      {deptStatuses.map(ds => {
+        if (activeTab !== ds.department) return null
+        const deptHist = histories[ds.department] ?? []
+        const currentEntry = deptHist[deptHist.length - 1]
+        const pastEntries = deptHist.slice(0, -1)
+        return (
+        <div key={ds.department} className="flex flex-col gap-6">
 
-          {/* Status + history at the top */}
-          {DEPARTMENT_STAGES[ds.department].length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Status</h2>
-              <div className="flex items-start gap-8">
-                <div className="flex flex-col gap-2 shrink-0">
-                  <select
-                    value={getStageFor(ds.department)}
-                    onChange={e => handleStageChange(ds.department, e.target.value)}
-                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary min-w-52"
-                  >
-                    <option value="">— Select status —</option>
-                    {DEPARTMENT_STAGES[ds.department].map(stage => (
-                      <option key={stage} value={stage}>{stage}</option>
-                    ))}
-                  </select>
-                  {isPending && <p className="text-xs text-muted-text">Saving…</p>}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveDepartment(ds.department)}
-                    className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
-                  >
-                    Remove from {DEPARTMENT_LABELS[ds.department]}
-                  </button>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <StageHistory history={histories[ds.department] ?? []} />
-                </div>
-              </div>
-              {/* Internal Owner */}
-              <div className="flex items-center gap-3 pt-1">
-                <label className="text-xs text-muted-text shrink-0">Internal owner</label>
-                <select
-                  value={ownerId}
-                  onChange={e => handleOwnerChange(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                >
-                  <option value="">Unassigned</option>
-                  {staffUsers.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-              </div>
-            </section>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <label className="text-xs text-muted-text shrink-0">Internal owner</label>
-                <select
-                  value={ownerId}
-                  onChange={e => handleOwnerChange(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                >
-                  <option value="">Unassigned</option>
-                  {staffUsers.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRemoveDepartment(ds.department)}
-                className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
+          {/* Remove button — top of tab content */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-text shrink-0">Owner</label>
+              <select
+                value={ownerId}
+                onChange={e => handleOwnerChange(e.target.value)}
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
               >
-                Remove from {DEPARTMENT_LABELS[ds.department]}
-              </button>
+                <option value="">Unassigned</option>
+                {staffUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={() => handleRemoveDepartment(ds.department)}
+              className="text-xs border border-border rounded-lg px-3 py-1.5 text-muted-text hover:border-red-400 hover:text-red-500 transition-colors shrink-0"
+            >
+              Remove from {DEPARTMENT_LABELS[ds.department]}
+            </button>
+          </div>
 
-          {/* Do not email control */}
+          {/* 2-col: Log Interaction | Status + Stage History */}
+          <div className={DEPARTMENT_STAGES[ds.department].length > 0 ? 'grid md:grid-cols-2 gap-6 items-start' : ''}>
+            <LogInteractionForm
+              partnerId={partner.id}
+              defaultDepartment={ds.department}
+              availableStages={DEPARTMENT_STAGES[ds.department]}
+              onLogged={handleInteractionLogged}
+              onStageUpdated={(stage) => updateStageInState(ds.department, stage)}
+            />
+            {DEPARTMENT_STAGES[ds.department].length > 0 && (
+              <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4">
+                {/* Current status */}
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-xs font-semibold text-dark-text uppercase tracking-wide">Current Status</h3>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={getStageFor(ds.department)}
+                      onChange={e => handleStageChange(ds.department, e.target.value)}
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    >
+                      <option value="">— Select status —</option>
+                      {DEPARTMENT_STAGES[ds.department].map(stage => (
+                        <option key={stage} value={stage}>{stage}</option>
+                      ))}
+                    </select>
+                    {isPending && <span className="text-xs text-muted-text shrink-0">Saving…</span>}
+                  </div>
+                  {currentEntry?.stage && (
+                    <span className="text-xs text-muted-text">
+                      Updated {new Date(currentEntry.changed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {currentEntry.users?.name && ` · ${currentEntry.users.name}`}
+                    </span>
+                  )}
+                </div>
+
+                {/* Stage history (past stages only) */}
+                {pastEntries.length > 0 && (
+                  <div className="flex flex-col gap-2 border-t border-border pt-4">
+                    <h4 className="text-xs font-semibold text-muted-text uppercase tracking-wide">Stage History</h4>
+                    <StageHistory history={pastEntries} />
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {/* Do not email */}
           <div className="flex flex-col gap-2">
             {doNotEmail ? (
               <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 flex flex-col gap-2">
@@ -1509,16 +1539,11 @@ export default function PartnerOverview({
             )}
           </div>
 
-          {/* Interactions */}
-          <section className="flex flex-col gap-4">
+          {/* Past interactions */}
+          <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">
               {DEPARTMENT_LABELS[ds.department]} Interactions
             </h2>
-            <LogInteractionForm
-              partnerId={partner.id}
-              defaultDepartment={ds.department}
-              onLogged={handleInteractionLogged}
-            />
             <InteractionList
               interactions={interactions.filter(i => i.department === ds.department)}
               onDelete={handleDeleteInteraction}
@@ -1556,7 +1581,8 @@ export default function PartnerOverview({
           <DetailsSection partner={partner} />
 
         </div>
-      ))}
+        )
+      })}
 
       {/* Profile tab */}
       {activeTab === 'edit' && (

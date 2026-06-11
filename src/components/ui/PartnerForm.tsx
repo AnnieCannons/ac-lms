@@ -168,7 +168,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
   const [serviceCategories, setServiceCategories] = useState<string[]>(
     initialData?.service_categories ?? []
   )
-  const [customCatInput, setCustomCatInput] = useState('')
+  const [serviceCategoriesOther, setServiceCategoriesOther] = useState(initialData?.service_categories_other ?? '')
 
   function toggleDepartment(dept: PartnerDepartment) {
     setDepartments(prev =>
@@ -254,6 +254,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
       contacts: contacts.filter(c => c.name.trim()),
       departments,
       service_categories: serviceCategories,
+      service_categories_other: serviceCategories.includes('Other') ? (serviceCategoriesOther.trim() || null) : null,
     })
 
     setSaving(false)
@@ -420,7 +421,7 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
               {cat}
             </button>
           ))}
-          {/* Custom categories (not in predefined list) shown as removable pills */}
+          {/* Legacy custom categories no longer in predefined list — still removable */}
           {serviceCategories.filter(c => !(SERVICE_CATEGORIES as readonly string[]).includes(c)).map(cat => (
             <span key={cat} className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-sm border bg-teal-primary text-white border-teal-primary">
               {cat}
@@ -434,34 +435,15 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
             </span>
           ))}
         </div>
-        <div className="flex gap-2 mt-1">
+        {serviceCategories.includes('Other') && (
           <input
             type="text"
-            value={customCatInput}
-            onChange={e => setCustomCatInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                const t = customCatInput.trim()
-                if (t && !serviceCategories.includes(t)) setServiceCategories(prev => [...prev, t])
-                setCustomCatInput('')
-              }
-            }}
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-            placeholder="Add a custom category…"
+            value={serviceCategoriesOther}
+            onChange={e => setServiceCategoriesOther(e.target.value)}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            placeholder="Describe the other service(s) this org provides…"
           />
-          <button
-            type="button"
-            onClick={() => {
-              const t = customCatInput.trim()
-              if (t && !serviceCategories.includes(t)) setServiceCategories(prev => [...prev, t])
-              setCustomCatInput('')
-            }}
-            className="px-3 py-2 rounded-lg border border-border text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
-          >
-            +
-          </button>
-        </div>
+        )}
       </section>
 
       {/* Contacts — hidden when editing (managed in dept tabs) */}

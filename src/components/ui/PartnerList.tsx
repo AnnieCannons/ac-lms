@@ -28,6 +28,7 @@ interface Partner {
   status: string
   last_interaction_date: string | null
   service_categories: string[] | null
+  service_categories_other?: string | null
   partner_contacts: PartnerContact[]
   partner_type_assignments: PartnerTypeAssignment[]
   partner_department_status: DeptStatus[]
@@ -409,7 +410,9 @@ export default function PartnerList({ partners, department, sortOptions = ['name
                   <div className="flex flex-wrap gap-1">
                     {(partner.service_categories ?? []).map(cat => (
                       <span key={cat} className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-muted-text">
-                        {cat}
+                        {cat === 'Other' && partner.service_categories_other
+                          ? `Other: ${partner.service_categories_other}`
+                          : cat}
                       </span>
                     ))}
                   </div>

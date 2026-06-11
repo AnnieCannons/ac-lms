@@ -13,7 +13,7 @@ async function requireStaffOrAdmin() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role, name')
+    .select('role, name, slack_email')
     .eq('id', user.id)
     .single()
 
@@ -21,7 +21,7 @@ async function requireStaffOrAdmin() {
     return { error: 'Not authorized' as const, supabase: null, user: null }
   }
 
-  return { error: null, supabase, user: { ...user, name: profile.name as string } }
+  return { error: null, supabase, user: { ...user, name: profile.name as string, slack_email: (profile.slack_email as string | null) ?? null } }
 }
 
 // ─── Interactions ────────────────────────────────────────────────────────────
@@ -45,12 +45,13 @@ export async function logInteraction(data: {
   })
   if (dbError) return { error: dbError.message }
 
-  // Update last_interaction_date on the partner record
+  // Update last_interaction_date on the partner record — only move it forward,
+  // but also set it when it's currently NULL (NULL < date is not true in SQL).
   await supabase
     .from('partners')
     .update({ last_interaction_date: data.interaction_date })
     .eq('id', data.partner_id)
-    .lt('last_interaction_date', data.interaction_date)
+    .or(`last_interaction_date.is.null,last_interaction_date.lt.${data.interaction_date}`)
 
   // Schedule Slack follow-up reminder if requested
   if (data.remind_in_days != null && data.remind_in_days > 0 && user?.email) {
@@ -59,11 +60,15 @@ export async function logInteraction(data: {
       .from('partners').select('name').eq('id', data.partner_id).single()
     const partnerName = partnerRow?.name ?? 'partner'
     const postAt = Math.floor(Date.now() / 1000) + data.remind_in_days * 86400
-    await scheduleSlackDM(
-      user.email,
+    const slackEmail = user.slack_email || user.email
+    const scheduled = await scheduleSlackDM(
+      slackEmail,
       `⏰ Follow-up reminder: ${partnerName}\n${APP_URL}/instructor/partnerships/${data.partner_id}`,
       postAt
     )
+    if (!scheduled) {
+      console.warn(`[reminder] Slack DM not scheduled for ${slackEmail} — no matching Slack user (set users.slack_email if their Slack email differs).`)
+    }
   }
 
   revalidatePath(`/instructor/partnerships/${data.partner_id}`)
@@ -244,7 +249,7 @@ export async function createReferral(data: ReferralFormData) {
       // Fetch student email + partner name to build the message
       const service = createServiceSupabaseClient()
       const [{ data: studentRow, error: sErr }, { data: partnerRow, error: pErr }] = await Promise.all([
-        service.from('users').select('name, email').eq('id', data.student_user_id).single(),
+        service.from('users').select('name, email, slack_email').eq('id', data.student_user_id).single(),
         service.from('partners').select('name').eq('id', data.partner_id).single(),
       ])
 
@@ -259,8 +264,9 @@ export async function createReferral(data: ReferralFormData) {
           `If you had a chance to connect with them, we'd love to hear how it went: ${ratingUrl}`
 
         // DM the student
-        const studentSent = await notifyByEmail(studentRow.email, studentMsg)
-        console.log(`[referral] notifyByEmail(${studentRow.email}) → ${studentSent}`)
+        const studentSlackEmail = studentRow.slack_email || studentRow.email
+        const studentSent = await notifyByEmail(studentSlackEmail, studentMsg)
+        console.log(`[referral] notifyByEmail(${studentSlackEmail}) → ${studentSent}`)
 
         // Ping staff
         await notifyStaff(
