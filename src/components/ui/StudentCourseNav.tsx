@@ -56,6 +56,16 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+        <Link
+          href={`/flashcards?from=${encodeURIComponent(`/student/courses/${courseId}/level-up`)}`}
+          className={`pl-9 pr-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            pathname.startsWith('/flashcards')
+              ? 'bg-teal-light text-teal-primary'
+              : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+          }`}
+        >
+          ↳ Flashcard App
+        </Link>
         {paidLearners && (
           <>
             <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Employment</p>
