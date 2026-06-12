@@ -67,12 +67,23 @@ src/
 
 New flashcard pages will follow this pattern:
 ```
-src/app/flashcards/          # Flashcard home (deck grid + activity grid)
-src/app/flashcards/decks/    # Deck management
-src/app/flashcards/study/    # Study session
-src/app/flashcards/stats/    # Stats page
-src/app/flashcards/help/     # How it works / onboarding
+src/app/flashcards/                # Home — deck grid + activity grid
+src/app/flashcards/discover/       # Search/browse shared decks
+src/app/flashcards/study/[deckId]/ # Study session
+src/app/flashcards/decks/[deckId]/ # Card management for a deck
+src/app/flashcards/admin/          # Stats — admin/instructor/staff only
 ```
+
+Navigation:
+- Entry point: Level Up Your Skills in StudentCourseNav → /flashcards?from=/student/courses/[id]/level-up
+- Flashcard app header: "← Back to Course" (reads ?from param) + tabs: My Decks | Discover
+- No separate Help tab — flashcard docs live in the existing LMS docs system at /docs/student/flashcards
+
+Deck card UI:
+- Notification dot (brand color) when there are cards due to study (New + In Progress + Review > 0). Disappears when all caught up.
+- Pencil icon → edit deck (name, description, tags)
+- Plus icon → card management (add, edit, delete cards in this deck)
+- Ghost card at end of grid → create new deck (same as "New Deck" button in header)
 
 ---
 
@@ -169,9 +180,15 @@ Work through these sections in order. Check off each one when complete before mo
 - Do NOT push to `main` under any circumstances
 
 ## Files We Can Touch
-All flashcard work lives in new files only, with two exceptions:
+All flashcard work lives in new files only, with these exceptions:
 - `src/middleware.ts` — add `/flashcards` route protection (small addition only)
 - `src/components/ui/StudentCourseNav.tsx` — add flashcard link in the Level Up Your Skills section
+- `src/app/docs/student/[section]/page.tsx` — register new `flashcards` section
+- `src/app/docs/instructor/[section]/page.tsx` — register new `flashcards` section
+
+New doc content files (these are new files, not edits):
+- `src/components/docs/student/Flashcards.tsx`
+- `src/components/docs/instructor/Flashcards.tsx`
 
 Do not edit any other existing files. If something in the flashcard app requires a change to an existing file not listed above, flag it for Catie rather than editing it directly.
 
