@@ -143,8 +143,8 @@ SUPABASE_SERVICE_ROLE_KEY   # Required for cross-user/admin queries
 Work through these sections in order. Check off each one when complete before moving to the next.
 
 - [ ] 1. Flashcard home page — `/flashcards`, deck grid + activity grid placeholder
-- [ ] 2. Create a deck — form to create and save a new deck
-- [ ] 3. Add cards to a deck — card editor with rich text editor
+- [ ] 2. Deck management — create, edit (title, description, tags), and delete a deck
+- [ ] 3. Card management — add, edit, delete, and reorder cards within a deck; card editor with rich text editor and card type selection
 - [ ] 4. Study session — flip cards, rate them, SM-2 algorithm
 - [ ] 5. Sharing & importing — share link generation, import a deck
 - [ ] 6. Stats & activity grid — GitHub-style grid, stats page
