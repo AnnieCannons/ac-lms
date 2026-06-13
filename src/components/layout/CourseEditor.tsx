@@ -440,7 +440,7 @@ function AssignmentCard({
               onClick={() => onTogglePublished(assignment.id, assignment.published)}
               className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
                 assignment.published
-                  ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                  ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
                   : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
               }`}
               type="button"
@@ -707,7 +707,7 @@ function AssignmentFullView({
                   onClick={() => onTogglePublished(assignment.id, assignment.published)}
                   className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
                     assignment.published
-                      ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                      ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
                       : "border-border text-muted-text hover:border-muted-text hover:text-dark-text"
                   }`}
                   type="button"
@@ -719,7 +719,7 @@ function AssignmentFullView({
             {view.mode === "view" && !editing && assignment && (
               <Link
                 href={`/instructor/courses/${courseId}/assignments/${assignment.id}?edit=1`}
-                className="text-xs font-semibold px-3 py-1 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white transition-colors"
+                className="text-xs font-semibold px-3 py-1 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)] transition-colors"
               >
                 Edit →
               </Link>
@@ -1445,7 +1445,7 @@ function SortableResource({
           onClick={() => onTogglePublished(resource.id, resource.published)}
           className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
             resource.published
-              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
               : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
           }`}
           type="button"
@@ -1639,7 +1639,7 @@ function DraggableQuizCard({
           }}
           className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
             quiz.published
-              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+              ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
               : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
           }`}
         >
@@ -2033,7 +2033,7 @@ function SortableDay({
                     )}
                     <button
                       onClick={submitNewResource}
-                      className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:text-white transition-colors"
+                      className="bg-teal-light text-teal-primary px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-primary hover:[color:var(--color-background)] transition-colors"
                       type="button"
                     >
                       Add
@@ -2298,7 +2298,7 @@ function SortableModule({
             onClick={(e) => { e.stopPropagation(); onToggleModulePublished(module.id, module.published); }}
             className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
               module.published
-                ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
                 : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
             }`}
             type="button"
@@ -2435,7 +2435,7 @@ function SortableModule({
                     setNewDayName("");
                   }
                 }}
-                className="bg-teal-light text-teal-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-primary hover:text-white transition-colors"
+                className="bg-teal-light text-teal-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-primary hover:[color:var(--color-background)] transition-colors"
                 type="button"
               >
                 Add

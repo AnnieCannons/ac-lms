@@ -135,7 +135,7 @@ export default function WikiBlock({ wiki, onUpdate, onTogglePublished, onDelete 
           onClick={handleTogglePublished}
           className={`text-xs shrink-0 font-medium px-2 py-0.5 rounded-full border transition-colors ${
             published
-              ? 'border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white'
+              ? 'border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]'
               : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
           }`}
           aria-label={published ? 'Published — click to unpublish' : 'Draft — click to publish'}

@@ -447,7 +447,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
                 disabled={saving}
                 className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
                   quiz.published
-                    ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                    ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
                     : "border-border text-muted-text hover:border-teal-primary/50 hover:text-dark-text"
                 }`}
                 type="button"

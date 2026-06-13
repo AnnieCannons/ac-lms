@@ -145,7 +145,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
           </Link>
           <button
             onClick={() => setEditing(true)}
-            className="text-sm font-semibold px-4 py-1.5 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white transition-colors"
+            className="text-sm font-semibold px-4 py-1.5 rounded-full border border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)] transition-colors"
           >
             Edit
           </button>
