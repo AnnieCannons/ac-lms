@@ -555,7 +555,7 @@ const [navigating, setNavigating] = useState(false);
                                         onClick={() => handleTogglePublished(quiz)}
                                         className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
                                           quiz.published
-                                            ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:text-white"
+                                            ? "border-teal-primary text-teal-primary hover:bg-teal-primary hover:[color:var(--color-background)]"
                                             : "border-border text-muted-text hover:border-teal-primary hover:text-teal-primary"
                                         }`}
                                         aria-label={quiz.published ? "Published — click to unpublish" : "Draft — click to publish"}

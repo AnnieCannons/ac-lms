@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Globe, MapPin, Mail, Phone, Link, Pencil, Plus, ChevronDown, ChevronRight,
@@ -154,6 +154,15 @@ const DEPT_CARD_TINT: Record<PartnerDepartment, string> = {
   admissions: 'bg-orange-500/5 border-orange-500/20 hover:bg-orange-500/10',
 }
 
+// Left-border accent colour for interaction cards in the overview timeline
+const DEPT_CARD_ACCENT: Record<PartnerDepartment, string> = {
+  student_success: 'border-l-purple-500',
+  career_development: 'border-l-teal-500',
+  resourcefull: 'border-l-blue-500',
+  funding_partnerships: 'border-l-green-500',
+  admissions: 'border-l-orange-500',
+}
+
 const AVATAR_PALETTE = [
   'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200',
   'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200',
@@ -209,7 +218,7 @@ function Modal({ onClose, children }: { onClose: () => void; children: React.Rea
 function AddDepartmentDropdown({
   enrolledDepts,
   onAdd,
-  label = 'Add Department',
+  label = 'Department',
   variant = 'default',
 }: {
   enrolledDepts: PartnerDepartment[]
@@ -228,7 +237,7 @@ function AddDepartmentDropdown({
         onClick={() => setOpen(o => !o)}
         className={
           variant === 'tab'
-            ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors whitespace-nowrap'
+            ? 'inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors whitespace-nowrap'
             : 'text-sm text-teal-primary hover:underline whitespace-nowrap'
         }
       >
@@ -602,7 +611,11 @@ function DepartmentActivity({
             </div>
             <div className="flex-1 min-w-0 -mt-0.5">
               {item.kind === 'interaction'
-                ? <InteractionRow interaction={item.data} onDelete={onDelete} />
+                ? (
+                  <div className="rounded-xl border border-border bg-surface p-4">
+                    <InteractionRow interaction={item.data} onDelete={onDelete} />
+                  </div>
+                )
                 : <StatusRow entry={item.data} />}
             </div>
           </li>
@@ -1324,6 +1337,39 @@ function RatingsSummary({ ratingSummary }: { ratingSummary: PartnerRatingSummary
   )
 }
 
+// ─── Scrollable tab row with edge-fade hints ──────────────────────────────────
+
+function ScrollableTabs({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(true) // assume at end until user scrolls
+
+  const update = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    setAtStart(el.scrollLeft < 4)
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4)
+  }, [])
+
+  return (
+    <div className="relative flex-1 min-w-0">
+      {!atStart && (
+        <div className="pointer-events-none absolute left-0 inset-y-0 w-10 z-10 bg-gradient-to-r from-background to-transparent" />
+      )}
+      {!atEnd && (
+        <div className="pointer-events-none absolute right-0 inset-y-0 w-10 z-10 bg-gradient-to-l from-background to-transparent" />
+      )}
+      <div
+        ref={ref}
+        className="flex gap-1 items-center overflow-x-auto scrollbar-none"
+        onScroll={update}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PartnerOverview({
@@ -1583,9 +1629,9 @@ export default function PartnerOverview({
             <button
               type="button"
               onClick={() => setContactModal({ mode: 'add' })}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-primary text-white text-xs font-medium hover:bg-teal-primary/90 transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-medium border border-teal-primary text-teal-primary px-3 py-1 rounded-lg hover:bg-teal-primary hover:[color:var(--color-background)] transition-colors"
             >
-              <Plus className="w-3 h-3" />Add Contact
+              <Plus className="w-3.5 h-3.5" />Add Contact
             </button>
           </div>
           <div className="p-3">
@@ -1605,8 +1651,8 @@ export default function PartnerOverview({
           {/* Tab bar */}
           {activeTab !== 'edit' && (
             <div className="flex items-center border-b border-border pb-1 gap-2">
-              {/* Tabs — scrollable if many depts */}
-              <div className="flex gap-1 items-center overflow-x-auto flex-1 min-w-0">
+              {/* Tabs — scrollable with fade hints when content is clipped */}
+              <ScrollableTabs>
                 <button type="button" onClick={() => setActiveTab('overview')} className={tabClass('overview')}>
                   <LayoutGrid className="w-4 h-4" />Overview
                 </button>
@@ -1621,8 +1667,8 @@ export default function PartnerOverview({
                     {DEPARTMENT_LABELS[ds.department]}
                   </button>
                 ))}
-              </div>
-              {/* Add Department — outside scroll so its dropdown isn't clipped */}
+              </ScrollableTabs>
+              {/* + Department — outside scroll so its dropdown isn't clipped */}
               <div className="shrink-0">
                 <AddDepartmentDropdown enrolledDepts={enrolledDepts} onAdd={handleAddDepartment} variant="tab" />
               </div>
@@ -1655,19 +1701,39 @@ export default function PartnerOverview({
 
               <section className="flex flex-col gap-3">
                 <div className="flex flex-col">
-                  <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">All Department Interactions</h2>
-                  <p className="text-xs text-muted-text">Shared view across all departments</p>
+                  <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Activity History</h2>
+                  <p className="text-xs text-muted-text">All departments</p>
                 </div>
                 {interactions.length === 0 ? (
                   <p className="text-sm text-muted-text">No activity yet.</p>
                 ) : (
-                  <div className="rounded-xl border border-border bg-surface divide-y divide-border">
-                    {interactions.map(i => (
-                      <div key={i.id} className="px-4 py-3">
-                        <InteractionRow interaction={i} onDelete={handleDeleteInteraction} showDepartment />
-                      </div>
-                    ))}
-                  </div>
+                  <ol className="flex flex-col">
+                    {[...interactions]
+                      .sort((a, b) => {
+                        const ta = a.created_at ? Date.parse(a.created_at) : Date.parse(a.interaction_date + 'T00:00:00')
+                        const tb = b.created_at ? Date.parse(b.created_at) : Date.parse(b.interaction_date + 'T00:00:00')
+                        return tb - ta
+                      })
+                      .map((i, idx, arr) => {
+                        const dept = i.department
+                        const dotColor = dept ? DEPT_DOT[dept] : 'bg-plum-primary'
+                        const accentBorder = dept ? DEPT_CARD_ACCENT[dept] : null
+                        const isLast = idx === arr.length - 1
+                        return (
+                          <li key={i.id} className="flex gap-3 pb-4 last:pb-0">
+                            <div className="flex flex-col items-center shrink-0">
+                              <span className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
+                              {!isLast && <span className="flex-1 w-px bg-border mt-1" />}
+                            </div>
+                            <div className="flex-1 min-w-0 -mt-0.5">
+                              <div className={`rounded-xl border border-border bg-surface p-4${accentBorder ? ` border-l-4 ${accentBorder}` : ''}`}>
+                                <InteractionRow interaction={i} onDelete={handleDeleteInteraction} showDepartment />
+                              </div>
+                            </div>
+                          </li>
+                        )
+                      })}
+                  </ol>
                 )}
               </section>
             </div>
@@ -1685,16 +1751,16 @@ export default function PartnerOverview({
                       <div className="flex flex-col gap-5">
 
                         {/* Status + actions */}
-                        <section className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-4">
-                          <div className="flex items-start justify-between gap-3 flex-wrap">
-                            <div className="flex flex-col gap-1.5">
-                              <h3 className="text-xs font-semibold text-muted-text uppercase tracking-wide">Current Status</h3>
+                        <section className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-3">
+                          {/* Row 1: status badge + Log Contact */}
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {hasStages ? (
                                 editingStatus ? (
                                   <select
                                     value={ds.stage}
                                     onChange={e => { handleStageChange(dept, e.target.value); setStatusEditDept(null) }}
-                                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                                   >
                                     <option value="">— Select status —</option>
                                     {DEPARTMENT_STAGES[dept].map(stage => (
@@ -1702,9 +1768,9 @@ export default function PartnerOverview({
                                     ))}
                                   </select>
                                 ) : (
-                                  <div className="flex items-center gap-2 flex-wrap">
+                                  <>
                                     {ds.stage ? (
-                                      <span className={`text-sm font-medium rounded-full px-2.5 py-1 ${STAGE_COLORS[ds.stage] ?? 'bg-background text-dark-text border border-border'}`}>
+                                      <span className={`text-sm font-medium rounded-full px-2.5 py-0.5 ${STAGE_COLORS[ds.stage] ?? 'bg-background text-dark-text border border-border'}`}>
                                         {ds.stage}
                                       </span>
                                     ) : (
@@ -1714,29 +1780,29 @@ export default function PartnerOverview({
                                       Update Status
                                     </button>
                                     {isPending && <span className="text-xs text-muted-text">Saving…</span>}
-                                  </div>
+                                  </>
                                 )
                               ) : (
-                                <span className="text-sm text-muted-text">This department does not track stages.</span>
+                                <span className="text-sm text-muted-text">No stages tracked.</span>
                               )}
                             </div>
                             <button
                               type="button"
                               onClick={() => setLogModalDept(dept)}
-                              className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1 text-xs font-medium border border-teal-primary text-teal-primary px-3 py-1 rounded-lg hover:bg-teal-primary hover:[color:var(--color-background)] transition-colors"
                             >
-                              <Plus className="w-4 h-4" />Log Contact
+                              <Plus className="w-3.5 h-3.5" />Log Interaction
                             </button>
                           </div>
 
-                          {/* Secondary row: owner + do-not-email + remove */}
-                          <div className="flex items-center justify-between gap-4 flex-wrap border-t border-border pt-3">
-                            <div className="flex items-center gap-2">
-                              <label className="text-xs text-muted-text shrink-0">Owner</label>
+                          {/* Row 2: owner · do-not-email · remove — all inline, no divider */}
+                          <div className="flex items-center gap-4 flex-wrap text-xs text-muted-text">
+                            <div className="flex items-center gap-1.5">
+                              <span>Owner</span>
                               <select
                                 value={ownerId}
                                 onChange={e => handleOwnerChange(e.target.value)}
-                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                                className="rounded border border-border bg-background px-2 py-0.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary"
                               >
                                 <option value="">Unassigned</option>
                                 {staffUsers.map(u => (
@@ -1744,24 +1810,22 @@ export default function PartnerOverview({
                                 ))}
                               </select>
                             </div>
-                            <div className="flex items-center gap-4 flex-wrap">
-                              <label className={`flex items-center gap-2 cursor-pointer select-none text-xs ${ds.do_not_email ? 'text-red-600 font-medium dark:text-red-400' : 'text-muted-text'}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={!!ds.do_not_email}
-                                  onChange={e => handleDeptDoNotEmail(dept, e.target.checked)}
-                                  className="rounded border-border accent-red-600"
-                                />
-                                Do not email for {DEPARTMENT_LABELS[dept]}
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDepartment(dept)}
-                                className="text-xs border border-border rounded-lg px-3 py-1.5 text-muted-text hover:border-red-400 hover:text-red-500 transition-colors"
-                              >
-                                Remove from {DEPARTMENT_LABELS[dept]}
-                              </button>
-                            </div>
+                            <label className={`flex items-center gap-1.5 cursor-pointer select-none ${ds.do_not_email ? 'text-red-500 dark:text-red-400' : ''}`}>
+                              <input
+                                type="checkbox"
+                                checked={!!ds.do_not_email}
+                                onChange={e => handleDeptDoNotEmail(dept, e.target.checked)}
+                                className="rounded border-border accent-red-600"
+                              />
+                              Do not email
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDepartment(dept)}
+                              className="ml-auto text-xs text-muted-text hover:text-red-500 transition-colors"
+                            >
+                              Remove from {DEPARTMENT_LABELS[dept]}
+                            </button>
                           </div>
                         </section>
 

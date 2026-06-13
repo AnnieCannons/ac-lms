@@ -159,6 +159,11 @@ html.theme-dark.high-contrast button {
 html.theme-dark.high-contrast .bg-teal-primary {
   color: #0d0018 !important;
 }
+/* Outlined teal buttons: on hover the bg becomes teal-primary (bright pink in HC dark).
+   Must beat "button { color: #fff !important }" above — higher specificity wins. */
+html.theme-dark.high-contrast .hover\:bg-teal-primary:hover {
+  color: var(--color-background) !important;
+}
 html.theme-dark.high-contrast .status-badge {
   color: #ffffff !important;
 }

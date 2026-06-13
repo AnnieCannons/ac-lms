@@ -190,7 +190,7 @@ export default function RequestExtensionButton({
         <button
           type="button"
           onClick={openFresh}
-          className="text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:text-white rounded-full px-4 py-1.5 transition-colors"
+          className="text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
         >
           Request Extension
         </button>
