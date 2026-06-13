@@ -3,18 +3,23 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  Globe, MapPin, Mail, Phone, Link, Pencil, Plus, ChevronDown, ChevronRight,
+  LayoutGrid, AlarmClock, Calendar, User as UserIcon, Trash2, Archive,
+} from 'lucide-react'
+import {
   logInteraction,
   deleteInteraction,
   setDepartmentStatus,
   removeDepartmentStatus,
+  setDepartmentDoNotEmail,
   createReferral,
   deleteReferral,
   type PartnerDepartment,
 } from '@/lib/partner-interactions-actions'
-import { archiveContact, createContact, updateContact, deleteContact, setPartnerOwner, setDoNotEmail, type ContactData } from '@/lib/partner-actions'
-import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS } from '@/lib/partner-constants'
+import { archiveContact, createContact, updateContact, deleteContact, setPartnerOwner, type ContactData } from '@/lib/partner-actions'
+import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS, STAGE_COLORS } from '@/lib/partner-constants'
 import PartnerForm from '@/components/ui/PartnerForm'
-import StageHistory, { type StageHistoryEntry } from '@/components/ui/StageHistory'
+import { type StageHistoryEntry } from '@/components/ui/StageHistory'
 import type { PartnerFormData, PartnerType } from '@/lib/partner-actions'
 import type { PartnerRatingSummaryRow } from '@/lib/partner-ratings-actions'
 
@@ -32,6 +37,7 @@ interface Contact {
   website_url?: string | null
   is_archived?: boolean
   departments?: string[] | null
+  primary_departments?: string[] | null
 }
 
 interface Interaction {
@@ -42,6 +48,10 @@ interface Interaction {
   created_at: string
   user_id: string | null
   users: { name: string } | null
+  contact_id?: string | null
+  partner_contacts?: { name: string; title: string | null } | null
+  reminder_days?: number | null
+  reminder_at?: string | null
 }
 
 interface DepartmentStatus {
@@ -50,6 +60,7 @@ interface DepartmentStatus {
   stage: string
   updated_at: string
   users: { name: string } | null
+  do_not_email?: boolean
 }
 
 interface Partner {
@@ -91,7 +102,7 @@ interface StaffUser {
   name: string
 }
 
-type ActiveTab = PartnerDepartment | 'edit'
+type ActiveTab = 'overview' | PartnerDepartment | 'edit'
 
 interface Props {
   partner: Partner
@@ -106,7 +117,7 @@ interface Props {
   onDeletePartner: () => Promise<{ error: string | null }>
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Constants & helpers ───────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   service_provider: 'Service Provider',
@@ -127,97 +138,84 @@ const ALL_DEPARTMENTS: PartnerDepartment[] = [
   'admissions',
 ]
 
+const DEPT_DOT: Record<PartnerDepartment, string> = {
+  student_success: 'bg-purple-500',
+  career_development: 'bg-teal-500',
+  resourcefull: 'bg-blue-500',
+  funding_partnerships: 'bg-green-500',
+  admissions: 'bg-orange-500',
+}
+
+const DEPT_CARD_TINT: Record<PartnerDepartment, string> = {
+  student_success: 'bg-purple-500/5 border-purple-500/20 hover:bg-purple-500/10',
+  career_development: 'bg-teal-500/5 border-teal-500/20 hover:bg-teal-500/10',
+  resourcefull: 'bg-blue-500/5 border-blue-500/20 hover:bg-blue-500/10',
+  funding_partnerships: 'bg-green-500/5 border-green-500/20 hover:bg-green-500/10',
+  admissions: 'bg-orange-500/5 border-orange-500/20 hover:bg-orange-500/10',
+}
+
+const AVATAR_PALETTE = [
+  'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200',
+  'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200',
+  'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
+  'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
+  'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
+]
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function avatarClasses(name: string) {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length]
+}
+
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   })
 }
 
-function daysSince(dateStr: string | null) {
-  if (!dateStr) return null
-  return Math.floor((Date.now() - new Date(dateStr + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24))
+// Render a stored reminder interval (whole days) back into a friendly label.
+function humanizeReminder(days: number | null | undefined): string | null {
+  if (!days || days <= 0) return null
+  if (days % 30 === 0) { const m = days / 30; return `${m} ${m === 1 ? 'month' : 'months'}` }
+  if (days % 7 === 0) { const w = days / 7; return `${w} ${w === 1 ? 'week' : 'weeks'}` }
+  return `${days} ${days === 1 ? 'day' : 'days'}`
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Modal shell ──────────────────────────────────────────────────────────────
 
-function DeptOverviewTable({
-  deptStatuses,
-  studentReferrals,
-  onTabClick,
-  onAddDept,
-}: {
-  deptStatuses: DepartmentStatus[]
-  studentReferrals: Referral[]
-  onTabClick: (dept: PartnerDepartment) => void
-  onAddDept: (dept: PartnerDepartment) => void
-}) {
-  const inboundCount = studentReferrals.filter(r => r.direction === 'inbound').length
-  const outboundCount = studentReferrals.filter(r => r.direction === 'outbound').length
-
-  if (deptStatuses.length === 0) {
-    return (
-      <section className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-3">
-        <p className="text-sm text-muted-text">Not enrolled in any department yet.</p>
-        <AddDepartmentDropdown enrolledDepts={[]} onAdd={onAddDept} />
-      </section>
-    )
-  }
-
+function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-2">
-      <div className="overflow-hidden rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-surface border-b border-border">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide w-48">Department</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-muted-text uppercase tracking-wide">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deptStatuses.map((ds, i) => (
-              <tr
-                key={ds.department}
-                onClick={() => onTabClick(ds.department)}
-                className={`cursor-pointer hover:bg-background transition-colors ${i < deptStatuses.length - 1 ? 'border-b border-border' : ''}`}
-              >
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${DEPT_COLORS[ds.department]}`}>
-                    {DEPARTMENT_LABELS[ds.department]}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {DEPARTMENT_STAGES[ds.department].length > 0
-                      ? <span className="text-dark-text">{ds.stage || <span className="text-muted-text">—</span>}</span>
-                      : null
-                    }
-                    {ds.department === 'admissions' && (
-                      <span className="text-xs text-muted-text">· {inboundCount} referred in</span>
-                    )}
-                    {ds.department === 'student_success' && (
-                      <span className="text-xs text-muted-text">· {outboundCount} referred out</span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-10"
+      onClick={onClose}
+    >
+      <div className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        {children}
       </div>
-      <AddDepartmentDropdown
-        enrolledDepts={deptStatuses.map(s => s.department)}
-        onAdd={onAddDept}
-      />
-    </section>
+    </div>
   )
 }
+
+// ─── Add-department dropdown ────────────────────────────────────────────────────
 
 function AddDepartmentDropdown({
   enrolledDepts,
   onAdd,
+  label = 'Add Department',
+  variant = 'default',
 }: {
   enrolledDepts: PartnerDepartment[]
   onAdd: (dept: PartnerDepartment) => void
+  label?: string
+  variant?: 'default' | 'tab'
 }) {
   const [open, setOpen] = useState(false)
   const unenrolled = ALL_DEPARTMENTS.filter(d => !enrolledDepts.includes(d))
@@ -228,14 +226,19 @@ function AddDepartmentDropdown({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="text-sm text-teal-primary hover:underline"
+        className={
+          variant === 'tab'
+            ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors whitespace-nowrap'
+            : 'text-sm text-teal-primary hover:underline whitespace-nowrap'
+        }
       >
-        + Add to department
+        {variant === 'tab' && <Plus className="w-3.5 h-3.5" />}
+        {label}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-7 z-20 rounded-xl border border-border bg-surface shadow-lg py-1 min-w-48">
+          <div className="absolute right-0 top-7 z-20 rounded-xl border border-border bg-surface shadow-lg py-1 min-w-48">
             {unenrolled.map(dept => (
               <button
                 key={dept}
@@ -253,32 +256,40 @@ function AddDepartmentDropdown({
   )
 }
 
+// ─── Log Contact form ───────────────────────────────────────────────────────────
+
 type RemindUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
 
 function LogInteractionForm({
   partnerId,
   defaultDepartment,
   availableStages = [],
+  contacts,
   onLogged,
   onStageUpdated,
+  onCancel,
 }: {
   partnerId: string
   defaultDepartment?: PartnerDepartment
   availableStages?: string[]
+  contacts: Contact[]
   onLogged: (interaction: Interaction) => void
   onStageUpdated?: (stage: string) => void
+  onCancel?: () => void
 }) {
   const [note, setNote] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [department, setDepartment] = useState<PartnerDepartment | ''>(defaultDepartment ?? '')
+  const [contactId, setContactId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showReminder, setShowReminder] = useState(false)
   const [remindValue, setRemindValue] = useState(1)
   const [remindUnit, setRemindUnit] = useState<RemindUnit>('weeks')
-  const [reminderConfirmed, setReminderConfirmed] = useState<string | null>(null)
   const [updateStatus, setUpdateStatus] = useState(false)
   const [newStage, setNewStage] = useState('')
+
+  const selectedContact = contactId ? contacts.find(c => c.id === contactId) ?? null : null
 
   function getRemindInDays() {
     switch (remindUnit) {
@@ -296,12 +307,14 @@ function LogInteractionForm({
     setSaving(true)
     setError(null)
 
+    const remindInDays = showReminder ? getRemindInDays() : null
     const result = await logInteraction({
       partner_id: partnerId,
       note: note.trim(),
       interaction_date: date,
       department: department || null,
-      remind_in_days: showReminder ? getRemindInDays() : null,
+      contact_id: contactId || null,
+      remind_in_days: remindInDays,
     })
 
     if (result.error) { setSaving(false); setError(result.error); return }
@@ -311,6 +324,11 @@ function LogInteractionForm({
       onStageUpdated?.(newStage)
     }
 
+    const reminderDays = remindInDays && remindInDays > 0 ? Math.round(remindInDays) : null
+    const reminderAt = remindInDays && remindInDays > 0
+      ? new Date(Date.now() + remindInDays * 86400 * 1000).toISOString().slice(0, 10)
+      : null
+
     onLogged({
       id: crypto.randomUUID(),
       note: note.trim(),
@@ -319,21 +337,35 @@ function LogInteractionForm({
       created_at: new Date().toISOString(),
       user_id: null,
       users: null,
+      contact_id: contactId || null,
+      partner_contacts: selectedContact ? { name: selectedContact.name, title: selectedContact.title } : null,
+      reminder_days: reminderDays,
+      reminder_at: reminderAt,
     })
-    setNote('')
-    if (showReminder) {
-      const unitLabel = remindValue === 1 ? remindUnit.replace(/s$/, '') : remindUnit
-      setReminderConfirmed(`${remindValue} ${unitLabel}`)
-      setShowReminder(false)
-    }
-    setUpdateStatus(false)
-    setNewStage('')
     setSaving(false)
+    onCancel?.()
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
-      <h3 className="text-xs font-semibold text-dark-text uppercase tracking-wide">Log Interaction</h3>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-lg">
+      <h3 className="text-sm font-semibold text-dark-text">Log Contact</h3>
+
+      <div>
+        <label className="block text-xs text-muted-text mb-1">Contact person</label>
+        <select
+          value={contactId}
+          onChange={e => setContactId(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+        >
+          <option value="">General Note (no specific contact)</option>
+          {contacts.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.name}{c.title ? ` — ${c.title}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <textarea
         value={note}
         onChange={e => setNote(e.target.value)}
@@ -432,71 +464,234 @@ function LogInteractionForm({
         )}
       </div>
 
-      {reminderConfirmed && (
-        <p className="text-xs text-teal-primary">✓ Slack reminder set for {reminderConfirmed}</p>
-      )}
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={saving || !note.trim()}
-        className="self-start px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors disabled:opacity-50"
-      >
-        {saving ? 'Logging…' : 'Log'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={saving || !note.trim()}
+          className="px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Logging…' : 'Log Contact'}
+        </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="text-sm text-muted-text hover:text-dark-text transition-colors">
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   )
 }
 
-function InteractionList({
-  interactions,
-  onDelete,
-}: {
-  interactions: Interaction[]
-  onDelete: (id: string) => void
-}) {
-  if (interactions.length === 0) {
-    return <p className="text-sm text-muted-text">No interactions logged yet.</p>
-  }
+// ─── Activity rows (interactions + status changes) ──────────────────────────────
 
+function InteractionRow({
+  interaction,
+  onDelete,
+  showDepartment = false,
+}: {
+  interaction: Interaction
+  onDelete: (id: string) => void
+  showDepartment?: boolean
+}) {
+  const reminderLabel = humanizeReminder(interaction.reminder_days)
+  const contactName = interaction.partner_contacts?.name
   return (
-    <div className="flex flex-col gap-2">
-      {interactions.map(interaction => (
-        <div key={interaction.id} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-text">
-              <span className="font-medium text-dark-text text-sm">{formatDate(interaction.interaction_date)}</span>
-              {interaction.users?.name && <span>by {interaction.users.name}</span>}
-              {interaction.department && (
-                <span className={`rounded-full px-2 py-0.5 ${DEPT_COLORS[interaction.department]}`}>
-                  {DEPARTMENT_LABELS[interaction.department]}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => onDelete(interaction.id)}
-              className="text-xs text-muted-text hover:text-red-500 transition-colors"
-            >
-              Remove
-            </button>
-          </div>
-          <p className="text-sm text-dark-text whitespace-pre-line">{interaction.note}</p>
+    <div className="group flex flex-col gap-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap text-xs text-muted-text min-w-0">
+          <span className="inline-flex items-center gap-1 text-dark-text text-sm font-medium">
+            <UserIcon className="w-3.5 h-3.5 text-muted-text" />
+            {contactName || 'General note'}
+          </span>
+          {showDepartment && interaction.department && (
+            <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${DEPT_COLORS[interaction.department]}`}>
+              {DEPARTMENT_LABELS[interaction.department]}
+            </span>
+          )}
+          {interaction.users?.name && <span>· {interaction.users.name}</span>}
         </div>
-      ))}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1 text-xs text-muted-text">
+            <Calendar className="w-3.5 h-3.5" />
+            {formatDate(interaction.interaction_date)}
+          </span>
+          <button
+            type="button"
+            onClick={() => onDelete(interaction.id)}
+            aria-label="Delete interaction"
+            className="text-muted-text hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <p className="text-sm text-dark-text whitespace-pre-line">{interaction.note}</p>
+      {interaction.reminder_at && (
+        <span className="self-start inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 bg-teal-primary/10 text-teal-primary">
+          <AlarmClock className="w-3.5 h-3.5" />
+          Slack reminder{reminderLabel ? ` · ${reminderLabel}` : ''} ({formatDate(interaction.reminder_at)})
+        </span>
+      )}
     </div>
   )
 }
 
+function StatusRow({ entry }: { entry: StageHistoryEntry }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap text-xs text-muted-text">
+      {entry.stage ? (
+        <>
+          <span className="text-dark-text">Status changed to</span>
+          <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${STAGE_COLORS[entry.stage] ?? 'bg-background text-dark-text border border-border'}`}>
+            {entry.stage}
+          </span>
+        </>
+      ) : (
+        <span className="text-dark-text">Added to department</span>
+      )}
+      <span>· {formatDate(entry.changed_at.slice(0, 10))}</span>
+      {entry.users?.name && <span>· {entry.users.name}</span>}
+    </div>
+  )
+}
+
+function DepartmentActivity({
+  interactions,
+  history,
+  onDelete,
+}: {
+  interactions: Interaction[]
+  history: StageHistoryEntry[]
+  onDelete: (id: string) => void
+}) {
+  type Item =
+    | { kind: 'interaction'; ts: number; key: string; data: Interaction }
+    | { kind: 'status'; ts: number; key: string; data: StageHistoryEntry }
+
+  const items: Item[] = [
+    ...interactions.map((i): Item => ({
+      kind: 'interaction',
+      ts: i.created_at ? Date.parse(i.created_at) : Date.parse(i.interaction_date + 'T00:00:00'),
+      key: `i-${i.id}`,
+      data: i,
+    })),
+    ...history.map((h): Item => ({
+      kind: 'status',
+      ts: Date.parse(h.changed_at),
+      key: `s-${h.id}`,
+      data: h,
+    })),
+  ].sort((a, b) => b.ts - a.ts)
+
+  if (items.length === 0) {
+    return <p className="text-sm text-muted-text">No activity yet.</p>
+  }
+
+  return (
+    <ol className="flex flex-col">
+      {items.map((item, idx) => {
+        const isLast = idx === items.length - 1
+        return (
+          <li key={item.key} className="flex gap-3 pb-4 last:pb-0">
+            <div className="flex flex-col items-center">
+              {item.kind === 'interaction'
+                ? <span className="mt-1 w-2.5 h-2.5 rounded-full bg-teal-primary shrink-0" />
+                : <span className="mt-1 w-2.5 h-2.5 rounded-full border-2 border-border bg-background shrink-0" />}
+              {!isLast && <span className="flex-1 w-px bg-border mt-1" />}
+            </div>
+            <div className="flex-1 min-w-0 -mt-0.5">
+              {item.kind === 'interaction'
+                ? <InteractionRow interaction={item.data} onDelete={onDelete} />
+                : <StatusRow entry={item.data} />}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+// ─── Department overview cards ───────────────────────────────────────────────────
+
+function DepartmentOverviewCards({
+  deptStatuses,
+  interactions,
+  studentReferrals,
+  onOpenDept,
+}: {
+  deptStatuses: DepartmentStatus[]
+  interactions: Interaction[]
+  studentReferrals: Referral[]
+  onOpenDept: (dept: PartnerDepartment) => void
+}) {
+  const inboundCount = studentReferrals.filter(r => r.direction === 'inbound').length
+  const outboundCount = studentReferrals.filter(r => r.direction === 'outbound').length
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {deptStatuses.map(ds => {
+        const recent = interactions.filter(i => i.department === ds.department)[0]
+        const hasStages = DEPARTMENT_STAGES[ds.department].length > 0
+        return (
+          <button
+            key={ds.department}
+            type="button"
+            onClick={() => onOpenDept(ds.department)}
+            className={`text-left rounded-xl border p-4 flex flex-col gap-3 transition-colors ${DEPT_CARD_TINT[ds.department]}`}
+          >
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-2 font-semibold text-dark-text text-sm">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${DEPT_DOT[ds.department]}`} />
+                {DEPARTMENT_LABELS[ds.department]}
+              </span>
+              {hasStages && (
+                ds.stage ? (
+                  <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${STAGE_COLORS[ds.stage] ?? 'bg-background text-dark-text border border-border'}`}>
+                    {ds.stage}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-text italic">No status set</span>
+                )
+              )}
+            </div>
+            {recent ? (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-3 text-xs text-muted-text flex-wrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    <UserIcon className="w-3.5 h-3.5 shrink-0" />{recent.partner_contacts?.name || 'General note'}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />{formatDate(recent.interaction_date)}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-text line-clamp-3 leading-relaxed">{recent.note}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-text italic">No contact logged yet.</p>
+            )}
+            {(ds.department === 'admissions' || ds.department === 'student_success') && (
+              <span className="text-xs text-muted-text">
+                {ds.department === 'admissions' ? `${inboundCount} referred in` : `${outboundCount} referred out`}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Contact form ────────────────────────────────────────────────────────────────
+
 function ContactForm({
   initialData,
   enrolledDepts,
-  currentDept,
   onSubmit,
   onCancel,
 }: {
   initialData?: Partial<Contact>
   enrolledDepts: PartnerDepartment[]
-  currentDept: PartnerDepartment
   onSubmit: (data: ContactData) => Promise<void>
   onCancel: () => void
 }) {
@@ -507,14 +702,27 @@ function ContactForm({
   const [notes, setNotes] = useState(initialData?.notes ?? '')
   const [linkedinUrl, setLinkedinUrl] = useState(initialData?.linkedin_url ?? '')
   const [websiteUrl, setWebsiteUrl] = useState(initialData?.website_url ?? '')
-  const [isPrimary, setIsPrimary] = useState(initialData?.is_primary ?? false)
   const [selectedDepts, setSelectedDepts] = useState<PartnerDepartment[]>(
     (initialData?.departments ?? []) as PartnerDepartment[]
   )
+  const [primaryDepts, setPrimaryDepts] = useState<PartnerDepartment[]>(
+    (initialData?.primary_departments ?? []) as PartnerDepartment[]
+  )
   const [saving, setSaving] = useState(false)
 
+  // A contact scoped to specific departments can only be primary for those;
+  // a shared contact (no departments) can be primary for any enrolled department.
+  const primaryChoices = selectedDepts.length > 0 ? selectedDepts : enrolledDepts
+
   function toggleDept(dept: PartnerDepartment) {
-    setSelectedDepts(prev =>
+    const removing = selectedDepts.includes(dept)
+    setSelectedDepts(prev => removing ? prev.filter(d => d !== dept) : [...prev, dept])
+    // Drop any primary flag for a department the contact is no longer in.
+    if (removing) setPrimaryDepts(prev => prev.filter(d => d !== dept))
+  }
+
+  function togglePrimary(dept: PartnerDepartment) {
+    setPrimaryDepts(prev =>
       prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]
     )
   }
@@ -523,6 +731,7 @@ function ContactForm({
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
+    const validPrimary = primaryDepts.filter(d => primaryChoices.includes(d))
     await onSubmit({
       name: name.trim(),
       title: title.trim() || null,
@@ -531,14 +740,16 @@ function ContactForm({
       notes: notes.trim() || null,
       linkedin_url: linkedinUrl.trim() || null,
       website_url: websiteUrl.trim() || null,
-      is_primary: isPrimary,
+      is_primary: validPrimary.length > 0,
       departments: selectedDepts.length > 0 ? selectedDepts : null,
+      primary_departments: validPrimary,
     })
     setSaving(false)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-lg">
+      <h3 className="text-sm font-semibold text-dark-text">{initialData?.id ? 'Edit Contact' : 'Add Contact'}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs text-muted-text mb-1">Name *</label>
@@ -595,11 +806,20 @@ function ContactForm({
           </div>
         </div>
       )}
-      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
-        <input type="checkbox" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)}
-          className="accent-teal-primary" />
-        Primary contact
-      </label>
+      {primaryChoices.length > 0 && (
+        <div>
+          <label className="block text-xs text-muted-text mb-1.5">Primary contact for</label>
+          <div className="flex flex-wrap gap-3">
+            {primaryChoices.map(dept => (
+              <label key={dept} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                <input type="checkbox" checked={primaryDepts.includes(dept)} onChange={() => togglePrimary(dept)}
+                  className="accent-teal-primary" />
+                {DEPARTMENT_LABELS[dept]}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <button type="submit" disabled={saving || !name.trim()}
           className="px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors disabled:opacity-50">
@@ -613,158 +833,170 @@ function ContactForm({
   )
 }
 
+// ─── Contact card + sidebar ──────────────────────────────────────────────────────
+
 function ContactCard({
   contact,
-  currentDept,
   enrolledDepts,
   onArchive,
-  onUpdate,
+  onEdit,
   onDelete,
 }: {
   contact: Contact
-  currentDept: PartnerDepartment
   enrolledDepts: PartnerDepartment[]
   onArchive: (id: string, archived: boolean) => void
-  onUpdate: (id: string, data: ContactData) => Promise<void>
+  onEdit: (contact: Contact) => void
   onDelete: (id: string) => void
 }) {
-  const [editing, setEditing] = useState(false)
   const isArchived = !!contact.is_archived
   const isShared = !contact.departments || contact.departments.length === 0
-  const otherDepts = (contact.departments as PartnerDepartment[] ?? []).filter(d => d !== currentDept)
-
-  if (editing && contact.id) {
-    return (
-      <ContactForm
-        initialData={contact}
-        enrolledDepts={enrolledDepts}
-        currentDept={currentDept}
-        onSubmit={async (data) => { await onUpdate(contact.id!, data); setEditing(false) }}
-        onCancel={() => setEditing(false)}
-      />
-    )
-  }
+  const memberDepts: PartnerDepartment[] = isShared
+    ? enrolledDepts
+    : (contact.departments as PartnerDepartment[])
+  const primaryDepts = (contact.primary_departments ?? []) as PartnerDepartment[]
+  const hasContactInfo = !!(contact.email || contact.phone || contact.linkedin_url || contact.website_url)
 
   return (
-    <div className={`rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-1.5 transition-opacity ${isArchived ? 'opacity-50' : ''}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`font-medium text-sm ${isArchived ? 'text-muted-text' : 'text-dark-text'}`}>
-            {contact.name}
-          </span>
-          {contact.is_primary && !isArchived && (
-            <span className="text-xs bg-teal-100 text-teal-800 rounded-full px-2 py-0.5">Primary</span>
-          )}
-          {isArchived && (
-            <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">Archived</span>
-          )}
-          {isShared && !isArchived && (
-            <span className="text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">Shared</span>
-          )}
-          {!isShared && otherDepts.map(d => (
-            <span key={d} className={`text-xs rounded px-2 py-0.5 ${DEPT_COLORS[d]}`}>
-              Also in {DEPARTMENT_LABELS[d]}
-            </span>
-          ))}
+    <div className={`rounded-xl border border-border bg-surface p-3 flex flex-col gap-2 transition-opacity ${isArchived ? 'opacity-50' : ''}`}>
+      <div className="flex items-start gap-3">
+        <span className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${avatarClasses(contact.name)}`}>
+          {initials(contact.name)}
+        </span>
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`font-semibold text-sm truncate ${isArchived ? 'text-muted-text' : 'text-dark-text'}`}>
+                {contact.name}
+              </span>
+              {isArchived && (
+                <span className="shrink-0 text-xs bg-background text-muted-text rounded-full px-2 py-0.5 border border-border">Archived</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {!isArchived && contact.id && (
+                <button type="button" onClick={() => onEdit(contact)} aria-label="Edit contact"
+                  className="text-muted-text hover:text-dark-text transition-colors p-1 rounded hover:bg-background">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+              {contact.id && (
+                <button type="button" onClick={() => onArchive(contact.id!, !isArchived)}
+                  aria-label={isArchived ? 'Unarchive contact' : 'Archive contact'}
+                  title={isArchived ? 'Unarchive' : 'Archive'}
+                  className="text-muted-text hover:text-dark-text transition-colors p-1 rounded hover:bg-background">
+                  <Archive className="w-3 h-3" />
+                </button>
+              )}
+              {isArchived && contact.id && (
+                <button type="button" onClick={() => onDelete(contact.id!)} aria-label="Delete contact"
+                  className="text-muted-text hover:text-red-500 transition-colors p-1 rounded hover:bg-background">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
           {contact.title && (
             <span className={`text-xs ${isArchived ? 'text-muted-text/60' : 'text-muted-text'}`}>{contact.title}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {!isArchived && contact.id && (
-            <button type="button" onClick={() => setEditing(true)}
-              className="text-xs text-muted-text hover:text-dark-text transition-colors">
-              Edit
-            </button>
-          )}
-          {contact.id && (
-            <button type="button" onClick={() => onArchive(contact.id!, !isArchived)}
-              className="text-xs text-muted-text hover:text-dark-text transition-colors">
-              {isArchived ? 'Unarchive' : 'Archive'}
-            </button>
-          )}
-          {isArchived && contact.id && (
-            <button type="button" onClick={() => onDelete(contact.id!)}
-              className="text-xs text-muted-text hover:text-red-500 transition-colors">
-              Delete
-            </button>
-          )}
-        </div>
       </div>
-      {!isArchived && (
-        <div className="flex flex-wrap gap-3 text-xs text-muted-text">
+
+      {!isArchived && memberDepts.length > 0 && (
+        <div className="flex flex-wrap gap-1 pl-[52px]">
+          {memberDepts.map(d => (
+            <span key={d} className={`text-xs font-medium rounded-full px-2 py-0.5 ${DEPT_COLORS[d]}`}>
+              {DEPARTMENT_LABELS[d]}{primaryDepts.includes(d) ? ' · Primary' : ''}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {!isArchived && hasContactInfo && (
+        <div className="flex flex-col gap-1 text-xs pl-[52px]">
           {contact.email && (
-            <a href={`mailto:${contact.email}`} className="hover:text-teal-primary transition-colors">{contact.email}</a>
+            <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-1.5 text-muted-text hover:text-teal-primary transition-colors break-all">
+              <Mail className="w-3.5 h-3.5 shrink-0" />{contact.email}
+            </a>
           )}
-          {contact.phone && <span>{contact.phone}</span>}
+          {contact.phone && (
+            <span className="inline-flex items-center gap-1.5 text-muted-text">
+              <Phone className="w-3.5 h-3.5 shrink-0" />{contact.phone}
+            </span>
+          )}
           {contact.linkedin_url && (
-            <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-teal-primary transition-colors">LinkedIn</a>
+            <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-text hover:text-teal-primary transition-colors">
+              <Link className="w-3.5 h-3.5 shrink-0" />LinkedIn
+            </a>
           )}
           {contact.website_url && (
-            <a href={contact.website_url} target="_blank" rel="noopener noreferrer" className="hover:text-teal-primary transition-colors">Website</a>
+            <a href={contact.website_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-text hover:text-teal-primary transition-colors break-all">
+              <Globe className="w-3.5 h-3.5 shrink-0" />Website
+            </a>
           )}
         </div>
       )}
-      {contact.notes && !isArchived && <p className="text-xs text-muted-text">{contact.notes}</p>}
+      {contact.notes && !isArchived && <p className="text-xs text-muted-text whitespace-pre-line pl-[52px]">{contact.notes}</p>}
     </div>
   )
 }
 
-function ContactsSection({
+function ContactsSidebar({
   contacts,
-  currentDept,
   enrolledDepts,
   onArchive,
-  onUpdate,
+  onEdit,
   onDelete,
-  onCreate,
 }: {
   contacts: Contact[]
-  currentDept: PartnerDepartment
   enrolledDepts: PartnerDepartment[]
   onArchive: (id: string, archived: boolean) => void
-  onUpdate: (id: string, data: ContactData) => Promise<void>
+  onEdit: (contact: Contact) => void
   onDelete: (id: string) => void
-  onCreate: (data: ContactData) => Promise<void>
 }) {
-  const [adding, setAdding] = useState(false)
-
-  const visible = contacts.filter(c =>
-    !c.departments || c.departments.length === 0 || (c.departments as string[]).includes(currentDept)
-  )
+  const active = contacts
+    .filter(c => !c.is_archived)
+    .sort((a, b) => {
+      const aP = (a.primary_departments?.length ?? 0) > 0
+      const bP = (b.primary_departments?.length ?? 0) > 0
+      return aP === bP ? 0 : aP ? -1 : 1
+    })
+  const archived = contacts.filter(c => c.is_archived)
+  const [showArchived, setShowArchived] = useState(false)
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Contacts</h2>
-        {!adding && (
-          <button type="button" onClick={() => setAdding(true)}
-            className="text-xs text-teal-primary hover:underline">
-            + Add contact
-          </button>
-        )}
-      </div>
-      {adding && (
-        <ContactForm
-          initialData={{ departments: [currentDept] }}
-          enrolledDepts={enrolledDepts}
-          currentDept={currentDept}
-          onSubmit={async (data) => { await onCreate(data); setAdding(false) }}
-          onCancel={() => setAdding(false)}
-        />
-      )}
-      {visible.length === 0 && !adding ? (
-        <p className="text-sm text-muted-text">No contacts for this department yet.</p>
+      {active.length === 0 ? (
+        <p className="text-sm text-muted-text">No contacts yet.</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {visible.map(c => (
+          {active.map(c => (
             <ContactCard
               key={c.id ?? c.name}
               contact={c}
-              currentDept={currentDept}
               enrolledDepts={enrolledDepts}
               onArchive={onArchive}
-              onUpdate={onUpdate}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
+      {archived.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setShowArchived(s => !s)}
+            className="self-start text-xs text-muted-text hover:text-dark-text transition-colors"
+          >
+            {showArchived ? 'Hide' : 'Show'} archived ({archived.length})
+          </button>
+          {showArchived && archived.map(c => (
+            <ContactCard
+              key={c.id ?? c.name}
+              contact={c}
+              enrolledDepts={enrolledDepts}
+              onArchive={onArchive}
+              onEdit={onEdit}
               onDelete={onDelete}
             />
           ))}
@@ -773,6 +1005,8 @@ function ContactsSection({
     </section>
   )
 }
+
+// ─── Profile view (read-only, edit tab) ──────────────────────────────────────────
 
 function ProfileView({
   partner,
@@ -893,66 +1127,7 @@ function ProfileView({
   )
 }
 
-function DetailsSection({ partner }: { partner: Partner }) {
-  const hasDetails = partner.website || partner.how_we_met || partner.referred_by ||
-    partner.services_focus_area || (partner.tags?.length > 0) || partner.meeting_notes
-
-  if (!hasDetails) return null
-
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Details</h2>
-      <dl className="flex flex-col gap-2">
-        {partner.website && (
-          <div className="flex gap-2 text-sm">
-            <dt className="text-muted-text shrink-0 w-36">Website</dt>
-            <dd>
-              <a href={partner.website} target="_blank" rel="noopener noreferrer" className="text-teal-primary hover:underline break-all">
-                {partner.website}
-              </a>
-            </dd>
-          </div>
-        )}
-        {partner.how_we_met && (
-          <div className="flex gap-2 text-sm">
-            <dt className="text-muted-text shrink-0 w-36">How we met</dt>
-            <dd className="text-dark-text">{partner.how_we_met}</dd>
-          </div>
-        )}
-        {partner.referred_by && (
-          <div className="flex gap-2 text-sm">
-            <dt className="text-muted-text shrink-0 w-36">Referred by</dt>
-            <dd className="text-dark-text">{partner.referred_by}</dd>
-          </div>
-        )}
-        {partner.services_focus_area && (
-          <div className="flex gap-2 text-sm">
-            <dt className="text-muted-text shrink-0 w-36">Services / focus</dt>
-            <dd className="text-dark-text whitespace-pre-line">{partner.services_focus_area}</dd>
-          </div>
-        )}
-        {partner.tags?.length > 0 && (
-          <div className="flex gap-2 text-sm">
-            <dt className="text-muted-text shrink-0 w-36">Tags</dt>
-            <dd className="flex flex-wrap gap-1">
-              {partner.tags.map(tag => (
-                <span key={tag} className="text-xs bg-surface border border-border rounded-full px-2 py-0.5">{tag}</span>
-              ))}
-            </dd>
-          </div>
-        )}
-        {partner.meeting_notes && (
-          <div className="flex gap-2 text-sm">
-            <dt className="text-muted-text shrink-0 w-36">Meeting notes</dt>
-            <dd className="text-dark-text whitespace-pre-line">{partner.meeting_notes}</dd>
-          </div>
-        )}
-      </dl>
-    </section>
-  )
-}
-
-// ─── Student Referrals Section ───────────────────────────────────────────────
+// ─── Student Referrals Section ───────────────────────────────────────────────────
 
 function StudentReferralsSection({
   partnerId,
@@ -1110,6 +1285,45 @@ function StudentReferralsSection({
   )
 }
 
+function RatingsSummary({ ratingSummary }: { ratingSummary: PartnerRatingSummaryRow[] }) {
+  if (ratingSummary.length === 0) return null
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Ratings</h2>
+      <div className="flex flex-col gap-2">
+        {ratingSummary.map(row => (
+          <div key={row.service_category} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-2">
+            <p className="text-sm font-semibold text-dark-text">{row.service_category}</p>
+            <div className="flex flex-col gap-1">
+              {[
+                { label: 'Students', data: row.student },
+                { label: 'Staff', data: row.staff },
+              ].map(({ label, data }) => (
+                <div key={label} className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-text w-16 shrink-0">{label}</span>
+                  {data ? (
+                    <>
+                      <span className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <span key={n} style={{ color: n <= Math.round(data.avg) ? '#FACC15' : '#9CA3AF' }}>★</span>
+                        ))}
+                      </span>
+                      <span className="font-semibold text-dark-text">{data.avg.toFixed(1)}</span>
+                      <span className="text-muted-text">({data.count} {data.count === 1 ? 'rating' : 'ratings'})</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-text">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PartnerOverview({
@@ -1132,39 +1346,45 @@ export default function PartnerOverview({
   const [contacts, setContacts] = useState<Contact[]>(partner.partner_contacts)
   const [histories, setHistories] = useState<Record<string, StageHistoryEntry[]>>(initialHistories)
   const [ownerId, setOwnerId] = useState(partner.internal_owner_id ?? '')
-  const [doNotEmail, setDoNotEmailState] = useState(partner.do_not_email ?? false)
-  const [doNotEmailNotes, setDoNotEmailNotes] = useState(partner.do_not_email_notes ?? '')
-  const [showDneForm, setShowDneForm] = useState(false)
 
-  const initialTab: ActiveTab =
-    (defaultDepartment && initialStatuses.some(s => s.department === defaultDepartment))
-      ? defaultDepartment
-      : initialStatuses.length > 0
-        ? initialStatuses[0].department
-        : 'edit'
+  // Modals
+  const [logModalDept, setLogModalDept] = useState<PartnerDepartment | null>(null)
+  const [contactModal, setContactModal] = useState<{ mode: 'add' } | { mode: 'edit'; contact: Contact } | null>(null)
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab)
+  // Navigation
+  const defaultEnrolled = !!defaultDepartment && initialStatuses.some(s => s.department === defaultDepartment)
+  const [activeTab, setActiveTab] = useState<ActiveTab>(
+    defaultEnrolled ? (defaultDepartment as PartnerDepartment) : 'overview'
+  )
+  const [statusEditDept, setStatusEditDept] = useState<PartnerDepartment | null>(null)
+  const [activityOpen, setActivityOpen] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const types = partner.partner_type_assignments.map(t => TYPE_LABELS[t.partner_type] ?? t.partner_type)
-  const primaryContact = partner.partner_contacts.find(c => c.is_primary) ?? partner.partner_contacts[0]
-  const lastInteractionDate = interactions.length > 0
-    ? interactions.reduce((latest, i) => (i.interaction_date > latest ? i.interaction_date : latest), interactions[0].interaction_date)
+  const enrolledDepts = deptStatuses.map(s => s.department)
+  const location = partner.city
+    ? `${partner.city}${partner.state ? `, ${partner.state}` : ''}${partner.multi_city ? ' + more' : ''}`
     : null
-  const daysAgo = daysSince(lastInteractionDate)
-  const followUpNeeded = daysAgo !== null && daysAgo >= 30
 
-  function getStageFor(dept: PartnerDepartment) {
-    return deptStatuses.find(s => s.department === dept)?.stage ?? ''
+  // Contacts visible to a given department (for the Log Contact dropdown).
+  function contactsForDept(dept: PartnerDepartment) {
+    return contacts.filter(c =>
+      !c.is_archived && (!c.departments || c.departments.length === 0 || (c.departments as string[]).includes(dept))
+    )
+  }
+
+  function selectDept(dept: PartnerDepartment) {
+    setActiveTab(dept)
+    setStatusEditDept(null)
   }
 
   function updateStageInState(dept: PartnerDepartment, stage: string) {
     setDeptStatuses(prev => {
       const existing = prev.find(s => s.department === dept)
       if (existing) return prev.map(s => s.department === dept ? { ...s, stage } : s)
-      return [...prev, { id: crypto.randomUUID(), department: dept, stage, updated_at: new Date().toISOString(), users: null }]
+      return [...prev, { id: crypto.randomUUID(), department: dept, stage, updated_at: new Date().toISOString(), users: null, do_not_email: false }]
     })
     setHistories(prev => ({
       ...prev,
@@ -1183,7 +1403,7 @@ export default function PartnerOverview({
     startTransition(async () => {
       await setDepartmentStatus(partner.id, dept, '')
     })
-    setDeptStatuses(prev => [...prev, { id: crypto.randomUUID(), department: dept, stage: '', updated_at: new Date().toISOString(), users: null }])
+    setDeptStatuses(prev => [...prev, { id: crypto.randomUUID(), department: dept, stage: '', updated_at: new Date().toISOString(), users: null, do_not_email: false }])
     setHistories(prev => ({
       ...prev,
       [dept]: [{ id: crypto.randomUUID(), stage: '', changed_at: new Date().toISOString(), users: null }],
@@ -1198,7 +1418,22 @@ export default function PartnerOverview({
     const remaining = deptStatuses.filter(s => s.department !== dept)
     setDeptStatuses(remaining)
     setHistories(prev => { const next = { ...prev }; delete next[dept]; return next })
-    setActiveTab(remaining.length > 0 ? remaining[0].department : 'edit')
+    setStatusEditDept(null)
+    if (remaining.length === 0) {
+      setActiveTab('overview')
+    } else if (activeTab === dept) {
+      setActiveTab(remaining[0].department)
+    }
+  }
+
+  function handleDeptDoNotEmail(dept: PartnerDepartment, value: boolean) {
+    setDeptStatuses(prev => prev.map(s => s.department === dept ? { ...s, do_not_email: value } : s))
+    startTransition(async () => {
+      const { interaction } = await setDepartmentDoNotEmail(partner.id, dept, value)
+      if (interaction) {
+        setInteractions(prev => [interaction as Interaction, ...prev])
+      }
+    })
   }
 
   function handleInteractionLogged(interaction: Interaction) {
@@ -1215,30 +1450,36 @@ export default function PartnerOverview({
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, is_archived: archived } : c))
   }
 
+  // Mirror the server's "one primary per department" rule in local state so the
+  // sidebar doesn't briefly show two primaries for the same department.
+  function applyPrimaryExclusivity(list: Contact[], keepId: string | undefined, primaryDepts: string[]) {
+    if (!primaryDepts || primaryDepts.length === 0) return list
+    return list.map(c =>
+      c.id === keepId
+        ? c
+        : { ...c, primary_departments: (c.primary_departments ?? []).filter(d => !primaryDepts.includes(d)) }
+    )
+  }
+
   async function handleCreateContact(data: ContactData) {
     const result = await createContact(partner.id, data)
     if (!result.error && result.contact) {
-      setContacts(prev => [...prev, result.contact as Contact])
+      const created = result.contact as Contact
+      setContacts(prev => applyPrimaryExclusivity([...prev, created], created.id, data.primary_departments))
     }
   }
 
   async function handleUpdateContact(contactId: string, data: ContactData) {
     await updateContact(contactId, data)
-    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, ...data } : c))
+    setContacts(prev => {
+      const merged = prev.map(c => c.id === contactId ? { ...c, ...data } : c)
+      return applyPrimaryExclusivity(merged, contactId, data.primary_departments)
+    })
   }
 
   async function handleDeleteContact(contactId: string) {
     await deleteContact(contactId)
     setContacts(prev => prev.filter(c => c.id !== contactId))
-  }
-
-  function handleSetDoNotEmail(value: boolean, notes: string) {
-    setDoNotEmailState(value)
-    setDoNotEmailNotes(value ? notes : '')
-    setShowDneForm(false)
-    startTransition(async () => {
-      await setDoNotEmail(partner.id, value, notes)
-    })
   }
 
   function handleOwnerChange(newOwnerId: string) {
@@ -1285,359 +1526,377 @@ export default function PartnerOverview({
     service_categories_other: partner.service_categories_other ?? null,
   }
 
-  const tabs: { id: ActiveTab; label: string }[] = [
-    ...deptStatuses.map(ds => ({ id: ds.department as ActiveTab, label: DEPARTMENT_LABELS[ds.department] })),
-    { id: 'edit', label: 'Profile' },
-  ]
+  const tabClass = (tab: ActiveTab) =>
+    `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+      activeTab === tab
+        ? 'bg-teal-primary/10 text-teal-primary font-semibold'
+        : 'text-muted-text hover:text-dark-text hover:bg-background'
+    }`
+
+  const activePanelDept = deptStatuses.find(s => s.department === activeTab) ?? null
 
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Header + department overview side by side */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 flex-1 min-w-0">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-2xl font-bold text-dark-text">{partner.name}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-text">
-            {[
-              partner.city ? `${partner.city}${partner.state ? `, ${partner.state}` : ''}${partner.multi_city ? ' + more' : ''}` : null,
-              primaryContact ? `${primaryContact.name}${primaryContact.title ? `, ${primaryContact.title}` : ''}` : null,
-            ].filter(Boolean).map((part, i) => (
-              <span key={i} className="flex items-center gap-2">
-                {i > 0 && <span className="text-muted-text/50">·</span>}
-                <span>{part}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {types.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {types.map(t => (
-              <span key={t} className="text-xs bg-surface border border-border rounded px-2 py-0.5 text-muted-text">{t}</span>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          {lastInteractionDate ? (
-            <span className="text-muted-text">
-              Last contact: <span className="text-dark-text font-medium">{formatDate(lastInteractionDate)}</span>
-              {daysAgo !== null && ` (${daysAgo}d ago)`}
-            </span>
-          ) : (
-            <span className="text-muted-text">No interactions logged yet</span>
-          )}
-          {followUpNeeded && (
-            <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-red-100 text-red-700">Follow-up needed</span>
-          )}
-          {doNotEmail && (
-            <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-red-600 text-white">⊘ Do not email</span>
-          )}
-        </div>
-      </div>
-
-      {/* Department overview table */}
-      <div className="lg:w-[26rem] lg:shrink-0">
-        <DeptOverviewTable
-          deptStatuses={deptStatuses}
-          studentReferrals={studentReferrals}
-          onTabClick={(dept) => setActiveTab(dept)}
-          onAddDept={handleAddDepartment}
-        />
-      </div>
-      </div>
-
-      {/* Ratings summary (global, shown above tabs if any exist) */}
-      {ratingSummary.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Ratings</h2>
-          <div className="flex flex-col gap-2">
-            {ratingSummary.map(row => (
-              <div key={row.service_category} className="rounded-xl border border-border bg-surface px-4 py-3 flex flex-col gap-2">
-                <p className="text-sm font-semibold text-dark-text">{row.service_category}</p>
-                <div className="flex flex-col gap-1">
-                  {[
-                    { label: 'Students', data: row.student },
-                    { label: 'Staff', data: row.staff },
-                  ].map(({ label, data }) => (
-                    <div key={label} className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-text w-16 shrink-0">{label}</span>
-                      {data ? (
-                        <>
-                          <span className="flex gap-0.5">
-                            {[1,2,3,4,5].map(n => (
-                              <span key={n} style={{ color: n <= Math.round(data.avg) ? '#FACC15' : '#9CA3AF' }}>★</span>
-                            ))}
-                          </span>
-                          <span className="font-semibold text-dark-text">{data.avg.toFixed(1)}</span>
-                          <span className="text-muted-text">({data.count} {data.count === 1 ? 'rating' : 'ratings'})</span>
-                        </>
-                      ) : (
-                        <span className="text-muted-text">—</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+      {/* Header card */}
+      <header className="rounded-xl border border-border bg-surface px-5 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Avatar — fixed px so the 22px base font-size doesn't inflate it */}
+          <span className="shrink-0 w-[44px] h-[44px] rounded-xl bg-teal-primary text-white font-bold text-sm flex items-center justify-center">
+            {initials(partner.name)}
+          </span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <h1 className="text-base font-bold text-dark-text leading-snug">{partner.name}</h1>
+            {(partner.website || location) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-text">
+                {partner.website && (
+                  <a href={partner.website} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 hover:text-teal-primary transition-colors">
+                    <Globe className="w-3 h-3 shrink-0" />{partner.website.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+                {location && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="w-3 h-3 shrink-0" />{location}
+                  </span>
+                )}
               </div>
-            ))}
+            )}
           </div>
-        </section>
-      )}
+        </div>
+        <button
+          type="button"
+          onClick={() => { setEditingProfile(true); setActiveTab('edit') }}
+          className="shrink-0 inline-flex items-center gap-1 text-xs text-muted-text hover:text-dark-text transition-colors"
+        >
+          <Pencil className="w-3 h-3" />Edit
+        </button>
+      </header>
 
-      {/* Tabs: one per enrolled dept + Edit Profile */}
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'border-teal-primary text-teal-primary'
-                : 'border-transparent text-muted-text hover:text-dark-text'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Two-column layout: contacts card (left) + tab bar & content (right) */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
 
-      {/* Department tabs */}
-      {deptStatuses.map(ds => {
-        if (activeTab !== ds.department) return null
-        const deptHist = histories[ds.department] ?? []
-        const currentEntry = deptHist[deptHist.length - 1]
-        const pastEntries = deptHist.slice(0, -1)
-        return (
-        <div key={ds.department} className="flex flex-col gap-6">
-
-          {/* Remove button — top of tab content */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-text shrink-0">Owner</label>
-              <select
-                value={ownerId}
-                onChange={e => handleOwnerChange(e.target.value)}
-                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-              >
-                <option value="">Unassigned</option>
-                {staffUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            </div>
+        {/* Left: Contacts card */}
+        <aside className="w-full lg:w-72 lg:shrink-0 rounded-xl border border-border bg-surface overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-dark-text">Contacts</h2>
             <button
               type="button"
-              onClick={() => handleRemoveDepartment(ds.department)}
-              className="text-xs border border-border rounded-lg px-3 py-1.5 text-muted-text hover:border-red-400 hover:text-red-500 transition-colors shrink-0"
+              onClick={() => setContactModal({ mode: 'add' })}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-primary text-white text-xs font-medium hover:bg-teal-primary/90 transition-colors"
             >
-              Remove from {DEPARTMENT_LABELS[ds.department]}
+              <Plus className="w-3 h-3" />Add Contact
             </button>
           </div>
-
-          {/* 2-col: Log Interaction | Status + Stage History */}
-          <div className={DEPARTMENT_STAGES[ds.department].length > 0 ? 'grid md:grid-cols-2 gap-6 items-start' : ''}>
-            <LogInteractionForm
-              partnerId={partner.id}
-              defaultDepartment={ds.department}
-              availableStages={DEPARTMENT_STAGES[ds.department]}
-              onLogged={handleInteractionLogged}
-              onStageUpdated={(stage) => updateStageInState(ds.department, stage)}
+          <div className="p-3">
+            <ContactsSidebar
+              contacts={contacts}
+              enrolledDepts={enrolledDepts}
+              onArchive={handleArchiveContact}
+              onEdit={(c) => setContactModal({ mode: 'edit', contact: c })}
+              onDelete={handleDeleteContact}
             />
-            {DEPARTMENT_STAGES[ds.department].length > 0 && (
-              <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4">
-                {/* Current status */}
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-xs font-semibold text-dark-text uppercase tracking-wide">Current Status</h3>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={getStageFor(ds.department)}
-                      onChange={e => handleStageChange(ds.department, e.target.value)}
-                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                    >
-                      <option value="">— Select status —</option>
-                      {DEPARTMENT_STAGES[ds.department].map(stage => (
-                        <option key={stage} value={stage}>{stage}</option>
-                      ))}
-                    </select>
-                    {isPending && <span className="text-xs text-muted-text shrink-0">Saving…</span>}
-                  </div>
-                  {currentEntry?.stage && (
-                    <span className="text-xs text-muted-text">
-                      Updated {new Date(currentEntry.changed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {currentEntry.users?.name && ` · ${currentEntry.users.name}`}
-                    </span>
-                  )}
-                </div>
+          </div>
+        </aside>
 
-                {/* Stage history (past stages only) */}
-                {pastEntries.length > 0 && (
-                  <div className="flex flex-col gap-2 border-t border-border pt-4">
-                    <h4 className="text-xs font-semibold text-muted-text uppercase tracking-wide">Stage History</h4>
-                    <StageHistory history={pastEntries} />
+        {/* Right: tab bar + content */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+
+          {/* Tab bar */}
+          {activeTab !== 'edit' && (
+            <div className="flex items-center border-b border-border pb-1 gap-2">
+              {/* Tabs — scrollable if many depts */}
+              <div className="flex gap-1 items-center overflow-x-auto flex-1 min-w-0">
+                <button type="button" onClick={() => setActiveTab('overview')} className={tabClass('overview')}>
+                  <LayoutGrid className="w-4 h-4" />Overview
+                </button>
+                {deptStatuses.map(ds => (
+                  <button
+                    key={ds.department}
+                    type="button"
+                    onClick={() => selectDept(ds.department)}
+                    className={tabClass(ds.department)}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${activeTab === ds.department ? 'bg-teal-primary' : DEPT_DOT[ds.department]}`} />
+                    {DEPARTMENT_LABELS[ds.department]}
+                  </button>
+                ))}
+              </div>
+              {/* Add Department — outside scroll so its dropdown isn't clipped */}
+              <div className="shrink-0">
+                <AddDepartmentDropdown enrolledDepts={enrolledDepts} onAdd={handleAddDepartment} variant="tab" />
+              </div>
+            </div>
+          )}
+
+          {/* Overview tab */}
+          {activeTab === 'overview' && (
+            <div className="flex flex-col gap-6">
+              {deptStatuses.length === 0 ? (
+                <section className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-sm text-muted-text">Not enrolled in any department yet. Use the <strong>+ Dept</strong> button in the tab bar to add one.</p>
+                </section>
+              ) : (
+                <section className="flex flex-col gap-3">
+                  <div className="flex flex-col">
+                    <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">Department Overview</h2>
+                    <p className="text-xs text-muted-text">Most recent contact per department</p>
+                  </div>
+                  <DepartmentOverviewCards
+                    deptStatuses={deptStatuses}
+                    interactions={interactions}
+                    studentReferrals={studentReferrals}
+                    onOpenDept={(dept) => selectDept(dept)}
+                  />
+                </section>
+              )}
+
+              <RatingsSummary ratingSummary={ratingSummary} />
+
+              <section className="flex flex-col gap-3">
+                <div className="flex flex-col">
+                  <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">All Department Interactions</h2>
+                  <p className="text-xs text-muted-text">Shared view across all departments</p>
+                </div>
+                {interactions.length === 0 ? (
+                  <p className="text-sm text-muted-text">No activity yet.</p>
+                ) : (
+                  <div className="rounded-xl border border-border bg-surface divide-y divide-border">
+                    {interactions.map(i => (
+                      <div key={i.id} className="px-4 py-3">
+                        <InteractionRow interaction={i} onDelete={handleDeleteInteraction} showDepartment />
+                      </div>
+                    ))}
                   </div>
                 )}
               </section>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Do not email */}
-          <div className="flex flex-col gap-2">
-            {doNotEmail ? (
-              <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-red-700">⊘ Do not email</span>
-                  <button
-                    type="button"
-                    onClick={() => handleSetDoNotEmail(false, '')}
-                    className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-md bg-red-700 text-white hover:bg-red-900 transition-colors"
-                  >
-                    Remove flag
-                  </button>
-                </div>
-                {doNotEmailNotes && (
-                  <p className="text-sm text-red-800 whitespace-pre-line">{doNotEmailNotes}</p>
-                )}
-              </div>
-            ) : showDneForm ? (
-              <div className="rounded-lg border border-border bg-surface p-4 flex flex-col gap-3">
-                <p className="text-xs font-semibold text-dark-text uppercase tracking-wide">Mark as do not email</p>
-                <textarea
-                  value={doNotEmailNotes}
-                  onChange={e => setDoNotEmailNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Why should this org not be emailed? (e.g. 3 unanswered emails since March)"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-                />
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSetDoNotEmail(true, doNotEmailNotes)}
-                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowDneForm(false); setDoNotEmailNotes('') }}
-                    className="text-xs text-muted-text hover:text-dark-text transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
+          {/* Department panel — shown when the active tab is an enrolled department */}
+          {activePanelDept && (() => {
+                    const ds = activePanelDept
+                    const dept = ds.department
+                    const hasStages = DEPARTMENT_STAGES[dept].length > 0
+                    const deptInteractions = interactions.filter(i => i.department === dept)
+                    const deptHistory = histories[dept] ?? []
+                    const editingStatus = statusEditDept === dept
+                    return (
+                      <div className="flex flex-col gap-5">
+
+                        {/* Status + actions */}
+                        <section className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex flex-col gap-1.5">
+                              <h3 className="text-xs font-semibold text-muted-text uppercase tracking-wide">Current Status</h3>
+                              {hasStages ? (
+                                editingStatus ? (
+                                  <select
+                                    value={ds.stage}
+                                    onChange={e => { handleStageChange(dept, e.target.value); setStatusEditDept(null) }}
+                                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                                  >
+                                    <option value="">— Select status —</option>
+                                    {DEPARTMENT_STAGES[dept].map(stage => (
+                                      <option key={stage} value={stage}>{stage}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {ds.stage ? (
+                                      <span className={`text-sm font-medium rounded-full px-2.5 py-1 ${STAGE_COLORS[ds.stage] ?? 'bg-background text-dark-text border border-border'}`}>
+                                        {ds.stage}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-muted-text">No status set</span>
+                                    )}
+                                    <button type="button" onClick={() => setStatusEditDept(dept)} className="text-xs text-teal-primary hover:underline">
+                                      Update Status
+                                    </button>
+                                    {isPending && <span className="text-xs text-muted-text">Saving…</span>}
+                                  </div>
+                                )
+                              ) : (
+                                <span className="text-sm text-muted-text">This department does not track stages.</span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setLogModalDept(dept)}
+                              className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-medium hover:bg-teal-primary/90 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />Log Contact
+                            </button>
+                          </div>
+
+                          {/* Secondary row: owner + do-not-email + remove */}
+                          <div className="flex items-center justify-between gap-4 flex-wrap border-t border-border pt-3">
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-muted-text shrink-0">Owner</label>
+                              <select
+                                value={ownerId}
+                                onChange={e => handleOwnerChange(e.target.value)}
+                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                              >
+                                <option value="">Unassigned</option>
+                                {staffUsers.map(u => (
+                                  <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <label className={`flex items-center gap-2 cursor-pointer select-none text-xs ${ds.do_not_email ? 'text-red-600 font-medium dark:text-red-400' : 'text-muted-text'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!ds.do_not_email}
+                                  onChange={e => handleDeptDoNotEmail(dept, e.target.checked)}
+                                  className="rounded border-border accent-red-600"
+                                />
+                                Do not email for {DEPARTMENT_LABELS[dept]}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDepartment(dept)}
+                                className="text-xs border border-border rounded-lg px-3 py-1.5 text-muted-text hover:border-red-400 hover:text-red-500 transition-colors"
+                              >
+                                Remove from {DEPARTMENT_LABELS[dept]}
+                              </button>
+                            </div>
+                          </div>
+                        </section>
+
+                        {/* Unified activity history (interactions + status changes) */}
+                        <section className="flex flex-col gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setActivityOpen(o => !o)}
+                            className="flex items-center gap-1.5 self-start text-sm font-semibold text-dark-text uppercase tracking-wide"
+                          >
+                            {activityOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            Activity History ({deptInteractions.length + deptHistory.length})
+                          </button>
+                          {activityOpen && (
+                            <DepartmentActivity
+                              interactions={deptInteractions}
+                              history={deptHistory}
+                              onDelete={handleDeleteInteraction}
+                            />
+                          )}
+                        </section>
+
+                        {/* Student referrals (Admissions inbound / Student Success outbound) */}
+                        {dept === 'admissions' && (
+                          <StudentReferralsSection partnerId={partner.id} referrals={studentReferrals} direction="inbound" />
+                        )}
+                        {dept === 'student_success' && (
+                          <StudentReferralsSection partnerId={partner.id} referrals={studentReferrals} direction="outbound" />
+                        )}
+                      </div>
+                    )
+                  })()}
+
+          {/* Edit profile (reached from the header Edit button) */}
+          {activeTab === 'edit' && (
+            <div className="flex flex-col gap-6">
               <button
                 type="button"
-                onClick={() => setShowDneForm(true)}
-                className="self-start text-xs text-muted-text hover:text-red-500 transition-colors"
+                onClick={() => { setEditingProfile(false); setActiveTab(deptStatuses.length > 0 ? deptStatuses[0].department : 'overview') }}
+                className="self-start text-sm text-teal-primary hover:underline"
               >
-                Mark as do not email…
+                ← Back
               </button>
-            )}
-          </div>
+              {!editingProfile ? (
+                <>
+                  <ProfileView
+                    partner={partner}
+                    types={types}
+                    deptStatuses={deptStatuses}
+                    onEdit={() => setEditingProfile(true)}
+                  />
+                  <section className="flex flex-col gap-3 border-t border-border pt-6">
+                    {!confirmDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(true)}
+                        className="self-start text-sm text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        Delete this partner…
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
+                        <button
+                          type="button"
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          {deleting ? 'Deleting…' : 'Yes, delete'}
+                        </button>
+                        <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-muted-text hover:text-dark-text transition-colors">
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                </>
+              ) : (
+                <PartnerForm
+                  initialData={initialFormData}
+                  staffUsers={staffUsers}
+                  hideRelational
+                  noRedirect
+                  onSubmit={async (data) => {
+                    const result = await onUpdatePartner(data)
+                    if (!result.error) setEditingProfile(false)
+                    return result
+                  }}
+                  onCancel={() => setEditingProfile(false)}
+                  submitLabel="Save Changes"
+                  partnerId={partner.id}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
-          {/* Past interactions */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-dark-text uppercase tracking-wide">
-              {DEPARTMENT_LABELS[ds.department]} Interactions
-            </h2>
-            <InteractionList
-              interactions={interactions.filter(i => i.department === ds.department)}
-              onDelete={handleDeleteInteraction}
-            />
-          </section>
-
-          {/* Contacts */}
-          <ContactsSection
-            contacts={contacts}
-            currentDept={ds.department}
-            enrolledDepts={deptStatuses.map(s => s.department)}
-            onArchive={handleArchiveContact}
-            onUpdate={handleUpdateContact}
-            onDelete={handleDeleteContact}
-            onCreate={handleCreateContact}
+      {/* Log Contact modal */}
+      {logModalDept && (
+        <Modal onClose={() => setLogModalDept(null)}>
+          <LogInteractionForm
+            partnerId={partner.id}
+            defaultDepartment={logModalDept}
+            availableStages={DEPARTMENT_STAGES[logModalDept]}
+            contacts={contactsForDept(logModalDept)}
+            onLogged={handleInteractionLogged}
+            onStageUpdated={(stage) => updateStageInState(logModalDept, stage)}
+            onCancel={() => setLogModalDept(null)}
           />
+        </Modal>
+      )}
 
-          {/* Student referrals */}
-          {ds.department === 'admissions' && (
-            <StudentReferralsSection
-              partnerId={partner.id}
-              referrals={studentReferrals}
-              direction="inbound"
-            />
-          )}
-          {ds.department === 'student_success' && (
-            <StudentReferralsSection
-              partnerId={partner.id}
-              referrals={studentReferrals}
-              direction="outbound"
-            />
-          )}
-
-          {/* Details */}
-          <DetailsSection partner={partner} />
-
-        </div>
-        )
-      })}
-
-      {/* Profile tab */}
-      {activeTab === 'edit' && (
-        <div className="flex flex-col gap-8">
-          {!editingProfile ? (
-            <>
-              <ProfileView
-                partner={partner}
-                types={types}
-                deptStatuses={deptStatuses}
-                onEdit={() => setEditingProfile(true)}
-              />
-              <section className="flex flex-col gap-3 border-t border-border pt-6">
-                {!confirmDelete ? (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(true)}
-                    className="self-start text-sm text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    Delete this partner…
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                    >
-                      {deleting ? 'Deleting…' : 'Yes, delete'}
-                    </button>
-                    <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-muted-text hover:text-dark-text transition-colors">
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </section>
-            </>
-          ) : (
-            <PartnerForm
-              initialData={initialFormData}
-              staffUsers={staffUsers}
-              hideRelational
-              onSubmit={async (data) => {
-                const result = await onUpdatePartner(data)
-                if (!result.error) setEditingProfile(false)
-                return result
-              }}
-              onCancel={() => setEditingProfile(false)}
-              submitLabel="Save Changes"
-              partnerId={partner.id}
-            />
-          )}
-        </div>
+      {/* Add / Edit contact modal */}
+      {contactModal && (
+        <Modal onClose={() => setContactModal(null)}>
+          <ContactForm
+            initialData={
+              contactModal.mode === 'edit'
+                ? contactModal.contact
+                : { departments: enrolledDepts.length === 1 ? [enrolledDepts[0]] : [] }
+            }
+            enrolledDepts={enrolledDepts}
+            onSubmit={async (data) => {
+              if (contactModal.mode === 'edit' && contactModal.contact.id) {
+                await handleUpdateContact(contactModal.contact.id, data)
+              } else {
+                await handleCreateContact(data)
+              }
+              setContactModal(null)
+            }}
+            onCancel={() => setContactModal(null)}
+          />
+        </Modal>
       )}
     </div>
   )

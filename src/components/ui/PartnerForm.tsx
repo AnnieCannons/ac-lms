@@ -52,6 +52,8 @@ interface Props {
   partnerId?: string
   defaultDepartment?: PartnerDepartment
   redirectTo?: string
+  /** Skip router.push after save (e.g. when form is embedded inside another page) */
+  noRedirect?: boolean
   /** When editing an existing partner, contacts and owner are managed in the dept tabs */
   hideRelational?: boolean
   /** If provided, Cancel uses this instead of router.back() */
@@ -133,7 +135,7 @@ function StateCombobox({ value, onChange }: { value: string; onChange: (v: strin
   )
 }
 
-export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo, hideRelational = false, onCancel }: Props) {
+export default function PartnerForm({ initialData, staffUsers, onSubmit, submitLabel, partnerId, defaultDepartment, redirectTo, noRedirect = false, hideRelational = false, onCancel }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -262,7 +264,9 @@ export default function PartnerForm({ initialData, staffUsers, onSubmit, submitL
       setServerError(result.error)
       return
     }
-    router.push(redirectTo ?? '/instructor/partnerships')
+    if (!noRedirect) {
+      router.push(redirectTo ?? '/instructor/partnerships')
+    }
   }
 
   return (
