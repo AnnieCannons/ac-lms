@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Globe, MapPin, Mail, Phone, Link, Pencil, Plus, ChevronDown, ChevronRight,
-  LayoutGrid, AlarmClock, Calendar, User as UserIcon, Trash2,
+  LayoutGrid, AlarmClock, Calendar, User as UserIcon, Trash2, Archive,
 } from 'lucide-react'
 import {
   logInteraction,
@@ -868,32 +868,29 @@ function ContactCard({
               <span className={`font-semibold text-sm truncate ${isArchived ? 'text-muted-text' : 'text-dark-text'}`}>
                 {contact.name}
               </span>
-              {!isArchived && primaryDepts.length > 0 && (
-                <span className="shrink-0 text-xs font-medium border border-border rounded-full px-2 py-0.5 text-muted-text">
-                  Primary
-                </span>
-              )}
               {isArchived && (
                 <span className="shrink-0 text-xs bg-background text-muted-text rounded-full px-2 py-0.5 border border-border">Archived</span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {!isArchived && contact.id && (
                 <button type="button" onClick={() => onEdit(contact)} aria-label="Edit contact"
                   className="text-muted-text hover:text-dark-text transition-colors p-1 rounded hover:bg-background">
-                  <Pencil className="w-3.5 h-3.5" />
+                  <Pencil className="w-3 h-3" />
                 </button>
               )}
               {contact.id && (
                 <button type="button" onClick={() => onArchive(contact.id!, !isArchived)}
-                  className="text-xs text-muted-text hover:text-dark-text transition-colors px-1.5 py-0.5 rounded hover:bg-background">
-                  {isArchived ? 'Unarchive' : 'Archive'}
+                  aria-label={isArchived ? 'Unarchive contact' : 'Archive contact'}
+                  title={isArchived ? 'Unarchive' : 'Archive'}
+                  className="text-muted-text hover:text-dark-text transition-colors p-1 rounded hover:bg-background">
+                  <Archive className="w-3 h-3" />
                 </button>
               )}
               {isArchived && contact.id && (
                 <button type="button" onClick={() => onDelete(contact.id!)} aria-label="Delete contact"
                   className="text-muted-text hover:text-red-500 transition-colors p-1 rounded hover:bg-background">
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3 h-3" />
                 </button>
               )}
             </div>
@@ -908,7 +905,7 @@ function ContactCard({
         <div className="flex flex-wrap gap-1 pl-[52px]">
           {memberDepts.map(d => (
             <span key={d} className={`text-xs font-medium rounded-full px-2 py-0.5 ${DEPT_COLORS[d]}`}>
-              {DEPARTMENT_LABELS[d]}
+              {DEPARTMENT_LABELS[d]}{primaryDepts.includes(d) ? ' · Primary' : ''}
             </span>
           ))}
         </div>
@@ -956,7 +953,13 @@ function ContactsSidebar({
   onEdit: (contact: Contact) => void
   onDelete: (id: string) => void
 }) {
-  const active = contacts.filter(c => !c.is_archived)
+  const active = contacts
+    .filter(c => !c.is_archived)
+    .sort((a, b) => {
+      const aP = (a.primary_departments?.length ?? 0) > 0
+      const bP = (b.primary_departments?.length ?? 0) > 0
+      return aP === bP ? 0 : aP ? -1 : 1
+    })
   const archived = contacts.filter(c => c.is_archived)
   const [showArchived, setShowArchived] = useState(false)
 
@@ -1426,7 +1429,10 @@ export default function PartnerOverview({
   function handleDeptDoNotEmail(dept: PartnerDepartment, value: boolean) {
     setDeptStatuses(prev => prev.map(s => s.department === dept ? { ...s, do_not_email: value } : s))
     startTransition(async () => {
-      await setDepartmentDoNotEmail(partner.id, dept, value)
+      const { interaction } = await setDepartmentDoNotEmail(partner.id, dept, value)
+      if (interaction) {
+        setInteractions(prev => [interaction as Interaction, ...prev])
+      }
     })
   }
 
@@ -1839,6 +1845,7 @@ export default function PartnerOverview({
                   initialData={initialFormData}
                   staffUsers={staffUsers}
                   hideRelational
+                  noRedirect
                   onSubmit={async (data) => {
                     const result = await onUpdatePartner(data)
                     if (!result.error) setEditingProfile(false)

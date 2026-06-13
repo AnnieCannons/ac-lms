@@ -140,8 +140,8 @@ export async function setDepartmentDoNotEmail(
   department: PartnerDepartment,
   value: boolean
 ) {
-  const { error, supabase } = await requireStaffOrAdmin()
-  if (error || !supabase) return { error }
+  const { error, supabase, user } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, interaction: null }
 
   const { error: dbError } = await supabase
     .from('partner_department_status')
@@ -149,10 +149,32 @@ export async function setDepartmentDoNotEmail(
     .eq('partner_id', partnerId)
     .eq('department', department)
 
-  if (dbError) return { error: dbError.message }
+  if (dbError) return { error: dbError.message, interaction: null }
+
+  // Log this change as an activity so it appears in the timeline
+  const today = new Date().toISOString().slice(0, 10)
+  const note = value
+    ? `Do not email enabled for this department.`
+    : `Do not email removed — back on email list.`
+
+  const { data: inserted } = await supabase
+    .from('partner_interactions')
+    .insert({
+      partner_id: partnerId,
+      note,
+      interaction_date: today,
+      department,
+      user_id: user!.id,
+    })
+    .select('id, note, interaction_date, department, created_at, user_id')
+    .single()
+
+  const interaction = inserted
+    ? { ...inserted, users: { name: user!.name }, partner_contacts: null }
+    : null
 
   revalidatePath(`/instructor/partnerships/${partnerId}`)
-  return { error: null }
+  return { error: null, interaction }
 }
 
 export async function setDepartmentStatus(
