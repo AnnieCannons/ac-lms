@@ -356,11 +356,46 @@ export interface ContactData {
   linkedin_url: string | null
   website_url: string | null
   departments: string[] | null
+  primary_departments: string[]
+}
+
+type StaffSupabase = NonNullable<Awaited<ReturnType<typeof requireStaffOrAdmin>>['supabase']>
+
+// One primary per department: strip the given departments from every other
+// contact on the partner so a single contact owns "Primary" for each department.
+async function clearPrimaryDepartments(
+  supabase: StaffSupabase,
+  partnerId: string,
+  departments: string[],
+  exceptContactId?: string
+) {
+  let query = supabase
+    .from('partner_contacts')
+    .select('id, primary_departments')
+    .eq('partner_id', partnerId)
+    .overlaps('primary_departments', departments)
+  if (exceptContactId) query = query.neq('id', exceptContactId)
+
+  const { data: siblings } = await query
+  if (!siblings) return
+
+  for (const sib of siblings) {
+    const current: string[] = (sib.primary_departments as string[] | null) ?? []
+    const next = current.filter((d) => !departments.includes(d))
+    await supabase
+      .from('partner_contacts')
+      .update({ primary_departments: next })
+      .eq('id', sib.id)
+  }
 }
 
 export async function createContact(partnerId: string, data: ContactData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error, contact: null }
+
+  if (data.primary_departments && data.primary_departments.length > 0) {
+    await clearPrimaryDepartments(supabase, partnerId, data.primary_departments)
+  }
 
   const { data: row, error: dbError } = await supabase
     .from('partner_contacts')
@@ -375,6 +410,17 @@ export async function createContact(partnerId: string, data: ContactData) {
 export async function updateContact(contactId: string, data: Partial<ContactData>) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
+
+  if (data.primary_departments && data.primary_departments.length > 0) {
+    const { data: existing } = await supabase
+      .from('partner_contacts')
+      .select('partner_id')
+      .eq('id', contactId)
+      .single()
+    if (existing?.partner_id) {
+      await clearPrimaryDepartments(supabase, existing.partner_id, data.primary_departments, contactId)
+    }
+  }
 
   const { error: dbError } = await supabase
     .from('partner_contacts')

@@ -31,16 +31,28 @@ export async function logInteraction(data: {
   note: string
   interaction_date: string
   department?: PartnerDepartment | null
+  contact_id?: string | null
   remind_in_days?: number | null
 }) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
+
+  // Persist the reminder so the activity timeline can show it. reminder_at is the
+  // date the Slack DM fires (computed the same way as postAt below).
+  const hasReminder = data.remind_in_days != null && data.remind_in_days > 0
+  const reminderDays = hasReminder ? Math.round(data.remind_in_days!) : null
+  const reminderAt = hasReminder
+    ? new Date(Date.now() + data.remind_in_days! * 86400 * 1000).toISOString().slice(0, 10)
+    : null
 
   const { error: dbError } = await supabase.from('partner_interactions').insert({
     partner_id: data.partner_id,
     note: data.note,
     interaction_date: data.interaction_date,
     department: data.department ?? null,
+    contact_id: data.contact_id ?? null,
+    reminder_days: reminderDays,
+    reminder_at: reminderAt,
     user_id: user!.id,
   })
   if (dbError) return { error: dbError.message }
@@ -82,7 +94,7 @@ export async function listInteractions(partnerId: string) {
 
   const { data, error: dbError } = await supabase
     .from('partner_interactions')
-    .select('id, note, interaction_date, department, created_at, user_id, users(name)')
+    .select('id, note, interaction_date, department, created_at, user_id, contact_id, reminder_days, reminder_at, users(name), partner_contacts!partner_interactions_contact_id_fkey(name, title)')
     .eq('partner_id', partnerId)
     .order('interaction_date', { ascending: false })
     .order('created_at', { ascending: false })
@@ -114,11 +126,33 @@ export async function getDepartmentStatuses(partnerId: string) {
 
   const { data, error: dbError } = await supabase
     .from('partner_department_status')
-    .select('id, department, stage, updated_at, updated_by, users(name)')
+    .select('id, department, stage, updated_at, updated_by, do_not_email, users(name)')
     .eq('partner_id', partnerId)
 
   if (dbError) return { error: dbError.message, statuses: [] }
   return { error: null, statuses: data ?? [] }
+}
+
+// Org-wide but dept-specific do-not-email: each department independently flags
+// whether this partner org should be excluded from that department's outreach.
+export async function setDepartmentDoNotEmail(
+  partnerId: string,
+  department: PartnerDepartment,
+  value: boolean
+) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partner_department_status')
+    .update({ do_not_email: value })
+    .eq('partner_id', partnerId)
+    .eq('department', department)
+
+  if (dbError) return { error: dbError.message }
+
+  revalidatePath(`/instructor/partnerships/${partnerId}`)
+  return { error: null }
 }
 
 export async function setDepartmentStatus(

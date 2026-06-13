@@ -63,7 +63,7 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-10">
+    <main className="max-w-6xl mx-auto px-6 py-10">
       <div className="mb-4">
         <BackLink href={backHref}>{backLabel}</BackLink>
       </div>
