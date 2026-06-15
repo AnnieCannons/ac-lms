@@ -1,5 +1,6 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { isLateInTimezone } from '@/lib/date-utils'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -10,6 +11,7 @@ export async function saveSubmission(
   submissionType: SubmissionType,
   existingSubmissionId: string | null,
   submittedAt: string | null,
+  studentTimezone: string | null,
 ): Promise<{
   data?: { id: string; submission_type: SubmissionType; content: string | null; status: string; grade: string | null; graded_at: string | null; submitted_at: string; student_comment: string | null };
   historyEntry?: { id: string; submission_type: SubmissionType; content: string | null; submitted_at: string };
@@ -21,26 +23,49 @@ export async function saveSubmission(
 
   const admin = createServiceSupabaseClient()
 
+  // Determine is_late on the first real submission (draft → submitted or brand new)
+  let isLatePayload: Record<string, unknown> = {}
+  let existingStatus: string | null = null
+
+  if (existingSubmissionId) {
+    // Fetch ownership + current status together
+    const { data: existing } = await admin
+      .from('submissions')
+      .select('student_id, status')
+      .eq('id', existingSubmissionId)
+      .single()
+    if (!existing || existing.student_id !== user.id) return { error: 'Not authorized' }
+    existingStatus = existing.status
+  }
+
+  const isFirstSubmission = status === 'submitted' && (!existingSubmissionId || existingStatus === 'draft')
+
+  if (isFirstSubmission && studentTimezone) {
+    const now = new Date().toISOString()
+    const [{ data: assignment }, { data: override }] = await Promise.all([
+      admin.from('assignments').select('due_date').eq('id', assignmentId).single(),
+      admin.from('grading_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
+    ])
+    const effectiveDueDate = (override?.due_date ?? assignment?.due_date) as string | null
+    isLatePayload = {
+      student_timezone: studentTimezone,
+      is_late: isLateInTimezone(now, effectiveDueDate, studentTimezone),
+    }
+  }
+
   const payload: Record<string, unknown> = {
     submission_type: submissionType,
     content,
     status,
     ...(submittedAt ? {} : { submitted_at: new Date().toISOString() }),
     ...(status === 'submitted' ? { grade: null, graded_at: null, graded_by: null } : {}),
+    ...isLatePayload,
   }
 
   let submissionId: string
   let savedRow: { id: string; submission_type: SubmissionType; content: string | null; status: string; grade: string | null; graded_at: string | null; submitted_at: string; student_comment: string | null } | null = null
 
   if (existingSubmissionId) {
-    // Verify this submission belongs to the current user
-    const { data: existing } = await admin
-      .from('submissions')
-      .select('student_id')
-      .eq('id', existingSubmissionId)
-      .single()
-    if (!existing || existing.student_id !== user.id) return { error: 'Not authorized' }
-
     const { data, error } = await admin
       .from('submissions')
       .update(payload)
