@@ -155,6 +155,7 @@ export default function SubmissionForm({
       type,
       saved?.id ?? null,
       saved?.submitted_at ?? null,
+      status === 'submitted' ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? null) : null,
     );
 
     setSubmitting(false);

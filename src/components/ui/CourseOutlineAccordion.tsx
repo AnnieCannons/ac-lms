@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { formatDueDate, localDate, todayLocal } from '@/lib/date-utils'
+import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import WikiView from '@/components/ui/WikiView'
@@ -292,7 +292,7 @@ function DayContent({
                   )}
                   {a.due_date && (
                     <p className="text-xs text-muted-text mt-0.5">
-                      Due {formatDueDate(a.due_date)}
+                      Due {formatDueDateWithTime(a.due_date)}
                     </p>
                   )}
                 </div>

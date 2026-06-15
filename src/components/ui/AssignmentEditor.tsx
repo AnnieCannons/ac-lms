@@ -469,7 +469,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Due Date</label>
         <div className="flex items-center gap-3">
           <DatePicker value={dueDate} onChange={v => { setDueDate(v); setIsDirty(true) }} />
-          <span className="text-sm text-muted-text">8:59 PM PST</span>
+          <span className="text-sm text-muted-text">11:59pm (student&apos;s timezone)</span>
         </div>
       </div>
 

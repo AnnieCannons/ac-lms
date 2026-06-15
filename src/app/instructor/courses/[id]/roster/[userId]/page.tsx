@@ -96,7 +96,7 @@ export default async function StudentDetailPage({
     assignmentIds.length > 0
       ? admin
           .from('submissions')
-          .select('id, assignment_id, status, grade, submitted_at')
+          .select('id, assignment_id, status, grade, submitted_at, is_late')
           .eq('student_id', userId)
           .in('assignment_id', assignmentIds)
       : Promise.resolve({ data: [] }),
@@ -125,7 +125,7 @@ export default async function StudentDetailPage({
     : { data: [] }
 
   // Categorize assignments
-  const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null }]))
+  const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null; is_late: boolean }]))
   const overrideMap = new Map((overrideRows ?? []).map(o => [o.assignment_id, o as { assignment_id: string; due_date: string | null; excused: boolean }]))
 
   const missing: CategorizedAssignment[] = []
@@ -140,11 +140,7 @@ export default async function StudentDetailPage({
     if (override?.excused) continue
     const effectiveDueDate = override?.due_date ?? a.due_date
     const duePassed = effectiveDueDate ? localDate(effectiveDueDate) < todayLocal() : false
-    const isLate = !!(
-      sub?.submitted_at &&
-      effectiveDueDate &&
-      sub.submitted_at.slice(0, 10) > effectiveDueDate
-    )
+    const isLate = sub?.is_late ?? false
     let lateCurrentStatus: CategorizedAssignment['lateCurrentStatus']
     if (isLate) {
       if (sub?.status === 'submitted') lateCurrentStatus = 'needsGrading'

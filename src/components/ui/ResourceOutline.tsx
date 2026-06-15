@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { formatDueDate, localDate, todayLocal } from '@/lib/date-utils'
+import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import { trashResource } from '@/lib/trash-actions'
@@ -714,7 +714,7 @@ export default function ResourceOutline({
                 <p className="text-sm font-medium text-dark-text">{a.title}</p>
                 <p className="text-xs text-muted-text mt-0.5">
                   {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
-                  {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                  {a.due_date ? ` · Due ${formatDueDateWithTime(a.due_date)}` : ''}
                 </p>
               </Link>
               <div className="flex items-center gap-2 shrink-0">
@@ -757,7 +757,7 @@ export default function ResourceOutline({
                             <p className="text-sm font-medium text-dark-text">{a.title}</p>
                             <p className="text-xs text-amber-600 mt-0.5">
                               {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
-                              {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                              {a.due_date ? ` · Due ${formatDueDateWithTime(a.due_date)}` : ''}
                             </p>
                           </Link>
                           <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
@@ -786,7 +786,7 @@ export default function ResourceOutline({
                             <p className="text-sm font-medium text-dark-text">{a.title}</p>
                             <p className="text-xs text-muted-text mt-0.5">
                               {a.moduleTitle}{a.weekNumber ? ` · Week ${a.weekNumber}` : ''}
-                              {a.due_date ? ` · Due ${formatDueDate(a.due_date)}` : ''}
+                              {a.due_date ? ` · Due ${formatDueDateWithTime(a.due_date)}` : ''}
                             </p>
                           </Link>
                           <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
@@ -955,7 +955,7 @@ export default function ResourceOutline({
                                   </div>
                                   {a.due_date && (
                                     <p className="text-xs text-muted-text mt-0.5">
-                                      Due {formatDueDate(a.due_date)}
+                                      Due {formatDueDateWithTime(a.due_date)}
                                     </p>
                                   )}
                                 </div>
@@ -990,7 +990,7 @@ export default function ResourceOutline({
                                     const isResolved = info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
                                     return (
                                       <p className={`text-xs font-medium mt-0.5 ${isPast && !isResolved ? 'text-amber-600' : 'text-muted-text'}`}>
-                                        Due {formatDueDate(a.due_date)}
+                                        Due {formatDueDateWithTime(a.due_date)}
                                       </p>
                                     )
                                   })()}

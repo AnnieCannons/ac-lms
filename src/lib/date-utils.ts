@@ -26,3 +26,43 @@ export function formatDueDate(
 ): string {
   return localDate(dateStr).toLocaleDateString(locale, options)
 }
+
+export function formatDueDateWithTime(dateStr: string): string {
+  return `${formatDueDate(dateStr)}, 11:59pm`
+}
+
+/**
+ * Returns true if the submission timestamp is after 11:59:59pm on dueDate
+ * in the student's IANA timezone (e.g. "America/New_York").
+ *
+ * Method: we find the UTC offset at noon on the due date (noon avoids DST
+ * edge cases), then shift the naive "dueDate 23:59:59 UTC" by that offset
+ * to get the real UTC deadline.
+ */
+export function isLateInTimezone(
+  submittedAt: string,
+  dueDate: string | null,
+  tz: string | null,
+): boolean {
+  if (!dueDate || !tz) return false
+  try {
+    const noonUTC = new Date(`${dueDate}T12:00:00Z`)
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(noonUTC)
+    const h = parseInt(parts.find(p => p.type === 'hour')!.value)
+    const m = parseInt(parts.find(p => p.type === 'minute')!.value)
+    const s = parseInt(parts.find(p => p.type === 'second')!.value)
+    // UTC offset in seconds: how many seconds ahead UTC is of local at noon
+    const offsetSecs = 12 * 3600 - (h * 3600 + m * 60 + s)
+    // Deadline UTC = treat "dueDate 23:59:59" as naive local time, add offset
+    const deadlineUTC = new Date(new Date(`${dueDate}T23:59:59Z`).getTime() + offsetSecs * 1000)
+    return new Date(submittedAt) > deadlineUTC
+  } catch {
+    return false
+  }
+}

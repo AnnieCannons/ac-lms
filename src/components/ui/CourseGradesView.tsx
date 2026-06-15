@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { formatDueDate, localDate, todayLocal } from '@/lib/date-utils'
+import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
 import { saveGrade } from '@/lib/grade-actions'
 
 interface Assignment {
@@ -345,7 +345,7 @@ function SpeedGrader({
                         <span>{assignment.moduleTitle}</span>
                         {assignment.due_date && (
                           <span>
-                            · Due {formatDueDate(assignment.due_date, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            · Due {formatDueDateWithTime(assignment.due_date)}
                           </span>
                         )}
                       </div>
@@ -555,7 +555,7 @@ function AssignmentsTab({
                         <div className="flex items-center gap-4 text-xs text-muted-text flex-wrap">
                           {a.due_date && (
                             <span>
-                              Due {formatDueDate(a.due_date, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              Due {formatDueDateWithTime(a.due_date)}
                             </span>
                           )}
                           {stats ? (

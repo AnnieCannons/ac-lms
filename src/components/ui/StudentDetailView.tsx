@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { saveGrade } from '@/lib/grade-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
-import { localDate } from '@/lib/date-utils'
+import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
 
 export type CategorizedAssignment = {
   id: string
@@ -251,7 +251,7 @@ export default function StudentDetailView({
                             {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
                           </span>
                           {a.due_date && (
-                            <span className="text-xs text-muted-text">· Due {formatDate(a.due_date)}</span>
+                            <span className="text-xs text-muted-text">· Due {formatDueDateWithTime(a.due_date)}</span>
                           )}
                           {a.isLate && (
                             <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border status-late-badge">
@@ -340,7 +340,7 @@ export default function StudentDetailView({
                             {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
                           </span>
                           {a.due_date && (
-                            <span className="text-xs text-muted-text">· Due {formatDate(a.due_date)}</span>
+                            <span className="text-xs text-muted-text">· Due {formatDueDateWithTime(a.due_date)}</span>
                           )}
                           {isQuiz && a.score != null && (
                             <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
