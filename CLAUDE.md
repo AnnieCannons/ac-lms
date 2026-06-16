@@ -178,6 +178,7 @@ Work through these sections in order. Check off each one when complete before mo
 - All commits go to the `flashcard-app` branch
 - Do NOT create a pull request unless explicitly asked to
 - Do NOT push to `main` under any circumstances
+- Do NOT commit until the developer has reviewed the work, tweaked it to their satisfaction, and explicitly says to commit
 
 ## Files We Can Touch
 All flashcard work lives in new files only, with these exceptions:
