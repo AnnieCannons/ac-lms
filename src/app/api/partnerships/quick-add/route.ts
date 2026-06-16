@@ -10,7 +10,7 @@ function checkApiKey(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, contact_name, contact_email, note, interaction_date, remind_in_days, user_email } = await req.json()
+  const { name, contact_name, contact_email, note, interaction_date, remind_in_days, department, user_email } = await req.json()
   if (!name || !note || !interaction_date || !user_email) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -53,9 +53,19 @@ export async function POST(req: NextRequest) {
     partner_id: partner.id,
     note,
     interaction_date,
+    department: department || null,
     user_id: userRow.id,
   })
   if (interactionError) return NextResponse.json({ error: interactionError.message }, { status: 500 })
+
+  if (department) {
+    await supabase.from('partner_department_status').insert({
+      partner_id: partner.id,
+      department,
+      stage: '',
+      updated_by: userRow.id,
+    })
+  }
 
   const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
   const slackEmail = userRow.slack_email || user_email

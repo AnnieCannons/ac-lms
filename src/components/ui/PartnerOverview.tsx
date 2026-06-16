@@ -1862,48 +1862,29 @@ export default function PartnerOverview({
           {/* Edit profile (reached from the header Edit button) */}
           {activeTab === 'edit' && (
             <div className="flex flex-col gap-6">
-              <button
-                type="button"
-                onClick={() => { setEditingProfile(false); setActiveTab(deptStatuses.length > 0 ? deptStatuses[0].department : 'overview') }}
-                className="self-start text-sm text-teal-primary hover:underline"
-              >
-                ← Back
-              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => { setEditingProfile(false); setActiveTab(deptStatuses.length > 0 ? deptStatuses[0].department : 'overview') }}
+                  className="self-start text-sm text-teal-primary hover:underline"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-sm text-red-500 hover:text-red-700 transition-colors"
+                >
+                  Delete partner
+                </button>
+              </div>
               {!editingProfile ? (
-                <>
-                  <ProfileView
-                    partner={partner}
-                    types={types}
-                    deptStatuses={deptStatuses}
-                    onEdit={() => setEditingProfile(true)}
-                  />
-                  <section className="flex flex-col gap-3 border-t border-border pt-6">
-                    {!confirmDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete(true)}
-                        className="self-start text-sm text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        Delete this partner…
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <p className="text-sm text-dark-text">Delete <strong>{partner.name}</strong> and all related data? This cannot be undone.</p>
-                        <button
-                          type="button"
-                          onClick={handleDelete}
-                          disabled={deleting}
-                          className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                        >
-                          {deleting ? 'Deleting…' : 'Yes, delete'}
-                        </button>
-                        <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-muted-text hover:text-dark-text transition-colors">
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </section>
-                </>
+                <ProfileView
+                  partner={partner}
+                  types={types}
+                  deptStatuses={deptStatuses}
+                  onEdit={() => setEditingProfile(true)}
+                />
               ) : (
                 <PartnerForm
                   initialData={initialFormData}
@@ -1921,6 +1902,35 @@ export default function PartnerOverview({
                 />
               )}
             </div>
+          )}
+
+          {/* Delete confirmation modal */}
+          {confirmDelete && (
+            <Modal onClose={() => setConfirmDelete(false)}>
+              <div className="rounded-xl border border-border bg-surface p-6 flex flex-col gap-4 shadow-lg">
+                <h2 className="text-base font-semibold">Delete partner?</h2>
+                <p className="text-sm text-muted-text">
+                  This will permanently delete <strong>{partner.name}</strong> and all related contacts, interactions, and history. This cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-4 py-2 rounded-lg text-sm text-muted-text hover:underline transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {deleting ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                </div>
+              </div>
+            </Modal>
           )}
         </div>
       </div>
