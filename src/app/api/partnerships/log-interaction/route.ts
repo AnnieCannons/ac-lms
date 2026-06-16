@@ -10,7 +10,7 @@ function checkApiKey(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { partner_id, note, interaction_date, remind_in_days, contact_id, user_email } = await req.json()
+  const { partner_id, note, interaction_date, remind_in_days, contact_id, department, user_email } = await req.json()
   if (!partner_id || !note || !interaction_date || !user_email) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     note,
     interaction_date,
     contact_id: contact_id || null,
+    department: department || null,
     reminder_days: days,
     reminder_at: reminderAt,
     user_id: userRow.id,

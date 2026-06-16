@@ -83,8 +83,13 @@ function buildLogCard_(partner, subject, userEmail) {
       .setTitle('Note')
       .setHint('What happened in this interaction?')
       .setMultiline(true)
-      .setValue(subject ? 'Re: ' + subject : '')
+      .setValue(subject ? 'Subject line: ' + subject : '')
   );
+
+  var defaultDept = (partner.matched_contact && partner.matched_contact.primary_departments && partner.matched_contact.primary_departments.length > 0)
+    ? partner.matched_contact.primary_departments[0]
+    : '';
+  section.addWidget(buildDepartmentInput_(defaultDept));
 
   section.addWidget(
     CardService.newSelectionInput()
@@ -201,8 +206,10 @@ function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint) {
       .setFieldName('note')
       .setTitle('Interaction note')
       .setMultiline(true)
-      .setValue(subject ? 'Re: ' + subject : '')
+      .setValue(subject ? 'Subject line: ' + subject : '')
   );
+
+  section.addWidget(buildDepartmentInput_(''));
 
   section.addWidget(
     CardService.newSelectionInput()
@@ -271,12 +278,15 @@ function logInteraction(e) {
       .build();
   }
 
+  var department = (formInput['department'] || '').trim() || null;
+
   var result = callApi_('/api/partnerships/log-interaction', 'POST', {
     partner_id: params['partnerId'],
     note: note,
     interaction_date: today,
     remind_in_days: remindDays,
     contact_id: params['contactId'] || null,
+    department: department,
     user_email: params['userEmail'],
   });
 
@@ -322,6 +332,8 @@ function quickAddPartner(e) {
       .build();
   }
 
+  var department = (formInput['department'] || '').trim() || null;
+
   var result = callApi_('/api/partnerships/quick-add', 'POST', {
     name: orgName,
     contact_name: contactName || null,
@@ -329,6 +341,7 @@ function quickAddPartner(e) {
     note: note,
     interaction_date: today,
     remind_in_days: remindDays,
+    department: department,
     user_email: params['userEmail'],
   });
 
@@ -513,8 +526,6 @@ function callApi_(path, method, body) {
     var code = response.getResponseCode();
     var text = response.getContentText();
 
-    Logger.log('callApi_ ' + method + ' ' + path + ' → ' + code);
-    Logger.log('response: ' + text.substring(0, 300));
     if (code >= 200 && code < 300) {
       return JSON.parse(text);
     }
@@ -524,6 +535,25 @@ function callApi_(path, method, body) {
   } catch (err) {
     return { error: err.message };
   }
+}
+
+function buildDepartmentInput_(defaultDept) {
+  var input = CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.RADIO_BUTTON)
+    .setTitle('Department')
+    .setFieldName('department');
+  var depts = [
+    ['', 'None'],
+    ['student_success', 'Student Success'],
+    ['career_development', 'Career Development'],
+    ['resourcefull', 'ResourceFull'],
+    ['funding_partnerships', 'Funding Partnerships'],
+    ['admissions', 'Admissions'],
+  ];
+  for (var i = 0; i < depts.length; i++) {
+    input.addItem(depts[i][1], depts[i][0], depts[i][0] === defaultDept);
+  }
+  return input;
 }
 
 function htmlEscape_(str) {

@@ -10,9 +10,17 @@ function checkApiKey(req: NextRequest) {
 
 type PartnerSnippet = { id: string; name: string; status: string; city: string | null; state: string | null } | null
 
-function formatContact(c: { id: string; name: string; email: string; partners: unknown }) {
+function formatContact(c: { id: string; name: string; email: string; primary_departments: string[] | null; partners: unknown }) {
   const partner = c.partners as PartnerSnippet
-  return { ...partner, matched_contact: { id: c.id, name: c.name, email: c.email } }
+  return {
+    ...partner,
+    matched_contact: {
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      primary_departments: c.primary_departments ?? [],
+    },
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -26,7 +34,7 @@ export async function GET(req: NextRequest) {
     // Exact contact email match
     const { data: exact } = await supabase
       .from('partner_contacts')
-      .select('id, name, email, partners(id, name, status, city, state)')
+      .select('id, name, email, primary_departments, partners(id, name, status, city, state)')
       .ilike('email', email)
       .neq('is_archived', true)
       .limit(3)
@@ -40,7 +48,7 @@ export async function GET(req: NextRequest) {
     if (domain && !COMMON_DOMAINS.has(domain)) {
       const { data: byDomain } = await supabase
         .from('partner_contacts')
-        .select('id, name, email, partners(id, name, status, city, state)')
+        .select('id, name, email, primary_departments, partners(id, name, status, city, state)')
         .ilike('email', `%@${domain}`)
         .neq('is_archived', true)
         .limit(5)
