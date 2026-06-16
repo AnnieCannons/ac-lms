@@ -14,7 +14,11 @@ export default function DeckCard({ deck }: { deck: DeckWithCounts }) {
         />
       )}
 
-      <div className="flex flex-wrap gap-1.5 pr-5">
+      <div className="pr-5">
+        <h2 className="text-base font-semibold text-dark-text leading-snug">{deck.title}</h2>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
         {deck.tags.map(tag => (
           <span
             key={tag}
@@ -25,10 +29,7 @@ export default function DeckCard({ deck }: { deck: DeckWithCounts }) {
         ))}
       </div>
 
-      <div>
-        <h2 className="text-base font-semibold text-dark-text leading-snug">{deck.title}</h2>
-        <p className="text-xs text-muted-text mt-0.5">{deck.card_count} cards</p>
-      </div>
+      <p className="text-xs text-muted-text">{deck.card_count} cards</p>
 
       <div className="flex gap-2 text-xs flex-wrap">
         {deck.new_count > 0 && (
