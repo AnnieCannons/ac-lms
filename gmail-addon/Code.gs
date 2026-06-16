@@ -88,7 +88,7 @@ function buildLogCard_(partner, subject, userEmail) {
 
   section.addWidget(
     CardService.newSelectionInput()
-      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setType(CardService.SelectionInputType.RADIO_BUTTON)
       .setTitle('Follow-up reminder')
       .setFieldName('remind_days')
       .addItem('No reminder', '0', true)
@@ -206,7 +206,7 @@ function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint) {
 
   section.addWidget(
     CardService.newSelectionInput()
-      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setType(CardService.SelectionInputType.RADIO_BUTTON)
       .setTitle('Follow-up reminder')
       .setFieldName('remind_days')
       .addItem('No reminder', '0', true)
@@ -496,7 +496,10 @@ function callApi_(path, method, body) {
 
   var options = {
     method: method.toLowerCase(),
-    headers: { 'x-addon-api-key': config.apiKey },
+    headers: {
+      'x-addon-api-key': config.apiKey,
+      'ngrok-skip-browser-warning': 'true',
+    },
     muteHttpExceptions: true,
   };
 
@@ -510,6 +513,8 @@ function callApi_(path, method, body) {
     var code = response.getResponseCode();
     var text = response.getContentText();
 
+    Logger.log('callApi_ ' + method + ' ' + path + ' → ' + code);
+    Logger.log('response: ' + text.substring(0, 300));
     if (code >= 200 && code < 300) {
       return JSON.parse(text);
     }
