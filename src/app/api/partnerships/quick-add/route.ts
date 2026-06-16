@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   // Immediate DM so they go complete the profile
   await notifyByEmail(
     slackEmail,
-    `🤝 New partner added: *${name.trim()}*\nComplete their profile: ${APP_URL}/instructor/partnerships/${partner.id}`
+    `🤝 New partner added: *${name.trim()}*\nComplete their profile: ${APP_URL}/instructor/partnerships/${partner.id}?edit=1`
   )
 
   const days = Number(remind_in_days)

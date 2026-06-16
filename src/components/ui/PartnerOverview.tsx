@@ -115,6 +115,7 @@ interface Props {
   defaultDepartment?: PartnerDepartment | null
   onUpdatePartner: (data: PartnerFormData) => Promise<{ error: string | null }>
   onDeletePartner: () => Promise<{ error: string | null }>
+  openEdit?: boolean
 }
 
 // ─── Constants & helpers ───────────────────────────────────────────────────────
@@ -1383,6 +1384,7 @@ export default function PartnerOverview({
   defaultDepartment,
   onUpdatePartner,
   onDeletePartner,
+  openEdit = false,
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -1400,11 +1402,11 @@ export default function PartnerOverview({
   // Navigation
   const defaultEnrolled = !!defaultDepartment && initialStatuses.some(s => s.department === defaultDepartment)
   const [activeTab, setActiveTab] = useState<ActiveTab>(
-    defaultEnrolled ? (defaultDepartment as PartnerDepartment) : 'overview'
+    openEdit ? 'edit' : defaultEnrolled ? (defaultDepartment as PartnerDepartment) : 'overview'
   )
   const [statusEditDept, setStatusEditDept] = useState<PartnerDepartment | null>(null)
   const [activityOpen, setActivityOpen] = useState(true)
-  const [editingProfile, setEditingProfile] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(openEdit)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 

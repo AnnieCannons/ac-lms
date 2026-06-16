@@ -14,12 +14,12 @@ import { DEPARTMENT_LABELS } from '@/lib/partner-constants'
 
 interface Props {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ dept?: string }>
+  searchParams: Promise<{ dept?: string; edit?: string }>
 }
 
 export default async function PartnerDetailPage({ params, searchParams }: Props) {
   const { id } = await params
-  const { dept } = await searchParams
+  const { dept, edit } = await searchParams
 
   const [
     { partner },
@@ -78,6 +78,7 @@ export default async function PartnerDetailPage({ params, searchParams }: Props)
         defaultDepartment={dept as PartnerDepartment | undefined}
         onUpdatePartner={updatePartner.bind(null, id)}
         onDeletePartner={deletePartner.bind(null, id)}
+        openEdit={edit === '1'}
       />
     </main>
   )
