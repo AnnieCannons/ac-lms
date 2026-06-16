@@ -1,0 +1,30 @@
+{
+  "timeZone": "America/New_York",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "addOns": {
+    "common": {
+      "name": "AC Partnerships",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/2x/work_black_48dp.png",
+      "homepageTrigger": {
+        "runFunction": "buildHomepageCard",
+        "enabled": true
+      }
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "buildAddOn"
+        }
+      ]
+    }
+  }
+}
