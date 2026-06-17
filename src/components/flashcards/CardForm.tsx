@@ -125,7 +125,7 @@ export default function CardForm({
         </button>
         <button
           type="button"
-          onClick={() => router.push(`/flashcards/decks/${deckId}/cards`)}
+          onClick={() => router.push(`/flashcards/decks/${deckId}`)}
           className="text-sm text-muted-text hover:text-dark-text transition-colors"
         >
           Cancel
