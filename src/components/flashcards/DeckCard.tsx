@@ -71,7 +71,7 @@ export default function DeckCard({ deck }: { deck: DeckWithCounts }) {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </Link>
-            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-dark-text px-2 py-0.5 text-[11px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
               Edit deck
             </span>
           </div>
@@ -86,7 +86,7 @@ export default function DeckCard({ deck }: { deck: DeckWithCounts }) {
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
             </Link>
-            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-dark-text px-2 py-0.5 text-[11px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
               Add cards
             </span>
           </div>

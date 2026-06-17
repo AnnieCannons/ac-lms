@@ -87,7 +87,7 @@ export default function CardForm({
             <label className="text-sm font-medium text-dark-text">
               Front <span className="text-red-500" aria-hidden="true">*</span>
             </label>
-            <div className="[&>div]:!bg-white [&_.ProseMirror]:!bg-white">
+            <div className="[&>div]:!bg-surface [&_.ProseMirror]:!bg-surface">
               <RichTextEditor
                 content={front}
                 onChange={val => { setFront(val); setSaved(false) }}
@@ -102,7 +102,7 @@ export default function CardForm({
             <label className="text-sm font-medium text-dark-text">
               {cardType === 'type_in' ? 'Expected Answer' : 'Back'}
             </label>
-            <div className="[&>div]:!bg-white [&_.ProseMirror]:!bg-white">
+            <div className="[&>div]:!bg-surface [&_.ProseMirror]:!bg-surface">
               <RichTextEditor
                 content={back}
                 onChange={val => { setBack(val); setSaved(false) }}
