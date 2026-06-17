@@ -67,7 +67,7 @@ export default function EditDeckPage() {
           </p>
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="shrink-0 text-sm font-medium text-red-600 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
+            className="shrink-0 text-sm font-medium text-red-500 border border-red-400/50 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
           >
             Delete this deck
           </button>

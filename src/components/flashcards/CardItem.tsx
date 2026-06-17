@@ -72,14 +72,14 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
             <div>
               <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Front</p>
               <div
-                className="text-xs text-dark-text max-h-16 overflow-hidden prose prose-xs [&_code]:bg-border/40 [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0"
+                className="text-xs text-dark-text max-h-16 overflow-hidden prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0"
                 dangerouslySetInnerHTML={{ __html: frontPreview || '<span class="text-muted-text">(empty)</span>' }}
               />
             </div>
             <div>
               <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Back</p>
               <div
-                className="text-xs text-dark-text max-h-16 overflow-hidden prose prose-xs [&_code]:bg-border/40 [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0"
+                className="text-xs text-dark-text max-h-16 overflow-hidden prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0"
                 dangerouslySetInnerHTML={{ __html: backPreview || '<span class="text-muted-text">(empty)</span>' }}
               />
             </div>
@@ -99,7 +99,7 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </Link>
-            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-dark-text px-2 py-0.5 text-[11px] text-white opacity-0 group-hover/tip:opacity-100 transition-opacity">
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover/tip:opacity-100 transition-opacity">
               Edit
             </span>
           </div>
@@ -114,7 +114,7 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
                 <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
               </svg>
             </button>
-            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-dark-text px-2 py-0.5 text-[11px] text-white opacity-0 group-hover/tip:opacity-100 transition-opacity">
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover/tip:opacity-100 transition-opacity">
               Delete
             </span>
           </div>
