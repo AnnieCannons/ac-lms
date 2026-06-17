@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "ac-lms",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeExecutable": "node_modules/.bin/next",
+      "runtimeArgs": ["dev", "--port", "3001"],
+      "cwd": "/Users/rad/Documents/dev/ac-lms",
+      "port": 3001
     }
   ]
 }
