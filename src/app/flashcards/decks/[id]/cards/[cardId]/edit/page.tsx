@@ -21,7 +21,7 @@ export default function EditCardPage() {
   if (!card) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-8">
-        <Link href={`/flashcards/decks/${deckId}/cards`} className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4">
+        <Link href={`/flashcards/decks/${deckId}`} className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4">
           ← Back to Cards
         </Link>
         <p className="text-muted-text text-sm">Card not found.</p>
@@ -33,7 +33,7 @@ export default function EditCardPage() {
     <div className="max-w-2xl mx-auto px-6 py-8">
       <div className="mb-8">
         <Link
-          href={`/flashcards/decks/${deckId}/cards`}
+          href={`/flashcards/decks/${deckId}`}
           className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4"
         >
           ← Back to {deck?.title ?? 'Cards'}
