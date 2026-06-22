@@ -2,15 +2,18 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DeckForm from '@/components/flashcards/DeckForm'
+import { createDeck } from '@/lib/flashcards/actions'
 
 export default function NewDeckPage() {
   const router = useRouter()
 
-  const handleSave = ({ title, description, tags }: { title: string; description: string; tags: string[] }) => {
-    // In production this will be a Supabase insert — for now generate a placeholder ID
-    const newId = crypto.randomUUID()
-    console.log('Create deck (seed phase):', { title, description, tags, id: newId })
-    router.push(`/flashcards/decks/${newId}/cards`)
+  const handleSave = async ({ title, description, tags }: { title: string; description: string; tags: string[] }) => {
+    try {
+      const newId = await createDeck({ title, description, tags })
+      router.push(`/flashcards/decks/${newId}`)
+    } catch (err) {
+      console.error('Failed to create deck:', err)
+    }
   }
 
   return (
