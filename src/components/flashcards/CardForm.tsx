@@ -6,7 +6,6 @@ import type { CardType } from '@/lib/flashcards/seed'
 
 const CARD_TYPES: { value: CardType; label: string }[] = [
   { value: 'basic', label: 'Basic' },
-  { value: 'basic_reverse', label: 'Basic + Reverse' },
   { value: 'type_in', label: 'Type In' },
   { value: 'cloze', label: 'Cloze' },
   { value: 'image_occlusion', label: 'Image Occlusion' },
