@@ -1,4 +1,6 @@
-import { getDeckByShareToken, SEED_CARDS, SEED_DECKS } from '@/lib/flashcards/seed'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { getDeckByShareToken, getCardsByDeck, checkAlreadyImported } from '@/lib/flashcards/queries'
 import ImportButton from './ImportButton'
 import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
@@ -14,7 +16,11 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const deck = getDeckByShareToken(token)
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const deck = await getDeckByShareToken(token)
 
   if (!deck) {
     return (
@@ -26,8 +32,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     )
   }
 
-  const cards = SEED_CARDS.filter(c => c.deck_id === deck.id)
-  const alreadyImported = SEED_DECKS.some(d => d.original_deck_id === deck.id)
+  const [cards, alreadyImported] = await Promise.all([
+    getCardsByDeck(deck.id),
+    checkAlreadyImported(user.id, deck.id),
+  ])
 
   return (
     <div className="max-w-xl mx-auto px-6 py-12 flex flex-col items-center gap-6">
@@ -41,7 +49,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {deck.tags.map(tag => (
+          {deck.tags.map((tag: string) => (
             <span key={tag} className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md">
               {tag}
             </span>
@@ -51,7 +59,6 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         <p className="text-sm text-muted-text">{cards.length} {cards.length === 1 ? 'card' : 'cards'}</p>
       </div>
 
-      {/* Card list */}
       <div className="w-full flex flex-col gap-3">
         {cards.map((card, i) => (
           <div key={card.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
@@ -81,7 +88,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         ))}
       </div>
 
-      <ImportButton deckTitle={deck.title} alreadyImported={alreadyImported} />
+      <ImportButton deckId={deck.id} deckTitle={deck.title} alreadyImported={alreadyImported} />
     </div>
   )
 }

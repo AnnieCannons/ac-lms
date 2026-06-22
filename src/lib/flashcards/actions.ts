@@ -128,6 +128,91 @@ export async function deleteCard(cardId: string, deckId: string) {
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 
+export async function enableSharing(deckId: string): Promise<string> {
+  const { supabase, user } = await getAuthUser()
+
+  const token = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
+
+  const { error } = await supabase
+    .from('decks')
+    .update({ is_shared: true, share_token: token })
+    .eq('id', deckId)
+    .eq('owner_user_id', user.id)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/flashcards')
+  return token
+}
+
+export async function importDeck(sourceDeckId: string) {
+  const { supabase, user } = await getAuthUser()
+
+  const [{ data: sourceDeck }, { data: sourceCards }, { data: existing }] = await Promise.all([
+    supabase.from('decks').select('*').eq('id', sourceDeckId).single(),
+    supabase.from('cards').select('*').eq('deck_id', sourceDeckId).order('order', { ascending: true }),
+    supabase.from('decks').select('id').eq('owner_user_id', user.id).eq('original_deck_id', sourceDeckId).maybeSingle(),
+  ])
+
+  if (!sourceDeck) throw new Error('Source deck not found')
+  const cards = sourceCards ?? []
+
+  if (existing) {
+    // Override: replace cards with latest from source
+    await supabase.from('cards').delete().eq('deck_id', existing.id)
+    await supabase.from('decks').update({
+      title: sourceDeck.title,
+      description: sourceDeck.description,
+      tags: sourceDeck.tags,
+    }).eq('id', existing.id)
+
+    if (cards.length > 0) {
+      await supabase.from('cards').insert(
+        cards.map(c => ({
+          deck_id: existing.id,
+          card_type: c.card_type,
+          front_content: c.front_content,
+          back_content: c.back_content,
+          order: c.order,
+        }))
+      )
+    }
+
+    revalidatePath('/flashcards')
+    return existing.id as string
+  }
+
+  // Fresh import
+  const { data: newDeck, error } = await supabase
+    .from('decks')
+    .insert({
+      owner_user_id: user.id,
+      title: sourceDeck.title,
+      description: sourceDeck.description,
+      tags: sourceDeck.tags,
+      original_deck_id: sourceDeckId,
+      is_shared: false,
+    })
+    .select('id')
+    .single()
+
+  if (error || !newDeck) throw new Error(error?.message ?? 'Failed to create deck')
+
+  if (cards.length > 0) {
+    await supabase.from('cards').insert(
+      cards.map(c => ({
+        deck_id: newDeck.id,
+        card_type: c.card_type,
+        front_content: c.front_content,
+        back_content: c.back_content,
+        order: c.order,
+      }))
+    )
+  }
+
+  revalidatePath('/flashcards')
+  return newDeck.id as string
+}
+
 export async function reorderCards(deckId: string, orderedCardIds: string[]) {
   const { supabase } = await getAuthUser()
 
