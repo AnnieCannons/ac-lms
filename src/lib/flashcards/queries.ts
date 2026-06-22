@@ -92,6 +92,28 @@ export async function getCard(cardId: string) {
   return data ?? null
 }
 
+export async function getDeckByShareToken(token: string) {
+  const supabase = await createServerSupabaseClient()
+  const { data } = await supabase
+    .from('decks')
+    .select('*')
+    .eq('share_token', token)
+    .eq('is_shared', true)
+    .single()
+  return data ?? null
+}
+
+export async function checkAlreadyImported(userId: string, sourceDeckId: string) {
+  const supabase = await createServerSupabaseClient()
+  const { data } = await supabase
+    .from('decks')
+    .select('id')
+    .eq('owner_user_id', userId)
+    .eq('original_deck_id', sourceDeckId)
+    .maybeSingle()
+  return data !== null
+}
+
 export type ActivityEntry = { date: string; cards_studied_count: number }
 
 export async function getActivityLog(userId: string): Promise<ActivityEntry[]> {

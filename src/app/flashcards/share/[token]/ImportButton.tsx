@@ -1,17 +1,30 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { importDeck } from '@/lib/flashcards/actions'
 
 type Props = {
+  deckId: string
   deckTitle: string
   alreadyImported: boolean
 }
 
-export default function ImportButton({ deckTitle, alreadyImported }: Props) {
-  const [state, setState] = useState<'idle' | 'done'>(
-    alreadyImported ? 'idle' : 'idle'
-  )
+export default function ImportButton({ deckId, deckTitle, alreadyImported }: Props) {
+  const router = useRouter()
+  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle')
   const [showOverride, setShowOverride] = useState(alreadyImported)
+
+  const handleImport = async () => {
+    setState('loading')
+    try {
+      await importDeck(deckId)
+      setState('done')
+    } catch (err) {
+      console.error('Failed to import deck:', err)
+      setState('idle')
+    }
+  }
 
   if (state === 'done') {
     return (
@@ -24,12 +37,12 @@ export default function ImportButton({ deckTitle, alreadyImported }: Props) {
         <p className="text-sm font-medium text-dark-text">
           <span className="font-semibold">{deckTitle}</span> has been added to your decks!
         </p>
-        <Link
-          href="/flashcards"
+        <button
+          onClick={() => router.push('/flashcards')}
           className="bg-teal-primary text-white text-sm font-medium px-6 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
         >
           Go to My Decks →
-        </Link>
+        </button>
       </div>
     )
   }
@@ -44,15 +57,16 @@ export default function ImportButton({ deckTitle, alreadyImported }: Props) {
           </svg>
         </div>
         <div>
-          <p className="text-sm font-semibold text-dark-text">You've already imported this deck.</p>
+          <p className="text-sm font-semibold text-dark-text">You&apos;ve already imported this deck.</p>
           <p className="text-xs text-muted-text mt-1">Do you want to override your copy with the latest version, or keep the one you have?</p>
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => setState('done')}
-            className="bg-teal-primary text-white text-sm font-medium px-5 py-2 rounded-lg hover:opacity-90 transition-opacity"
+            onClick={handleImport}
+            disabled={state === 'loading'}
+            className="bg-teal-primary text-white text-sm font-medium px-5 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            Override with latest
+            {state === 'loading' ? 'Updating…' : 'Override with latest'}
           </button>
           <Link
             href="/flashcards"
@@ -68,10 +82,11 @@ export default function ImportButton({ deckTitle, alreadyImported }: Props) {
   return (
     <div className="flex flex-col items-center gap-3">
       <button
-        onClick={() => setState('done')}
-        className="bg-teal-primary text-white text-sm font-medium px-8 py-3 rounded-xl hover:opacity-90 transition-opacity"
+        onClick={handleImport}
+        disabled={state === 'loading'}
+        className="bg-teal-primary text-white text-sm font-medium px-8 py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
       >
-        Import to My Decks
+        {state === 'loading' ? 'Importing…' : 'Import to My Decks'}
       </button>
       <Link href="/flashcards" className="text-xs text-muted-text hover:text-dark-text transition-colors">
         ← Back to My Decks
