@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { useRouter } from 'next/navigation'
 import {
   Globe, MapPin, Mail, Phone, Link, Pencil, Plus, ChevronDown, ChevronRight,
@@ -562,7 +563,21 @@ function InteractionRow({
           </button>
         </div>
       </div>
-      <p className="text-sm text-dark-text whitespace-pre-line">{interaction.note}</p>
+      <ReactMarkdown
+        components={{
+          h1: ({children}) => <p className="text-sm font-bold text-dark-text mt-1">{children}</p>,
+          h2: ({children}) => <p className="text-sm font-bold text-dark-text mt-1">{children}</p>,
+          h3: ({children}) => <p className="text-sm font-semibold text-dark-text mt-1">{children}</p>,
+          p:  ({children}) => <p className="text-sm text-dark-text">{children}</p>,
+          ul: ({children}) => <ul className="list-disc list-inside space-y-0.5 my-1">{children}</ul>,
+          ol: ({children}) => <ol className="list-decimal list-inside space-y-0.5 my-1">{children}</ol>,
+          li: ({children}) => <li className="text-sm text-dark-text">{children}</li>,
+          strong: ({children}) => <strong className="font-semibold text-dark-text">{children}</strong>,
+          a: ({href, children}) => <a href={href} className="text-teal-primary hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+        }}
+      >
+        {interaction.note}
+      </ReactMarkdown>
       {interaction.reminder_at && (
         <span className="self-start inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 bg-teal-primary/10 text-teal-primary">
           <AlarmClock className="w-3.5 h-3.5" />
