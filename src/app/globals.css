@@ -113,6 +113,47 @@ html.theme-dark .flashcard-content .prose {
   --tw-prose-counters: var(--color-muted-text);
   --tw-prose-links: var(--color-teal-primary);
 }
+/* Rating buttons — dark mode overrides (scoped to flashcard pages only) */
+html.theme-dark .flashcard-content .rating-again {
+  border-color: rgba(248, 113, 113, 0.5) !important;
+  color: #f87171 !important;
+  background-color: rgba(248, 113, 113, 0.12) !important;
+}
+html.theme-dark .flashcard-content .rating-again:hover {
+  background-color: rgba(248, 113, 113, 0.22) !important;
+}
+html.theme-dark .flashcard-content .rating-hard {
+  border-color: rgba(251, 146, 60, 0.5) !important;
+  color: #fb923c !important;
+  background-color: rgba(251, 146, 60, 0.12) !important;
+}
+html.theme-dark .flashcard-content .rating-hard:hover {
+  background-color: rgba(251, 146, 60, 0.22) !important;
+}
+html.theme-dark .flashcard-content .rating-good {
+  border-color: rgba(96, 165, 250, 0.5) !important;
+  color: #60a5fa !important;
+  background-color: rgba(96, 165, 250, 0.12) !important;
+}
+html.theme-dark .flashcard-content .rating-good:hover {
+  background-color: rgba(96, 165, 250, 0.22) !important;
+}
+html.theme-dark .flashcard-content .rating-easy {
+  border-color: rgba(52, 211, 153, 0.5) !important;
+  color: #34d399 !important;
+  background-color: rgba(52, 211, 153, 0.12) !important;
+}
+html.theme-dark .flashcard-content .rating-easy:hover {
+  background-color: rgba(52, 211, 153, 0.22) !important;
+}
+/* Progress bar track */
+.flashcard-content .progress-track {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+html.theme-dark .flashcard-content .progress-track {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
 /* Tiptap editor area — explicit background so it never shows white in any theme */
 .ProseMirror {
   background-color: var(--color-background);

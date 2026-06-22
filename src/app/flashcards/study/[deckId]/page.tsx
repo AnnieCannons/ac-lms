@@ -12,10 +12,10 @@ function sanitize(html: string) {
 }
 
 const RATINGS = [
-  { label: 'Again', className: 'border border-red-400/60 text-red-400 bg-red-400/10 hover:bg-red-400/20' },
-  { label: 'Hard',  className: 'border border-amber-400/60 text-amber-400 bg-amber-400/10 hover:bg-amber-400/20' },
-  { label: 'Good',  className: 'border border-teal-primary text-teal-primary bg-teal-light hover:opacity-80' },
-  { label: 'Easy',  className: 'border border-purple-primary text-purple-primary bg-purple-light hover:opacity-80' },
+  { label: 'Again', className: 'rating-again border border-red-300 text-red-700 bg-red-100 hover:bg-red-200' },
+  { label: 'Hard',  className: 'rating-hard border border-orange-300 text-orange-700 bg-orange-100 hover:bg-orange-200' },
+  { label: 'Good',  className: 'rating-good border border-blue-300 text-blue-700 bg-blue-100 hover:bg-blue-200' },
+  { label: 'Easy',  className: 'rating-easy border border-emerald-300 text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
 ]
 
 const PROSE = 'prose prose-sm max-w-none [&_code]:bg-border/40 [&_code]:px-1 [&_code]:rounded [&_code]:text-dark-text [&_pre]:bg-border/30 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre_code]:bg-transparent [&_pre_code]:text-dark-text [&_ul]:pl-4 [&_ol]:pl-4'
@@ -130,7 +130,7 @@ export default function StudyPage() {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1 bg-border rounded-full overflow-hidden">
+      <div className="w-full h-1 progress-track rounded-full overflow-hidden">
         <div
           className="h-1 bg-teal-primary rounded-full transition-all duration-500"
           style={{ width: `${progress * 100}%` }}
@@ -140,7 +140,7 @@ export default function StudyPage() {
 
       {isEditing ? (
         /* ── Inline editor ── */
-        <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-5">
+        <div className="bg-border/30 border border-border rounded-2xl p-6 flex flex-col gap-5">
           <h2 className="text-sm font-semibold text-dark-text">Edit Card</h2>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">Front</label>
