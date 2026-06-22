@@ -194,6 +194,12 @@ Do not edit any other existing files. If something in the flashcard app requires
 
 ---
 
+## CSS / Styling Rules for Flashcard Work
+- Do NOT modify any global CSS rules (selectors without a `.flashcard-content` scope prefix)
+- All additions to `globals.css` must be scoped to `.flashcard-content` or `html.theme-dark .flashcard-content`
+- The `flashcard-content` class is on `<main>` in `src/app/flashcards/layout.tsx` — this is the scope boundary
+- This ensures flashcard styles never leak into Catie's existing LMS pages
+
 ## Things to Avoid
 - Do not modify any existing LMS tables (`users`, `courses`, `modules`, etc.)
 - Do not introduce a second Supabase project or auth system
