@@ -33,6 +33,7 @@ export async function logInteraction(data: {
   department?: PartnerDepartment | null
   contact_id?: string | null
   remind_in_days?: number | null
+  interaction_type?: string | null
 }) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
@@ -54,6 +55,7 @@ export async function logInteraction(data: {
     reminder_days: reminderDays,
     reminder_at: reminderAt,
     user_id: user!.id,
+    interaction_type: data.interaction_type ?? null,
   })
   if (dbError) return { error: dbError.message }
 
@@ -94,7 +96,7 @@ export async function listInteractions(partnerId: string) {
 
   const { data, error: dbError } = await supabase
     .from('partner_interactions')
-    .select('id, note, interaction_date, department, created_at, user_id, contact_id, reminder_days, reminder_at, users(name), partner_contacts!partner_interactions_contact_id_fkey(name, title)')
+    .select('id, note, interaction_date, department, interaction_type, created_at, user_id, contact_id, reminder_days, reminder_at, users(name), partner_contacts!partner_interactions_contact_id_fkey(name, title)')
     .eq('partner_id', partnerId)
     .order('interaction_date', { ascending: false })
     .order('created_at', { ascending: false })
@@ -126,7 +128,7 @@ export async function getDepartmentStatuses(partnerId: string) {
 
   const { data, error: dbError } = await supabase
     .from('partner_department_status')
-    .select('id, department, stage, updated_at, updated_by, do_not_email, users(name)')
+    .select('id, department, stage, updated_at, updated_by, do_not_email, needs_outreach, users(name)')
     .eq('partner_id', partnerId)
 
   if (dbError) return { error: dbError.message, statuses: [] }
@@ -191,6 +193,26 @@ export async function setDepartmentStatus(
       { partner_id: partnerId, department, stage, updated_by: user!.id },
       { onConflict: 'partner_id,department' }
     )
+
+  if (dbError) return { error: dbError.message }
+
+  revalidatePath(`/instructor/partnerships/${partnerId}`)
+  return { error: null }
+}
+
+export async function setDepartmentNeedsOutreach(
+  partnerId: string,
+  department: PartnerDepartment,
+  value: string | null
+) {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase
+    .from('partner_department_status')
+    .update({ needs_outreach: value })
+    .eq('partner_id', partnerId)
+    .eq('department', department)
 
   if (dbError) return { error: dbError.message }
 

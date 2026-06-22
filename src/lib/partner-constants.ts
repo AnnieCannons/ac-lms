@@ -9,7 +9,7 @@ export const DEPARTMENT_LABELS: Record<PartnerDepartment, string> = {
   student_success: 'Student Success',
   career_development: 'Career Development',
   resourcefull: 'ResourceFull',
-  funding_partnerships: 'Funding Partnerships',
+  funding_partnerships: 'Funding Partners',
   admissions: 'Admissions',
 }
 
