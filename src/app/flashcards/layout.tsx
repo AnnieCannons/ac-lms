@@ -7,7 +7,7 @@ export default function FlashcardLayout({ children }: { children: React.ReactNod
       <Suspense fallback={<div className="h-[52px] bg-surface border-b border-border" />}>
         <FlashcardHeader />
       </Suspense>
-      <main id="main-content" tabIndex={-1} className="focus:outline-none">
+      <main id="main-content" tabIndex={-1} className="focus:outline-none flashcard-content">
         {children}
       </main>
     </div>

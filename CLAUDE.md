@@ -29,7 +29,6 @@ A spaced repetition flashcard app is being built as a new section of this LMS. I
 
 **Card types (stored as strings in `cards.card_type`):**
 - `basic` — front and back, user flips and self-rates
-- `basic_reverse` — auto-generates two cards: front→back and back→front
 - `type_in` — user types answer, compared case-insensitively to correct answer
 - `cloze` — fill-in-the-blank, each blank becomes its own card
 - `image_occlusion` — user hides parts of an image, each hidden area is a card

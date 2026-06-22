@@ -15,7 +15,6 @@
 
 export type CardType =
   | 'basic'
-  | 'basic_reverse'
   | 'type_in'
   | 'cloze'
   | 'image_occlusion'

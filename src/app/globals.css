@@ -103,6 +103,16 @@ html.theme-dark textarea,
 html.theme-dark select {
   color-scheme: dark;
 }
+/* Prose text in dark mode — scoped to flashcard pages only */
+html.theme-dark .flashcard-content .prose {
+  color: var(--color-dark-text);
+  --tw-prose-body: var(--color-dark-text);
+  --tw-prose-headings: var(--color-dark-text);
+  --tw-prose-bold: var(--color-dark-text);
+  --tw-prose-bullets: var(--color-muted-text);
+  --tw-prose-counters: var(--color-muted-text);
+  --tw-prose-links: var(--color-teal-primary);
+}
 /* Tiptap editor area — explicit background so it never shows white in any theme */
 .ProseMirror {
   background-color: var(--color-background);
