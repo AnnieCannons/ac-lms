@@ -12,6 +12,7 @@ import {
   setDepartmentStatus,
   removeDepartmentStatus,
   setDepartmentDoNotEmail,
+  setDepartmentNeedsOutreach,
   createReferral,
   deleteReferral,
   type PartnerDepartment,
@@ -45,6 +46,7 @@ interface Interaction {
   note: string
   interaction_date: string
   department: PartnerDepartment | null
+  interaction_type?: string | null
   created_at: string
   user_id: string | null
   users: { name: string } | null
@@ -61,6 +63,7 @@ interface DepartmentStatus {
   updated_at: string
   users: { name: string } | null
   do_not_email?: boolean
+  needs_outreach?: string | null
 }
 
 interface Partner {
@@ -291,6 +294,7 @@ function LogInteractionForm({
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [department, setDepartment] = useState<PartnerDepartment | ''>(defaultDepartment ?? '')
   const [contactId, setContactId] = useState('')
+  const [interactionType, setInteractionType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showReminder, setShowReminder] = useState(false)
@@ -325,6 +329,7 @@ function LogInteractionForm({
       department: department || null,
       contact_id: contactId || null,
       remind_in_days: remindInDays,
+      interaction_type: interactionType || null,
     })
 
     if (result.error) { setSaving(false); setError(result.error); return }
@@ -344,6 +349,7 @@ function LogInteractionForm({
       note: note.trim(),
       interaction_date: date,
       department: department || null,
+      interaction_type: interactionType || null,
       created_at: new Date().toISOString(),
       user_id: null,
       users: null,
@@ -360,20 +366,37 @@ function LogInteractionForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-lg">
       <h3 className="text-sm font-semibold text-dark-text">Log Contact</h3>
 
-      <div>
-        <label className="block text-xs text-muted-text mb-1">Contact person</label>
-        <select
-          value={contactId}
-          onChange={e => setContactId(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-        >
-          <option value="">General Note (no specific contact)</option>
-          {contacts.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.name}{c.title ? ` — ${c.title}` : ''}
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-muted-text mb-1">Contact person</label>
+          <select
+            value={contactId}
+            onChange={e => setContactId(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          >
+            <option value="">General note</option>
+            {contacts.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}{c.title ? ` — ${c.title}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-muted-text mb-1">Interaction type</label>
+          <select
+            value={interactionType}
+            onChange={e => setInteractionType(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+          >
+            <option value="">— select —</option>
+            <option value="email">Email</option>
+            <option value="phone_call">Phone Call</option>
+            <option value="video_call">Video Call</option>
+            <option value="in_person_meeting">In-Person Meeting</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
       </div>
 
       <textarea
@@ -522,6 +545,9 @@ function InteractionRow({
           {interaction.users?.name && <span>· {interaction.users.name}</span>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {interaction.interaction_type && (
+            <span className="text-xs text-muted-text capitalize">{interaction.interaction_type.replace(/_/g, ' ')}</span>
+          )}
           <span className="inline-flex items-center gap-1 text-xs text-muted-text">
             <Calendar className="w-3.5 h-3.5" />
             {formatDate(interaction.interaction_date)}
@@ -683,6 +709,16 @@ function DepartmentOverviewCards({
               </div>
             ) : (
               <p className="text-sm text-muted-text italic">No contact logged yet.</p>
+            )}
+            {ds.department === 'funding_partnerships' && ds.needs_outreach && (
+              <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${
+                ds.needs_outreach === 'yes' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                ds.needs_outreach === 'waiting' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                ds.needs_outreach === 'discuss' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                'bg-gray-100 text-gray-600 border border-gray-200'
+              }`}>
+                Outreach: {ds.needs_outreach === 'yes' ? 'Yes' : ds.needs_outreach === 'waiting' ? 'Waiting' : ds.needs_outreach === 'discuss' ? 'Discuss' : 'No'}
+              </span>
             )}
             {(ds.department === 'admissions' || ds.department === 'student_success') && (
               <span className="text-xs text-muted-text">
@@ -928,8 +964,8 @@ function ContactCard({
       {!isArchived && hasContactInfo && (
         <div className="flex flex-col gap-1 text-xs pl-[52px]">
           {contact.email && (
-            <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-1.5 text-muted-text hover:text-teal-primary transition-colors break-all">
-              <Mail className="w-3.5 h-3.5 shrink-0" />{contact.email}
+            <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-1.5 text-muted-text hover:text-teal-primary transition-colors min-w-0">
+              <Mail className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{contact.email}</span>
             </a>
           )}
           {contact.phone && (
@@ -1797,7 +1833,7 @@ export default function PartnerOverview({
                             </button>
                           </div>
 
-                          {/* Row 2: owner · do-not-email · remove — all inline, no divider */}
+                          {/* Row 2: owner · needs outreach (funding only) · do-not-email · remove */}
                           <div className="flex items-center gap-4 flex-wrap text-xs text-muted-text">
                             <div className="flex items-center gap-1.5">
                               <span>Owner</span>
@@ -1812,6 +1848,30 @@ export default function PartnerOverview({
                                 ))}
                               </select>
                             </div>
+                            {dept === 'funding_partnerships' && (
+                              <div className="flex items-center gap-1.5">
+                                <span>Needs Outreach</span>
+                                <select
+                                  value={ds.needs_outreach ?? ''}
+                                  onChange={e => {
+                                    const val = e.target.value || null
+                                    setDepartmentNeedsOutreach(partner.id, dept, val)
+                                      .then(() => {
+                                        setDeptStatuses(prev => prev.map(s =>
+                                          s.department === dept ? { ...s, needs_outreach: val } : s
+                                        ))
+                                      })
+                                  }}
+                                  className="rounded border border-border bg-background px-2 py-0.5 text-xs text-dark-text focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                                >
+                                  <option value="">—</option>
+                                  <option value="yes">Yes</option>
+                                  <option value="no">No</option>
+                                  <option value="waiting">Waiting</option>
+                                  <option value="discuss">Discuss</option>
+                                </select>
+                              </div>
+                            )}
                             <label className={`flex items-center gap-1.5 cursor-pointer select-none ${ds.do_not_email ? 'text-red-500 dark:text-red-400' : ''}`}>
                               <input
                                 type="checkbox"
