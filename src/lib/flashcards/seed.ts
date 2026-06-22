@@ -83,8 +83,8 @@ export const SEED_DECKS: Deck[] = [
     title: 'JavaScript Fundamentals',
     description: 'Core JavaScript concepts — variables, data types, the DOM, and functions.',
     tags: ['JavaScript'],
-    is_shared: false,
-    share_token: null,
+    is_shared: true,
+    share_token: 'js-fundamentals-xk92m',
     original_deck_id: null,
     created_at: '2026-05-01T00:00:00Z',
     updated_at: '2026-05-01T00:00:00Z',
@@ -100,6 +100,18 @@ export const SEED_DECKS: Deck[] = [
     original_deck_id: null,
     created_at: '2026-05-10T00:00:00Z',
     updated_at: '2026-05-10T00:00:00Z',
+  },
+  {
+    id: 'deck-html-1',
+    owner_user_id: SEED_USER_ID,
+    title: 'HTML Essentials',
+    description: 'Semantic elements, attributes, forms, and accessibility basics.',
+    tags: ['HTML'],
+    is_shared: false,
+    share_token: null,
+    original_deck_id: 'deck-js-1',
+    created_at: '2026-06-10T00:00:00Z',
+    updated_at: '2026-06-10T00:00:00Z',
   },
 ]
 
@@ -402,6 +414,53 @@ export const SEED_CARD_PROGRESS: CardProgress[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// Cards — HTML Essentials (imported deck)
+// ---------------------------------------------------------------------------
+
+// These cards are appended to SEED_CARDS via push to avoid rewriting the const declaration
+;(function () {
+  const htmlCards: Card[] = [
+    {
+      id: 'card-html-1',
+      deck_id: 'deck-html-1',
+      card_type: 'basic',
+      front_content: `<p>What is the difference between a <code>block</code> element and an <code>inline</code> element?</p>`,
+      back_content: `<ul><li><strong>Block</strong> elements start on a new line and take full width (e.g. <code>div</code>, <code>p</code>, <code>h1</code>)</li><li><strong>Inline</strong> elements flow within text and only take up as much width as needed (e.g. <code>span</code>, <code>a</code>, <code>strong</code>)</li></ul>`,
+      audio_url: null,
+      image_url: null,
+      occlusion_zones: null,
+      order: 1,
+      created_at: '2026-06-10T00:00:00Z',
+    },
+    {
+      id: 'card-html-2',
+      deck_id: 'deck-html-1',
+      card_type: 'basic',
+      front_content: `<p>What does <code>semantic HTML</code> mean and why does it matter?</p>`,
+      back_content: `<p>Semantic HTML uses elements that describe their meaning (e.g. <code>header</code>, <code>nav</code>, <code>main</code>, <code>article</code>) rather than generic <code>div</code> and <code>span</code>. It improves accessibility, SEO, and code readability.</p>`,
+      audio_url: null,
+      image_url: null,
+      occlusion_zones: null,
+      order: 2,
+      created_at: '2026-06-10T00:00:00Z',
+    },
+    {
+      id: 'card-html-3',
+      deck_id: 'deck-html-1',
+      card_type: 'type_in',
+      front_content: `<p>What HTML attribute makes a form field required before submission?</p>`,
+      back_content: `<p><code>required</code></p>`,
+      audio_url: null,
+      image_url: null,
+      occlusion_zones: null,
+      order: 3,
+      created_at: '2026-06-10T00:00:00Z',
+    },
+  ]
+  SEED_CARDS.push(...htmlCards)
+})()
+
+// ---------------------------------------------------------------------------
 // Activity log — seed data for the GitHub-style activity grid
 // ---------------------------------------------------------------------------
 
@@ -446,4 +505,8 @@ export function getDeckWithCounts(deck: Deck): DeckWithCounts {
 
 export function getAllDecksWithCounts(): DeckWithCounts[] {
   return SEED_DECKS.map(getDeckWithCounts)
+}
+
+export function getDeckByShareToken(token: string): Deck | undefined {
+  return SEED_DECKS.find(d => d.share_token === token)
 }

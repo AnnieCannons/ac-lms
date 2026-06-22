@@ -2,6 +2,7 @@ import { getAllDecksWithCounts } from '@/lib/flashcards/seed'
 import DeckCard from '@/components/flashcards/DeckCard'
 import ActivityGrid from '@/components/flashcards/ActivityGrid'
 import Link from 'next/link'
+import MyDecksHeader from '@/components/flashcards/MyDecksHeader'
 
 export default function FlashcardsPage() {
   const decks = getAllDecksWithCounts()
@@ -11,24 +12,7 @@ export default function FlashcardsPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
 
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
-          <p className="text-sm text-muted-text mt-1">
-            {decks.length} {decks.length === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} due today
-          </p>
-        </div>
-        <Link
-          href="/flashcards/decks/new"
-          className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          New Deck
-        </Link>
-      </div>
+      <MyDecksHeader deckCount={decks.length} cardsDueToday={cardsDueToday} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
         {decks.map(deck => (
