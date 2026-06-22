@@ -213,6 +213,114 @@ export async function importDeck(sourceDeckId: string) {
   return newDeck.id as string
 }
 
+// ----------------------------------------------------------------
+// Study session writes — SM-2 algorithm
+// ----------------------------------------------------------------
+
+type Rating = 'Again' | 'Hard' | 'Good' | 'Easy'
+
+function computeSM2(interval: number, ef: number, rating: Rating) {
+  let newInterval = interval
+  let newEF = ef
+
+  if (rating === 'Again') {
+    newInterval = 1
+    // EF unchanged
+  } else if (rating === 'Hard') {
+    newEF = Math.max(1.3, ef - 0.15)
+    newInterval = Math.max(1, Math.ceil(interval * 1.2))
+  } else if (rating === 'Good') {
+    if (interval === 0) newInterval = 1
+    else if (interval === 1) newInterval = 6
+    else newInterval = Math.round(interval * ef)
+    // EF unchanged
+  } else {
+    // Easy
+    newEF = ef + 0.15
+    if (interval === 0) newInterval = 4
+    else if (interval === 1) newInterval = 6
+    else newInterval = Math.round(interval * ef * 1.3)
+  }
+
+  const newState: 'in_progress' | 'review' = newInterval >= 2 ? 'review' : 'in_progress'
+
+  const due = new Date()
+  due.setDate(due.getDate() + newInterval)
+  const dueDate = due.toISOString().split('T')[0]
+
+  return { newInterval, newEF, newState, dueDate }
+}
+
+export async function rateCard(cardId: string, rating: Rating) {
+  const { supabase, user } = await getAuthUser()
+
+  const { data: existing } = await supabase
+    .from('card_progress')
+    .select('interval, easiness_factor')
+    .eq('card_id', cardId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const { newInterval, newEF, newState, dueDate } = computeSM2(
+    existing?.interval ?? 0,
+    existing?.easiness_factor ?? 2.5,
+    rating
+  )
+
+  await supabase.from('card_progress').upsert(
+    {
+      user_id: user.id,
+      card_id: cardId,
+      state: newState,
+      interval: newInterval,
+      easiness_factor: newEF,
+      due_date: dueDate,
+      last_reviewed_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,card_id' }
+  )
+}
+
+export async function completeStudySession(
+  deckId: string,
+  stats: { cards_studied: number; again: number; hard: number; good: number; easy: number }
+) {
+  const { supabase, user } = await getAuthUser()
+  const now = new Date()
+  const today = now.toISOString().split('T')[0]
+
+  await supabase.from('study_sessions').insert({
+    user_id: user.id,
+    deck_id: deckId,
+    started_at: now.toISOString(),
+    ended_at: now.toISOString(),
+    cards_studied: stats.cards_studied,
+    cards_again: stats.again,
+    cards_hard: stats.hard,
+    cards_good: stats.good,
+    cards_easy: stats.easy,
+  })
+
+  // Increment today's activity count
+  const { data: existing } = await supabase
+    .from('activity_log')
+    .select('cards_studied_count')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .maybeSingle()
+
+  await supabase.from('activity_log').upsert(
+    {
+      user_id: user.id,
+      date: today,
+      cards_studied_count: (existing?.cards_studied_count ?? 0) + stats.cards_studied,
+    },
+    { onConflict: 'user_id,date' }
+  )
+
+  revalidatePath('/flashcards')
+}
+
 export async function reorderCards(deckId: string, orderedCardIds: string[]) {
   const { supabase } = await getAuthUser()
 

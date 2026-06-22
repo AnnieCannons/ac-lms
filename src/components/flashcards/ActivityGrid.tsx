@@ -105,19 +105,24 @@ export default function ActivityGrid({ activityLog }: { activityLog: ActivityEnt
               <div key={wi} className="flex flex-col gap-1 shrink-0">
                 {week.map((day, di) =>
                   day ? (
-                    <div
-                      key={day.date}
-                      className={`w-3 h-3 rounded-sm ${getIntensity(day.count, day.future)}`}
-                      title={day.future ? day.date : day.count > 0 ? `${day.date}: ${day.count} cards` : day.date}
-                      role="img"
-                      aria-label={
-                        day.future
-                          ? `${day.date}: future`
-                          : day.count > 0
-                          ? `${day.date}: ${day.count} cards studied`
-                          : `${day.date}: no cards studied`
-                      }
-                    />
+                    <div key={day.date} className="relative group/day">
+                      <div
+                        className={`w-3 h-3 rounded-sm ${getIntensity(day.count, day.future)}`}
+                        role="img"
+                        aria-label={
+                          day.future
+                            ? `${day.date}: future`
+                            : day.count > 0
+                            ? `${day.date}: ${day.count} cards studied`
+                            : `${day.date}: no cards studied`
+                        }
+                      />
+                      {!day.future && (
+                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover/day:opacity-100 transition-opacity">
+                          {day.count > 0 ? `${day.date} · ${day.count} cards` : day.date}
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <div key={`pad-${wi}-${di}`} className="w-3 h-3" />
                   )

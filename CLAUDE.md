@@ -158,8 +158,14 @@ Work through these sections in order. Check off each one when complete before mo
 - [x] 4. Study session — flip cards, rate them, SM-2 algorithm
 - [x] 5. Sharing & importing — share link generation, import a deck
 - [x] 6. Activity grid — GitHub-style grid built on My Decks page
-- [ ] 7. Database migrations — create all flashcard tables in Supabase
-- [ ] 8. Swap fake data for real Supabase queries throughout
+- [x] 7. Database migrations — create all flashcard tables in Supabase
+- [x] 8. Swap fake data for real Supabase queries throughout
+  - Chunk 1: Auth + My Decks page (decks with due counts, activity grid)
+  - Chunk 2: Deck detail + card list reads (server wrapper + client component pattern)
+  - Chunk 3: Study session reads (due cards only, filtered by due_date)
+  - Chunk 4: Share page reads + full sharing flow (enable sharing, import deck)
+  - Chunk 5: Deck/card write operations (create, edit, delete, reorder)
+  - Chunk 6: SM-2 writes (card_progress upsert, study_sessions, activity_log increment)
 - [ ] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
 - [ ] 10. Middleware — add `/flashcards` route protection
 - [ ] 11. PWA / offline support
@@ -167,8 +173,6 @@ Work through these sections in order. Check off each one when complete before mo
 - [ ] 13. Instructor view — `/flashcards/admin`; stats per student (cards studied, streaks, accuracy, deck breakdown)
 - [ ] 14. Badges — motivational award system
 - [ ] 15. Accessibility pass
-
-**Note:** Sections 1–8 use fake/seed data so we can build without being blocked on database access. The seed data should match the exact shape of the real database schema so swapping it out later is a clean find-and-replace.
 
 ---
 
