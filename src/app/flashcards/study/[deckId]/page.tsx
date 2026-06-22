@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getDeck, getCardsByDeck } from '@/lib/flashcards/queries'
+import { getDeck, getDueCardsByDeck } from '@/lib/flashcards/queries'
 import StudyPageClient from '@/components/flashcards/StudyPageClient'
 import Link from 'next/link'
 
@@ -12,7 +12,7 @@ export default async function StudyPage({ params }: { params: Promise<{ deckId: 
 
   const [deck, cards] = await Promise.all([
     getDeck(deckId, user.id),
-    getCardsByDeck(deckId),
+    getDueCardsByDeck(deckId, user.id),
   ])
 
   if (!deck || cards.length === 0) {

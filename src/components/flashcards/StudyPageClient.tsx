@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
 import RichTextEditor from '@/components/ui/RichTextEditor'
-import { updateCard } from '@/lib/flashcards/actions'
+import { updateCard, rateCard, completeStudySession } from '@/lib/flashcards/actions'
 import type { Deck, Card } from '@/lib/flashcards/seed'
 
 function sanitize(html: string) {
@@ -15,7 +15,9 @@ const RATINGS = [
   { label: 'Hard',  className: 'rating-hard border border-orange-300 text-orange-700 bg-orange-100 hover:bg-orange-200' },
   { label: 'Good',  className: 'rating-good border border-blue-300 text-blue-700 bg-blue-100 hover:bg-blue-200' },
   { label: 'Easy',  className: 'rating-easy border border-emerald-300 text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
-]
+] as const
+
+type RatingLabel = typeof RATINGS[number]['label']
 
 const PROSE = 'prose prose-sm max-w-none [&_code]:bg-border/40 [&_code]:px-1 [&_code]:rounded [&_code]:text-dark-text [&_pre]:bg-border/30 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre_code]:bg-transparent [&_pre_code]:text-dark-text [&_ul]:pl-4 [&_ol]:pl-4'
 
@@ -39,6 +41,9 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   const [typeRevealed, setTypeRevealed] = useState(false)
   const [completed, setCompleted] = useState(0)
   const [sessionDone, setSessionDone] = useState(false)
+
+  // useRef so handleRate always reads the latest counts without stale closures
+  const sessionStats = useRef({ Again: 0, Hard: 0, Good: 0, Easy: 0 })
 
   const card = queue[0]
   const front = card?.front_content ?? ''
@@ -71,21 +76,39 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     setIsEditing(false)
   }
 
-  const handleRate = (rating: string) => {
+  const handleRate = (rating: RatingLabel) => {
     const [current, ...rest] = queue
+
+    // Track rating count (ref = no stale closure)
+    sessionStats.current[rating]++
+
+    // Save card progress in background — UI doesn't wait
+    rateCard(current.id, rating).catch(err => console.error('Failed to save progress:', err))
+
     if (rating === 'Again') {
       setQueue([...rest, current])
-    } else {
-      const newCompleted = completed + 1
-      setCompleted(newCompleted)
-      if (rest.length === 0) {
-        setSessionDone(true)
-        return
-      }
-      setQueue(rest)
+      resetToFront()
+      return
     }
+
+    const newCompleted = completed + 1
+    setCompleted(newCompleted)
+
+    if (rest.length === 0) {
+      const { Again, Hard, Good, Easy } = sessionStats.current
+      completeStudySession(deck.id, {
+        cards_studied: Again + Hard + Good + Easy,
+        again: Again,
+        hard: Hard,
+        good: Good,
+        easy: Easy,
+      }).catch(err => console.error('Failed to save session:', err))
+      setSessionDone(true)
+      return
+    }
+
+    setQueue(rest)
     resetToFront()
-    // TODO Chunk 6: save card_progress with SM-2 algorithm
   }
 
   const handleTypeSubmit = (e: React.FormEvent) => {
@@ -95,7 +118,6 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
 
   const handleEditSave = async () => {
     if (!card) return
-    // Update card content in the queue immediately
     setQueue(prev => prev.map(c =>
       c.id === card.id ? { ...c, front_content: editFront, back_content: editBack } : c
     ))

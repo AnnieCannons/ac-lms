@@ -25,13 +25,14 @@ export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts
   const { data: progress } = allCardIds.length
     ? await supabase
         .from('card_progress')
-        .select('card_id, state')
+        .select('card_id, state, due_date')
         .eq('user_id', userId)
         .in('card_id', allCardIds)
     : { data: [] }
 
   const allProgress = progress ?? []
   const progressByCardId = new Map(allProgress.map((p) => [p.card_id, p]))
+  const today = new Date().toISOString().split('T')[0]
 
   return decks.map((deck) => {
     const deckCards = allCards.filter((c) => c.deck_id === deck.id)
@@ -42,13 +43,14 @@ export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts
 
     for (const card of deckCards) {
       const prog = progressByCardId.get(card.id)
-      if (!prog || prog.state === 'new') {
-        newCount++
-      } else if (prog.state === 'in_progress') {
-        inProgressCount++
-      } else if (prog.state === 'review') {
-        reviewCount++
+      if (!prog) {
+        newCount++ // no progress row = never studied, always due
+      } else if (prog.due_date <= today) {
+        if (prog.state === 'in_progress') inProgressCount++
+        else if (prog.state === 'review') reviewCount++
+        // state='new' with a row shouldn't occur but treated as new above
       }
+      // due_date > today → not due, skip
     }
 
     return {
@@ -70,6 +72,34 @@ export async function getDeck(deckId: string, userId: string) {
     .eq('owner_user_id', userId)
     .single()
   return data ?? null
+}
+
+export async function getDueCardsByDeck(deckId: string, userId: string) {
+  const supabase = await createServerSupabaseClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: cards } = await supabase
+    .from('cards')
+    .select('*')
+    .eq('deck_id', deckId)
+    .order('order', { ascending: true })
+
+  if (!cards?.length) return []
+
+  const cardIds = cards.map((c) => c.id)
+
+  const { data: progress } = await supabase
+    .from('card_progress')
+    .select('card_id, due_date')
+    .eq('user_id', userId)
+    .in('card_id', cardIds)
+
+  const dueByCardId = new Map((progress ?? []).map((p) => [p.card_id, p.due_date]))
+
+  return cards.filter((card) => {
+    const dueDate = dueByCardId.get(card.id)
+    return !dueDate || dueDate <= today // no progress = new = due; or due_date is today/past
+  })
 }
 
 export async function getCardsByDeck(deckId: string) {

@@ -54,7 +54,7 @@ export default function DeckCard({ deck }: { deck: DeckWithCounts }) {
           </>
         )}
         {!hasDue && (
-          <span className="text-muted-text">All caught up</span>
+          <span className="text-emerald-600 font-medium">All caught up ✓</span>
         )}
       </div>
 
