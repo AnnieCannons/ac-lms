@@ -152,20 +152,21 @@ SUPABASE_SERVICE_ROLE_KEY   # Required for cross-user/admin queries
 
 Work through these sections in order. Check off each one when complete before moving to the next.
 
-- [ ] 1. Flashcard home page — `/flashcards`, deck grid + activity grid placeholder
-- [ ] 2. Deck management — create, edit (title, description, tags), and delete a deck
-- [ ] 3. Card management — add, edit, delete, and reorder cards within a deck; card editor with rich text editor and card type selection
-- [ ] 4. Study session — flip cards, rate them, SM-2 algorithm
-- [ ] 5. Sharing & importing — share link generation, import a deck
-- [ ] 6. Stats & activity grid — GitHub-style grid, stats page
-- [ ] 7. Badges — award system
-- [ ] 8. Help page & tooltips
-- [ ] 9. Database migrations — create all flashcard tables in Supabase
-- [ ] 10. Swap fake data for real Supabase queries throughout
-- [ ] 11. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
-- [ ] 12. Middleware — add `/flashcards` route protection
-- [ ] 13. PWA / offline support
-- [ ] 14. Accessibility pass
+- [x] 1. Flashcard home page — `/flashcards`, deck grid + activity grid
+- [x] 2. Deck management — create, edit (title, description, tags), and delete a deck
+- [x] 3. Card management — add, edit, delete, and reorder cards within a deck; card editor with rich text editor and card type selection
+- [x] 4. Study session — flip cards, rate them, SM-2 algorithm
+- [x] 5. Sharing & importing — share link generation, import a deck
+- [x] 6. Activity grid — GitHub-style grid built on My Decks page
+- [ ] 7. Database migrations — create all flashcard tables in Supabase
+- [ ] 8. Swap fake data for real Supabase queries throughout
+- [ ] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
+- [ ] 10. Middleware — add `/flashcards` route protection
+- [ ] 11. PWA / offline support
+- [ ] 12. Help page & tooltips
+- [ ] 13. Instructor view — `/flashcards/admin`; stats per student (cards studied, streaks, accuracy, deck breakdown)
+- [ ] 14. Badges — motivational award system
+- [ ] 15. Accessibility pass
 
 **Note:** Sections 1–8 use fake/seed data so we can build without being blocked on database access. The seed data should match the exact shape of the real database schema so swapping it out later is a clean find-and-replace.
 
