@@ -1,4 +1,4 @@
-import { SEED_ACTIVITY_LOG } from '@/lib/flashcards/seed'
+import type { ActivityEntry } from '@/lib/flashcards/queries'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -14,12 +14,12 @@ function getIntensity(count: number, future: boolean): string {
 
 type Day = { date: string; count: number; future: boolean }
 
-export default function ActivityGrid() {
+export default function ActivityGrid({ activityLog }: { activityLog: ActivityEntry[] }) {
   const activityMap = new Map(
-    SEED_ACTIVITY_LOG.map(entry => [entry.date, entry.cards_studied_count])
+    activityLog.map(entry => [entry.date, entry.cards_studied_count])
   )
 
-  const today = new Date('2026-06-05')
+  const today = new Date()
   const year = today.getFullYear()
   const startDate = new Date(year, 0, 1)  // Jan 1
   const endDate = new Date(year, 11, 31)  // Dec 31
@@ -63,7 +63,7 @@ export default function ActivityGrid() {
     }
   })
 
-  const totalStudied = SEED_ACTIVITY_LOG.reduce((sum, e) => sum + e.cards_studied_count, 0)
+  const totalStudied = activityLog.reduce((sum, e) => sum + e.cards_studied_count, 0)
   const shownDays = [1, 3, 5] // Mon, Wed, Fri
 
   return (

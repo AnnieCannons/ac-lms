@@ -1,35 +1,15 @@
-'use client'
-import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
-import CardForm from '@/components/flashcards/CardForm'
-import { SEED_DECKS } from '@/lib/flashcards/seed'
-import type { CardType } from '@/lib/flashcards/seed'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { getDeck } from '@/lib/flashcards/queries'
+import NewCardClient from '@/components/flashcards/NewCardClient'
 
-export default function NewCardPage() {
-  const router = useRouter()
-  const params = useParams()
-  const deckId = params.id as string
-  const deck = SEED_DECKS.find(d => d.id === deckId)
+export default async function NewCardPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: deckId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const handleSave = ({ card_type, front_content, back_content }: { card_type: CardType; front_content: string; back_content: string }) => {
-    // In production this will be a Supabase insert
-    console.log('Create card (seed phase):', { deck_id: deckId, card_type, front_content, back_content })
-    router.push(`/flashcards/decks/${deckId}`)
-  }
+  const deck = await getDeck(deckId, user.id)
 
-  return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <div className="mb-8">
-        <Link
-          href={`/flashcards/decks/${deckId}`}
-          className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4"
-        >
-          ← Back to {deck?.title ?? 'Cards'}
-        </Link>
-        <h1 className="text-2xl font-bold text-dark-text">New Card</h1>
-      </div>
-
-      <CardForm mode="create" deckId={deckId} onSave={handleSave} />
-    </div>
-  )
+  return <NewCardClient deckId={deckId} deckTitle={deck?.title ?? null} />
 }

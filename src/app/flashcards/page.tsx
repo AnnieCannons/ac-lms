@@ -1,13 +1,25 @@
-import { getAllDecksWithCounts } from '@/lib/flashcards/seed'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { getDecksWithCounts, getActivityLog } from '@/lib/flashcards/queries'
 import DeckCard from '@/components/flashcards/DeckCard'
 import ActivityGrid from '@/components/flashcards/ActivityGrid'
 import Link from 'next/link'
 import MyDecksHeader from '@/components/flashcards/MyDecksHeader'
 
-export default function FlashcardsPage() {
-  const decks = getAllDecksWithCounts()
-  // Seed phase: all cards treated as due. Replace with real query in Section 10.
-  const cardsDueToday = decks.reduce((sum, d) => sum + d.card_count, 0)
+export default async function FlashcardsPage() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const [decks, activityLog] = await Promise.all([
+    getDecksWithCounts(user.id),
+    getActivityLog(user.id),
+  ])
+
+  const cardsDueToday = decks.reduce(
+    (sum, d) => sum + d.new_count + d.in_progress_count + d.review_count,
+    0
+  )
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -32,7 +44,7 @@ export default function FlashcardsPage() {
         </Link>
       </div>
 
-      <ActivityGrid />
+      <ActivityGrid activityLog={activityLog} />
 
     </div>
   )

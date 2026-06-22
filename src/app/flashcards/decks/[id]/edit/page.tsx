@@ -4,37 +4,28 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import DeckForm from '@/components/flashcards/DeckForm'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
-import { SEED_DECKS } from '@/lib/flashcards/seed'
+
+// This page receives initial deck data via searchParams-style props in production.
+// For now it fetches via the parent server component pattern — see DeckPage.
+// Deck data is passed from the server wrapper once Chunk 5 write ops are wired up.
+// Until then, it renders with empty initial values (deck must be navigated to from the list).
 
 export default function EditDeckPage() {
   const router = useRouter()
   const params = useParams()
   const deckId = params.id as string
 
-  const deck = SEED_DECKS.find(d => d.id === deckId)
-
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const handleSave = ({ title, description, tags }: { title: string; description: string; tags: string[] }) => {
-    // In production this will be a Supabase update
-    console.log('Update deck (seed phase):', { id: deckId, title, description, tags })
+    // TODO Chunk 5: Supabase update
+    console.log('Update deck:', { id: deckId, title, description, tags })
   }
 
   const handleDelete = () => {
-    // In production this will be a Supabase delete
-    console.log('Delete deck (seed phase):', deckId)
+    // TODO Chunk 5: Supabase delete
+    console.log('Delete deck:', deckId)
     router.push('/flashcards')
-  }
-
-  if (!deck) {
-    return (
-      <div className="max-w-xl mx-auto px-6 py-8">
-        <Link href="/flashcards" className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4">
-          ← Back to My Decks
-        </Link>
-        <p className="text-muted-text text-sm">Deck not found.</p>
-      </div>
-    )
   }
 
   return (
@@ -52,13 +43,12 @@ export default function EditDeckPage() {
       <DeckForm
         mode="edit"
         deckId={deckId}
-        initialTitle={deck.title}
-        initialDescription={deck.description}
-        initialTags={deck.tags}
+        initialTitle=""
+        initialDescription=""
+        initialTags={[]}
         onSave={handleSave}
       />
 
-      {/* Danger Zone */}
       <div className="mt-8 rounded-lg border border-border bg-surface px-3 py-4 flex flex-col gap-3">
         <span className="text-sm font-medium text-red-600">Danger Zone</span>
         <div className="flex items-center justify-between gap-4">
@@ -76,7 +66,7 @@ export default function EditDeckPage() {
 
       {showDeleteModal && (
         <DeleteDeckModal
-          deckTitle={deck.title}
+          deckTitle="this deck"
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteModal(false)}
         />
