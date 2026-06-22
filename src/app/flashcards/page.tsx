@@ -5,7 +5,8 @@ import Link from 'next/link'
 
 export default function FlashcardsPage() {
   const decks = getAllDecksWithCounts()
-  const totalCards = decks.reduce((sum, d) => sum + d.card_count, 0)
+  // Seed phase: all cards treated as due. Replace with real query in Section 10.
+  const cardsDueToday = decks.reduce((sum, d) => sum + d.card_count, 0)
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -14,7 +15,7 @@ export default function FlashcardsPage() {
         <div>
           <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
           <p className="text-sm text-muted-text mt-1">
-            {decks.length} {decks.length === 1 ? 'deck' : 'decks'} · {totalCards} cards total
+            {decks.length} {decks.length === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} due today
           </p>
         </div>
         <Link
