@@ -166,9 +166,9 @@ Work through these sections in order. Check off each one when complete before mo
   - Chunk 4: Share page reads + full sharing flow (enable sharing, import deck)
   - Chunk 5: Deck/card write operations (create, edit, delete, reorder)
   - Chunk 6: SM-2 writes (card_progress upsert, study_sessions, activity_log increment)
-- [ ] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
-- [ ] 10. Middleware — add `/flashcards` route protection
-- [ ] 11. PWA / offline support
+- [x] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
+- [x] 10. Middleware — add `/flashcards` route protection
+- [x] 11. PWA / offline support — removed from scope; not needed for classroom use
 - [ ] 12. Help page & tooltips
 - [ ] 13. Instructor view — `/flashcards/admin`; stats per student (cards studied, streaks, accuracy, deck breakdown)
 - [ ] 14. Badges — motivational award system

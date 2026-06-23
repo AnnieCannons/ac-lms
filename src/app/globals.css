@@ -159,6 +159,23 @@ html.theme-dark .flashcard-content .tiptap blockquote {
   border-left-color: var(--color-teal-primary);
 }
 
+.flashcard-content ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.flashcard-content ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.flashcard-content ::-webkit-scrollbar-thumb {
+  background-color: var(--color-teal-primary);
+  border-radius: 999px;
+  opacity: 0.6;
+}
+.flashcard-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-teal-primary) transparent;
+}
+
 /* Tiptap editor area — explicit background so it never shows white in any theme */
 .ProseMirror {
   background-color: var(--color-background);

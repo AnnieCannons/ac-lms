@@ -35,7 +35,7 @@ export default function DeckCard({ deck }: { deck: DeckWithCounts }) {
         )}
       </div>
 
-      <p className="text-xs text-muted-text">{deck.card_count} cards</p>
+      <p className="text-xs text-muted-text">{deck.card_count} {deck.card_count === 1 ? 'card' : 'cards'}</p>
 
       <div className="flex gap-2 text-xs flex-wrap">
         {deck.new_count > 0 && (
