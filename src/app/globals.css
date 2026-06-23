@@ -154,6 +154,11 @@ html.theme-dark .flashcard-content .progress-track {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
+html.theme-dark .flashcard-content .tiptap blockquote {
+  color: var(--color-dark-text);
+  border-left-color: var(--color-teal-primary);
+}
+
 /* Tiptap editor area — explicit background so it never shows white in any theme */
 .ProseMirror {
   background-color: var(--color-background);
