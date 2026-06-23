@@ -25,6 +25,13 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Protect flashcard routes
+  if (request.nextUrl.pathname.startsWith('/flashcards')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
   // Protect instructor-only routes
   if (request.nextUrl.pathname.startsWith('/instructor')) {
     if (!user) {
