@@ -67,18 +67,18 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
               {TYPE_LABELS[card.card_type] ?? card.card_type}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
             <div>
               <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Front</p>
               <div
-                className="text-xs text-dark-text max-h-16 overflow-hidden prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0"
+                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
                 dangerouslySetInnerHTML={{ __html: frontPreview || '<span class="text-muted-text">(empty)</span>' }}
               />
             </div>
             <div>
               <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Back</p>
               <div
-                className="text-xs text-dark-text max-h-16 overflow-hidden prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0"
+                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
                 dangerouslySetInnerHTML={{ __html: backPreview || '<span class="text-muted-text">(empty)</span>' }}
               />
             </div>

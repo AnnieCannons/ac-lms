@@ -13,14 +13,14 @@ export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
           <p className="text-sm text-muted-text mt-1">
             {deckCount} {deckCount === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} due today
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button
             onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 border border-border text-muted-text text-sm font-medium px-4 py-2 rounded-lg hover:text-teal-primary hover:border-teal-primary transition-colors"
