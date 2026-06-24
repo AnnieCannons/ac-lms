@@ -42,8 +42,10 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   const [completed, setCompleted] = useState(0)
   const [sessionDone, setSessionDone] = useState(false)
 
+
   // useRef so handleRate always reads the latest counts without stale closures
   const sessionStats = useRef({ Again: 0, Hard: 0, Good: 0, Easy: 0 })
+
 
   const card = queue[0]
   const front = card?.front_content ?? ''
@@ -84,12 +86,6 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
 
     // Save card progress in background — UI doesn't wait
     rateCard(current.id, rating).catch(err => console.error('Failed to save progress:', err))
-
-    if (rating === 'Again') {
-      setQueue([...rest, current])
-      resetToFront()
-      return
-    }
 
     const newCompleted = completed + 1
     setCompleted(newCompleted)
