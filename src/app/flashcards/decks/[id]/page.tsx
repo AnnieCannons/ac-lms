@@ -84,15 +84,24 @@ export default async function DeckPage({
   let pendingDiff: PendingDiff | null = null
 
   if (notificationId) {
-    const { data: notification } = await supabase
+    // Find the most recent deck_updated notification for this deck
+    const { data: latestNotif } = await supabase
       .from('notifications')
-      .select('read')
-      .eq('id', notificationId)
+      .select('id')
       .eq('user_id', user.id)
+      .eq('type', 'deck_updated')
+      .eq('deck_id', deckId)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single()
 
+    if (latestNotif && latestNotif.id !== notificationId) {
+      // Clicked an older notification — redirect to the latest
+      redirect(`/flashcards/decks/${deckId}?notification=${latestNotif.id}`)
+    }
+
     const serviceClient = createServiceSupabaseClient()
-    const { data: snapshots } = !notification || notification.read ? { data: null } : await serviceClient
+    const { data: snapshots } = await serviceClient
       .from('deck_update_snapshots')
       .select('source_card_id, front_content, back_content, card_type')
       .eq('notification_id', notificationId)
@@ -104,6 +113,9 @@ export default async function DeckPage({
         deck.created_at,
       )
       pendingDiff = { notificationId, entries }
+    } else {
+      // Notification exists but no snapshots (or latest with everything already applied)
+      pendingDiff = { notificationId, entries: [] }
     }
   }
 
