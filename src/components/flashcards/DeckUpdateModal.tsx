@@ -59,7 +59,7 @@ export default function DeckUpdateModal({ diff, onClose, onApply, applying }: Pr
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
         <div className="bg-surface rounded-2xl shadow-xl max-w-sm w-full p-6 flex flex-col gap-4">
-          <h2 className="text-base font-semibold text-dark-text">No changes to apply</h2>
+          <h2 className="text-base font-semibold text-dark-text">You're all caught up</h2>
           <p className="text-sm text-muted-text">Your copy is already up to date with the latest shared version.</p>
           <div className="flex justify-end">
             <button onClick={onClose} className="text-sm text-teal-primary hover:underline">Close</button>
