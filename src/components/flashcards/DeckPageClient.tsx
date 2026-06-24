@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -19,8 +19,10 @@ import {
 } from '@dnd-kit/sortable'
 import CardItem from '@/components/flashcards/CardItem'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
-import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates } from '@/lib/flashcards/actions'
+import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
+import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
 import type { Deck, Card } from '@/lib/flashcards/seed'
+import type { PendingDiff, DiffSelection } from '@/app/flashcards/decks/[id]/page'
 
 const PREDEFINED_TAGS = [
   'HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Node.js',
@@ -33,11 +35,13 @@ type Props = {
   deck: Deck
   initialCards: Card[]
   userId: string
+  pendingDiff: PendingDiff | null
 }
 
-export default function DeckPageClient({ deckId, deck, initialCards, userId }: Props) {
+export default function DeckPageClient({ deckId, deck, initialCards, userId, pendingDiff }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<Card[]>(initialCards)
+  useEffect(() => { setCards(initialCards) }, [initialCards])
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(deck.title)
   const [description, setDescription] = useState(deck.description ?? '')
@@ -47,6 +51,8 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId }: P
   const [showShareConfirm, setShowShareConfirm] = useState(false)
   const [shareUpdatesSending, setShareUpdatesSending] = useState(false)
   const [shareUpdatesDone, setShareUpdatesDone] = useState(false)
+  const [showDiffModal, setShowDiffModal] = useState(!!pendingDiff)
+  const [applyingDiff, setApplyingDiff] = useState(false)
 
   const isOwner = deck.owner_user_id === userId
   const canShareUpdates = isOwner && deck.is_shared
@@ -281,6 +287,26 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId }: P
           deckTitle={deck.title}
           onConfirm={handleDeleteDeck}
           onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+
+      {showDiffModal && pendingDiff && (
+        <DeckUpdateModal
+          diff={pendingDiff}
+          onClose={() => setShowDiffModal(false)}
+          onApply={async (selections: DiffSelection) => {
+            setApplyingDiff(true)
+            try {
+              await applyDeckUpdates(pendingDiff.notificationId, deckId, selections)
+              router.refresh()
+            } catch (err) {
+              console.error('Failed to apply deck updates:', err)
+            } finally {
+              setApplyingDiff(false)
+              setShowDiffModal(false)
+            }
+          }}
+          applying={applyingDiff}
         />
       )}
 

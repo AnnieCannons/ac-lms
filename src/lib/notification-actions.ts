@@ -8,6 +8,7 @@ export type Notification = {
   course_id: string | null
   assignment_id: string | null
   extension_request_id: string | null
+  deck_id: string | null
   message: string
   read: boolean
   created_at: string
@@ -21,7 +22,7 @@ export async function getMyNotifications(): Promise<Notification[]> {
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('notifications')
-    .select('id, type, course_id, assignment_id, extension_request_id, message, read, created_at')
+    .select('id, type, course_id, assignment_id, extension_request_id, deck_id, message, read, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(30)
@@ -61,7 +62,7 @@ export async function getInstructorNotifications(courseId: string): Promise<Noti
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('notifications')
-    .select('id, type, course_id, assignment_id, extension_request_id, message, read, created_at')
+    .select('id, type, course_id, assignment_id, extension_request_id, deck_id, message, read, created_at')
     .eq('user_id', user.id)
     .eq('course_id', courseId)
     .order('created_at', { ascending: false })

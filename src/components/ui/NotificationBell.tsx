@@ -28,6 +28,9 @@ function relativeTime(dateStr: string): string {
 }
 
 function notificationHref(n: Notification): string | null {
+  if (n.type === 'deck_updated' && n.deck_id) {
+    return `/flashcards/decks/${n.deck_id}?notification=${n.id}`
+  }
   if (n.course_id && n.assignment_id) {
     return `/student/courses/${n.course_id}/assignments/${n.assignment_id}`
   }
@@ -45,10 +48,15 @@ export default function NotificationBell() {
   const router = useRouter()
 
   useEffect(() => {
-    getMyNotifications().then(data => {
-      setNotifications(data)
-      setLoaded(true)
-    })
+    function fetchNotifications() {
+      getMyNotifications().then(data => {
+        setNotifications(data)
+        setLoaded(true)
+      })
+    }
+    fetchNotifications()
+    window.addEventListener('focus', fetchNotifications)
+    return () => window.removeEventListener('focus', fetchNotifications)
   }, [])
 
   useEffect(() => {
