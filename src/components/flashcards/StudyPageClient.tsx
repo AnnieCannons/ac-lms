@@ -51,7 +51,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   const isTypeIn = card?.card_type === 'type_in'
 
   const doFlip = async () => {
-    if (isAnimating || isEditing) return
+    if (isAnimating || isEditing || isTypeIn) return
     setIsAnimating(true)
     setRotateY(90)
     await new Promise(r => setTimeout(r, 220))
