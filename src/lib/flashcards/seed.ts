@@ -45,6 +45,8 @@ export type Card = {
   occlusion_zones: null
   order: number
   created_at: string
+  updated_at: string
+  source_card_id: string | null
 }
 
 export type CardProgress = {

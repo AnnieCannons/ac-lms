@@ -385,6 +385,97 @@ export async function completeStudySession(
   revalidatePath('/flashcards')
 }
 
+export async function applyDeckUpdates(
+  notificationId: string,
+  deckId: string,
+  selections: Record<string, boolean | 'apply' | 'mine' | 'skip'>
+) {
+  const { supabase, user } = await getAuthUser()
+
+  // Verify the importer owns this deck
+  const { data: deck } = await supabase
+    .from('decks')
+    .select('id')
+    .eq('id', deckId)
+    .eq('owner_user_id', user.id)
+    .single()
+
+  if (!deck) throw new Error('Deck not found')
+
+  // Re-fetch snapshots from DB (don't trust client-side content)
+  const serviceClient = createServiceSupabaseClient()
+  const { data: snapshots } = await serviceClient
+    .from('deck_update_snapshots')
+    .select('source_card_id, front_content, back_content, card_type')
+    .eq('notification_id', notificationId)
+
+  if (!snapshots) throw new Error('Snapshots not found')
+
+  // Fetch importer's cards to find which ones link to which source_card_id
+  const { data: importerCards } = await supabase
+    .from('cards')
+    .select('id, source_card_id, order')
+    .eq('deck_id', deckId)
+
+  const importerBySourceId = new Map(
+    (importerCards ?? [])
+      .filter(c => c.source_card_id)
+      .map(c => [c.source_card_id as string, c])
+  )
+
+  // Get max order for appending new cards
+  const maxOrder = Math.max(0, ...(importerCards ?? []).map(c => c.order ?? 0))
+  let nextOrder = maxOrder + 1
+
+  const newCardInserts: object[] = []
+
+  for (const snapshot of snapshots) {
+    const sel = selections[snapshot.source_card_id]
+    const importerCard = importerBySourceId.get(snapshot.source_card_id)
+
+    if (!importerCard) {
+      // New card — add if selected
+      if (sel === true) {
+        newCardInserts.push({
+          deck_id: deckId,
+          card_type: snapshot.card_type,
+          front_content: snapshot.front_content,
+          back_content: snapshot.back_content,
+          source_card_id: snapshot.source_card_id,
+          order: nextOrder++,
+        })
+      }
+    } else {
+      // Modified or conflict — apply if selected
+      if (sel === true || sel === 'apply') {
+        await supabase
+          .from('cards')
+          .update({
+            front_content: snapshot.front_content,
+            back_content: snapshot.back_content,
+            card_type: snapshot.card_type,
+          })
+          .eq('id', importerCard.id)
+      }
+      // 'mine' and 'skip' are no-ops
+    }
+  }
+
+  if (newCardInserts.length > 0) {
+    await supabase.from('cards').insert(newCardInserts)
+  }
+
+  // Mark notification as read
+  await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', notificationId)
+    .eq('user_id', user.id)
+
+  revalidatePath(`/flashcards/decks/${deckId}`)
+  revalidatePath('/flashcards')
+}
+
 export async function reorderCards(deckId: string, orderedCardIds: string[]) {
   const { supabase } = await getAuthUser()
 
