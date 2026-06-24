@@ -1,5 +1,5 @@
 'use server'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
@@ -142,6 +142,68 @@ export async function enableSharing(deckId: string): Promise<string> {
   if (error) throw new Error(error.message)
   revalidatePath('/flashcards')
   return token
+}
+
+export async function pushDeckUpdates(deckId: string) {
+  const { supabase, user } = await getAuthUser()
+
+  // Verify ownership and that deck is shared
+  const { data: deck } = await supabase
+    .from('decks')
+    .select('id, title, is_shared')
+    .eq('id', deckId)
+    .eq('owner_user_id', user.id)
+    .single()
+
+  if (!deck?.is_shared) throw new Error('Deck not found or not shared')
+
+  // Get current cards to snapshot
+  const { data: cards } = await supabase
+    .from('cards')
+    .select('id, front_content, back_content, card_type')
+    .eq('deck_id', deckId)
+
+  if (!cards || cards.length === 0) return
+
+  // Use service role for all cross-user queries (RLS restricts the regular client to own rows)
+  const serviceClient = createServiceSupabaseClient()
+
+  // Find all decks imported from this one (excluding owner's own)
+  const { data: importedDecks } = await serviceClient
+    .from('decks')
+    .select('id, owner_user_id')
+    .eq('original_deck_id', deckId)
+    .neq('owner_user_id', user.id)
+
+  if (!importedDecks || importedDecks.length === 0) return
+
+  // Insert one notification per importer with a linked snapshot
+  for (const imported of importedDecks) {
+    const { data: notification, error } = await serviceClient
+      .from('notifications')
+      .insert({
+        user_id: imported.owner_user_id,
+        type: 'deck_updated',
+        deck_id: imported.id,
+        message: `The deck "${deck.title}" was updated by its creator.`,
+        read: false,
+      })
+      .select('id')
+      .single()
+
+    if (error || !notification) continue
+
+    // Snapshot each card so the diff reflects what was pushed, not later edits
+    await serviceClient.from('deck_update_snapshots').insert(
+      cards.map(c => ({
+        notification_id: notification.id,
+        source_card_id: c.id,
+        front_content: c.front_content ?? '',
+        back_content: c.back_content ?? '',
+        card_type: c.card_type,
+      }))
+    )
+  }
 }
 
 export async function importDeck(sourceDeckId: string) {

@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable'
 import CardItem from '@/components/flashcards/CardItem'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
-import { updateDeck, deleteDeck, deleteCard, reorderCards } from '@/lib/flashcards/actions'
+import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates } from '@/lib/flashcards/actions'
 import type { Deck, Card } from '@/lib/flashcards/seed'
 
 const PREDEFINED_TAGS = [
@@ -32,9 +32,10 @@ type Props = {
   deckId: string
   deck: Deck
   initialCards: Card[]
+  userId: string
 }
 
-export default function DeckPageClient({ deckId, deck, initialCards }: Props) {
+export default function DeckPageClient({ deckId, deck, initialCards, userId }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<Card[]>(initialCards)
   const [isEditing, setIsEditing] = useState(false)
@@ -43,6 +44,12 @@ export default function DeckPageClient({ deckId, deck, initialCards }: Props) {
   const [tags, setTags] = useState<string[]>(deck.tags)
   const [saved, setSaved] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showShareConfirm, setShowShareConfirm] = useState(false)
+  const [shareUpdatesSending, setShareUpdatesSending] = useState(false)
+  const [shareUpdatesDone, setShareUpdatesDone] = useState(false)
+
+  const isOwner = deck.owner_user_id === userId
+  const canShareUpdates = isOwner && deck.is_shared
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -231,7 +238,30 @@ export default function DeckPageClient({ deckId, deck, initialCards }: Props) {
         </DndContext>
       )}
 
-      <div className="mt-10 rounded-lg border border-border bg-surface px-3 py-4 flex flex-col gap-3">
+      {canShareUpdates && (
+        <div className="mt-6 rounded-lg border border-border bg-surface px-4 py-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <p className="text-sm font-medium text-dark-text">Share your changes</p>
+              <p className="text-xs text-muted-text mt-0.5">
+                Let people who imported this deck know about your updates.
+              </p>
+            </div>
+            {shareUpdatesDone ? (
+              <span className="self-start shrink-0 text-sm text-emerald-600 font-medium">Shared ✓</span>
+            ) : (
+              <button
+                onClick={() => setShowShareConfirm(true)}
+                className="self-start shrink-0 text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors"
+              >
+                Share updates
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 rounded-lg border border-border bg-surface px-3 py-4 flex flex-col gap-3">
         <span className="text-sm font-medium text-red-600">Danger Zone</span>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <p className="text-xs text-muted-text">
@@ -252,6 +282,44 @@ export default function DeckPageClient({ deckId, deck, initialCards }: Props) {
           onConfirm={handleDeleteDeck}
           onCancel={() => setShowDeleteModal(false)}
         />
+      )}
+
+      {showShareConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="bg-surface rounded-2xl shadow-xl max-w-sm w-full p-6 flex flex-col gap-4">
+            <h2 className="text-base font-semibold text-dark-text">Share your changes?</h2>
+            <p className="text-sm text-muted-text">
+              Everyone who has imported <strong className="text-dark-text">"{deck.title}"</strong> will get a notification and can choose which updates to apply to their copy.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowShareConfirm(false)}
+                className="text-sm text-muted-text hover:text-dark-text px-4 py-2 rounded-lg transition-colors"
+                disabled={shareUpdatesSending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShareUpdatesSending(true)
+                  try {
+                    await pushDeckUpdates(deckId)
+                    setShareUpdatesDone(true)
+                  } catch (err) {
+                    console.error('Failed to share updates:', err)
+                  } finally {
+                    setShareUpdatesSending(false)
+                    setShowShareConfirm(false)
+                  }
+                }}
+                disabled={shareUpdatesSending}
+                className="text-sm font-medium bg-teal-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {shareUpdatesSending ? 'Sharing…' : 'Share updates'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
