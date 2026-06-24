@@ -52,6 +52,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
   const [shareUpdatesSending, setShareUpdatesSending] = useState(false)
   const [shareUpdatesDone, setShareUpdatesDone] = useState(false)
   const [showDiffModal, setShowDiffModal] = useState(!!pendingDiff)
+  useEffect(() => { if (pendingDiff) setShowDiffModal(true) }, [pendingDiff])
   const [applyingDiff, setApplyingDiff] = useState(false)
 
   const isOwner = deck.owner_user_id === userId
@@ -298,6 +299,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             setApplyingDiff(true)
             try {
               await applyDeckUpdates(pendingDiff.notificationId, deckId, selections)
+              router.replace(`/flashcards/decks/${deckId}`)
               router.refresh()
             } catch (err) {
               console.error('Failed to apply deck updates:', err)
