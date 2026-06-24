@@ -268,19 +268,14 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
         </div>
       )}
 
-      <div className="mt-6 rounded-lg border border-border bg-surface px-3 py-4 flex flex-col gap-3">
-        <span className="text-sm font-medium text-red-600">Danger Zone</span>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <p className="text-xs text-muted-text">
-            Deleting a deck permanently removes all its cards and progress. This cannot be undone.
-          </p>
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="self-start shrink-0 text-sm font-medium text-red-500 border border-red-400/50 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-          >
-            Delete this deck
-          </button>
-        </div>
+      <div className="mt-6 flex flex-col gap-1.5">
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="self-start text-sm font-medium text-red-500 border border-red-400/50 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+        >
+          Delete this deck
+        </button>
+        <p className="text-xs text-muted-text">Permanently removes all cards and progress. This cannot be undone.</p>
       </div>
 
       {showDeleteModal && (
