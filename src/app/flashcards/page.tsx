@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getDecksWithCounts, getActivityLog } from '@/lib/flashcards/queries'
@@ -24,7 +25,9 @@ export default async function FlashcardsPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
 
-      <MyDecksHeader deckCount={decks.length} cardsDueToday={cardsDueToday} />
+      <Suspense fallback={null}>
+        <MyDecksHeader deckCount={decks.length} cardsDueToday={cardsDueToday} />
+      </Suspense>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
         {decks.map(deck => (
