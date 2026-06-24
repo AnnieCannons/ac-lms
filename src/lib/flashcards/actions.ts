@@ -173,6 +173,7 @@ export async function importDeck(sourceDeckId: string) {
           front_content: c.front_content,
           back_content: c.back_content,
           order: c.order,
+          source_card_id: c.id,
         }))
       )
     }
@@ -205,6 +206,7 @@ export async function importDeck(sourceDeckId: string) {
         front_content: c.front_content,
         back_content: c.back_content,
         order: c.order,
+        source_card_id: c.id,
       }))
     )
   }
