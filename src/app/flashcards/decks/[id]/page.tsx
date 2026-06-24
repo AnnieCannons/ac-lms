@@ -84,8 +84,15 @@ export default async function DeckPage({
   let pendingDiff: PendingDiff | null = null
 
   if (notificationId) {
+    const { data: notification } = await supabase
+      .from('notifications')
+      .select('read')
+      .eq('id', notificationId)
+      .eq('user_id', user.id)
+      .single()
+
     const serviceClient = createServiceSupabaseClient()
-    const { data: snapshots } = await serviceClient
+    const { data: snapshots } = !notification || notification.read ? { data: null } : await serviceClient
       .from('deck_update_snapshots')
       .select('source_card_id, front_content, back_content, card_type')
       .eq('notification_id', notificationId)
