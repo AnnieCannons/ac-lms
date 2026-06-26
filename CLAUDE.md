@@ -126,6 +126,57 @@ Deck card UI:
 ### Notifications
 - Insert into `notifications` table with appropriate `type`, `user_id`, `message`, and optional FK fields
 - New flashcard notification types: `deck_updated`
+- Notification bell re-fetches on window focus (added to `NotificationBell.tsx`)
+- `deck_updated` notifications route to `/flashcards/decks/${deck_id}?notification=${id}`, which auto-opens the diff modal
+- When clicking a notification, the server always redirects to the most recent notification for that deck; older ones redirect to latest
+
+### Deck Update Diff System
+- `deck_update_snapshots` table: snapshot of owner's cards at push time (so diff reflects what was sent, not later edits)
+- `source_card_id` on `cards`: links importer's card back to original
+- `updated_at` on `cards`: auto-set via Postgres trigger; used for conflict detection
+- Conflict = both owner and importer edited the same card since import (`importer card.updated_at > deck.created_at`)
+- Diff kinds: `new` (card added to original after import), `modified` (owner updated, importer didn't), `conflict` (both edited)
+- Apply logic: new cards get inserted with `source_card_id`; modified/conflict-apply updates importer's card content; mine/skip = no-op
+- After applying: `router.replace` strips `?notification=` from URL, then `router.refresh()` to sync card list
+
+### Image Uploads
+- Bucket: `lms-resources` (shared with course editor), prefix: `flashcard-images/{deckId}/`
+- RLS policies in migration `20260626000001_flashcard_image_storage.sql`
+- All three upload methods enabled: click toolbar button, paste from clipboard, drag-and-drop onto editor
+- Pass `storagePath={\`flashcard-images/${deckId}/\`}` to `RichTextEditor` to enable image uploads
+
+### Admin View (Section 11) — Key Decisions
+- Route: `/flashcards/admin` with subtab switcher (Admin | My Decks)
+- Access: `instructor`, `staff`, `admin` roles only (enforce in middleware and page)
+- Nav: hybrid — instructor-style header + notification bell (student bell component)
+- Bulk paste import format:
+  ```
+  What is a variable?
+  A named container for storing a value
+
+  What does CSS stand for?
+  Cascading Style Sheets
+  ```
+  Line 1 of each pair = front, line 2 = back, blank line separates pairs. All default to `basic` type; user can change before confirming.
+- Bulk-created decks go into the instructor's own account and are shared via the existing share system
+- Stats: scoped per course via dropdown; shows past-week activity per student, most-studied decks, shared deck import tracker (who imported it, study count)
+
+### Badge System (Section 11, Chunk 3) — Key Decisions
+Badges are auto-awarded when a user hits a milestone. V1 badges:
+| Badge | Trigger |
+|-------|---------|
+| First Steps | Study first card |
+| On a Roll | 3-day study streak |
+| Week Warrior | 7-day study streak |
+| Deck Builder | Create first deck |
+| Sharer | Share a deck for the first time |
+| Importer | Import first shared deck |
+| Century | Master 100 cards (state = 'review' with interval ≥ 21 or similar threshold) |
+
+V2: admins can create badges, define triggers, upload icons, enable/disable system-wide.
+Open questions (ask Rai before building Chunk 3):
+- Where do students see their badges? (badge shelf on My Decks page? separate tab?)
+- Are badges awarded retroactively when the system launches?
 
 ---
 
@@ -166,12 +217,16 @@ Work through these sections in order. Check off each one when complete before mo
   - Chunk 4: Share page reads + full sharing flow (enable sharing, import deck)
   - Chunk 5: Deck/card write operations (create, edit, delete, reorder)
   - Chunk 6: SM-2 writes (card_progress upsert, study_sessions, activity_log increment)
-- [x] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
+- [x] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills; also added to Tools dropdown in StudentTopNav (exception approved by Rai)
 - [x] 10. Middleware — add `/flashcards` route protection
-- [ ] 11. Instructor view
+- [x] Deck update notifications — full flow: push updates button, snapshot at push time, diff modal, apply selected changes, notification bell routing
+- [x] Image uploads — TipTap editors support click, paste, and drag-and-drop upload to `lms-resources` Supabase bucket under `flashcard-images/` prefix
+- [ ] 11. Admin view — `/flashcards/admin` — instructors, staff, admin only. Four chunks:
+  - [ ] Chunk 1: Route + layout — `/flashcards/admin`, subtab switcher (Admin | My Decks), hybrid nav (instructor nav + notification bell)
+  - [ ] Chunk 2: Bulk deck creation — paste import (two-line format: front / back / blank separator), parser, editable card preview with type selector, confirm to create deck in their account
+  - [ ] Chunk 3: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
+  - [ ] Chunk 4: Stats page — course dropdown, per-student table with past-week activity, most-studied decks, shared deck import tracker (who imported, how many times studied)
 - [ ] 12. Help page & tooltips
-- [ ] 13. Instructor view — `/flashcards/admin`; stats per student (cards studied, streaks, accuracy, deck breakdown)
-- [ ] 14. Badges — motivational award system
 - [ ] 15. Accessibility pass
 
 ---
@@ -188,6 +243,9 @@ Work through these sections in order. Check off each one when complete before mo
 All flashcard work lives in new files only, with these exceptions:
 - `src/middleware.ts` — add `/flashcards` route protection (small addition only)
 - `src/components/ui/StudentCourseNav.tsx` — add flashcard link in the Level Up Your Skills section
+- `src/components/ui/StudentTopNav.tsx` — added "Flashcard App" to Tools dropdown (approved exception)
+- `src/components/ui/NotificationBell.tsx` — added window focus re-fetch, deck_updated routing
+- `src/lib/notification-actions.ts` — added `deck_id` field to Notification type + queries
 - `src/app/docs/student/[section]/page.tsx` — register new `flashcards` section
 - `src/app/docs/instructor/[section]/page.tsx` — register new `flashcards` section
 
