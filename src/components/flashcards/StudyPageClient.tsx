@@ -159,7 +159,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">Front</label>
             <div className="[&>div]:!bg-surface [&_.ProseMirror]:!bg-surface">
-              <RichTextEditor content={editFront} onChange={setEditFront} placeholder="Front of the card…" minHeight={100} />
+              <RichTextEditor content={editFront} onChange={setEditFront} placeholder="Front of the card…" minHeight={100} storagePath={`flashcard-images/${deck.id}/`} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -167,7 +167,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
               {isTypeIn ? 'Expected Answer' : 'Back'}
             </label>
             <div className="[&>div]:!bg-surface [&_.ProseMirror]:!bg-surface">
-              <RichTextEditor content={editBack} onChange={setEditBack} placeholder="Back of the card…" minHeight={100} />
+              <RichTextEditor content={editBack} onChange={setEditBack} placeholder="Back of the card…" minHeight={100} storagePath={`flashcard-images/${deck.id}/`} />
             </div>
           </div>
           <div className="flex gap-3">

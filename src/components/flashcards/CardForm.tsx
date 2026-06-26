@@ -92,6 +92,7 @@ export default function CardForm({
                 onChange={val => { setFront(val); setSaved(false) }}
                 placeholder="Front of the card…"
                 minHeight={120}
+                storagePath={`flashcard-images/${deckId}/`}
               />
             </div>
           </div>
@@ -107,6 +108,7 @@ export default function CardForm({
                 onChange={val => { setBack(val); setSaved(false) }}
                 placeholder={cardType === 'type_in' ? 'The correct answer…' : 'Back of the card…'}
                 minHeight={120}
+                storagePath={`flashcard-images/${deckId}/`}
               />
             </div>
           </div>
