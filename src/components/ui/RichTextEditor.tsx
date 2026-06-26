@@ -102,6 +102,15 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         handleImageFile(file);
         return true;
       },
+      handleDrop: (_view, event) => {
+        if (!storagePath) return false;
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        const imageFile = files.find(f => f.type.startsWith("image/"));
+        if (!imageFile) return false;
+        event.preventDefault();
+        handleImageFile(imageFile);
+        return true;
+      },
     },
   });
 

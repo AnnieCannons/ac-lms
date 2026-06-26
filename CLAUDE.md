@@ -168,7 +168,7 @@ Work through these sections in order. Check off each one when complete before mo
   - Chunk 6: SM-2 writes (card_progress upsert, study_sessions, activity_log increment)
 - [x] 9. Nav wiring — add flashcard link to StudentCourseNav in Level Up Your Skills
 - [x] 10. Middleware — add `/flashcards` route protection
-- [x] 11. PWA / offline support — removed from scope; not needed for classroom use
+- [ ] 11. Instructor view
 - [ ] 12. Help page & tooltips
 - [ ] 13. Instructor view — `/flashcards/admin`; stats per student (cards studied, streaks, accuracy, deck breakdown)
 - [ ] 14. Badges — motivational award system
