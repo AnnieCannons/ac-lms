@@ -12,9 +12,12 @@ export default async function FlashcardsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+
   const [decks, activityLog] = await Promise.all([
     getDecksWithCounts(user.id),
-    getActivityLog(user.id),
+    isAdmin ? Promise.resolve([]) : getActivityLog(user.id),
   ])
 
   const cardsDueToday = decks.reduce(
@@ -47,7 +50,7 @@ export default async function FlashcardsPage() {
         </Link>
       </div>
 
-      <ActivityGrid activityLog={activityLog} />
+      {!isAdmin && <ActivityGrid activityLog={activityLog} />}
 
     </div>
   )

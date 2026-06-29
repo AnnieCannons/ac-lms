@@ -211,7 +211,7 @@ Work through these sections in order. Check off each one when complete before mo
 - [x] 6. Activity grid — GitHub-style grid built on My Decks page
 - [x] 7. Database migrations — create all flashcard tables in Supabase
 - [x] 8. Swap fake data for real Supabase queries throughout
-  - Chunk 1: Auth + My Decks page (decks with due counts, activity grid)
+  - Chunk 1: Auth + My Decks page
   - Chunk 2: Deck detail + card list reads (server wrapper + client component pattern)
   - Chunk 3: Study session reads (due cards only, filtered by due_date)
   - Chunk 4: Share page reads + full sharing flow (enable sharing, import deck)
