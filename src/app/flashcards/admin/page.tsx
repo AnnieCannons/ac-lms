@@ -3,15 +3,6 @@ export default function FlashcardAdminPage() {
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <a
-          href="/flashcards/admin/bulk-create"
-          className="rounded-2xl border border-border bg-surface p-6 hover:border-teal-primary transition-colors flex flex-col gap-2"
-        >
-          <span className="text-2xl">📋</span>
-          <h2 className="text-base font-semibold text-dark-text">Bulk Deck Creation</h2>
-          <p className="text-sm text-muted-text">Paste notes and generate a deck of flashcards instantly.</p>
-        </a>
-
-        <a
           href="/flashcards/admin/stats"
           className="rounded-2xl border border-border bg-surface p-6 hover:border-teal-primary transition-colors flex flex-col gap-2"
         >
