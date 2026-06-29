@@ -476,6 +476,54 @@ export async function applyDeckUpdates(
   revalidatePath('/flashcards')
 }
 
+export async function bulkImportCards(deckId: string, html: string) {
+  const { supabase, user } = await getAuthUser()
+
+  // Role check — admin only
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  if (!isAdmin) throw new Error('Unauthorized')
+
+  // Verify deck ownership
+  const { data: deck } = await supabase.from('decks').select('id').eq('id', deckId).eq('owner_user_id', user.id).single()
+  if (!deck) throw new Error('Deck not found')
+
+  // Parse HTML into card pairs: empty <p> = card separator, first element = front, rest = back
+  const cards = parseCardsFromHtml(html)
+  if (cards.length === 0) throw new Error('No cards found')
+
+  // Get current max order
+  const { data: existing } = await supabase.from('cards').select('order').eq('deck_id', deckId).order('order', { ascending: false }).limit(1)
+  let nextOrder = (existing?.[0]?.order ?? 0) + 1
+
+  await supabase.from('cards').insert(
+    cards.map(card => ({
+      deck_id: deckId,
+      card_type: 'basic',
+      front_content: card.front,
+      back_content: card.back,
+      order: nextOrder++,
+    }))
+  )
+
+  revalidatePath(`/flashcards/decks/${deckId}`)
+}
+
+function parseCardsFromHtml(html: string): Array<{ front: string; back: string }> {
+  // Split on empty paragraphs (card separators)
+  const sections = html.split(/<p>\s*<\/p>/i).map(s => s.trim()).filter(Boolean)
+
+  return sections.flatMap(section => {
+    // Match the first block element as the front
+    const match = section.match(/^(<(?:p|h[1-6]|pre|blockquote|ul|ol)[^>]*>[\s\S]*?<\/(?:p|h[1-6]|pre|blockquote|ul|ol)>)/i)
+    if (!match) return []
+    const front = match[1].trim()
+    const back = section.slice(match[0].length).trim()
+    if (!front) return []
+    return [{ front, back }]
+  })
+}
+
 export async function reorderCards(deckId: string, orderedCardIds: string[]) {
   const { supabase } = await getAuthUser()
 
