@@ -44,7 +44,7 @@ export async function saveSubmission(
     const now = new Date().toISOString()
     const [{ data: assignment }, { data: override }] = await Promise.all([
       admin.from('assignments').select('due_date').eq('id', assignmentId).single(),
-      admin.from('grading_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
+      admin.from('assignment_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
     ])
     const effectiveDueDate = (override?.due_date ?? assignment?.due_date) as string | null
     isLatePayload = {
