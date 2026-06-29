@@ -74,6 +74,9 @@ export default async function DeckPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+
   const [deck, cards] = await Promise.all([
     getDeck(deckId, user.id),
     getCardsByDeck(deckId),
@@ -126,6 +129,7 @@ export default async function DeckPage({
       initialCards={cards}
       userId={user.id}
       pendingDiff={pendingDiff}
+      isAdmin={isAdmin}
     />
   )
 }

@@ -36,9 +36,10 @@ type Props = {
   initialCards: Card[]
   userId: string
   pendingDiff: PendingDiff | null
+  isAdmin?: boolean
 }
 
-export default function DeckPageClient({ deckId, deck, initialCards, userId, pendingDiff }: Props) {
+export default function DeckPageClient({ deckId, deck, initialCards, userId, pendingDiff, isAdmin }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<Card[]>(initialCards)
   useEffect(() => { setCards(initialCards) }, [initialCards])
@@ -207,20 +208,43 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
 
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-text">{cards.length} {cards.length === 1 ? 'card' : 'cards'}</p>
-        <Link
-          href={`/flashcards/decks/${deckId}/cards/new`}
-          className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Add Card
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <div className="relative group">
+              <Link
+                href={`/flashcards/decks/${deckId}/bulk-import`}
+                className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Bulk Import
+              </Link>
+              <div className="pointer-events-none absolute bottom-full right-0 mb-2 w-56 rounded-lg bg-dark-text text-background text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                Paste notes and generate a deck of flashcards instantly
+              </div>
+            </div>
+          )}
+          <Link
+            href={`/flashcards/decks/${deckId}/cards/new`}
+            className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Card
+          </Link>
+        </div>
       </div>
 
       {cards.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-muted-text text-sm mb-4">No cards yet.</p>
+        <div className="text-center py-16 flex flex-col items-center gap-3">
+          <p className="text-muted-text text-sm">No cards yet.</p>
+          {isAdmin && (
+            <Link
+              href={`/flashcards/decks/${deckId}/bulk-import`}
+              className="inline-flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Bulk Import
+            </Link>
+          )}
           <Link
             href={`/flashcards/decks/${deckId}/cards/new`}
             className="inline-flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"

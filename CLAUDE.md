@@ -222,8 +222,8 @@ Work through these sections in order. Check off each one when complete before mo
 - [x] Deck update notifications — full flow: push updates button, snapshot at push time, diff modal, apply selected changes, notification bell routing
 - [x] Image uploads — TipTap editors support click, paste, and drag-and-drop upload to `lms-resources` Supabase bucket under `flashcard-images/` prefix
 - [ ] 11. Admin view — `/flashcards/admin` — instructors, staff, admin only. Chunks:
-  - [ ] Chunk 1: Route + layout — `/flashcards/admin`, subtab switcher (Admin | My Decks), hybrid nav (instructor nav + notification bell)
-  - [ ] Chunk 2: Bulk deck creation — paste import (two-line format: front / back / blank separator), parser, editable card preview with type selector, confirm to create deck in their account
+  - [x] Chunk 1: Route + layout — `/flashcards/admin`, subtab switcher (Admin | My Decks), hybrid nav (instructor nav + notification bell)
+  - [x] Chunk 2: Bulk deck creation — paste import (two-line format: front / back / blank separator), parser, editable card preview with type selector, confirm to create deck in their account
   - [ ] Chunk 3: Stats page — course dropdown, per-student table with past-week activity, most-studied decks, shared deck import tracker (who imported, how many times studied)
   - [ ] Chunk 4: Deck management panel — list of instructor's shared decks with import counts and last push date
   - [ ] Chunk 5: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
