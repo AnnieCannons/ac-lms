@@ -1,6 +1,7 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { isLateInTimezone } from '@/lib/date-utils'
 
 async function getAuthedInstructor() {
   const supabase = await createServerSupabaseClient()
@@ -48,6 +49,22 @@ export async function upsertAssignmentOverride(
     .select('id')
     .single()
   if (error) return { error: error.message }
+
+  // Recalculate is_late on any existing submission if the due date changed
+  if (dueDate) {
+    const { data: submission } = await admin
+      .from('submissions')
+      .select('id, submitted_at, student_timezone')
+      .eq('assignment_id', assignmentId)
+      .eq('student_id', studentId)
+      .eq('status', 'submitted')
+      .maybeSingle()
+    if (submission?.submitted_at) {
+      const isLate = excused ? false : isLateInTimezone(submission.submitted_at, dueDate, submission.student_timezone)
+      await admin.from('submissions').update({ is_late: isLate }).eq('id', submission.id)
+    }
+  }
+
   revalidatePath(`/instructor/courses/${courseId}`)
   return { id: data.id }
 }
