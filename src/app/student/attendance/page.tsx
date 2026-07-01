@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export default async function StudentAttendancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ as?: string }>
+  searchParams: Promise<{ as?: string; course?: string }>
 }) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,7 +23,7 @@ export default async function StudentAttendancePage({
     .single()
 
   const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'admin'
-  const { as: previewName } = await searchParams
+  const { as: previewName, course: courseParam } = await searchParams
 
   if (isInstructorOrAdmin && !previewName) redirect('/instructor/attendance')
   if (!isInstructorOrAdmin && previewName) redirect('/student/attendance')
@@ -94,6 +94,7 @@ export default async function StudentAttendancePage({
             records={records ?? []}
             profile={studentProfile}
             courses={courses ?? []}
+            defaultCourseName={isInstructorOrAdmin ? courseParam : undefined}
           />
         )}
       </main>

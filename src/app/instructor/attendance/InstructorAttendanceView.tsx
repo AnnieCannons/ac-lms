@@ -170,7 +170,7 @@ export default function InstructorAttendanceView({ initialClasses }: Props) {
                   <tr key={i} className="hover:bg-background transition-colors">
                     <td className="px-6 py-4">
                       <a
-                        href={`/student/attendance?as=${encodeURIComponent(s.preferredName)}`}
+                        href={`/student/attendance?as=${encodeURIComponent(s.preferredName)}&course=${encodeURIComponent(selectedClass)}`}
                         className="text-teal-primary hover:underline font-medium"
                       >
                         {s.preferredName}
