@@ -7,14 +7,13 @@ interface Props {
   records: AttendanceRecord[]
   profile: StudentProfile | null
   courses: AttendanceCourse[]
+  defaultCourseName?: string
 }
 
 
 function filterRecordsByCourse(records: AttendanceRecord[], course: AttendanceCourse): AttendanceRecord[] {
-  // Courses without an end date are still open/ongoing — can't define a closed range
-  if (!course.endDate) return []
   const start = new Date(course.startDate)
-  const end = new Date(course.endDate)
+  const end = course.endDate ? new Date(course.endDate) : new Date()
   end.setHours(23, 59, 59, 999)
   return records.filter(r => {
     if (!r.date) return false
@@ -27,8 +26,15 @@ function defaultCourseId(
   records: AttendanceRecord[],
   courses: AttendanceCourse[],
   currentCourseName: string | null,
+  overrideName?: string,
 ): string {
   if (!courses.length) return ''
+
+  // 0. Instructor-provided course override (from ?course= param)
+  if (overrideName) {
+    const match = courses.find(c => c.name === overrideName)
+    if (match) return match.id
+  }
 
   // 1. Match by current course name from Airtable profile
   if (currentCourseName) {
@@ -97,24 +103,25 @@ function StatCard({
   )
 }
 
-export default function AttendanceView({ records, profile, courses }: Props) {
+export default function AttendanceView({ records, profile, courses, defaultCourseName }: Props) {
   const enrolledIds = new Set(profile?.enrolledCourseIds ?? [])
 
   // Show courses the student is confirmed enrolled in (current or past),
   // plus fall back to date-range matching if no enrollment data is available.
   const relevantCourses = courses.filter(c => {
     const isCurrentCourse = c.name === profile?.currentCourse
+    const isOverrideCourse = defaultCourseName ? c.name === defaultCourseName : false
     const isEnrolled = enrolledIds.has(c.id)
     const hasRecords = filterRecordsByCourse(records, c).length > 0
     if (enrolledIds.size > 0) {
-      return isEnrolled || isCurrentCourse
+      return isEnrolled || isCurrentCourse || isOverrideCourse
     }
     // No enrollment data — fall back to date-range heuristic
-    return hasRecords || isCurrentCourse
+    return hasRecords || isCurrentCourse || isOverrideCourse
   })
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>(
-    () => defaultCourseId(records, relevantCourses, profile?.currentCourse ?? null),
+    () => defaultCourseId(records, relevantCourses, profile?.currentCourse ?? null, defaultCourseName),
   )
 
   const selectedCourse = relevantCourses.find(c => c.id === selectedCourseId) ?? null
