@@ -224,7 +224,10 @@ Work through these sections in order. Check off each one when complete before mo
 - [ ] 11. Admin view — `/flashcards/admin` — instructors, staff, admin only. Chunks:
   - [x] Chunk 1: Route + layout — `/flashcards/admin`, subtab switcher (Admin | My Decks), hybrid nav (instructor nav + notification bell)
   - [x] Chunk 2: Bulk deck creation — paste import (two-line format: front / back / blank separator), parser, editable card preview with type selector, confirm to create deck in their account
-  - [ ] Chunk 3: Stats page — course dropdown, per-student table with past-week activity, most-studied decks, shared deck import tracker (who imported, how many times studied)
+  - [ ] Chunk 3: Stats page — single scrollable page (no sub-pages). Sub-chunks:
+    - [ ] Chunk 3a: Page shell + course dropdown (fetches instructor's courses, renders dropdown, no data yet)
+    - [ ] Chunk 3b: Student activity table — date range picker (defaults to current calendar week), enrolled students in selected course, columns: Name | Cards Studied | Days Active | Most Studied Deck(s), all students shown including zeros
+    - [ ] Chunk 3c: Most-studied decks — separate date range picker (same default), top 5 (toggle to top 10), scoped to admin-owned + is_shared=true decks only, metric = total card reviews including repeats
   - [ ] Chunk 4: Deck management panel — list of instructor's shared decks with import counts and last push date
   - [ ] Chunk 5: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
   - Bulk deck creation (Chunk 2) will also support appending cards to an existing deck, not just creating new ones
