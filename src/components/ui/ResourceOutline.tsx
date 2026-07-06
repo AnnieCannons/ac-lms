@@ -61,6 +61,7 @@ interface SubmissionInfo {
   status: SubmissionStatus
   grade: Grade
   submitted_at?: string | null
+  is_late?: boolean | null
   hasComments?: boolean
   excused?: boolean
 }
@@ -85,11 +86,13 @@ function isLevelUpAssignment(isBonus?: boolean, moduleCategory?: string | null) 
 
 function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequired }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean }) {
   if (info?.excused) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-muted-text shrink-0">Excused</span>
-  const isLate = !!dueDate && (
-    info?.submitted_at
-      ? localDate(info.submitted_at) > localDate(dueDate)
-      : localDate(dueDate) < todayLocal()
-  )
+  // Once turned in, use the server-computed is_late flag (accounts for the student's own
+  // timezone at submission time) rather than re-deriving it from date strings here — comparing
+  // a UTC submitted_at timestamp's date slice against a local due date is off by a day in the
+  // evening for timezones behind UTC.
+  const isLate = info?.submitted_at
+    ? !!info?.is_late
+    : !!dueDate && localDate(dueDate) < todayLocal()
   if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
   if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
   if (info?.status === 'submitted') return (
