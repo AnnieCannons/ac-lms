@@ -72,11 +72,11 @@ export default async function MyWorkPage({
 
   const { data: submissions } = await supabase
     .from('submissions')
-    .select('assignment_id, status, grade, submitted_at')
+    .select('assignment_id, status, grade, submitted_at, is_late')
     .eq('student_id', user.id)
 
   const submissionMap = new Map(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null }])
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null, is_late: s.is_late ?? null }])
   )
 
   const allAssignmentIds = (modules ?? []).flatMap(m =>
@@ -103,7 +103,11 @@ export default async function MyWorkPage({
           const override = overrideMap.get(a.id)
           const effectiveDueDate = override?.due_date ?? a.due_date
           const isExcused = override?.excused ?? false
-          const isLate = !isExcused && !sub && !!effectiveDueDate && localDate(effectiveDueDate) < todayLocal()
+          const isLate = isExcused
+            ? false
+            : sub
+              ? !!sub.is_late
+              : !!effectiveDueDate && localDate(effectiveDueDate) < todayLocal()
           return {
             id: a.id,
             title: a.title,

@@ -90,7 +90,7 @@ export default async function StudentAssignmentsPage({
   const [{ data: submissions }, { data: overrideRows }] = await Promise.all([
     fetchClient
       .from('submissions')
-      .select('id, assignment_id, status, grade, submitted_at')
+      .select('id, assignment_id, status, grade, submitted_at, is_late')
       .eq('student_id', effectiveUserId),
     allAssignmentIds.length > 0
       ? fetchClient
@@ -120,6 +120,7 @@ export default async function StudentAssignmentsPage({
       status: s.status,
       grade: s.grade ?? null,
       submitted_at: s.submitted_at ?? null,
+      is_late: s.is_late ?? null,
       hasComments: commentedSubIds.has(s.id),
       excused: excusedSet.has(s.assignment_id),
     }])
