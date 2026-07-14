@@ -32,8 +32,14 @@ export async function getStudentAssignmentStats(
     throw new Error('Forbidden')
   }
 
-  const admin = createServiceSupabaseClient()
+  return computeStudentAssignmentStats(createServiceSupabaseClient(), studentId, courseId)
+}
 
+export async function computeStudentAssignmentStats(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  studentId: string,
+  courseId: string,
+): Promise<StudentAssignmentStats> {
   // Fetch all published, non-deleted assignments for this course that require submission
   const { data: modules } = await admin
     .from('modules')
