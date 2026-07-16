@@ -166,6 +166,16 @@ export type CourseInput = {
   airtableCourseName: string | null
 }
 
+/**
+ * Staff/QA accounts enrolled with role='student' for testing purposes — not
+ * real students, so they're excluded from the weekly attendance/assignment
+ * report regardless of course.
+ */
+const EXCLUDED_STUDENT_USER_IDS = new Set([
+  'f2736067-f31b-4c8c-adaf-aeb8b225e260', // RaiStudent (rai+1@anniecannons.com)
+  '378e107f-5a14-4de5-ac20-bb34ce0b936c', // HaniyaStudent (haniya+1@anniecannons.com)
+])
+
 export type AttendanceRow = {
   name: string
   thisWeek: number
@@ -206,7 +216,7 @@ export async function buildCourseReport(
 
   type EnrollmentRow = { user_id: string; users: { id: string; name: string } | null }
   const students = ((enrollments as unknown as EnrollmentRow[]) ?? [])
-    .filter(e => e.users?.name)
+    .filter(e => e.users?.name && !EXCLUDED_STUDENT_USER_IDS.has(e.user_id))
     .map(e => ({ id: e.user_id, name: e.users!.name }))
 
   if (students.length === 0) {
