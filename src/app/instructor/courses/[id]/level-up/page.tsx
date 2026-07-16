@@ -25,7 +25,7 @@ export default async function InstructorLevelUpPage({
 
   if (!course) redirect("/instructor/courses");
 
-  const [{ data: modules }, { data: bonusAssignmentsRaw }] = await Promise.all([
+  const [{ data: modulesRaw }, { data: bonusAssignmentsRaw }] = await Promise.all([
     admin
       .from("modules")
       .select("*, module_days(*, assignments!module_day_id(*))")
@@ -36,6 +36,35 @@ export default async function InstructorLevelUpPage({
       .select("id, title, due_date, published, skill_tags, module_day_id, module_days!module_day_id(module_id, modules(course_id, category, title))")
       .eq("is_bonus", true),
   ]);
+
+  // Fetch wikis linked to this course's modules and days
+  const moduleIds = (modulesRaw ?? []).map(m => m.id)
+  const dayIds = (modulesRaw ?? []).flatMap(m => (m.module_days ?? []).map((d: { id: string }) => d.id))
+
+  type WikiRow = { id: string; title: string; content: string; published: boolean; order: number; module_id: string | null; module_day_id: string | null }
+  let wikisData: WikiRow[] = []
+
+  if (moduleIds.length > 0 || dayIds.length > 0) {
+    const orParts: string[] = []
+    if (moduleIds.length > 0) orParts.push(`module_id.in.(${moduleIds.join(',')})`)
+    if (dayIds.length > 0) orParts.push(`module_day_id.in.(${dayIds.join(',')})`)
+    const { data: wRows } = await admin
+      .from('wikis')
+      .select('id, title, content, published, order, module_id, module_day_id')
+      .or(orParts.join(','))
+      .order('order', { ascending: true })
+    wikisData = (wRows ?? []) as WikiRow[]
+  }
+
+  // Inject wikis into modules
+  const modules = (modulesRaw ?? []).map(m => ({
+    ...m,
+    wikis: wikisData.filter(w => w.module_id === m.id),
+    module_days: (m.module_days ?? []).map((d: { id: string }) => ({
+      ...d,
+      wikis: wikisData.filter(w => w.module_day_id === d.id),
+    })),
+  }));
 
   // Filter to this course, non-level_up modules
   type BonusAssignment = {

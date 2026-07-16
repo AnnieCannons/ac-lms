@@ -50,7 +50,7 @@ export default async function StudentCareerPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
     .eq('course_id', id)
     .eq('category', 'career')
     .eq('published', true)
@@ -63,10 +63,10 @@ export default async function StudentCareerPage({
       ...m,
       module_days: (m.module_days ?? [])
         .filter((d: { deleted_at: string | null }) => !d.deleted_at)
-        .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null }> }) => ({
+        .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null; instructor_only?: boolean; published?: boolean }> }) => ({
           ...d,
           assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
-          resources: (d.resources ?? []).filter(r => !r.deleted_at),
+          resources: (d.resources ?? []).filter(r => !r.deleted_at && !r.instructor_only && r.published !== false),
         })),
     }))
 
