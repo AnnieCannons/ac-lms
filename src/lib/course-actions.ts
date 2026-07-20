@@ -52,10 +52,12 @@ export async function createCourse(params: {
     const { data: creatorProfile } = await admin.from('users').select('name, email').eq('id', user.id).single()
     const creatorName = creatorProfile?.name ?? creatorProfile?.email ?? 'Someone'
     const { data: notifyUsers } = await admin.from('users').select('email').in('id', notifyIds)
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+    const courseUrl = `${appUrl}/instructor/courses/${course.id}`
     await Promise.all(
       (notifyUsers ?? [])
         .filter((u): u is { email: string } => !!u.email)
-        .map(u => notifyByEmail(u.email, `${creatorName} added you as an instructor on *${params.name}* (${params.code}).`))
+        .map(u => notifyByEmail(u.email, `${creatorName} added you as an instructor on *${params.name}* (${params.code}).\n${courseUrl}`))
     )
   }
 
