@@ -29,9 +29,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const now = new Date()
-  const etHour = getCurrentEtHour(now)
-  const force = req.nextUrl.searchParams.get('force') === 'true'
+  const asOfParam = req.nextUrl.searchParams.get('asOf')
+  const now = asOfParam ? new Date(asOfParam) : new Date()
+  if (asOfParam && isNaN(now.getTime())) {
+    return NextResponse.json({ error: 'Invalid asOf date' }, { status: 400 })
+  }
+
+  const etHour = getCurrentEtHour(new Date())
+  const force = req.nextUrl.searchParams.get('force') === 'true' || !!asOfParam
   if (etHour !== 9 && !force) {
     return NextResponse.json({ skipped: true, reason: `not 9am ET (currently ${etHour}:00 ET)` })
   }
