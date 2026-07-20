@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import Modal from './Modal'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { createWiki } from '@/lib/wiki-actions'
+import { createAssignment } from '@/lib/assignment-actions'
+import { createResource } from '@/lib/resource-actions'
+import { createModule, createModuleDay } from '@/lib/module-actions'
+import { addSelfAsInstructor, getCourseName } from '@/lib/enrollment-actions'
 
 type CreateType = 'assignment' | 'resource' | 'quiz' | 'wiki'
 type SectionType = 'coding' | 'career' | 'level_up'
@@ -87,6 +91,34 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Recovery prompt for the "staff but not enrolled as instructor on this course" case
+  const [enrollPromptOpen, setEnrollPromptOpen] = useState(false)
+  const [enrollCourseName, setEnrollCourseName] = useState<string | null>(null)
+  const [enrolling, setEnrolling] = useState(false)
+  const [pendingRetry, setPendingRetry] = useState<(() => void) | null>(null)
+
+  const triggerEnrollPrompt = async (retry: () => void) => {
+    setCreating(false)
+    const { name } = await getCourseName(courseId)
+    setEnrollCourseName(name ?? 'this course')
+    setPendingRetry(() => retry)
+    setEnrollPromptOpen(true)
+  }
+
+  const handleConfirmEnroll = async () => {
+    setEnrolling(true)
+    const result = await addSelfAsInstructor(courseId)
+    setEnrolling(false)
+    setEnrollPromptOpen(false)
+    if (result.error) { setError(result.error); return }
+    pendingRetry?.()
+  }
+
+  const handleCancelEnroll = () => {
+    setEnrollPromptOpen(false)
+    setError('You are not enrolled as an instructor on this course.')
+  }
 
   const showSectionFilter = true
 
@@ -212,27 +244,21 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     if (!newModuleTitle.trim()) return
     setModuleError(null)
     const category = section === 'career' ? 'career' : section === 'level_up' ? 'level_up' : null
-    const { data, error } = await supabase
-      .from('modules')
-      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length, skill_tags: section === 'level_up' ? levelUpTags : [] })
-      .select('id, title, order, week_number, category, skill_tags')
-      .single()
-    if (error || !data) { setModuleError(error?.message ?? 'Failed to create module'); return }
-    setModules(prev => [...prev, { ...data, module_days: [] }])
-    setModuleId(data.id)
+    const result = await createModule({ courseId, title: newModuleTitle.trim(), category, order: modules.length, skillTags: section === 'level_up' ? levelUpTags : [] })
+    if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreateModule()); return }
+    if (result.error || !result.data) { setModuleError(result.error ?? 'Failed to create module'); return }
+    setModules(prev => [...prev, { ...result.data!, module_days: [] }])
+    setModuleId(result.data.id)
     setShowNewModule(false)
     setNewModuleTitle('')
   }
 
   const resolveDay = async (resolvedModuleId: string): Promise<string | null> => {
     if (dayId) return dayId
-    const { data: newDay, error: dayErr } = await supabase
-      .from('module_days')
-      .insert({ module_id: resolvedModuleId, day_name: 'General', order: allDaysForModule.length })
-      .select('id')
-      .single()
-    if (dayErr || !newDay) { setError(dayErr?.message ?? 'Failed to create day'); return null }
-    return newDay.id
+    const result = await createModuleDay({ moduleId: resolvedModuleId, dayName: 'General', order: allDaysForModule.length })
+    if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return null }
+    if (result.error || !result.data) { setError(result.error ?? 'Failed to create day'); return null }
+    return result.data.id
   }
 
   const handleCreate = async () => {
@@ -242,18 +268,15 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     let resolvedModuleId = moduleId
     if (!moduleId && newModuleTitle.trim()) {
       const category = section === 'career' ? 'career' : section === 'level_up' ? 'level_up' : null
-      const { data, error } = await supabase
-        .from('modules')
-        .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length, skill_tags: section === 'level_up' ? levelUpTags : [] })
-        .select('id, title, order, week_number, category, skill_tags')
-        .single()
-      if (error || !data) { setError(error?.message ?? 'Failed to create module'); setCreating(false); return }
-      const newMod = { ...data, module_days: [] }
+      const result = await createModule({ courseId, title: newModuleTitle.trim(), category, order: modules.length, skillTags: section === 'level_up' ? levelUpTags : [] })
+      if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
+      if (result.error || !result.data) { setError(result.error ?? 'Failed to create module'); setCreating(false); return }
+      const newMod = { ...result.data, module_days: [] }
       setModules(prev => [...prev, newMod])
-      setModuleId(data.id)
+      setModuleId(result.data.id)
       setShowNewModule(false)
       setNewModuleTitle('')
-      resolvedModuleId = data.id
+      resolvedModuleId = result.data.id
     }
     if (!resolvedModuleId) { setCreating(false); return }
 
@@ -266,26 +289,21 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
     if (createType === 'assignment') {
       if (!dayId) { setError('Please select a day.'); setCreating(false); return }
-      const { data, error } = await supabase
-        .from('assignments')
-        .insert({ module_day_id: dayId, title: 'New Assignment', published: false, order: 0, linked_day_id: linkedDayId, skill_tags: assignmentTags, is_bonus: section === 'level_up' })
-        .select('id')
-        .single()
+      const result = await createAssignment({ moduleDayId: dayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up' })
+      if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
       setCreating(false)
-      if (error || !data) { setError(error?.message ?? 'Failed to create'); return }
+      if (result.error || !result.data) { setError(result.error ?? 'Failed to create'); return }
       setOpen(false)
-      router.push(`/instructor/courses/${courseId}/assignments/${data.id}`)
+      router.push(`/instructor/courses/${courseId}/assignments/${result.data.id}`)
 
     } else if (createType === 'resource') {
       if (!resTitle.trim()) { setError('Please enter a title.'); setCreating(false); return }
       const targetDayId = await resolveDay(resolvedModuleId)
       if (!targetDayId) { setCreating(false); return }
-      const { data: existing } = await supabase.from('resources').select('id').eq('module_day_id', targetDayId)
-      const { error: err } = await supabase
-        .from('resources')
-        .insert({ module_day_id: targetDayId, type: resType, title: resTitle.trim(), content: resUrl.trim() || null, order: (existing ?? []).length, linked_day_id: linkedDayId })
+      const result = await createResource({ moduleDayId: targetDayId, type: resType, title: resTitle.trim(), content: resUrl.trim() || null, linkedDayId })
+      if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
       setCreating(false)
-      if (err) { setError(err.message); return }
+      if (result.error) { setError(result.error); return }
       setOpen(false)
       router.refresh()
 
@@ -299,6 +317,10 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         setOpen(false)
         router.push(`/instructor/courses/${courseId}/quizzes?open=${newQuiz.id}`)
       } catch (e) {
+        if (e instanceof Error && (e as Error & { code?: string }).code === 'NOT_ENROLLED') {
+          await triggerEnrollPrompt(() => handleCreate())
+          return
+        }
         setCreating(false)
         setError(e instanceof Error ? e.message : 'Failed to create quiz')
       }
@@ -312,6 +334,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
           wikiParams.moduleId = resolvedModuleId
         }
         const result = await createWiki(wikiParams)
+        if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
         setCreating(false)
         if (result.error) { setError(result.error); return }
         setOpen(false)
@@ -709,6 +732,36 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
             </button>
           </div>
         </Modal>
+      )}
+
+      {enrollPromptOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-surface rounded-2xl border border-border shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-dark-text mb-2">Add yourself as instructor?</h3>
+            <p className="text-sm text-muted-text mb-5">
+              You have staff access, but you&apos;re not currently enrolled as an instructor on{' '}
+              <span className="text-dark-text font-medium">{enrollCourseName}</span>. Add yourself now so you can create content here?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelEnroll}
+                disabled={enrolling}
+                className="text-sm text-muted-text hover:text-dark-text transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEnroll}
+                disabled={enrolling}
+                className="text-sm font-semibold bg-teal-primary text-white px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {enrolling ? 'Adding…' : 'Add me as instructor'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

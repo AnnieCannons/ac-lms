@@ -546,13 +546,13 @@ export async function getInstructorUsers(): Promise<{ id: string; name: string |
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'admin') return []
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return []
 
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('users')
     .select('id, name, email')
-    .in('role', ['instructor', 'admin'])
+    .in('role', ['instructor', 'staff', 'admin'])
     .order('name')
   return data ?? []
 }

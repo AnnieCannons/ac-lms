@@ -1,9 +1,13 @@
 'use client'
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DatePickerField from '@/components/ui/DatePickerField'
+import { createCourse } from '@/lib/course-actions'
+import { getInstructorUsers } from '@/lib/people-actions'
+import { createClient } from '@/lib/supabase/client'
+
+type InstructorOption = { id: string; name: string | null; email: string }
 
 export default function NewCoursePage() {
   const [name, setName] = useState('')
@@ -13,37 +17,58 @@ export default function NewCoursePage() {
   const [syllabus, setSyllabus] = useState('')
   const [paidLearners, setPaidLearners] = useState(false)
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+
+  const [instructors, setInstructors] = useState<InstructorOption[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [loadingInstructors, setLoadingInstructors] = useState(true)
+  const [instructorSearch, setInstructorSearch] = useState('')
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      const list = await getInstructorUsers()
+      setInstructors(list)
+      setSelectedIds(new Set(user ? [user.id] : []))
+      setLoadingInstructors(false)
+    })()
+  }, [])
+
+  const toggleInstructor = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const filteredInstructors = instructors.filter(inst => {
+    const q = instructorSearch.trim().toLowerCase()
+    if (!q) return true
+    return (inst.name?.toLowerCase().includes(q) ?? false) || inst.email.toLowerCase().includes(q)
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const { data, error } = await supabase
-      .from('courses')
-      .insert({
-        name,
-        code,
-        start_date: startDate || null,
-        end_date: endDate || null,
-        syllabus_content: syllabus || null,
-        paid_learners: paidLearners,
-      })
-      .select()
-      .single()
+    setError('')
+    setSubmitting(true)
 
-    if (error) { setError(error.message); return }
+    const result = await createCourse({
+      name,
+      code,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      syllabusContent: syllabus || null,
+      paidLearners,
+      instructorIds: Array.from(selectedIds),
+    })
 
-    // Enroll the creator as instructor so wiki/resource actions can verify course access
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('course_enrollments').insert({
-        user_id: user.id,
-        course_id: data.id,
-        role: 'instructor',
-      })
-    }
+    setSubmitting(false)
+    if (result.error || !result.courseId) { setError(result.error ?? 'Failed to create course'); return }
 
-    router.push(`/instructor/courses/${data.id}`)
+    router.push(`/instructor/courses/${result.courseId}`)
   }
 
   return (
@@ -105,6 +130,42 @@ export default function NewCoursePage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-dark-text mb-2">Assign Instructors</label>
+              {loadingInstructors ? (
+                <p className="text-sm text-muted-text">Loading…</p>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search by name or email…"
+                    value={instructorSearch}
+                    onChange={e => setInstructorSearch(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg p-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary mb-2"
+                  />
+                  <div className="max-h-40 overflow-y-auto flex flex-col gap-1 border border-border rounded-lg p-2">
+                    {filteredInstructors.map(inst => (
+                      <label key={inst.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-border/20 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(inst.id)}
+                          onChange={() => toggleInstructor(inst.id)}
+                          className="accent-teal-primary"
+                        />
+                        <span className="text-sm text-dark-text">{inst.name ?? inst.email}</span>
+                        {inst.name && <span className="text-xs text-muted-text">{inst.email}</span>}
+                      </label>
+                    ))}
+                    {filteredInstructors.length === 0 && (
+                      <p className="text-sm text-muted-text px-2 py-1">
+                        {instructors.length === 0 ? 'No instructors found.' : 'No matches.'}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+              <p className="text-xs text-muted-text mt-1">Selected instructors will be enrolled in this course.</p>
+            </div>
+            <div>
               <p className="text-sm font-medium text-dark-text mb-2">Course Type</p>
               <button
                 type="button"
@@ -129,9 +190,10 @@ export default function NewCoursePage() {
             </div>
             <button
               type="submit"
-              className="bg-teal-primary text-white font-semibold py-3 rounded-full hover:opacity-90 transition-opacity"
+              disabled={submitting}
+              className="bg-teal-primary text-white font-semibold py-3 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              Create Course
+              {submitting ? 'Creating…' : 'Create Course'}
             </button>
           </form>
         </div>
