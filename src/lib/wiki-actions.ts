@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModule, getCourseIdForModuleDay } from '@/lib/course-access'
 
 type WikiData = {
   id: string
@@ -73,36 +74,19 @@ export async function createWiki(params: {
   moduleId?: string
   moduleDayId?: string
   title: string
-}): Promise<{ data?: WikiData; error?: string }> {
-  const { user, role, error: authError } = await getInstructorOrAdminUser()
-  if (!user || !role) return { error: authError ?? 'Unauthorized' }
-
+}): Promise<{ data?: WikiData; error?: string; code?: string }> {
   const admin = createServiceSupabaseClient()
 
-  // Verify the caller is enrolled as instructor (or is admin) in the target course
-  if (role !== 'admin') {
-    let courseId: string | null = null
-    if (params.moduleId) {
-      const { data: mod } = await admin.from('modules').select('course_id').eq('id', params.moduleId).single()
-      courseId = mod?.course_id ?? null
-    } else if (params.moduleDayId) {
-      const { data: day } = await admin.from('module_days').select('module_id').eq('id', params.moduleDayId).single()
-      if (day) {
-        const { data: mod } = await admin.from('modules').select('course_id').eq('id', day.module_id).single()
-        courseId = mod?.course_id ?? null
-      }
-    }
-    if (!courseId) return { error: 'Could not resolve course' }
-    const supabase = await createServerSupabaseClient()
-    const { data: enrollment } = await supabase
-      .from('course_enrollments')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('course_id', courseId)
-      .eq('role', 'instructor')
-      .maybeSingle()
-    if (!enrollment) return { error: 'Not authorized' }
+  let courseId: string | null = null
+  if (params.moduleId) {
+    courseId = await getCourseIdForModule(admin, params.moduleId)
+  } else if (params.moduleDayId) {
+    courseId = await getCourseIdForModuleDay(admin, params.moduleDayId)
   }
+  if (!courseId) return { error: 'Could not resolve course' }
+
+  const access = await requireCourseInstructorAccess(courseId)
+  if (isCourseAccessError(access)) return { error: access.error, code: access.code }
 
   const insertPayload: {
     title: string
