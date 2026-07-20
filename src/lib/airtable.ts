@@ -268,6 +268,126 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
     .sort((a, b) => a.preferredName.localeCompare(b.preferredName))
 }
 
+export type ClassStudentWeekly = {
+  preferredName: string
+  absencesThisWeek: number
+  blocksThisWeek: number
+  absencesLastWeek: number
+  totalAbsences: number
+  totalTardies: number
+  totalBlocks: number
+  percentMissed: number | null
+}
+
+export type WeekRange = { start: string; end: string } // 'YYYY-MM-DD', inclusive
+
+export async function fetchClassAttendanceWeekly(
+  className: string,
+  thisWeek: WeekRange,
+  lastWeek: WeekRange,
+): Promise<ClassStudentWeekly[]> {
+  // Resolve course record
+  const cp = new URLSearchParams()
+  cp.set('filterByFormula', `{Name}='${escapeAirtableString(className)}'`)
+  const courseRecords = await paginate('Courses', cp)
+  if (!courseRecords.length) throw new Error('Course not found')
+
+  const startDateStr = courseRecords[0].fields['Start Date'] as string | undefined
+  if (!startDateStr) throw new Error('Course start date not set')
+  const endDateStr = courseRecords[0].fields['End Date'] as string | undefined
+  const since = new Date(startDateStr)
+  const until = endDateStr ? new Date(endDateStr) : new Date()
+  until.setHours(23, 59, 59, 999)
+
+  // ARRAYJOIN on linked fields returns display names (not record IDs), so filter by course name
+  const safeClassName = escapeAirtableString(className)
+  const sp = new URLSearchParams()
+  sp.set(
+    'filterByFormula',
+    `OR(FIND('${safeClassName}', ARRAYJOIN({Current Course})), FIND('${safeClassName}', ARRAYJOIN({Past Courses})))`,
+  )
+  const enrolledStudents = await paginate('Students', sp)
+  if (!enrolledStudents.length) return []
+
+  const enrolledNames = new Set(
+    enrolledStudents.map(s => s.fields['Preferred Name'] as string).filter(Boolean),
+  )
+
+  // Fetch attendance records within the course date range
+  const ap = new URLSearchParams()
+  ap.set(
+    'filterByFormula',
+    endDateStr
+      ? `AND(NOT(IS_BEFORE({Date}, '${startDateStr}')), NOT(IS_AFTER({Date}, '${endDateStr}')))`
+      : `NOT(IS_BEFORE({Date}, '${startDateStr}'))`,
+  )
+  const attendanceRecords = await paginate(ATTENDANCE_TABLE, ap)
+
+  const map: Record<string, {
+    preferredName: string
+    absencesThisWeek: number
+    blocksThisWeek: number
+    absencesLastWeek: number
+    totalAbsences: number
+    totalTardies: number
+    totalBlocks: number
+  }> = {}
+
+  for (const r of attendanceRecords) {
+    const date = r.fields.Date as string | undefined
+    if (!date) continue
+    const d = new Date(date)
+    if (d < since || d > until) continue
+
+    let name = r.fields.PreferredNameText as string | string[] | undefined
+    if (Array.isArray(name)) name = name[0]
+    if (!name || !enrolledNames.has(name)) continue
+
+    if (!map[name]) {
+      map[name] = {
+        preferredName: name,
+        absencesThisWeek: 0,
+        blocksThisWeek: 0,
+        absencesLastWeek: 0,
+        totalAbsences: 0,
+        totalTardies: 0,
+        totalBlocks: 0,
+      }
+    }
+
+    const dateOnly = date.slice(0, 10)
+    const inThisWeek = dateOnly >= thisWeek.start && dateOnly <= thisWeek.end
+    const inLastWeek = dateOnly >= lastWeek.start && dateOnly <= lastWeek.end
+
+    for (const block of ['Block A', 'Block B', 'Block C', 'Block D']) {
+      const s = r.fields[block] as string | undefined
+      if (!s) continue
+      map[name].totalBlocks++
+      if (inThisWeek) map[name].blocksThisWeek++
+
+      if (s.includes('Absent')) {
+        map[name].totalAbsences++
+        if (inThisWeek) map[name].absencesThisWeek++
+        if (inLastWeek) map[name].absencesLastWeek++
+      } else if (s.includes('Tardy')) {
+        map[name].totalTardies++
+      }
+    }
+  }
+
+  const names = Object.keys(map)
+  if (!names.length) return []
+
+  return names
+    .map(name => ({
+      ...map[name],
+      percentMissed: map[name].totalBlocks > 0
+        ? (map[name].totalAbsences / map[name].totalBlocks) * 100
+        : null,
+    }))
+    .sort((a, b) => a.preferredName.localeCompare(b.preferredName))
+}
+
 // ─── Name sync helpers (used by scripts/check-name-sync.ts) ──────────────────
 
 export async function fetchAllAirtableStudentNames(): Promise<string[]> {
