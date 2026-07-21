@@ -183,7 +183,7 @@ function StudentRow({
                   count={a.complete.length}
                   active={data.activeBucket === 'complete'}
                   onClick={() => setBucket('complete')}
-                  color="bg-green-50 text-green-800 border-green-300"
+                  color="status-complete-card"
                 />
                 <StatCard
                   label="Turned In"
@@ -197,7 +197,7 @@ function StudentRow({
                   count={a.missing.length}
                   active={data.activeBucket === 'missing'}
                   onClick={() => setBucket('missing')}
-                  color="bg-red-50 text-red-700 border-red-300"
+                  color="status-missing-card"
                 />
                 <StatCard
                   label="Not Started"
