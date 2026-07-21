@@ -19,6 +19,36 @@ export function todayLocal(): Date {
   return new Date(n.getFullYear(), n.getMonth(), n.getDate())
 }
 
+/**
+ * True if dueDate is unset, or falls within the next `days` days from today
+ * (inclusive). Used to keep "Not Started" scoped to assignments that are
+ * actually coming up, rather than everything unsubmitted in the whole course.
+ */
+export function isDueSoon(dueDate: string | null | undefined, days = 7): boolean {
+  if (!dueDate) return true
+  const cutoff = todayLocal()
+  cutoff.setDate(cutoff.getDate() + days)
+  return localDate(dueDate) <= cutoff
+}
+
+/**
+ * True if dueDate is unset, or falls within the Mon-Sun calendar week
+ * containing today. Used to scope "Due this week" to the current week
+ * rather than a rolling window.
+ */
+export function isDueThisWeek(dueDate: string | null | undefined): boolean {
+  if (!dueDate) return true
+  const today = todayLocal()
+  const day = today.getDay()
+  const diffToMonday = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diffToMonday)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const due = localDate(dueDate)
+  return due >= monday && due <= sunday
+}
+
 export function formatDueDate(
   dateStr: string,
   options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' },

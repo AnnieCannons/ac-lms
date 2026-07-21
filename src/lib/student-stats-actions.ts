@@ -2,8 +2,9 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { isDueThisWeek } from '@/lib/date-utils'
 
-export type AssignmentBucket = 'complete' | 'turned-in' | 'missing' | 'not-started'
+export type AssignmentBucket = 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused'
 
 export type AssignmentStat = {
   id: string
@@ -14,9 +15,11 @@ export type AssignmentStat = {
 
 export type StudentAssignmentStats = {
   complete: AssignmentStat[]
-  turnedIn: AssignmentStat[]
+  waitingToBeGraded: AssignmentStat[]
+  needsRevision: AssignmentStat[]
   missing: AssignmentStat[]
-  notStarted: AssignmentStat[]
+  dueThisWeek: AssignmentStat[]
+  excused: AssignmentStat[]
 }
 
 export async function getStudentAssignmentStats(
@@ -63,16 +66,23 @@ export async function computeStudentAssignmentStats(
   }
 
   if (assignments.length === 0) {
-    return { complete: [], turnedIn: [], missing: [], notStarted: [] }
+    return { complete: [], waitingToBeGraded: [], needsRevision: [], missing: [], dueThisWeek: [], excused: [] }
   }
 
-  // Fetch this student's submissions for these assignments
+  // Fetch this student's submissions and per-student overrides for these assignments
   const assignmentIds = assignments.map(a => a.id)
-  const { data: submissions } = await admin
-    .from('submissions')
-    .select('assignment_id, status, grade, submitted_at')
-    .eq('student_id', studentId)
-    .in('assignment_id', assignmentIds)
+  const [{ data: submissions }, { data: overrideRows }] = await Promise.all([
+    admin
+      .from('submissions')
+      .select('assignment_id, status, grade, submitted_at')
+      .eq('student_id', studentId)
+      .in('assignment_id', assignmentIds),
+    admin
+      .from('assignment_overrides')
+      .select('assignment_id, due_date, excused')
+      .eq('student_id', studentId)
+      .in('assignment_id', assignmentIds),
+  ])
 
   type Sub = { assignment_id: string; status: string; grade: string | null; submitted_at: string | null }
   const subMap = new Map<string, Sub>()
@@ -80,33 +90,49 @@ export async function computeStudentAssignmentStats(
     subMap.set(s.assignment_id, s)
   }
 
+  type Override = { assignment_id: string; due_date: string | null; excused: boolean }
+  const overrideMap = new Map<string, Override>()
+  for (const o of (overrideRows as Override[] ?? [])) {
+    overrideMap.set(o.assignment_id, o)
+  }
+
   const now = new Date()
   const complete: AssignmentStat[] = []
-  const turnedIn: AssignmentStat[] = []
+  const waitingToBeGraded: AssignmentStat[] = []
+  const needsRevision: AssignmentStat[] = []
   const missing: AssignmentStat[] = []
-  const notStarted: AssignmentStat[] = []
+  const dueThisWeek: AssignmentStat[] = []
+  const excused: AssignmentStat[] = []
 
   for (const a of assignments) {
     const sub = subMap.get(a.id)
-    const stat: AssignmentStat = { id: a.id, title: a.title, due_date: a.due_date, module_title: a.module_title }
+    const override = overrideMap.get(a.id)
+    const effectiveDueDate = override?.due_date ?? a.due_date
+    const stat: AssignmentStat = { id: a.id, title: a.title, due_date: effectiveDueDate, module_title: a.module_title }
+
+    if (override?.excused) {
+      excused.push(stat)
+      continue
+    }
 
     if (sub?.grade === 'complete') {
       complete.push(stat)
     } else if (sub?.grade === 'incomplete') {
-      // treat needs-revision as turned in (awaiting resubmit)
-      turnedIn.push(stat)
+      needsRevision.push(stat)
     } else if (sub?.status === 'submitted' || sub?.status === 'graded') {
-      turnedIn.push(stat)
+      waitingToBeGraded.push(stat)
     } else {
       // No submission or draft
-      const isPastDue = !!a.due_date && new Date(a.due_date) < now
+      const isPastDue = !!effectiveDueDate && new Date(effectiveDueDate) < now
       if (isPastDue) {
         missing.push(stat)
-      } else {
-        notStarted.push(stat)
+      } else if (isDueThisWeek(effectiveDueDate)) {
+        // Only flag as "Due this week" once it's actually due this calendar
+        // week — not everything unsubmitted for the rest of the course.
+        dueThisWeek.push(stat)
       }
     }
   }
 
-  return { complete, turnedIn, missing, notStarted }
+  return { complete, waitingToBeGraded, needsRevision, missing, dueThisWeek, excused }
 }

@@ -17,7 +17,7 @@ type StudentData = {
   attendance: AttendanceStats | null
   loading: boolean
   error: string | null
-  activeBucket: 'complete' | 'turned-in' | 'missing' | 'not-started' | null
+  activeBucket: 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused' | null
 }
 
 function ZoneBadge({ absences }: { absences: number }) {
@@ -177,7 +177,7 @@ function StudentRow({
           {a && (
             <div className="space-y-3">
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wider">Assignments</p>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                 <StatCard
                   label="Complete"
                   count={a.complete.length}
@@ -186,11 +186,18 @@ function StudentRow({
                   color="status-complete-card"
                 />
                 <StatCard
-                  label="Turned In"
-                  count={a.turnedIn.length}
-                  active={data.activeBucket === 'turned-in'}
-                  onClick={() => setBucket('turned-in')}
-                  color="bg-teal-light text-teal-primary border-teal-primary"
+                  label="Waiting to be graded"
+                  count={a.waitingToBeGraded.length}
+                  active={data.activeBucket === 'waiting-to-be-graded'}
+                  onClick={() => setBucket('waiting-to-be-graded')}
+                  color="status-grading-card"
+                />
+                <StatCard
+                  label="Needs Revision"
+                  count={a.needsRevision.length}
+                  active={data.activeBucket === 'needs-revision'}
+                  onClick={() => setBucket('needs-revision')}
+                  color="status-revision-card"
                 />
                 <StatCard
                   label="Missing"
@@ -200,25 +207,38 @@ function StudentRow({
                   color="status-missing-card"
                 />
                 <StatCard
-                  label="Not Started"
-                  count={a.notStarted.length}
-                  active={data.activeBucket === 'not-started'}
-                  onClick={() => setBucket('not-started')}
+                  label="Due this week"
+                  count={a.dueThisWeek.length}
+                  active={data.activeBucket === 'due-this-week'}
+                  onClick={() => setBucket('due-this-week')}
                   color="bg-surface text-dark-text border-muted-text"
+                />
+                <StatCard
+                  label="Excused"
+                  count={a.excused.length}
+                  active={data.activeBucket === 'excused'}
+                  onClick={() => setBucket('excused')}
+                  color="status-late-card"
                 />
               </div>
 
               {data.activeBucket === 'complete' && (
                 <AssignmentList assignments={a.complete} courseId={courseId} label="Complete" />
               )}
-              {data.activeBucket === 'turned-in' && (
-                <AssignmentList assignments={a.turnedIn} courseId={courseId} label="Turned In" />
+              {data.activeBucket === 'waiting-to-be-graded' && (
+                <AssignmentList assignments={a.waitingToBeGraded} courseId={courseId} label="Waiting to be graded" />
+              )}
+              {data.activeBucket === 'needs-revision' && (
+                <AssignmentList assignments={a.needsRevision} courseId={courseId} label="Needs Revision" />
               )}
               {data.activeBucket === 'missing' && (
                 <AssignmentList assignments={a.missing} courseId={courseId} label="Missing" />
               )}
-              {data.activeBucket === 'not-started' && (
-                <AssignmentList assignments={a.notStarted} courseId={courseId} label="Not Started" />
+              {data.activeBucket === 'due-this-week' && (
+                <AssignmentList assignments={a.dueThisWeek} courseId={courseId} label="Due this week" />
+              )}
+              {data.activeBucket === 'excused' && (
+                <AssignmentList assignments={a.excused} courseId={courseId} label="Excused" />
               )}
             </div>
           )}
