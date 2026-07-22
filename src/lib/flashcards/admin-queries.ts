@@ -88,3 +88,71 @@ export async function getStudentActivity(
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 }
+
+export type MostStudiedDeck = {
+  deckId: string
+  title: string
+  tags: string[]
+  totalReviews: number
+}
+
+export async function getMostStudiedDecks(
+  courseId: string,
+  fromDate: string,
+  toDate: string,
+  limit: number = 5
+): Promise<MostStudiedDeck[]> {
+  const service = createServiceSupabaseClient()
+
+  // Get all students enrolled in this course
+  const { data: enrollments } = await service
+    .from('course_enrollments')
+    .select('user_id')
+    .eq('course_id', courseId)
+    .eq('role', 'student')
+
+  if (!enrollments?.length) return []
+
+  const studentIds = enrollments.map(e => e.user_id)
+
+  // Get all study sessions for these students in the date range
+  const { data: sessions } = await service
+    .from('study_sessions')
+    .select('deck_id, cards_studied')
+    .in('user_id', studentIds)
+    .gte('started_at', `${fromDate}T00:00:00`)
+    .lte('started_at', `${toDate}T23:59:59`)
+
+  if (!sessions?.length) return []
+
+  // Sum reviews per deck
+  const deckTotals: Record<string, number> = {}
+  for (const s of sessions) {
+    deckTotals[s.deck_id] = (deckTotals[s.deck_id] ?? 0) + (s.cards_studied ?? 0)
+  }
+
+  // Sort by total reviews descending, take top N
+  const topDeckIds = Object.entries(deckTotals)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, limit)
+    .map(([id]) => id)
+
+  if (!topDeckIds.length) return []
+
+  // Fetch deck titles — skip deleted decks (null result)
+  const { data: decks } = await service
+    .from('decks')
+    .select('id, title, tags')
+    .in('id', topDeckIds)
+
+  const deckMap = Object.fromEntries((decks ?? []).map(d => [d.id, d]))
+
+  return topDeckIds
+    .filter(id => deckMap[id]) // skip deleted decks
+    .map(id => ({
+      deckId: id,
+      title: deckMap[id].title,
+      tags: deckMap[id].tags ?? [],
+      totalReviews: deckTotals[id],
+    }))
+}
