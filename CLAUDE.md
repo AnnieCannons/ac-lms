@@ -236,8 +236,8 @@ Work through these sections in order. Check off each one when complete before mo
   - [x] Chunk 2: Bulk deck creation — paste import (two-line format: front / back / blank separator), parser, editable card preview with type selector, confirm to create deck in their account
   - [ ] Chunk 3: Stats page — single scrollable page (no sub-pages). Sub-chunks:
     - [x] Chunk 3a: Page shell + course dropdown (fetches instructor's courses, renders dropdown, no data yet)
-    - [ ] Chunk 3b: Student activity table — date range picker (defaults to current calendar week), enrolled students in selected course, columns: Name | Cards Studied | Days Active | Most Studied Deck(s), all students shown including zeros
-    - [ ] Chunk 3c: Most-studied decks — separate date range picker (same default), top 5 (toggle to top 10), scoped to students enrolled in selected course (any deck counts), metric = total card reviews including repeats
+    - [x] Chunk 3b: Student activity table — date range picker (defaults to current calendar week), enrolled students in selected course, columns: Name | Cards Studied | Days Active | Most Studied Deck(s), all students shown including zeros
+    - [x] Chunk 3c: Most-studied decks — separate date range picker (same default), top 5 (toggle to top 10), scoped to students enrolled in selected course (any deck counts), metric = total card reviews including repeats
     - [ ] Chunk 3d: Curriculum tag — add `course_tag` column to `decks` (migration), show tag picker in deck edit UI for admins only (TCF/ITP, Frontend, Backend, different color from subject tags), display read-only on imported decks for students
   - [ ] Chunk 4: Deck management panel — list of instructor's shared decks with import counts and last push date
   - [ ] Chunk 5: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
