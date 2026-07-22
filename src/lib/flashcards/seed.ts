@@ -27,6 +27,7 @@ export type Deck = {
   title: string
   description: string
   tags: string[]
+  course_tag?: string[]
   is_shared: boolean
   share_token: string | null
   original_deck_id: string | null
@@ -66,6 +67,8 @@ export type DeckWithCounts = Deck & {
   new_count: number
   in_progress_count: number
   review_count: number
+  import_count: number
+  last_push_date: string | null
 }
 
 // ---------------------------------------------------------------------------

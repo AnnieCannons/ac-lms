@@ -30,6 +30,8 @@ const PREDEFINED_TAGS = [
   'Career Development', 'Other',
 ]
 
+const CURRICULUM_TAGS = ['TCF/ITP', 'Frontend', 'Backend']
+
 type Props = {
   deckId: string
   deck: Deck
@@ -47,6 +49,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
   const [title, setTitle] = useState(deck.title)
   const [description, setDescription] = useState(deck.description ?? '')
   const [tags, setTags] = useState<string[]>(deck.tags)
+  const [courseTag, setCourseTag] = useState<string[]>(deck.course_tag ?? [])
   const [saved, setSaved] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showShareConfirm, setShowShareConfirm] = useState(false)
@@ -92,7 +95,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
   const handleSaveDeck = async () => {
     if (!title.trim()) return
     try {
-      await updateDeck(deckId, { title, description, tags })
+      await updateDeck(deckId, { title, description, tags, course_tag: courseTag })
       setSaved(true)
       setIsEditing(false)
     } catch (err) {
@@ -164,6 +167,27 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
                 ))}
               </div>
             </div>
+            {isAdmin && (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-semibold text-muted-text uppercase tracking-widest">Course</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {CURRICULUM_TAGS.map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setCourseTag(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                        courseTag.includes(tag)
+                          ? 'bg-purple-primary text-white border-purple-primary'
+                          : 'bg-surface text-muted-text border-border hover:border-purple-primary hover:text-purple-primary'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={handleSaveDeck}
@@ -173,7 +197,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
                 Save
               </button>
               <button
-                onClick={() => { setIsEditing(false); setTitle(deck.title); setDescription(deck.description ?? ''); setTags(deck.tags); setSaved(false) }}
+                onClick={() => { setIsEditing(false); setTitle(deck.title); setDescription(deck.description ?? ''); setTags(deck.tags); setCourseTag(deck.course_tag ?? []); setSaved(false) }}
                 className="text-sm text-muted-text hover:text-dark-text transition-colors"
               >
                 Cancel
@@ -185,10 +209,15 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             <div className="flex flex-col gap-2">
               <h1 className="text-xl font-bold text-dark-text">{title}</h1>
               {description && <p className="text-sm text-muted-text">{description}</p>}
-              {tags.length > 0 && (
+              {(tags.length > 0 || courseTag.length > 0) && (
                 <div className="flex flex-wrap gap-1.5">
                   {tags.map(tag => (
                     <span key={tag} className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md">
+                      {tag}
+                    </span>
+                  ))}
+                  {courseTag.map(tag => (
+                    <span key={tag} className="bg-purple-primary/10 text-purple-primary text-xs font-medium px-2 py-0.5 rounded-md">
                       {tag}
                     </span>
                   ))}

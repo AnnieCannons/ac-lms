@@ -238,8 +238,8 @@ Work through these sections in order. Check off each one when complete before mo
     - [x] Chunk 3a: Page shell + course dropdown (fetches instructor's courses, renders dropdown, no data yet)
     - [x] Chunk 3b: Student activity table — date range picker (defaults to current calendar week), enrolled students in selected course, columns: Name | Cards Studied | Days Active | Most Studied Deck(s), all students shown including zeros
     - [x] Chunk 3c: Most-studied decks — separate date range picker (same default), top 5 (toggle to top 10), scoped to students enrolled in selected course (any deck counts), metric = total card reviews including repeats
-    - [ ] Chunk 3d: Curriculum tag — add `course_tag` column to `decks` (migration), show tag picker in deck edit UI for admins only (TCF/ITP, Frontend, Backend, different color from subject tags), display read-only on imported decks for students
-  - [ ] Chunk 4: Deck management panel — list of instructor's shared decks with import counts and last push date
+    - [x] Chunk 3d: Curriculum tag — add `course_tag` column to `decks` (migration), show tag picker in deck edit UI for admins only (TCF/ITP, Frontend, Backend, different color from subject tags), display read-only on imported decks for students
+  - [ ] Chunk 4: Import activity — on the admin's My Decks page, shared decks that have been imported by at least one user show a ChartLine icon button (lucide-react, same style as edit/share buttons). Clicking links to `/flashcards/decks/[id]/import-activity` (admin-only page). That page shows: total unique importer count, collapsible list of importer names (filterable by LMS course dropdown — same filter as stats page, default shows all), last push date (omitted if never pushed). No changes to non-shared decks or decks with zero imports.
   - [ ] Chunk 5: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
   - Bulk deck creation (Chunk 2) will also support appending cards to an existing deck, not just creating new ones
 - [ ] 12. Help page & tooltips

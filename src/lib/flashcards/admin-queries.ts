@@ -89,6 +89,80 @@ export async function getStudentActivity(
   }).sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export type Importer = {
+  userId: string
+  name: string
+  courseIds: string[]
+}
+
+export type ImportActivity = {
+  totalCount: number
+  lastPushDate: string | null
+  importers: Importer[]
+}
+
+export async function getImportActivity(deckId: string): Promise<ImportActivity> {
+  const service = createServiceSupabaseClient()
+
+  // Get all imported decks (other users who imported this deck)
+  const { data: importedDecks } = await service
+    .from('decks')
+    .select('owner_user_id')
+    .eq('original_deck_id', deckId)
+
+  if (!importedDecks?.length) return { totalCount: 0, lastPushDate: null, importers: [] }
+
+  const importerIds = [...new Set(importedDecks.map(d => d.owner_user_id))]
+
+  // Get importer names
+  const { data: users } = await service
+    .from('users')
+    .select('id, name')
+    .in('id', importerIds)
+
+  // Get course enrollments for importers
+  const { data: enrollments } = await service
+    .from('course_enrollments')
+    .select('user_id, course_id')
+    .in('user_id', importerIds)
+    .eq('role', 'student')
+
+  const coursesByUser: Record<string, string[]> = {}
+  for (const e of (enrollments ?? [])) {
+    if (!coursesByUser[e.user_id]) coursesByUser[e.user_id] = []
+    coursesByUser[e.user_id].push(e.course_id)
+  }
+
+  const importers: Importer[] = (users ?? []).map(u => ({
+    userId: u.id,
+    name: u.name ?? 'Unknown',
+    courseIds: coursesByUser[u.id] ?? [],
+  })).sort((a, b) => a.name.localeCompare(b.name))
+
+  // Last push date: most recent deck_updated notification sent to importers of this deck
+  // notifications.deck_id = the importer's copy, so we look up all imported deck ids first
+  const { data: allImportedDecks } = await service
+    .from('decks')
+    .select('id')
+    .eq('original_deck_id', deckId)
+
+  const importedDeckIds = (allImportedDecks ?? []).map(d => d.id)
+
+  let lastPushDate: string | null = null
+  if (importedDeckIds.length > 0) {
+    const { data: notifications } = await service
+      .from('notifications')
+      .select('created_at')
+      .eq('type', 'deck_updated')
+      .in('deck_id', importedDeckIds)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    lastPushDate = notifications?.[0]?.created_at ?? null
+  }
+
+  return { totalCount: importerIds.length, lastPushDate, importers }
+}
+
 export type MostStudiedDeck = {
   deckId: string
   title: string
