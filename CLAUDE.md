@@ -159,7 +159,17 @@ Deck card UI:
   ```
   Line 1 of each pair = front, line 2 = back, blank line separates pairs. All default to `basic` type; user can change before confirming.
 - Bulk-created decks go into the instructor's own account and are shared via the existing share system
-- Stats: scoped per course via dropdown; shows past-week activity per student, most-studied decks, shared deck import tracker (who imported it, study count)
+- Stats page is a single scrollable page (no sub-pages). Course dropdown filters student activity table; most-studied decks is scoped to students in the selected course (any deck counts, not filtered by course tag).
+- Student activity table: all students enrolled in selected LMS course, past calendar week by default, columns: Name | Cards Studied | Days Active | Most Studied Deck(s)
+- Most-studied decks: top decks studied by students in the selected course, separate date range picker, top 5 default with toggle to top 10, metric = total card reviews including repeats
+
+### Curriculum Tags (deck-level)
+- Admins can tag decks with a curriculum label: `TCF/ITP`, `Frontend`, or `Backend`
+- Stored as `course_tag` column (nullable text/enum) on the `decks` table — requires a migration
+- Separate from the existing subject tags (HTML, CSS, etc.) — displayed with a different color in the UI
+- Only admins see and can set the curriculum tag (shown in deck edit UI only when `isAdmin = true`)
+- Students see the curriculum tag on imported decks (read-only display)
+- The curriculum tag is not used to filter stats — it's organizational metadata on decks
 
 ### Badge System (Section 11, Chunk 3) — Key Decisions
 Badges are auto-awarded when a user hits a milestone. V1 badges:
@@ -225,9 +235,10 @@ Work through these sections in order. Check off each one when complete before mo
   - [x] Chunk 1: Route + layout — `/flashcards/admin`, subtab switcher (Admin | My Decks), hybrid nav (instructor nav + notification bell)
   - [x] Chunk 2: Bulk deck creation — paste import (two-line format: front / back / blank separator), parser, editable card preview with type selector, confirm to create deck in their account
   - [ ] Chunk 3: Stats page — single scrollable page (no sub-pages). Sub-chunks:
-    - [ ] Chunk 3a: Page shell + course dropdown (fetches instructor's courses, renders dropdown, no data yet)
+    - [x] Chunk 3a: Page shell + course dropdown (fetches instructor's courses, renders dropdown, no data yet)
     - [ ] Chunk 3b: Student activity table — date range picker (defaults to current calendar week), enrolled students in selected course, columns: Name | Cards Studied | Days Active | Most Studied Deck(s), all students shown including zeros
-    - [ ] Chunk 3c: Most-studied decks — separate date range picker (same default), top 5 (toggle to top 10), scoped to admin-owned + is_shared=true decks only, metric = total card reviews including repeats
+    - [ ] Chunk 3c: Most-studied decks — separate date range picker (same default), top 5 (toggle to top 10), scoped to students enrolled in selected course (any deck counts), metric = total card reviews including repeats
+    - [ ] Chunk 3d: Curriculum tag — add `course_tag` column to `decks` (migration), show tag picker in deck edit UI for admins only (TCF/ITP, Frontend, Backend, different color from subject tags), display read-only on imported decks for students
   - [ ] Chunk 4: Deck management panel — list of instructor's shared decks with import counts and last push date
   - [ ] Chunk 5: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
   - Bulk deck creation (Chunk 2) will also support appending cards to an existing deck, not just creating new ones
