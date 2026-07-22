@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import type { DeckWithCounts } from './seed'
 
 export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts[]> {
@@ -13,6 +13,44 @@ export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts
   if (error || !decks?.length) return []
 
   const deckIds = decks.map((d) => d.id)
+
+  // Import counts + last push date
+  const service = createServiceSupabaseClient()
+  const sharedDeckIds = decks.filter(d => d.is_shared).map(d => d.id)
+
+  // Fetch all imported copies: id (importer's deck) + original_deck_id (source)
+  const { data: importedWithIds } = sharedDeckIds.length > 0
+    ? await service
+        .from('decks')
+        .select('id, original_deck_id')
+        .in('original_deck_id', sharedDeckIds)
+        .neq('owner_user_id', userId)
+    : { data: [] }
+
+  const importCountMap: Record<string, number> = {}
+  const importedToSource: Record<string, string> = {}
+  for (const d of (importedWithIds ?? [])) {
+    importCountMap[d.original_deck_id] = (importCountMap[d.original_deck_id] ?? 0) + 1
+    importedToSource[d.id] = d.original_deck_id
+  }
+
+  // Last push: notifications.deck_id = importer's copy id → map back to source
+  const allImportedIds = Object.keys(importedToSource)
+  const { data: pushNotifications } = allImportedIds.length > 0
+    ? await service
+        .from('notifications')
+        .select('deck_id, created_at')
+        .eq('type', 'deck_updated')
+        .in('deck_id', allImportedIds)
+        .order('created_at', { ascending: false })
+    : { data: [] }
+
+  const lastPushMap: Record<string, string> = {}
+  for (const n of (pushNotifications ?? [])) {
+    if (!n.deck_id) continue
+    const sourceDeckId = importedToSource[n.deck_id]
+    if (sourceDeckId && !lastPushMap[sourceDeckId]) lastPushMap[sourceDeckId] = n.created_at
+  }
 
   const { data: cards } = await supabase
     .from('cards')
@@ -59,6 +97,8 @@ export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts
       new_count: newCount,
       in_progress_count: inProgressCount,
       review_count: reviewCount,
+      import_count: importCountMap[deck.id] ?? 0,
+      last_push_date: lastPushMap[deck.id] ?? null,
     }
   })
 }

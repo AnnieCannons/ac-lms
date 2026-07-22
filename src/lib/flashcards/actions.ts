@@ -35,13 +35,13 @@ export async function createDeck(data: { title: string; description: string; tag
 
 export async function updateDeck(
   deckId: string,
-  data: { title: string; description: string; tags: string[] }
+  data: { title: string; description: string; tags: string[]; course_tag?: string[] }
 ) {
   const { supabase, user } = await getAuthUser()
 
   const { error } = await supabase
     .from('decks')
-    .update({ title: data.title, description: data.description || null, tags: data.tags })
+    .update({ title: data.title, description: data.description || null, tags: data.tags, course_tag: data.course_tag ?? [] })
     .eq('id', deckId)
     .eq('owner_user_id', user.id)
 
