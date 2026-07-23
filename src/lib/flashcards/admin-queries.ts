@@ -163,6 +163,85 @@ export async function getImportActivity(deckId: string): Promise<ImportActivity>
   return { totalCount: importerIds.length, lastPushDate, importers }
 }
 
+export type DeckImportSummary = {
+  deckId: string
+  title: string
+  importCount: number
+  lastPushDate: string | null
+  importers: { userId: string; name: string }[]
+}
+
+export async function getAllImportActivity(userId: string): Promise<DeckImportSummary[]> {
+  const service = createServiceSupabaseClient()
+
+  const { data: sharedDecks } = await service
+    .from('decks')
+    .select('id, title')
+    .eq('owner_user_id', userId)
+    .eq('is_shared', true)
+
+  if (!sharedDecks?.length) return []
+
+  const sharedDeckIds = sharedDecks.map(d => d.id)
+
+  const { data: importedDecks } = await service
+    .from('decks')
+    .select('id, original_deck_id, owner_user_id')
+    .in('original_deck_id', sharedDeckIds)
+    .neq('owner_user_id', userId)
+
+  const importCountMap: Record<string, number> = {}
+  const importersByDeck: Record<string, string[]> = {}
+  const importedToSource: Record<string, string> = {}
+
+  for (const d of (importedDecks ?? [])) {
+    importCountMap[d.original_deck_id] = (importCountMap[d.original_deck_id] ?? 0) + 1
+    if (!importersByDeck[d.original_deck_id]) importersByDeck[d.original_deck_id] = []
+    importersByDeck[d.original_deck_id].push(d.owner_user_id)
+    importedToSource[d.id] = d.original_deck_id
+  }
+
+  const allImporterIds = [...new Set(Object.values(importersByDeck).flat())]
+  const { data: users } = allImporterIds.length > 0
+    ? await service.from('users').select('id, name').in('id', allImporterIds)
+    : { data: [] }
+  const userNameMap = Object.fromEntries((users ?? []).map(u => [u.id, u.name ?? 'Unknown']))
+
+  const allImportedIds = Object.keys(importedToSource)
+  const { data: notifications } = allImportedIds.length > 0
+    ? await service
+        .from('notifications')
+        .select('deck_id, created_at')
+        .eq('type', 'deck_updated')
+        .in('deck_id', allImportedIds)
+        .order('created_at', { ascending: false })
+    : { data: [] }
+
+  const lastPushMap: Record<string, string> = {}
+  for (const n of (notifications ?? [])) {
+    if (!n.deck_id) continue
+    const sourceId = importedToSource[n.deck_id]
+    if (sourceId && !lastPushMap[sourceId]) lastPushMap[sourceId] = n.created_at
+  }
+
+  const results: DeckImportSummary[] = sharedDecks.map(deck => ({
+    deckId: deck.id,
+    title: deck.title,
+    importCount: importCountMap[deck.id] ?? 0,
+    lastPushDate: lastPushMap[deck.id] ?? null,
+    importers: (importersByDeck[deck.id] ?? [])
+      .map(uid => ({ userId: uid, name: userNameMap[uid] ?? 'Unknown' }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  }))
+
+  return results.sort((a, b) => {
+    if (!a.lastPushDate && !b.lastPushDate) return 0
+    if (!a.lastPushDate) return 1
+    if (!b.lastPushDate) return -1
+    return b.lastPushDate.localeCompare(a.lastPushDate)
+  })
+}
+
 export type MostStudiedDeck = {
   deckId: string
   title: string

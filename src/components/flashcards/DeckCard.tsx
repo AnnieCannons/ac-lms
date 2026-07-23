@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { ChartLine } from 'lucide-react'
 import type { DeckWithCounts } from '@/lib/flashcards/seed'
 import ShareButton from './ShareButton'
 
@@ -70,20 +69,6 @@ export default function DeckCard({ deck, isAdmin }: { deck: DeckWithCounts; isAd
         </Link>
         <div className="flex gap-1.5">
           <ShareButton deckId={deck.id} shareToken={deck.share_token} deckTitle={deck.title} />
-          {isAdmin && deck.is_shared && (deck.import_count ?? 0) > 0 && (
-            <div className="relative group">
-              <Link
-                href={`/flashcards/decks/${deck.id}/import-activity`}
-                className="w-7 h-7 flex items-center justify-center border border-border rounded-lg text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors"
-                aria-label={`Import activity for ${deck.title}`}
-              >
-                <ChartLine size={14} aria-hidden="true" />
-              </Link>
-              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                Import activity
-              </span>
-            </div>
-          )}
           <div className="relative group">
             <Link
               href={`/flashcards/decks/${deck.id}`}
