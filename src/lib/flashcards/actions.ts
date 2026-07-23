@@ -150,7 +150,7 @@ export async function pushDeckUpdates(deckId: string) {
   // Verify ownership and that deck is shared
   const { data: deck } = await supabase
     .from('decks')
-    .select('id, title, is_shared')
+    .select('id, title, description, tags, course_tag, is_shared')
     .eq('id', deckId)
     .eq('owner_user_id', user.id)
     .single()
@@ -163,8 +163,6 @@ export async function pushDeckUpdates(deckId: string) {
     .select('id, front_content, back_content, card_type')
     .eq('deck_id', deckId)
 
-  if (!cards || cards.length === 0) return
-
   // Use service role for all cross-user queries (RLS restricts the regular client to own rows)
   const serviceClient = createServiceSupabaseClient()
 
@@ -176,6 +174,20 @@ export async function pushDeckUpdates(deckId: string) {
     .neq('owner_user_id', user.id)
 
   if (!importedDecks || importedDecks.length === 0) return
+
+  // Sync metadata to all imported copies
+  const importedIds = importedDecks.map(d => d.id)
+  await serviceClient
+    .from('decks')
+    .update({
+      title: deck.title,
+      description: deck.description,
+      tags: deck.tags ?? [],
+      course_tag: deck.course_tag ?? [],
+    })
+    .in('id', importedIds)
+
+  if (!cards || cards.length === 0) return
 
   // Insert one notification per importer with a linked snapshot
   for (const imported of importedDecks) {
