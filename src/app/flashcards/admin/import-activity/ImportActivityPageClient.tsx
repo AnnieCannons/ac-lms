@@ -65,8 +65,8 @@ function DeckRow({ deck, index }: { deck: DeckImportSummary; index: number }) {
 export default function ImportActivityPageClient({ decks }: { decks: DeckImportSummary[] }) {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      <Link href="/flashcards" className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-6">
-        ← My Decks
+      <Link href="/flashcards/admin" className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-6">
+        ← Admin
       </Link>
 
       <h1 className="text-2xl font-bold text-dark-text mb-8">Import Activity</h1>
