@@ -22,7 +22,8 @@ import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
 import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
 import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
 import type { Deck, Card } from '@/lib/flashcards/seed'
-import type { PendingDiff, DiffSelection } from '@/app/flashcards/decks/[id]/page'
+import type { PendingDiff } from '@/app/flashcards/decks/[id]/page'
+import type { DiffSelection } from '@/components/flashcards/DeckUpdateModal'
 
 const PREDEFINED_TAGS = [
   'HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Node.js',
@@ -39,9 +40,10 @@ type Props = {
   userId: string
   pendingDiff: PendingDiff | null
   isAdmin?: boolean
+  hasUnpushedChanges?: boolean
 }
 
-export default function DeckPageClient({ deckId, deck, initialCards, userId, pendingDiff, isAdmin }: Props) {
+export default function DeckPageClient({ deckId, deck, initialCards, userId, pendingDiff, isAdmin, hasUnpushedChanges }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<Card[]>(initialCards)
   useEffect(() => { setCards(initialCards) }, [initialCards])
@@ -118,7 +120,6 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
-
       <Link
         href="/flashcards"
         className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-6"
@@ -126,40 +127,76 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
         ← Back to My Decks
       </Link>
 
+      {canShareUpdates && hasUnpushedChanges && !shareUpdatesDone && (
+        <div className="mb-6 rounded-lg border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 flex items-center justify-between gap-4">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            Let people who imported this deck know about your updates?
+          </p>
+          <button
+            onClick={() => setShowShareConfirm(true)}
+            className="shrink-0 text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors"
+          >
+            Share updates
+          </button>
+        </div>
+      )}
+      {canShareUpdates && shareUpdatesDone && (
+        <div className="mb-6 rounded-lg border border-emerald-300/60 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
+          <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+            Updates shared ✓
+          </p>
+        </div>
+      )}
+
       <div className="bg-surface border border-border rounded-xl p-5 mb-6">
         {isEditing ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">Title <span className="text-red-500">*</span></label>
+              <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">
+                Title <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={title}
-                onChange={e => { setTitle(e.target.value); setSaved(false) }}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setSaved(false);
+                }}
                 className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                 autoFocus
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">Description <span className="text-muted-text font-normal normal-case tracking-normal">(optional)</span></label>
+              <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">
+                Description{" "}
+                <span className="text-muted-text font-normal normal-case tracking-normal">
+                  (optional)
+                </span>
+              </label>
               <textarea
                 value={description}
-                onChange={e => { setDescription(e.target.value); setSaved(false) }}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  setSaved(false);
+                }}
                 rows={2}
                 className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-text uppercase tracking-widest">Tags</span>
+              <span className="text-xs font-semibold text-muted-text uppercase tracking-widest">
+                Tags
+              </span>
               <div className="flex flex-wrap gap-1.5">
-                {PREDEFINED_TAGS.map(tag => (
+                {PREDEFINED_TAGS.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => toggleTag(tag)}
                     className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                       tags.includes(tag)
-                        ? 'bg-teal-primary text-white border-teal-primary'
-                        : 'bg-surface text-muted-text border-border hover:border-teal-primary hover:text-teal-primary'
+                        ? "bg-teal-primary text-white border-teal-primary"
+                        : "bg-surface text-muted-text border-border hover:border-teal-primary hover:text-teal-primary"
                     }`}
                   >
                     {tag}
@@ -169,17 +206,25 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             </div>
             {isAdmin && (
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold text-muted-text uppercase tracking-widest">Course</span>
+                <span className="text-xs font-semibold text-muted-text uppercase tracking-widest">
+                  Course
+                </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {CURRICULUM_TAGS.map(tag => (
+                  {CURRICULUM_TAGS.map((tag) => (
                     <button
                       key={tag}
                       type="button"
-                      onClick={() => setCourseTag(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                      onClick={() =>
+                        setCourseTag((prev) =>
+                          prev.includes(tag)
+                            ? prev.filter((t) => t !== tag)
+                            : [...prev, tag],
+                        )
+                      }
                       className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                         courseTag.includes(tag)
-                          ? 'bg-purple-primary text-white border-purple-primary'
-                          : 'bg-surface text-muted-text border-border hover:border-purple-primary hover:text-purple-primary'
+                          ? "bg-purple-primary text-white border-purple-primary"
+                          : "bg-surface text-muted-text border-border hover:border-purple-primary hover:text-purple-primary"
                       }`}
                     >
                       {tag}
@@ -197,7 +242,14 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
                 Save
               </button>
               <button
-                onClick={() => { setIsEditing(false); setTitle(deck.title); setDescription(deck.description ?? ''); setTags(deck.tags); setCourseTag(deck.course_tag ?? []); setSaved(false) }}
+                onClick={() => {
+                  setIsEditing(false);
+                  setTitle(deck.title);
+                  setDescription(deck.description ?? "");
+                  setTags(deck.tags);
+                  setCourseTag(deck.course_tag ?? []);
+                  setSaved(false);
+                }}
                 className="text-sm text-muted-text hover:text-dark-text transition-colors"
               >
                 Cancel
@@ -208,22 +260,34 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-2">
               <h1 className="text-xl font-bold text-dark-text">{title}</h1>
-              {description && <p className="text-sm text-muted-text">{description}</p>}
+              {description && (
+                <p className="text-sm text-muted-text">{description}</p>
+              )}
               {(tags.length > 0 || courseTag.length > 0) && (
                 <div className="flex flex-wrap gap-1.5">
-                  {tags.map(tag => (
-                    <span key={tag} className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md"
+                    >
                       {tag}
                     </span>
                   ))}
-                  {courseTag.map(tag => (
-                    <span key={tag} className="bg-purple-primary/10 text-purple-primary text-xs font-medium px-2 py-0.5 rounded-md">
+                  {courseTag.map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-purple-primary/10 text-purple-primary text-xs font-medium px-2 py-0.5 rounded-md"
+                    >
                       {tag}
                     </span>
                   ))}
                 </div>
               )}
-              {saved && <span className="text-xs text-teal-primary" role="status">Saved!</span>}
+              {saved && (
+                <span className="text-xs text-teal-primary" role="status">
+                  Saved!
+                </span>
+              )}
             </div>
             <button
               onClick={() => setIsEditing(true)}
@@ -236,7 +300,9 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-text">{cards.length} {cards.length === 1 ? 'card' : 'cards'}</p>
+        <p className="text-sm text-muted-text">
+          {cards.length} {cards.length === 1 ? "card" : "cards"}
+        </p>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <div className="relative group">
@@ -255,8 +321,18 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             href={`/flashcards/decks/${deckId}/cards/new`}
             className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             Add Card
           </Link>
@@ -282,10 +358,17 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
           </Link>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={cards.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
             <div className="flex flex-col gap-2">
-              {cards.map(card => (
+              {cards.map((card) => (
                 <CardItem
                   key={card.id}
                   card={card}
@@ -298,26 +381,24 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
         </DndContext>
       )}
 
-      {canShareUpdates && (
-        <div className="mt-6 rounded-lg border border-border bg-surface px-4 py-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div>
-              <p className="text-sm font-medium text-dark-text">Share your changes</p>
-              <p className="text-xs text-muted-text mt-0.5">
-                Let people who imported this deck know about your updates.
-              </p>
-            </div>
-            {shareUpdatesDone ? (
-              <span className="self-start shrink-0 text-sm text-emerald-600 font-medium">Shared ✓</span>
-            ) : (
-              <button
-                onClick={() => setShowShareConfirm(true)}
-                className="self-start shrink-0 text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors"
-              >
-                Share updates
-              </button>
-            )}
-          </div>
+      {canShareUpdates && hasUnpushedChanges && !shareUpdatesDone && (
+        <div className="mt-6 rounded-lg border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 flex items-center justify-between gap-4">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            Do you want to share your updates?
+          </p>
+          <button
+            onClick={() => setShowShareConfirm(true)}
+            className="shrink-0 text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors"
+          >
+            Share updates
+          </button>
+        </div>
+      )}
+      {canShareUpdates && shareUpdatesDone && (
+        <div className="mt-6 rounded-lg border border-emerald-300/60 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
+          <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+            Updates shared ✓
+          </p>
         </div>
       )}
 
@@ -328,7 +409,9 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
         >
           Delete this deck
         </button>
-        <p className="text-xs text-muted-text">Permanently removes all cards and progress. This cannot be undone.</p>
+        <p className="text-xs text-muted-text">
+          Permanently removes all cards and progress. This cannot be undone.
+        </p>
       </div>
 
       {showDeleteModal && (
@@ -344,16 +427,20 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
           diff={pendingDiff}
           onClose={() => setShowDiffModal(false)}
           onApply={async (selections: DiffSelection) => {
-            setApplyingDiff(true)
+            setApplyingDiff(true);
             try {
-              await applyDeckUpdates(pendingDiff.notificationId, deckId, selections)
-              router.replace(`/flashcards/decks/${deckId}`)
-              router.refresh()
+              await applyDeckUpdates(
+                pendingDiff.notificationId,
+                deckId,
+                selections,
+              );
+              router.replace(`/flashcards/decks/${deckId}`);
+              router.refresh();
             } catch (err) {
-              console.error('Failed to apply deck updates:', err)
+              console.error("Failed to apply deck updates:", err);
             } finally {
-              setApplyingDiff(false)
-              setShowDiffModal(false)
+              setApplyingDiff(false);
+              setShowDiffModal(false);
             }
           }}
           applying={applyingDiff}
@@ -361,11 +448,20 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
       )}
 
       {showShareConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="bg-surface rounded-2xl shadow-xl max-w-sm w-full p-6 flex flex-col gap-4">
-            <h2 className="text-base font-semibold text-dark-text">Share your changes?</h2>
+            <h2 className="text-base font-semibold text-dark-text">
+              Share your changes?
+            </h2>
             <p className="text-sm text-muted-text">
-              Everyone who has imported <strong className="text-dark-text">"{deck.title}"</strong> will get a notification and can choose which updates to apply to their copy.
+              Everyone who has imported{" "}
+              <strong className="text-dark-text">"{deck.title}"</strong> will
+              get a notification and can choose which updates to apply to their
+              copy.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -377,26 +473,26 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
               </button>
               <button
                 onClick={async () => {
-                  setShareUpdatesSending(true)
+                  setShareUpdatesSending(true);
                   try {
-                    await pushDeckUpdates(deckId)
-                    setShareUpdatesDone(true)
+                    await pushDeckUpdates(deckId);
+                    setShareUpdatesDone(true);
                   } catch (err) {
-                    console.error('Failed to share updates:', err)
+                    console.error("Failed to share updates:", err);
                   } finally {
-                    setShareUpdatesSending(false)
-                    setShowShareConfirm(false)
+                    setShareUpdatesSending(false);
+                    setShowShareConfirm(false);
                   }
                 }}
                 disabled={shareUpdatesSending}
                 className="text-sm font-medium bg-teal-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {shareUpdatesSending ? 'Sharing…' : 'Share updates'}
+                {shareUpdatesSending ? "Sharing…" : "Share updates"}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
