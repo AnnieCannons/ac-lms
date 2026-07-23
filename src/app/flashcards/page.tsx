@@ -32,16 +32,6 @@ export default async function FlashcardsPage() {
         <MyDecksHeader deckCount={decks.length} cardsDueToday={cardsDueToday} />
       </Suspense>
 
-      {isAdmin && (
-        <div className="mb-6">
-          <Link
-            href="/flashcards/import-activity"
-            className="text-sm font-medium text-teal-primary border border-border rounded-lg px-4 py-2 hover:bg-teal-light transition-colors"
-          >
-            Import Activity
-          </Link>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
         {decks.map(deck => (
