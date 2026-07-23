@@ -84,6 +84,42 @@ export default async function DeckPage({
 
   if (!deck) notFound()
 
+  // Detect unpushed changes for shared decks the user owns
+  let hasUnpushedChanges = false
+  if (deck.owner_user_id === user.id && deck.is_shared) {
+    const serviceClient = createServiceSupabaseClient()
+
+    const { data: importedDecks } = await serviceClient
+      .from('decks')
+      .select('id')
+      .eq('original_deck_id', deckId)
+      .neq('owner_user_id', user.id)
+
+    if (importedDecks && importedDecks.length > 0) {
+      const importedIds = importedDecks.map(d => d.id)
+      const { data: lastNotif } = await serviceClient
+        .from('notifications')
+        .select('created_at')
+        .eq('type', 'deck_updated')
+        .in('deck_id', importedIds)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const lastPushDate = lastNotif?.created_at ?? null
+      if (!lastPushDate) {
+        hasUnpushedChanges = true
+      } else {
+        const maxCardUpdatedAt = cards.length > 0
+          ? Math.max(...cards.map(c => new Date(c.updated_at).getTime()))
+          : 0
+        const deckUpdatedAt = new Date(deck.updated_at).getTime()
+        const lastPushTime = new Date(lastPushDate).getTime()
+        hasUnpushedChanges = maxCardUpdatedAt > lastPushTime || deckUpdatedAt > lastPushTime
+      }
+    }
+  }
+
   let pendingDiff: PendingDiff | null = null
 
   if (notificationId) {
@@ -130,6 +166,7 @@ export default async function DeckPage({
       userId={user.id}
       pendingDiff={pendingDiff}
       isAdmin={isAdmin}
+      hasUnpushedChanges={hasUnpushedChanges}
     />
   )
 }
