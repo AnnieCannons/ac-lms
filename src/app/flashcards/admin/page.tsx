@@ -13,7 +13,7 @@ export default function FlashcardAdminPage() {
           <p className="text-sm text-muted-text">View cards studied, days active, and most studied decks by course.</p>
         </Link>
         <Link
-          href="/flashcards/import-activity"
+          href="/flashcards/admin/import-activity"
           className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-2 hover:border-teal-primary transition-colors group"
         >
           <h2 className="text-base font-semibold text-dark-text group-hover:text-teal-primary transition-colors">Import Activity</h2>
