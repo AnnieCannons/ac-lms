@@ -1,4 +1,9 @@
+import type { Metadata } from 'next'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = {
+  title: 'AC LMS - Flashcards',
+}
 import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import FlashcardAdminNav from '@/components/flashcards/FlashcardAdminNav'
