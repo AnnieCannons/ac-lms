@@ -14,6 +14,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "AC LMS",
   description: "AC Learning Management System",
+  icons: { icon: '/favicon.png' },
 };
 
 export default function RootLayout({
