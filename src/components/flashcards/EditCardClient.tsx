@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import CardForm from '@/components/flashcards/CardForm'
 import { updateCard } from '@/lib/flashcards/actions'
 import type { Card, CardType } from '@/lib/flashcards/seed'
@@ -11,9 +12,12 @@ type Props = {
 }
 
 export default function EditCardClient({ deckId, deckTitle, card }: Props) {
+  const router = useRouter()
+
   const handleSave = async ({ card_type, front_content, back_content }: { card_type: CardType; front_content: string; back_content: string }) => {
     try {
       await updateCard(card.id, deckId, { card_type, front_content, back_content })
+      router.push(`/flashcards/decks/${deckId}`)
     } catch (err) {
       console.error('Failed to update card:', err)
     }
