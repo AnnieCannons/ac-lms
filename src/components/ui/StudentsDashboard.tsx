@@ -2,7 +2,14 @@
 
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
-import { getStudentAssignmentStats, type StudentAssignmentStats, type AssignmentStat } from '@/lib/student-stats-actions'
+import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from 'recharts'
+import {
+  getStudentAssignmentStats,
+  getStudentStatsHistory,
+  type StudentAssignmentStats,
+  type AssignmentStat,
+  type StatsHistoryPoint,
+} from '@/lib/student-stats-actions'
 import type { CourseWithStudents } from '@/app/instructor/students/page'
 
 type AttendanceStats = {
@@ -15,9 +22,67 @@ type AttendanceStats = {
 type StudentData = {
   assignments: StudentAssignmentStats | null
   attendance: AttendanceStats | null
+  history: StatsHistoryPoint[] | null
   loading: boolean
   error: string | null
   activeBucket: 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused' | null
+}
+
+const MISSING_COLOR = '#dc2626'
+const NEEDS_REVISION_COLOR = '#ea580c'
+
+function formatWeekLabel(weekStart: string): string {
+  return new Date(`${weekStart}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function TrendChart({ history }: { history: StatsHistoryPoint[] }) {
+  if (history.length < 2) {
+    return <p className="text-sm text-muted-text py-2">Trend appears after a couple weeks of data.</p>
+  }
+
+  const data = history.map(h => ({ week: formatWeekLabel(h.weekStart), missing: h.missing, needsRevision: h.needsRevision }))
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-4">
+        <span className="flex items-center gap-1.5 text-xs text-muted-text">
+          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: MISSING_COLOR }} />
+          Missing
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-text">
+          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: NEEDS_REVISION_COLOR }} />
+          Needs Revision
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={90}>
+        <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+          <YAxis domain={[0, 'dataMax']} hide />
+          <Tooltip
+            labelFormatter={(label) => `Week of ${label}`}
+            contentStyle={{ fontSize: 12, borderRadius: 8 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="missing"
+            name="Missing"
+            stroke={MISSING_COLOR}
+            strokeWidth={2}
+            dot={data.length <= 8 ? { r: 2, fill: MISSING_COLOR, strokeWidth: 0 } : false}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="needsRevision"
+            name="Needs Revision"
+            stroke={NEEDS_REVISION_COLOR}
+            strokeWidth={2}
+            dot={data.length <= 8 ? { r: 2, fill: NEEDS_REVISION_COLOR, strokeWidth: 0 } : false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
 }
 
 function ZoneBadge({ absences }: { absences: number }) {
@@ -110,6 +175,7 @@ function StudentRow({
   const [data, setData] = useState<StudentData>({
     assignments: null,
     attendance: null,
+    history: null,
     loading: false,
     error: null,
     activeBucket: null,
@@ -123,14 +189,16 @@ function StudentRow({
       if (startDate) attendanceParams.set('since', startDate)
       if (endDate) attendanceParams.set('until', endDate)
       if (airtableCourseName) attendanceParams.set('courseName', airtableCourseName)
-      const [assignments, attendanceRes] = await Promise.all([
+      const [assignments, attendanceRes, history] = await Promise.all([
         getStudentAssignmentStats(student.id, courseId),
         fetch(`/api/attendance/instructor/student?${attendanceParams}`).then(r => r.json()),
+        getStudentStatsHistory(student.id, courseId).catch(() => []),
       ])
       setData(d => ({
         ...d,
         assignments,
         attendance: attendanceRes.error ? null : attendanceRes,
+        history,
         loading: false,
       }))
     } catch {
@@ -240,6 +308,13 @@ function StudentRow({
               {data.activeBucket === 'excused' && (
                 <AssignmentList assignments={a.excused} courseId={courseId} label="Excused" />
               )}
+            </div>
+          )}
+
+          {data.history && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wider">Trend</p>
+              <TrendChart history={data.history} />
             </div>
           )}
 

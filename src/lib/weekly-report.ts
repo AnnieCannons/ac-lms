@@ -243,6 +243,15 @@ export async function buildCourseReport(
 
   for (const student of students) {
     const stats = await computeStudentAssignmentStats(admin, student.id, course.id)
+
+    await admin.from('student_stats_snapshots').upsert({
+      student_id: student.id,
+      course_id: course.id,
+      week_start: weekRanges.thisWeek.start,
+      missing_count: stats.missing.length,
+      needs_revision_count: stats.needsRevision.length,
+    }, { onConflict: 'student_id,course_id,week_start' })
+
     const missingThisWeek = stats.missing.filter(a => a.due_date && dateInRange(a.due_date, weekRanges.thisWeek)).length
     const missingLastWeek = stats.missing.filter(a => a.due_date && dateInRange(a.due_date, weekRanges.lastWeek)).length
     const missingTotal = stats.missing.length
