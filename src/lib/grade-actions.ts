@@ -300,6 +300,72 @@ export async function addSubmissionComment(
   return { id: data.id, created_at: data.created_at }
 }
 
+export type SubmissionCommentPreview = {
+  id: string
+  content: string
+  created_at: string
+  author_id: string
+  author_name: string
+  author_role: string
+}
+
+// Instructor/staff/admin (or TA scoped to the course) preview of a submission's comment thread.
+export async function getSubmissionComments(
+  submissionId: string,
+  courseId: string,
+): Promise<SubmissionCommentPreview[]> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    const { data: enr } = await supabase.from('course_enrollments')
+      .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+    if (enr?.role !== 'ta') return []
+  }
+
+  const admin = createServiceSupabaseClient()
+
+  // Verify the submission's assignment actually belongs to this course
+  const { data: submission } = await admin
+    .from('submissions')
+    .select('assignment_id')
+    .eq('id', submissionId)
+    .single()
+  if (!submission) return []
+
+  const { data: owned } = await admin
+    .from('assignments')
+    .select('module_days!module_day_id(modules(course_id))')
+    .eq('id', submission.assignment_id)
+    .single()
+  const assignmentCourseId = (() => {
+    const md = Array.isArray(owned?.module_days) ? owned.module_days[0] : owned?.module_days
+    const mod = Array.isArray(md?.modules) ? md.modules[0] : md?.modules
+    return mod?.course_id
+  })()
+  if (assignmentCourseId !== courseId) return []
+
+  const { data: rawComments } = await admin
+    .from('submission_comments')
+    .select('id, content, created_at, author_id, users(name, role)')
+    .eq('submission_id', submissionId)
+    .order('created_at', { ascending: true })
+
+  return (rawComments ?? []).map(c => {
+    const u = Array.isArray(c.users) ? c.users[0] : c.users
+    return {
+      id: c.id,
+      content: c.content,
+      created_at: c.created_at,
+      author_id: c.author_id,
+      author_name: (u as { name: string; role: string } | null)?.name ?? 'Unknown',
+      author_role: (u as { name: string; role: string } | null)?.role ?? 'instructor',
+    }
+  })
+}
+
 // Edit a comment — only the original author may edit their own comment.
 export async function editSubmissionComment(
   commentId: string,

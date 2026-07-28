@@ -1,8 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { getStudentAssignmentStats, type StudentAssignmentStats, type AssignmentStat } from '@/lib/student-stats-actions'
+import { getSubmissionComments, type SubmissionCommentPreview } from '@/lib/grade-actions'
+import MarkdownContent from '@/components/ui/MarkdownContent'
+import LocalDateTime from '@/components/ui/LocalDateTime'
 import type { CourseWithStudents } from '@/app/instructor/students/page'
 
 type AttendanceStats = {
@@ -55,13 +58,101 @@ function StatCard({
   )
 }
 
+function CommentsPreview({ submissionId, courseId }: { submissionId: string; courseId: string }) {
+  const [comments, setComments] = useState<SubmissionCommentPreview[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getSubmissionComments(submissionId, courseId)
+      .then(result => { if (!cancelled) setComments(result) })
+      .catch(() => { if (!cancelled) setError('Could not load comments.') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [submissionId, courseId])
+
+  if (loading) return <p className="text-xs text-muted-text px-4 pb-3">Loading comments…</p>
+  if (error) return <p className="text-xs text-red-600 px-4 pb-3">{error}</p>
+  if (!comments || comments.length === 0) return <p className="text-xs text-muted-text italic px-4 pb-3">No comments.</p>
+
+  return (
+    <div className="flex flex-col gap-2 px-4 pb-3">
+      {comments.map(c => (
+        <div key={c.id} className="text-xs bg-background rounded-lg border border-border p-2.5">
+          <p className="font-semibold text-dark-text">
+            {c.author_name} <span className="font-normal text-muted-text">· {c.author_role}</span>
+            <span className="font-normal text-muted-text"> · <LocalDateTime iso={c.created_at} /></span>
+          </p>
+          <div className="mt-0.5">
+            <MarkdownContent content={c.content} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AssignmentRow({ a, courseId, studentId }: { a: AssignmentStat; courseId: string; studentId: string }) {
+  const [showComments, setShowComments] = useState(false)
+
+  return (
+    <li className="bg-surface hover:bg-background transition-colors">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <Link
+            href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${studentId}?by=student`}
+            className="text-sm font-medium text-teal-primary hover:underline truncate block"
+          >
+            {a.title}
+          </Link>
+          {a.module_title && (
+            <span className="text-xs text-muted-text">{a.module_title}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {a.comment_count > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowComments(v => !v)}
+              className="flex items-center gap-1 text-xs text-teal-primary hover:underline"
+            >
+              {a.comment_count} comment{a.comment_count === 1 ? '' : 's'}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`w-3 h-3 transition-transform ${showComments ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
+          {a.due_date && (
+            <span className="text-xs text-muted-text">
+              Due {new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+        </div>
+      </div>
+      {showComments && a.submission_id && (
+        <CommentsPreview submissionId={a.submission_id} courseId={courseId} />
+      )}
+    </li>
+  )
+}
+
 function AssignmentList({
   assignments,
   courseId,
+  studentId,
   label,
 }: {
   assignments: AssignmentStat[]
   courseId: string
+  studentId: string
   label: string
 }) {
   if (assignments.length === 0) {
@@ -70,24 +161,7 @@ function AssignmentList({
   return (
     <ul className="divide-y divide-border rounded-xl border border-border overflow-hidden">
       {assignments.map(a => (
-        <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3 bg-surface hover:bg-background transition-colors">
-          <div className="min-w-0">
-            <Link
-              href={`/instructor/courses/${courseId}/assignments/${a.id}`}
-              className="text-sm font-medium text-teal-primary hover:underline truncate block"
-            >
-              {a.title}
-            </Link>
-            {a.module_title && (
-              <span className="text-xs text-muted-text">{a.module_title}</span>
-            )}
-          </div>
-          {a.due_date && (
-            <span className="text-xs text-muted-text shrink-0">
-              Due {new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          )}
-        </li>
+        <AssignmentRow key={a.id} a={a} courseId={courseId} studentId={studentId} />
       ))}
     </ul>
   )
@@ -223,22 +297,22 @@ function StudentRow({
               </div>
 
               {data.activeBucket === 'complete' && (
-                <AssignmentList assignments={a.complete} courseId={courseId} label="Complete" />
+                <AssignmentList assignments={a.complete} courseId={courseId} studentId={student.id} label="Complete" />
               )}
               {data.activeBucket === 'waiting-to-be-graded' && (
-                <AssignmentList assignments={a.waitingToBeGraded} courseId={courseId} label="Waiting to be graded" />
+                <AssignmentList assignments={a.waitingToBeGraded} courseId={courseId} studentId={student.id} label="Waiting to be graded" />
               )}
               {data.activeBucket === 'needs-revision' && (
-                <AssignmentList assignments={a.needsRevision} courseId={courseId} label="Needs Revision" />
+                <AssignmentList assignments={a.needsRevision} courseId={courseId} studentId={student.id} label="Needs Revision" />
               )}
               {data.activeBucket === 'missing' && (
-                <AssignmentList assignments={a.missing} courseId={courseId} label="Missing" />
+                <AssignmentList assignments={a.missing} courseId={courseId} studentId={student.id} label="Missing" />
               )}
               {data.activeBucket === 'due-this-week' && (
-                <AssignmentList assignments={a.dueThisWeek} courseId={courseId} label="Due this week" />
+                <AssignmentList assignments={a.dueThisWeek} courseId={courseId} studentId={student.id} label="Due this week" />
               )}
               {data.activeBucket === 'excused' && (
-                <AssignmentList assignments={a.excused} courseId={courseId} label="Excused" />
+                <AssignmentList assignments={a.excused} courseId={courseId} studentId={student.id} label="Excused" />
               )}
             </div>
           )}
