@@ -11,6 +11,8 @@ export type AssignmentStat = {
   title: string
   due_date: string | null
   module_title: string | null
+  submission_id: string | null
+  comment_count: number
 }
 
 export type StudentAssignmentStats = {
@@ -83,7 +85,7 @@ export async function computeStudentAssignmentStats(
   type RawDay = { assignments: RawAssignment[] }
   type RawModule = { title: string; module_days: RawDay[] }
 
-  const assignments: (AssignmentStat & { submission_required: boolean })[] = []
+  const assignments: (Omit<AssignmentStat, 'submission_id' | 'comment_count'> & { submission_required: boolean })[] = []
   for (const m of (modules as RawModule[] ?? [])) {
     for (const d of m.module_days ?? []) {
       for (const a of d.assignments ?? []) {
@@ -102,7 +104,7 @@ export async function computeStudentAssignmentStats(
   const [{ data: submissions }, { data: overrideRows }] = await Promise.all([
     admin
       .from('submissions')
-      .select('assignment_id, status, grade, submitted_at')
+      .select('id, assignment_id, status, grade, submitted_at')
       .eq('student_id', studentId)
       .in('assignment_id', assignmentIds),
     admin
@@ -112,10 +114,22 @@ export async function computeStudentAssignmentStats(
       .in('assignment_id', assignmentIds),
   ])
 
-  type Sub = { assignment_id: string; status: string; grade: string | null; submitted_at: string | null }
+  type Sub = { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null }
   const subMap = new Map<string, Sub>()
   for (const s of (submissions as Sub[] ?? [])) {
     subMap.set(s.assignment_id, s)
+  }
+
+  const submissionIds = (submissions as Sub[] ?? []).map(s => s.id)
+  const commentCountMap = new Map<string, number>()
+  if (submissionIds.length > 0) {
+    const { data: commentRows } = await admin
+      .from('submission_comments')
+      .select('submission_id')
+      .in('submission_id', submissionIds)
+    for (const c of (commentRows as { submission_id: string }[] ?? [])) {
+      commentCountMap.set(c.submission_id, (commentCountMap.get(c.submission_id) ?? 0) + 1)
+    }
   }
 
   type Override = { assignment_id: string; due_date: string | null; excused: boolean }
@@ -136,7 +150,14 @@ export async function computeStudentAssignmentStats(
     const sub = subMap.get(a.id)
     const override = overrideMap.get(a.id)
     const effectiveDueDate = override?.due_date ?? a.due_date
-    const stat: AssignmentStat = { id: a.id, title: a.title, due_date: effectiveDueDate, module_title: a.module_title }
+    const stat: AssignmentStat = {
+      id: a.id,
+      title: a.title,
+      due_date: effectiveDueDate,
+      module_title: a.module_title,
+      submission_id: sub?.id ?? null,
+      comment_count: sub ? (commentCountMap.get(sub.id) ?? 0) : 0,
+    }
 
     if (override?.excused) {
       excused.push(stat)
