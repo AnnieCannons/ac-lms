@@ -1,9 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { addSubmissionComment, editSubmissionComment, deleteSubmissionComment } from "@/lib/grade-actions";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import MarkdownContent from "@/components/ui/MarkdownContent";
+import EmojiPickerButton from "@/components/ui/EmojiPickerButton";
+
+function insertAtCursor(
+  el: HTMLTextAreaElement | null,
+  value: string,
+  setValue: (v: string) => void,
+  insert: string
+) {
+  if (!el) {
+    setValue(value + insert);
+    return;
+  }
+  const start = el.selectionStart ?? value.length;
+  const end = el.selectionEnd ?? value.length;
+  setValue(value.slice(0, start) + insert + value.slice(end));
+  requestAnimationFrame(() => {
+    el.focus();
+    const pos = start + insert.length;
+    el.setSelectionRange(pos, pos);
+  });
+}
 
 export type CommentEntry = {
   id: string;
@@ -50,6 +71,8 @@ export default function SubmissionComments({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const composeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isStudent = currentUserRole === 'student' && !isTa;
 
@@ -195,17 +218,25 @@ export default function SubmissionComments({
                 {isEditing ? (
                   <div className="flex flex-col gap-2 mt-1">
                     {isStudent ? (
-                      <textarea
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit(c.id);
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                        rows={3}
-                        aria-label="Edit comment"
-                        className="w-full bg-background border border-teal-primary rounded-xl p-3 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
-                      />
+                      <div className="flex flex-col gap-1">
+                        <textarea
+                          ref={editTextareaRef}
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit(c.id);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          rows={3}
+                          aria-label="Edit comment"
+                          className="w-full bg-background border border-teal-primary rounded-xl p-3 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
+                        />
+                        <EmojiPickerButton
+                          onEmojiSelect={(emoji) =>
+                            insertAtCursor(editTextareaRef.current, editText, setEditText, emoji)
+                          }
+                        />
+                      </div>
                     ) : (
                       <RichTextEditor
                         key={editingId}
@@ -252,6 +283,7 @@ export default function SubmissionComments({
               </label>
               <textarea
                 id="submission-comment-input"
+                ref={composeTextareaRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
@@ -261,6 +293,13 @@ export default function SubmissionComments({
                 rows={3}
                 className="w-full bg-background border border-border rounded-xl p-3 text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
               />
+              <div className="mt-1">
+                <EmojiPickerButton
+                  onEmojiSelect={(emoji) =>
+                    insertAtCursor(composeTextareaRef.current, text, setText, emoji)
+                  }
+                />
+              </div>
             </>
           ) : (
             <RichTextEditor
