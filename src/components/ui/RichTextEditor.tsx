@@ -9,6 +9,7 @@ import { getMarkRange } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import { createClient } from "@/lib/supabase/client";
 import ImageResizeNode from "./ImageResizeNode";
+import EmojiPickerButton from "./EmojiPickerButton";
 
 type Props = {
   content: string;
@@ -276,6 +277,11 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         <button type="button" onMouseDown={handleLinkButton} className={btn(isLinkActive)} aria-label={isLinkActive ? "Remove link" : "Add link"} title={isLinkActive ? "Remove link" : "Add link (select text first)"}>
           🔗
         </button>
+        <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
+        <EmojiPickerButton
+          className={btn(false)}
+          onEmojiSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()}
+        />
         {storagePath && (
           <>
             <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
