@@ -5,7 +5,6 @@ import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentWorkList, { type WorkAssignment } from '@/components/ui/StudentWorkList'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
-import { localDate, todayLocal } from '@/lib/date-utils'
 
 function getCurrentWeek(startDate: string | null, endDate: string | null): number | null {
   if (!startDate) return null
@@ -103,18 +102,16 @@ export default async function MyWorkPage({
           const override = overrideMap.get(a.id)
           const effectiveDueDate = override?.due_date ?? a.due_date
           const isExcused = override?.excused ?? false
-          const isLate = isExcused
-            ? false
-            : sub
-              ? !!sub.is_late
-              : !!effectiveDueDate && localDate(effectiveDueDate) < todayLocal()
+          // isLate for unsubmitted assignments is computed client-side (see StudentWorkList)
+          // so "past due" reflects the viewer's own local clock, not the server's.
+          const submittedIsLate = sub ? !!sub.is_late : null
           return {
             id: a.id,
             title: a.title,
             due_date: effectiveDueDate,
             status: (sub?.status ?? null) as WorkAssignment['status'],
             grade: (sub?.grade ?? null) as WorkAssignment['grade'],
-            isLate,
+            submittedIsLate,
             isExcused,
             isBonus: a.is_bonus ?? false,
             moduleTitle: module.title,

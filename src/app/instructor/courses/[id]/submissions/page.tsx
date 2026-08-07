@@ -6,6 +6,8 @@ import CourseGradesView from '@/components/ui/CourseGradesView'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CourseSubmissionsPage({
   params,
   searchParams,
@@ -144,7 +146,7 @@ export default async function CourseSubmissionsPage({
       <InstructorTopNav name={profile?.name} role={profile?.role} isTa={isTa} breadcrumbs={[{ label: 'Courses', href: '/instructor/courses' }, { label: course.name, href: `/instructor/courses/${id}` }, { label: 'All Submissions' }]} />
 
       <div className="flex">
-        <InstructorSidebar courseId={id} courseName={course.name} />
+        <InstructorSidebar courseId={id} courseName={course.name} precomputedNeedsGrading={totalNeedsGrading} />
 
         <div className="flex-1 min-w-0">
           <main className="max-w-4xl mx-auto px-8 py-10">
