@@ -1,10 +1,12 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import ResizableSidebar from './ResizableSidebar'
 import InstructorCourseNav from './InstructorCourseNav'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getPendingExtensionCount } from '@/lib/extension-actions'
 
-export default async function InstructorSidebar({ courseId, courseName }: { courseId: string; courseName?: string }) {
-  let needsGrading = 0
+export default async function InstructorSidebar({ courseId, courseName, precomputedNeedsGrading }: { courseId: string; courseName?: string; precomputedNeedsGrading?: number }) {
+  noStore()
+  let needsGrading = precomputedNeedsGrading ?? 0
   let firstUngradedAssignmentId: string | null = null
   let myGroupNeedsGrading = 0
   let myGroupFirstAssignmentId: string | null = null
@@ -31,13 +33,17 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
 
     const admin = createServiceSupabaseClient()
 
-    // Fetch modules with ordering so we can find the first ungraded assignment in order
-    const { data: moduleData } = await admin
-      .from('modules')
-      .select('id, order, module_days(order, assignments!module_day_id(id, order, published))')
-      .eq('course_id', courseId)
-      .eq('published', true)
-      .is('deleted_at', null)
+    // If precomputed (from the parent page), skip the independent badge query
+    if (precomputedNeedsGrading !== undefined) {
+      needsGrading = precomputedNeedsGrading
+    } else {
+      // Fetch modules with ordering so we can find the first ungraded assignment in order
+      const { data: moduleData } = await admin
+        .from('modules')
+        .select('id, order, module_days(order, assignments!module_day_id(id, order, published))')
+        .eq('course_id', courseId)
+        .eq('published', true)
+        .is('deleted_at', null)
 
     type RawDay = { order: number; assignments: { id: string; order: number; published: boolean }[] }
     type RawModule = { id: string; order: number; module_days: RawDay[] }
@@ -128,6 +134,7 @@ export default async function InstructorSidebar({ courseId, courseName }: { cour
         }
         myGroupFirstAssignmentId = orderedAssignmentIds.find(id => myGroupAssignmentIds.has(id)) ?? null
       }
+    }
     }
   } catch {
     // Non-critical — badge and grader button degrade gracefully

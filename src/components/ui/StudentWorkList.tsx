@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { formatDueDateWithTime } from "@/lib/date-utils";
+import { formatDueDateWithTime, localDate, todayLocal } from "@/lib/date-utils";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
@@ -14,7 +14,11 @@ export type WorkAssignment = {
   due_date: string | null;
   status: SubmissionStatus | null;
   grade: Grade;
-  isLate: boolean;
+  // Late flag as of the (first) submission, computed server-side in the
+  // student's timezone at submit time. Null when there's no submission yet —
+  // in that case lateness is derived client-side below, against the
+  // viewer's own local clock rather than the server's.
+  submittedIsLate: boolean | null;
   isExcused: boolean;
   isBonus: boolean;
   moduleTitle: string;
@@ -22,6 +26,8 @@ export type WorkAssignment = {
   isCurrentWeek: boolean;
   courseId: string;
 };
+
+type WorkAssignmentWithLate = WorkAssignment & { isLate: boolean };
 
 function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean }) {
   if (grade === "complete") return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>;
@@ -37,7 +43,7 @@ function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | nul
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not started</span>;
 }
 
-function getFilterMatch(a: WorkAssignment, filter: Filter): boolean {
+function getFilterMatch(a: WorkAssignmentWithLate, filter: Filter): boolean {
   if (filter === "level-up") return a.isBonus;
   // All other filters exclude Level Up (bonus) assignments
   if (a.isBonus) return false;
@@ -58,7 +64,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 export default function StudentWorkList({
-  assignments,
+  assignments: rawAssignments,
   currentWeek,
 }: {
   assignments: WorkAssignment[];
@@ -68,6 +74,20 @@ export default function StudentWorkList({
   const [collapsedPastDue, setCollapsedPastDue] = useState(false);
   const [collapsedUpcoming, setCollapsedUpcoming] = useState(false);
 
+  // Computed on the client so "past due" reflects the viewer's own local
+  // clock/timezone rather than the server's.
+  const assignments = useMemo<WorkAssignmentWithLate[]>(() => {
+    const today = todayLocal();
+    return rawAssignments.map((a) => ({
+      ...a,
+      isLate: a.isExcused
+        ? false
+        : a.submittedIsLate !== null
+          ? a.submittedIsLate
+          : !!a.due_date && localDate(a.due_date) < today,
+    }));
+  }, [rawAssignments]);
+
   const counts = Object.fromEntries(
     FILTERS.map((f) => [f.key, f.key === "all" ? assignments.length : assignments.filter((a) => getFilterMatch(a, f.key)).length])
   ) as Record<Filter, number>;
@@ -75,7 +95,7 @@ export default function StudentWorkList({
   const filtered = assignments.filter((a) => getFilterMatch(a, filter));
 
   // For "all": group by module. For others: flat list sorted by due date.
-  const AssignmentRow = ({ a }: { a: WorkAssignment }) => (
+  const AssignmentRow = ({ a }: { a: WorkAssignmentWithLate }) => (
     <Link
       href={`/student/courses/${a.courseId}/assignments/${a.id}`}
       className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-4 hover:border-teal-primary transition-colors gap-4"
@@ -144,7 +164,7 @@ export default function StudentWorkList({
               if (!map.has(key)) map.set(key, { weekNumber: a.weekNumber, isCurrentWeek: a.isCurrentWeek, items: [] });
               map.get(key)!.items.push(a);
               return map;
-            }, new Map<string, { weekNumber: number | null; isCurrentWeek: boolean; items: WorkAssignment[] }>())
+            }, new Map<string, { weekNumber: number | null; isCurrentWeek: boolean; items: WorkAssignmentWithLate[] }>())
           ).map(([title, { weekNumber, isCurrentWeek, items }]) => (
             <div key={title}>
               <div className={`flex items-center gap-3 mb-3 pb-2 border-b ${isCurrentWeek ? "border-teal-primary" : "border-border"}`}>
@@ -164,7 +184,7 @@ export default function StudentWorkList({
         // Two-section view: Past Due (late + not started) then Upcoming
         <div className="flex flex-col gap-8">
           {(() => {
-            const sortByDue = (arr: WorkAssignment[]) =>
+            const sortByDue = (arr: WorkAssignmentWithLate[]) =>
               arr.slice().sort((a, b) => {
                 if (!a.due_date && !b.due_date) return 0;
                 if (!a.due_date) return 1;
