@@ -3,6 +3,7 @@ import ResizableSidebar from './ResizableSidebar'
 import InstructorCourseNav from './InstructorCourseNav'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getPendingExtensionCount } from '@/lib/extension-actions'
+import { getNeedsGradingCount } from '@/lib/grading-count-actions'
 
 export default async function InstructorSidebar({ courseId, courseName, precomputedNeedsGrading }: { courseId: string; courseName?: string; precomputedNeedsGrading?: number }) {
   noStore()
@@ -33,17 +34,20 @@ export default async function InstructorSidebar({ courseId, courseName, precompu
 
     const admin = createServiceSupabaseClient()
 
-    // If precomputed (from the parent page), skip the independent badge query
+    // Use shared calculation for badge count
     if (precomputedNeedsGrading !== undefined) {
       needsGrading = precomputedNeedsGrading
     } else {
-      // Fetch modules with ordering so we can find the first ungraded assignment in order
-      const { data: moduleData } = await admin
-        .from('modules')
-        .select('id, order, module_days(order, assignments!module_day_id(id, order, published))')
-        .eq('course_id', courseId)
-        .eq('published', true)
-        .is('deleted_at', null)
+      needsGrading = await getNeedsGradingCount(courseId)
+    }
+
+    // Fetch modules with ordering so we can find the first ungraded assignment in order
+    const { data: moduleData } = await admin
+      .from('modules')
+      .select('id, order, module_days(order, assignments!module_day_id(id, order, published))')
+      .eq('course_id', courseId)
+      .eq('published', true)
+      .is('deleted_at', null)
 
     type RawDay = { order: number; assignments: { id: string; order: number; published: boolean }[] }
     type RawModule = { id: string; order: number; module_days: RawDay[] }
@@ -86,12 +90,11 @@ export default async function InstructorSidebar({ courseId, courseName, precompu
         .eq('status', 'submitted')
 
       const filteredSubs = (ungradedSubs ?? []).filter(s => enrolledStudentIds.has(s.student_id))
-      needsGrading = filteredSubs.length
       const ungradedSet = new Set(filteredSubs.map(s => s.assignment_id))
       firstUngradedAssignmentId = orderedAssignmentIds.find(id => ungradedSet.has(id)) ?? null
 
       // Compute my-group stats (week-aware: uses module-specific groups when weekly rotation is enabled)
-      if (user && ungradedSubs && ungradedSubs.length > 0) {
+      if (user && filteredSubs && filteredSubs.length > 0) {
         const [{ data: myGroupRows }, { data: assignmentGraderRows }, { data: allWeekRows }] = await Promise.all([
           admin.from('grading_groups').select('student_id, module_id').eq('course_id', courseId).eq('grader_id', user.id),
           admin.from('assignments').select('id, grader_id').in('id', orderedAssignmentIds),
@@ -116,7 +119,7 @@ export default async function InstructorSidebar({ courseId, courseName, precompu
           (assignmentGraderRows ?? []).map(a => [a.id, (a.grader_id as string | null)])
         )
         const myGroupAssignmentIds = new Set<string>()
-        for (const sub of ungradedSubs) {
+        for (const sub of filteredSubs) {
           const override = assignmentGraderMap.get(sub.assignment_id)
           const moduleId = assignmentModuleMap.get(sub.assignment_id)
           let belongsToMe: boolean
@@ -134,7 +137,6 @@ export default async function InstructorSidebar({ courseId, courseName, precompu
         }
         myGroupFirstAssignmentId = orderedAssignmentIds.find(id => myGroupAssignmentIds.has(id)) ?? null
       }
-    }
     }
   } catch {
     // Non-critical — badge and grader button degrade gracefully
