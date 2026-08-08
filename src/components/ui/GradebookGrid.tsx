@@ -122,8 +122,8 @@ function MultiSelectDropdown({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-background border-2 border-border rounded-xl shadow-xl p-3 max-h-72 flex flex-col" style={{ width: dropdownWidth }}>
-          <div className="flex items-center justify-between mb-2 shrink-0">
+        <div className="absolute top-full left-0 mt-1 z-50 bg-background border-2 border-border rounded-xl shadow-xl p-3 max-h-72 overflow-y-auto" style={{ width: dropdownWidth }}>
+          <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-muted-text uppercase tracking-wide">{label}</span>
             {selected.size > 0 && (
               <button onClick={onClear} className="text-xs text-teal-primary hover:underline">Clear</button>
@@ -135,11 +135,11 @@ function MultiSelectDropdown({
               placeholder="Search…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="text-xs border border-border rounded-lg px-2 py-1 mb-2 bg-surface text-dark-text placeholder:text-muted-text/60 shrink-0"
+              className="text-xs border border-border rounded-lg px-2 py-1 mb-2 bg-surface text-dark-text placeholder:text-muted-text/60 w-full"
               autoFocus
             />
           )}
-          <div className="overflow-y-auto flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5">
             <button
               onClick={onClear}
               className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${selected.size === 0 && !specialOption?.active ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
@@ -251,10 +251,10 @@ function AssignmentFilterDropdown({
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 z-50 bg-background border-2 border-border rounded-xl shadow-xl p-3 flex flex-col"
+          className="absolute top-full left-0 mt-1 z-50 bg-background border-2 border-border rounded-xl shadow-xl p-3 overflow-y-auto"
           style={{ width: dropdownWidth, maxHeight: 420 }}
         >
-          <div className="flex items-center justify-between mb-2 shrink-0">
+          <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-muted-text uppercase tracking-wide">Filter by Assignment</span>
             {hasFilter && (
               <button onClick={handleClearAll} className="text-xs text-teal-primary hover:underline">Clear all</button>
@@ -262,7 +262,7 @@ function AssignmentFilterDropdown({
           </div>
 
           {/* Status quick-filters */}
-          <div className="flex flex-col gap-0.5 mb-2 shrink-0">
+          <div className="flex flex-col gap-0.5 mb-2">
             <button
               onClick={handleClearAll}
               className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${!hasFilter ? 'bg-teal-light text-teal-primary font-semibold' : 'text-dark-text hover:bg-surface'}`}
@@ -285,7 +285,7 @@ function AssignmentFilterDropdown({
           </div>
 
           {/* Divider */}
-          <div className="border-t border-border mb-2 shrink-0" />
+          <div className="border-t border-border mb-2" />
 
           {/* Search specific assignment */}
           <input
@@ -293,10 +293,10 @@ function AssignmentFilterDropdown({
             placeholder="Search for a specific assignment…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="text-xs border border-border rounded-lg px-2 py-1 mb-2 bg-surface text-dark-text placeholder:text-muted-text/60 shrink-0"
+            className="text-xs border border-border rounded-lg px-2 py-1 mb-2 bg-surface text-dark-text placeholder:text-muted-text/60 w-full"
           />
 
-          <div className="overflow-y-auto flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5">
             {visibleAssignments.map(item => (
               <button
                 key={item.id}
