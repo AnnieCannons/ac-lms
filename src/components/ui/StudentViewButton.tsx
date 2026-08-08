@@ -23,7 +23,8 @@ export default function StudentViewButton({ courseId }: { courseId: string }) {
       document.cookie = 'student-view=; path=/; max-age=0'
       setActive(false)
     } else {
-      document.cookie = `student-view=${courseId}; path=/; max-age=86400`
+      const secure = location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `student-view=${courseId}; path=/; max-age=86400; SameSite=Lax${secure}`
       router.push(`/student/courses/${courseId}`)
     }
   }

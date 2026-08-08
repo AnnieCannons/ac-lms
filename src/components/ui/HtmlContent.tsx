@@ -2,6 +2,20 @@
 
 import DOMPurify from "isomorphic-dompurify";
 
+// Force all links to open in a new tab during sanitization so it's correct from
+// first paint (no hydration gap from useEffect). Registered once at module scope —
+// adding/removing this hook per render raced with concurrent sanitize() calls from
+// other components using the same global DOMPurify instance.
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName === "A") {
+    const href = node.getAttribute("href") ?? "";
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  }
+});
+
 export default function HtmlContent({
   html,
   className,
@@ -9,19 +23,7 @@ export default function HtmlContent({
   html: string;
   className?: string;
 }) {
-  // Force all links to open in a new tab during sanitization so it's
-  // correct from first paint (no hydration gap from useEffect).
-  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-    if (node.tagName === "A") {
-      const href = node.getAttribute("href") ?? "";
-      if (href.startsWith("http://") || href.startsWith("https://")) {
-        node.setAttribute("target", "_blank");
-        node.setAttribute("rel", "noopener noreferrer");
-      }
-    }
-  });
   const clean = DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
-  DOMPurify.removeHooks("afterSanitizeAttributes");
 
   return (
     <div

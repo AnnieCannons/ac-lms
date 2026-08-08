@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getAssignmentCourseId } from '@/lib/course-scope'
 
 export type ExtensionRequest = {
   id: string
@@ -81,6 +82,11 @@ export async function submitExtensionRequest(
     .maybeSingle()
   if (!enrollment) return { error: 'Not enrolled in this course' }
 
+  // Verify the assignment actually belongs to this course
+  const admin = createServiceSupabaseClient()
+  const assignmentCourseId = await getAssignmentCourseId(admin, assignmentId)
+  if (assignmentCourseId !== courseId) return { error: 'Assignment not found in this course' }
+
   // Check no existing request for this assignment
   const { data: existing } = await supabase
     .from('extension_requests')
@@ -117,7 +123,6 @@ export async function submitExtensionRequest(
     .single()
 
   // Notify all instructors/TAs enrolled in this course
-  const admin = createServiceSupabaseClient()
   const { data: instructors } = await admin
     .from('course_enrollments')
     .select('user_id')
@@ -206,8 +211,13 @@ export async function reviewExtensionRequest(
 
   if (updateError) return { error: updateError.message }
 
-  // If approved, create the assignment override directly with service role
+  // If approved, create the assignment override directly with service role.
+  // Re-verify the assignment belongs to this course even though the request row
+  // was already scoped by course_id above — defense in depth against bad rows.
   if (status === 'approved') {
+    const assignmentCourseId = await getAssignmentCourseId(admin, req.assignment_id)
+    if (assignmentCourseId !== courseId) return { error: 'Assignment not found in this course' }
+
     const { error: overrideError } = await admin
       .from('assignment_overrides')
       .upsert(

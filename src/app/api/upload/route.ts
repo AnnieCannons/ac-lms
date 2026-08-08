@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Reject path traversal for everyone
-  if (path.includes('..')) {
+  // Reject path traversal for everyone (raw and percent-encoded, either slash direction)
+  if (path.includes('..') || path.includes('\\') || path.startsWith('/') || /%2e|%2f|%5c/i.test(path)) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
   }
 
