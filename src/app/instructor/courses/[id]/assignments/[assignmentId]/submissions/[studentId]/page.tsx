@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -153,17 +154,18 @@ export default async function GradingPage({
 
     const allAssignmentIds = orderedAssignments.map(a => a.id)
     if (allAssignmentIds.length > 0) {
-      let ungradedQuery = admin
-        .from('submissions')
-        .select('assignment_id')
-        .in('assignment_id', allAssignmentIds)
-        .eq('status', 'submitted')
-      if (grader === 'me' && myStudentIds.size > 0) {
-        ungradedQuery = ungradedQuery.in('student_id', [...myStudentIds])
-      }
-      const { data: ungradedSubData } = await ungradedQuery
+      const filterByGraderMe = grader === 'me' && myStudentIds.size > 0
+      const ungradedSubData = await fetchAllRows<{ assignment_id: string }>((from, to) => {
+        let q = admin
+          .from('submissions')
+          .select('assignment_id')
+          .in('assignment_id', allAssignmentIds)
+          .eq('status', 'submitted')
+        if (filterByGraderMe) q = q.in('student_id', [...myStudentIds])
+        return q.range(from, to)
+      })
 
-      const ungradedSet = new Set(ungradedSubData?.map(s => s.assignment_id) ?? [])
+      const ungradedSet = new Set(ungradedSubData.map(s => s.assignment_id))
       // Include current assignment even if it's now fully graded (for position display)
       const ungradedAssignments = orderedAssignments.filter(a => ungradedSet.has(a.id) || a.id === assignmentId)
       const currentIdx = ungradedAssignments.findIndex(a => a.id === assignmentId)

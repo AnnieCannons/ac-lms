@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
@@ -39,13 +40,25 @@ export default async function QuizSubmissionsPage({
   const quizList = quizzes ?? [];
   const quizIds = quizList.map((q) => q.id);
 
-  const { data: submissions } =
+  const submissions =
     quizIds.length > 0
-      ? await admin
-          .from("quiz_submissions")
-          .select("id, quiz_id, student_id, submitted_at, started_at, score_percent, attempt_count, attempt_history")
-          .in("quiz_id", quizIds)
-      : { data: [] };
+      ? await fetchAllRows<{
+          id: string
+          quiz_id: string
+          student_id: string
+          submitted_at: string
+          started_at: string | null
+          score_percent: number | null
+          attempt_count: number | null
+          attempt_history: unknown
+        }>((from, to) =>
+          admin
+            .from("quiz_submissions")
+            .select("id, quiz_id, student_id, submitted_at, started_at, score_percent, attempt_count, attempt_history")
+            .in("quiz_id", quizIds)
+            .range(from, to)
+        )
+      : [];
 
   const studentIds = [...new Set((submissions ?? []).map((s) => s.student_id))];
   const { data: students } =

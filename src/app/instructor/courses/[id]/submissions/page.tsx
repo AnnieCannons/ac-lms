@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -63,21 +64,29 @@ export default async function CourseSubmissionsPage({
 
   const assignmentIds = assignments.map(a => a.id)
   const [
-    { data: allSubmissions },
-    { data: allOverrides },
+    allSubmissions,
+    allOverrides,
   ] = await Promise.all([
     assignmentIds.length
-      ? admin
-          .from('submissions')
-          .select('id, assignment_id, student_id, status, grade, submitted_at')
-          .in('assignment_id', assignmentIds)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows<{ id: string; assignment_id: string; student_id: string; status: string; grade: string | null; submitted_at: string }>(
+          (from, to) =>
+            admin
+              .from('submissions')
+              .select('id, assignment_id, student_id, status, grade, submitted_at')
+              .in('assignment_id', assignmentIds)
+              .range(from, to)
+        )
+      : Promise.resolve([]),
     assignmentIds.length
-      ? admin
-          .from('assignment_overrides')
-          .select('assignment_id, student_id, due_date, excused')
-          .in('assignment_id', assignmentIds)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows<{ assignment_id: string; student_id: string; due_date: string | null; excused: boolean }>(
+          (from, to) =>
+            admin
+              .from('assignment_overrides')
+              .select('assignment_id, student_id, due_date, excused')
+              .in('assignment_id', assignmentIds)
+              .range(from, to)
+        )
+      : Promise.resolve([]),
   ])
 
   // Enrolled students with names

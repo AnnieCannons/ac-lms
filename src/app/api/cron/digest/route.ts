@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { getResend } from '@/lib/resend'
 import DigestEmail from '@/emails/DigestEmail'
 import React from 'react'
@@ -24,18 +25,22 @@ export async function GET(req: NextRequest) {
   const admin = createServiceSupabaseClient()
 
   // Fetch all unemailed student notifications
-  const { data: notifications, error: notifError } = await admin
-    .from('notifications')
-    .select('id, user_id, type, course_id, assignment_id, message')
-    .in('type', ['grade_posted', 'submission_comment'])
-    .is('emailed_at', null)
-
-  if (notifError) {
-    console.error('digest: failed to fetch notifications', notifError)
-    return NextResponse.json({ error: notifError.message }, { status: 500 })
+  let notifications: { id: string; user_id: string; type: string; course_id: string | null; assignment_id: string | null; message: string }[]
+  try {
+    notifications = await fetchAllRows((from, to) =>
+      admin
+        .from('notifications')
+        .select('id, user_id, type, course_id, assignment_id, message')
+        .in('type', ['grade_posted', 'submission_comment'])
+        .is('emailed_at', null)
+        .range(from, to)
+    )
+  } catch (err) {
+    console.error('digest: failed to fetch notifications', err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
   }
 
-  if (!notifications || notifications.length === 0) {
+  if (notifications.length === 0) {
     return NextResponse.json({ sent: 0, message: 'No pending notifications' })
   }
 

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import AllUsersView from '@/components/ui/AllUsersView'
@@ -27,14 +28,18 @@ export default async function GlobalUsersPage() {
 
   const [
     { data: allCourses },
-    { data: allStudentUsers },
-    { data: allEnrollments },
+    allStudentUsers,
+    allEnrollments,
     { data: staffUsers },
     { data: pendingInvites },
   ] = await Promise.all([
     admin.from('courses').select('id, name, start_date, end_date, is_template, archived').order('start_date', { ascending: false }),
-    admin.from('users').select('id, name, email').eq('role', 'student').order('name'),
-    admin.from('course_enrollments').select('course_id, user_id').eq('role', 'student'),
+    fetchAllRows<{ id: string; name: string | null; email: string }>((from, to) =>
+      admin.from('users').select('id, name, email').eq('role', 'student').order('name').range(from, to)
+    ),
+    fetchAllRows<{ course_id: string; user_id: string }>((from, to) =>
+      admin.from('course_enrollments').select('course_id, user_id').eq('role', 'student').range(from, to)
+    ),
     admin.from('users').select('id, name, email, role').in('role', ['instructor', 'staff', 'admin']).order('name'),
     admin.from('invitations').select('id, email, role, invited_at, resent_at, course_id, courses(name)').eq('status', 'pending').order('invited_at', { ascending: false }),
   ])
