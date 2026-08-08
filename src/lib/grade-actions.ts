@@ -1,6 +1,7 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getAssignmentCourseId } from '@/lib/course-scope'
 
 export async function saveAnswerKey(
   assignmentId: string,
@@ -58,6 +59,11 @@ export async function markCompleteNoSubmission(
   }
 
   const admin = createServiceSupabaseClient()
+
+  if (courseId) {
+    const actualCourseId = await getAssignmentCourseId(admin, assignmentId)
+    if (actualCourseId !== courseId) return { error: 'Not authorized' }
+  }
 
   // Upsert placeholder submission
   const { data: existing } = await admin
@@ -139,14 +145,21 @@ export async function saveGrade(
 
   const admin = createServiceSupabaseClient()
 
-  // Fetch current grade to prevent duplicate history entries
+  // Fetch current grade + assignment to prevent duplicate history entries and to
+  // verify the submission actually belongs to the passed courseId (a TA scoped to
+  // one course must not be able to grade a submission from a different course).
   const { data: current } = await admin
     .from('submissions')
-    .select('grade')
+    .select('grade, student_id, assignment_id')
     .eq('id', submissionId)
     .single()
 
-  if (current?.grade === grade) return {}
+  if (!current) return { error: 'Submission not found' }
+
+  const assignmentCourseId = await getAssignmentCourseId(admin, current.assignment_id)
+  if (courseId && assignmentCourseId !== courseId) return { error: 'Not authorized' }
+
+  if (current.grade === grade) return {}
 
   const now = grade ? new Date().toISOString() : null
   const { error } = await admin
@@ -165,23 +178,18 @@ export async function saveGrade(
     await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
 
     // Notify student
-    const { data: sub } = await admin
-      .from('submissions')
-      .select('student_id, assignment_id')
-      .eq('id', submissionId)
-      .single()
-    if (sub) {
+    if (assignmentCourseId) {
       const { data: asgn } = await admin
         .from('assignments')
-        .select('title, course_id')
-        .eq('id', sub.assignment_id)
+        .select('title')
+        .eq('id', current.assignment_id)
         .single()
       if (asgn) {
         await admin.from('notifications').insert({
-          user_id: sub.student_id,
+          user_id: current.student_id,
           type: 'grade_posted',
-          course_id: asgn.course_id,
-          assignment_id: sub.assignment_id,
+          course_id: assignmentCourseId,
+          assignment_id: current.assignment_id,
           message: `Your "${asgn.title}" submission was marked ${grade}.`,
         })
       }
@@ -218,6 +226,12 @@ export async function toggleChecklistResponse(
   }
 
   const admin = createServiceSupabaseClient()
+
+  const { data: sub } = await admin.from('submissions').select('assignment_id').eq('id', submissionId).single()
+  if (!sub) return { error: 'Submission not found' }
+  const assignmentCourseId = await getAssignmentCourseId(admin, sub.assignment_id)
+  if (assignmentCourseId !== courseId) return { error: 'Not authorized' }
+
   const { error } = await admin
     .from('checklist_responses')
     .upsert(
@@ -245,23 +259,24 @@ export async function addSubmissionComment(
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const admin = createServiceSupabaseClient()
 
+  const { data: submission } = await admin
+    .from('submissions')
+    .select('student_id, assignment_id')
+    .eq('id', submissionId)
+    .single()
+
+  if (!submission) return { error: 'Not found' }
+
+  const assignmentCourseId = await getAssignmentCourseId(admin, submission.assignment_id)
+
   if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
-    // Look up the submission to verify ownership or TA access
-    const { data: submission } = await admin
-      .from('submissions')
-      .select('student_id')
-      .eq('id', submissionId)
-      .single()
-
-    if (!submission) return { error: 'Not found' }
-
     if (submission.student_id !== user.id) {
-      // Not the submission owner — must be a TA for this course
-      const resolvedCourseId = courseId
-      if (!resolvedCourseId) return { error: 'Not authorized' }
+      // Not the submission owner — must be a TA for this course, and the
+      // submission must actually belong to that course (not just the TA's own).
+      if (!courseId || assignmentCourseId !== courseId) return { error: 'Not authorized' }
 
       const { data: enr } = await supabase.from('course_enrollments')
-        .select('role').eq('user_id', user.id).eq('course_id', resolvedCourseId).maybeSingle()
+        .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
       if (enr?.role !== 'ta') return { error: 'Not authorized' }
     }
   }
@@ -275,23 +290,18 @@ export async function addSubmissionComment(
   if (error || !data) return { error: error?.message ?? 'Failed to save' }
 
   // Notify student when an instructor or TA comments (not when the student comments on their own)
-  const { data: sub } = await admin
-    .from('submissions')
-    .select('student_id, assignment_id')
-    .eq('id', submissionId)
-    .single()
-  if (sub && sub.student_id !== user.id) {
+  if (submission.student_id !== user.id && assignmentCourseId) {
     const { data: asgn } = await admin
       .from('assignments')
-      .select('title, course_id')
-      .eq('id', sub.assignment_id)
+      .select('title')
+      .eq('id', submission.assignment_id)
       .single()
     if (asgn) {
       await admin.from('notifications').insert({
-        user_id: sub.student_id,
+        user_id: submission.student_id,
         type: 'submission_comment',
-        course_id: asgn.course_id,
-        assignment_id: sub.assignment_id,
+        course_id: assignmentCourseId,
+        assignment_id: submission.assignment_id,
         message: `Your instructor left a comment on your "${asgn.title}" submission.`,
       })
     }

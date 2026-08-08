@@ -68,11 +68,16 @@ export default async function StudentDayDetailPage({
 
   const { data: day } = await supabase
     .from('module_days')
-    .select('id, day_name, module_id, modules(id, title, week_number)')
+    .select('id, day_name, module_id, modules(id, title, week_number, course_id)')
     .eq('id', dayId)
     .single()
 
   if (!day) redirect(`/student/courses/${id}`)
+
+  // Verify this day actually belongs to the course in the URL — otherwise a student
+  // could view another course's wikis/quizzes/assignments by swapping the dayId.
+  const dayModule = Array.isArray(day.modules) ? day.modules[0] : day.modules
+  if (dayModule?.course_id !== id) redirect(`/student/courses/${id}`)
 
   const admin2 = createServiceSupabaseClient()
   const [{ data: resources }, { data: stars }, { data: completions }, { data: dayWikis }] = await Promise.all([

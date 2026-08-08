@@ -15,7 +15,8 @@ export default function ViewAsStudentButton({
 
   function handleClick() {
     const val = encodeURIComponent(JSON.stringify({ userId: studentId, studentName }))
-    document.cookie = `${IMPERSONATE_COOKIE}=${val}; path=/; max-age=7200`
+    const secure = location.protocol === 'https:' ? '; Secure' : ''
+    document.cookie = `${IMPERSONATE_COOKIE}=${val}; path=/; max-age=7200; SameSite=Lax${secure}`
     router.push(`/student/courses/${courseId}/assignments`)
   }
 

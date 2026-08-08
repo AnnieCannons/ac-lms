@@ -357,6 +357,10 @@ export async function deleteStaffMember(
   const { error } = await admin.from('users').delete().eq('id', targetUserId)
   if (error) return { error: error.message }
 
+  // Also delete the auth account — otherwise a "deleted" staff member can still log in.
+  const { error: authError } = await admin.auth.admin.deleteUser(targetUserId)
+  if (authError) return { error: authError.message }
+
   return {}
 }
 
@@ -499,8 +503,10 @@ export async function acceptInvite(
     .limit(1)
     .maybeSingle()
 
-  const role: Role = (invitation?.role as Role) ?? (user.user_metadata?.role as Role) ?? 'student'
-  const courseId: string = invitation?.course_id ?? user.user_metadata?.course_id
+  // Never fall back to user_metadata for role/course_id — it's user-writable via
+  // supabase.auth.updateUser() and would let a user self-promote on accept.
+  const role: Role = (invitation?.role as Role) ?? 'student'
+  const courseId: string | undefined = invitation?.course_id ?? undefined
 
   // Upsert profile: always write name (user just entered it), preserve existing role if present
   const { data: existingProfile } = await admin
