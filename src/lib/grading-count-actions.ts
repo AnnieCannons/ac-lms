@@ -1,5 +1,6 @@
 'use server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 
 export async function getNeedsGradingCount(courseId: string): Promise<number> {
   const admin = createServiceSupabaseClient()
@@ -30,11 +31,15 @@ export async function getNeedsGradingCount(courseId: string): Promise<number> {
   if (assignmentIds.length === 0) return 0
 
   // Get all submissions and enrolled students
-  const [{ data: allSubmissions }, { data: enrollments }] = await Promise.all([
-    admin
-      .from('submissions')
-      .select('id, assignment_id, student_id, status, grade, submitted_at')
-      .in('assignment_id', assignmentIds),
+  const [allSubmissions, { data: enrollments }] = await Promise.all([
+    fetchAllRows<{ id: string; assignment_id: string; student_id: string; status: string; grade: string | null; submitted_at: string }>(
+      (from, to) =>
+        admin
+          .from('submissions')
+          .select('id, assignment_id, student_id, status, grade, submitted_at')
+          .in('assignment_id', assignmentIds)
+          .range(from, to)
+    ),
     admin
       .from('course_enrollments')
       .select('user_id')
@@ -47,7 +52,7 @@ export async function getNeedsGradingCount(courseId: string): Promise<number> {
   // Count submissions with status='submitted' per assignment (exact same logic as submissions page)
   const statsMap = new Map<string, number>()
 
-  for (const sub of (allSubmissions ?? []).filter(s => enrolledStudentIds.has(s.student_id))) {
+  for (const sub of allSubmissions.filter(s => enrolledStudentIds.has(s.student_id))) {
     if (sub.status === 'submitted') {
       statsMap.set(sub.assignment_id, (statsMap.get(sub.assignment_id) ?? 0) + 1)
     }

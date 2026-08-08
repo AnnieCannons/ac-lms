@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -37,10 +38,14 @@ export default async function AllUsersPage({
   const admin = createServiceSupabaseClient()
 
   // Fetch all students from users table (source of truth — not just enrolled ones)
-  const [{ data: allStudentUsers }, { data: courses }, { data: allEnrollments }] = await Promise.all([
-    admin.from('users').select('id, name, email').eq('role', 'student').order('name', { ascending: true }),
+  const [allStudentUsers, { data: courses }, allEnrollments] = await Promise.all([
+    fetchAllRows<{ id: string; name: string | null; email: string | null }>((from, to) =>
+      admin.from('users').select('id, name, email').eq('role', 'student').order('name', { ascending: true }).range(from, to)
+    ),
     admin.from('courses').select('id, name').order('created_at', { ascending: false }),
-    admin.from('course_enrollments').select('course_id, user_id').eq('role', 'student'),
+    fetchAllRows<{ course_id: string; user_id: string }>((from, to) =>
+      admin.from('course_enrollments').select('course_id, user_id').eq('role', 'student').range(from, to)
+    ),
   ])
 
   // Build courses-per-student map from enrollments

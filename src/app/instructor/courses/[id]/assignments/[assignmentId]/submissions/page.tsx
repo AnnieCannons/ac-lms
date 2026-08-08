@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -130,13 +131,16 @@ export default async function InstructorSubmissionsPage({
 
     const allAssignmentIds = orderedAssignments.map(a => a.id)
     if (allAssignmentIds.length > 0) {
-      const { data: ungradedSubData } = await admin
-        .from('submissions')
-        .select('assignment_id')
-        .in('assignment_id', allAssignmentIds)
-        .eq('status', 'submitted')
+      const ungradedSubData = await fetchAllRows<{ assignment_id: string }>((from, to) =>
+        admin
+          .from('submissions')
+          .select('assignment_id')
+          .in('assignment_id', allAssignmentIds)
+          .eq('status', 'submitted')
+          .range(from, to)
+      )
 
-      const ungradedSet = new Set(ungradedSubData?.map(s => s.assignment_id) ?? [])
+      const ungradedSet = new Set(ungradedSubData.map(s => s.assignment_id))
       const ungradedAssignments = orderedAssignments.filter(a => ungradedSet.has(a.id))
       const currentIdx = ungradedAssignments.findIndex(a => a.id === assignmentId)
       graderTotal = ungradedAssignments.length

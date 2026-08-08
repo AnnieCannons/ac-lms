@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -114,15 +115,18 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
 
   // Ungraded submissions — compute per-grader and per-week counts
   const allAssignmentIds = assignmentsData.map(a => a.id)
-  const { data: ungradedSubs } = allAssignmentIds.length
-    ? await admin.from('submissions').select('assignment_id, student_id')
-        .in('assignment_id', allAssignmentIds).eq('status', 'submitted')
-    : { data: [] }
+  const ungradedSubs = allAssignmentIds.length
+    ? await fetchAllRows<{ assignment_id: string; student_id: string }>((from, to) =>
+        admin.from('submissions').select('assignment_id, student_id')
+          .in('assignment_id', allAssignmentIds).eq('status', 'submitted').range(from, to)
+      )
+    : []
 
+  const enrolledStudentIds = new Set(studentIds)
   const graderUngradedCount: Record<string, number> = {}
   const weeklyUngradedCount: Record<string, Record<string, number>> = {}
 
-  for (const sub of ungradedSubs ?? []) {
+  for (const sub of ungradedSubs.filter(s => enrolledStudentIds.has(s.student_id))) {
     const override = assignmentGraderMap[sub.assignment_id] ?? null
     const moduleId = assignmentModuleMap.get(sub.assignment_id) ?? null
 
@@ -137,7 +141,7 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
 
     if (graderId) {
       graderUngradedCount[graderId] = (graderUngradedCount[graderId] ?? 0) + 1
-      if (moduleId && weeklyRotationEnabled) {
+      if (moduleId && weeklyRotationEnabled && weeklyGroupMap[moduleId]?.[sub.student_id]) {
         weeklyUngradedCount[moduleId] ??= {}
         weeklyUngradedCount[moduleId][graderId] = (weeklyUngradedCount[moduleId][graderId] ?? 0) + 1
       }

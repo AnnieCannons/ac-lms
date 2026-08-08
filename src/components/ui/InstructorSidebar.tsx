@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import ResizableSidebar from './ResizableSidebar'
 import InstructorCourseNav from './InstructorCourseNav'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { getPendingExtensionCount } from '@/lib/extension-actions'
 import { getNeedsGradingCount } from '@/lib/grading-count-actions'
 
@@ -83,13 +84,16 @@ export default async function InstructorSidebar({ courseId, courseName, precompu
         .eq('role', 'student')
       const enrolledStudentIds = new Set((enrolledRows ?? []).map(r => r.user_id))
 
-      const { data: ungradedSubs } = await admin
-        .from('submissions')
-        .select('assignment_id, student_id')
-        .in('assignment_id', orderedAssignmentIds)
-        .eq('status', 'submitted')
+      const ungradedSubs = await fetchAllRows<{ assignment_id: string; student_id: string }>((from, to) =>
+        admin
+          .from('submissions')
+          .select('assignment_id, student_id')
+          .in('assignment_id', orderedAssignmentIds)
+          .eq('status', 'submitted')
+          .range(from, to)
+      )
 
-      const filteredSubs = (ungradedSubs ?? []).filter(s => enrolledStudentIds.has(s.student_id))
+      const filteredSubs = ungradedSubs.filter(s => enrolledStudentIds.has(s.student_id))
       const ungradedSet = new Set(filteredSubs.map(s => s.assignment_id))
       firstUngradedAssignmentId = orderedAssignmentIds.find(id => ungradedSet.has(id)) ?? null
 

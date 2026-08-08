@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
@@ -84,24 +85,32 @@ export default async function GradebookPage({
 
   const hasMyGroup = myGroupCourseLevel.length > 0 || Object.keys(myGroupByModule).length > 0
 
-  const [enrollmentsResult, submissionsResult, overridesResult] = await Promise.all([
+  const [enrollmentsResult, submissionRows, overrideRows] = await Promise.all([
     admin
       .from('course_enrollments')
       .select('user_id, users(id, name)')
       .eq('course_id', id)
       .eq('role', 'student'),
     assignmentIds.length
-      ? admin
-          .from('submissions')
-          .select('assignment_id, student_id, status, grade')
-          .in('assignment_id', assignmentIds)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows<{ assignment_id: string; student_id: string; status: string; grade: string | null }>(
+          (from, to) =>
+            admin
+              .from('submissions')
+              .select('assignment_id, student_id, status, grade')
+              .in('assignment_id', assignmentIds)
+              .range(from, to)
+        )
+      : Promise.resolve([]),
     assignmentIds.length
-      ? admin
-          .from('assignment_overrides')
-          .select('assignment_id, student_id, due_date, excused')
-          .in('assignment_id', assignmentIds)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows<{ assignment_id: string; student_id: string; due_date: string | null; excused: boolean }>(
+          (from, to) =>
+            admin
+              .from('assignment_overrides')
+              .select('assignment_id, student_id, due_date, excused')
+              .in('assignment_id', assignmentIds)
+              .range(from, to)
+        )
+      : Promise.resolve([]),
   ])
 
   const students: GradebookStudent[] = (enrollmentsResult.data ?? [])
@@ -114,14 +123,14 @@ export default async function GradebookPage({
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const submissions: GradebookSubmission[] = (submissionsResult.data ?? []).map(s => ({
+  const submissions: GradebookSubmission[] = submissionRows.map(s => ({
     assignment_id: s.assignment_id,
     student_id: s.student_id,
     status: s.status,
     grade: s.grade,
   }))
 
-  const overrides: GradebookOverride[] = (overridesResult.data ?? []).map(o => ({
+  const overrides: GradebookOverride[] = overrideRows.map(o => ({
     assignment_id: o.assignment_id,
     student_id: o.student_id,
     due_date: o.due_date,
