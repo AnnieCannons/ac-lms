@@ -36,7 +36,7 @@ export default async function StudentLevelUpPage({
     .select('id')
     .eq('user_id', user.id)
     .eq('course_id', id)
-    .in('role', ['student', 'ta'])
+    .in('role', ['student', 'observer', 'ta'])
     .maybeSingle()
 
   if (!preview && !enrollment) redirect('/student/courses')
