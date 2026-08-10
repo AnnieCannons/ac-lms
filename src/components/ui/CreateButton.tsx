@@ -1,14 +1,18 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import Modal from './Modal'
+import FileUpload from './FileUpload'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { createWiki } from '@/lib/wiki-actions'
 import { createAssignment } from '@/lib/assignment-actions'
 import { createResource } from '@/lib/resource-actions'
 import { createModule, createModuleDay } from '@/lib/module-actions'
 import { addSelfAsInstructor, getCourseName } from '@/lib/enrollment-actions'
+
+const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
 type CreateType = 'assignment' | 'resource' | 'quiz' | 'wiki'
 type SectionType = 'coding' | 'career' | 'level_up'
@@ -40,9 +44,10 @@ interface Props {
   defaultDayId?: string
   label?: string
   onWikiCreated?: (wiki: WikiData) => void
+  onResourceCreated?: (moduleId: string, day: { id: string; day_name: string; isNew: boolean }) => void
 }
 
-export default function CreateButton({ courseId, compact, defaultType, defaultModuleId, defaultDayId, label, onWikiCreated }: Props) {
+export default function CreateButton({ courseId, compact, defaultType, defaultModuleId, defaultDayId, label, onWikiCreated, onResourceCreated }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -166,6 +171,26 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     : allDaysForModule
   ).slice().sort((a, b) => a.order - b.order)
 
+  // Default section/module/type to wherever the user actually clicked "+" from,
+  // instead of always resetting to Course Outline (was showing the wrong module).
+  const resolveDefaults = (mods: Module[]) => {
+    const defaultMod = defaultModuleId ? mods.find(m => m.id === defaultModuleId) : undefined
+    const resolvedSection: SectionType = defaultMod?.category === 'career'
+      ? 'career'
+      : defaultMod?.category === 'level_up'
+        ? 'level_up'
+        : 'coding'
+    const firstForSection = resolvedSection === 'career'
+      ? mods.find(m => m.category === 'career')
+      : resolvedSection === 'level_up'
+        ? mods.find(m => m.category === 'level_up')
+        : mods.find(m => m.category !== 'career' && m.category !== 'level_up')
+    const resolvedModuleId = defaultModuleId ?? firstForSection?.id ?? ''
+    // Level Up has no day/week structure — it's a shelf of optional resources, not assignments.
+    const resolvedType = defaultType ?? (resolvedSection === 'level_up' ? 'resource' : 'assignment')
+    return { resolvedSection, resolvedModuleId, resolvedType }
+  }
+
   const handleOpen = async () => {
     const { data, error: fetchError } = await supabase
       .from('modules')
@@ -180,11 +205,12 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         .eq('course_id', courseId)
         .order('order', { ascending: true })
       const mods2 = ((data2 ?? []) as Module[]).filter(m => m.title && !m.title.includes('DO NOT PUBLISH'))
+      const { resolvedSection, resolvedModuleId, resolvedType } = resolveDefaults(mods2)
       setModules(mods2)
-      setSection('coding')
-      setModuleId(defaultModuleId ?? mods2[0]?.id ?? '')
+      setSection(resolvedSection)
+      setModuleId(resolvedModuleId)
       setDayId(defaultDayId ?? '')
-      setCreateType(defaultType ?? 'assignment')
+      setCreateType(resolvedType)
       setResType('link')
       setResTitle('')
       setResUrl('')
@@ -209,14 +235,12 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
       return
     }
     const mods = (data ?? []).filter((m: Module) => m.title && !m.title.includes('DO NOT PUBLISH'))
-    // Default module: use defaultModuleId if provided, else first coding module
-    const firstCodingMod = mods.find(m => m.category !== 'career' && m.category !== 'level_up')
-    const resolvedModuleId = defaultModuleId ?? firstCodingMod?.id ?? ''
+    const { resolvedSection, resolvedModuleId, resolvedType } = resolveDefaults(mods)
     setModules(mods)
-    setSection('coding')
+    setSection(resolvedSection)
     setModuleId(resolvedModuleId)
     setDayId(defaultDayId ?? '')
-    setCreateType(defaultType ?? 'assignment')
+    setCreateType(resolvedType)
     setResType('link')
     setResTitle('')
     setResUrl('')
@@ -229,8 +253,12 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     setShowNewModule(false)
     setNewModuleTitle('')
     setModuleError(null)
-    setLevelUpTags([])
-    setCustomTags([])
+    if (resolvedSection === 'level_up') {
+      loadModuleTags(mods.find(m => m.id === resolvedModuleId))
+    } else {
+      setLevelUpTags([])
+      setCustomTags([])
+    }
     setShowCustomTag(false)
     setCustomTagInput('')
     setAssignmentTags([])
@@ -253,12 +281,14 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     setNewModuleTitle('')
   }
 
-  const resolveDay = async (resolvedModuleId: string): Promise<string | null> => {
-    if (dayId) return dayId
+  const resolveDay = async (resolvedModuleId: string): Promise<{ id: string; day_name: string; isNew: boolean } | null> => {
+    if (dayId) return { id: dayId, day_name: days.find(d => d.id === dayId)?.day_name ?? '', isNew: false }
+    const existingGeneral = allDaysForModule.find(d => d.day_name === 'General')
+    if (existingGeneral) return { id: existingGeneral.id, day_name: 'General', isNew: false }
     const result = await createModuleDay({ moduleId: resolvedModuleId, dayName: 'General', order: allDaysForModule.length })
     if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return null }
     if (result.error || !result.data) { setError(result.error ?? 'Failed to create day'); return null }
-    return result.data.id
+    return { id: result.data.id, day_name: 'General', isNew: true }
   }
 
   const handleCreate = async () => {
@@ -288,9 +318,19 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     const linkedDayId = section === 'career' && crossPost && crossDayId ? crossDayId : null
 
     if (createType === 'assignment') {
-      if (!dayId) { setError('Please select a day.'); setCreating(false); return }
-      const result = await createAssignment({ moduleDayId: dayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up' })
+      // Level Up has no day/week structure — bonus exercises are never required, so
+      // fall back to a hidden day instead of forcing the instructor to pick one.
+      let targetDayId = dayId
+      let resolvedDay: { id: string; day_name: string; isNew: boolean } | null = null
+      if (!targetDayId) {
+        if (section !== 'level_up') { setError('Please select a day.'); setCreating(false); return }
+        resolvedDay = await resolveDay(resolvedModuleId)
+        if (!resolvedDay) { setCreating(false); return }
+        targetDayId = resolvedDay.id
+      }
+      const result = await createAssignment({ moduleDayId: targetDayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up' })
       if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
+      if (resolvedDay) onResourceCreated?.(resolvedModuleId, resolvedDay)
       setCreating(false)
       if (result.error || !result.data) { setError(result.error ?? 'Failed to create'); return }
       setOpen(false)
@@ -298,13 +338,17 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
     } else if (createType === 'resource') {
       if (!resTitle.trim()) { setError('Please enter a title.'); setCreating(false); return }
-      const targetDayId = await resolveDay(resolvedModuleId)
-      if (!targetDayId) { setCreating(false); return }
-      const result = await createResource({ moduleDayId: targetDayId, type: resType, title: resTitle.trim(), content: resUrl.trim() || null, linkedDayId })
+      const targetDay = await resolveDay(resolvedModuleId)
+      if (!targetDay) { setCreating(false); return }
+      const result = await createResource({ moduleDayId: targetDay.id, type: resType, title: resTitle.trim(), content: resUrl.trim() || null, linkedDayId })
       if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
       setCreating(false)
       if (result.error) { setError(result.error); return }
       setOpen(false)
+      // CourseEditor keeps its own `modules` state that a bare router.refresh() won't
+      // touch, so without this callback a resource landing on a brand-new day (e.g.
+      // Level Up's hidden "General" day) never appears until a full page reload.
+      onResourceCreated?.(resolvedModuleId, targetDay)
       router.refresh()
 
     } else if (createType === 'quiz') {
@@ -351,7 +395,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   }
 
   const hasModule = !!moduleId || !!newModuleTitle.trim()
-  const isValid = hasModule && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId)
+  const isValid = hasModule && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId || section === 'level_up')
 
   return (
     <>
@@ -497,8 +541,8 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
               )}
             </div>
 
-            {/* Day */}
-            {(days.length > 0 || createType === 'assignment') && (
+            {/* Day — Level Up has no day/week structure, so skip this entirely there */}
+            {section !== 'level_up' && (days.length > 0 || createType === 'assignment') && (
               <div>
                 <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
                   Day{createType === 'assignment'
@@ -655,7 +699,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                   <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Type</label>
                   <select
                     value={resType}
-                    onChange={e => setResType(e.target.value as ResourceType)}
+                    onChange={e => { setResType(e.target.value as ResourceType); setResUrl('') }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     {RESOURCE_TYPES.map(rt => (
@@ -673,16 +717,35 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">URL</label>
-                  <input
-                    type="url"
-                    value={resUrl}
-                    onChange={e => setResUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-                  />
-                </div>
+                {resType === 'file' ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">File</label>
+                    <FileUpload
+                      bucket="lms-resources"
+                      path={`module-${moduleId || 'new'}/`}
+                      onUpload={(url, fileName) => {
+                        setResUrl(url)
+                        if (!resTitle.trim()) setResTitle(fileName)
+                      }}
+                    />
+                  </div>
+                ) : resType === 'reading' ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Content</label>
+                    <RichTextEditor content={resUrl} onChange={setResUrl} placeholder="Reading content…" />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">URL</label>
+                    <input
+                      type="url"
+                      value={resUrl}
+                      onChange={e => setResUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                    />
+                  </div>
+                )}
               </>
             )}
 

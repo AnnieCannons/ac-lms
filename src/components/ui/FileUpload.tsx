@@ -9,10 +9,19 @@ interface FileUploadProps {
   onError?: (msg: string) => void;
   accept?: string;
   maxSizeMB?: number;
+  existingUrl?: string;
 }
 
 const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.tar,.gz,image/*";
 const DEFAULT_MAX_MB = 10;
+
+const fileNameFromUrl = (url: string) => {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split("/").pop() || url);
+  } catch {
+    return url;
+  }
+};
 
 export default function FileUpload({
   bucket,
@@ -21,11 +30,12 @@ export default function FileUpload({
   onError,
   accept = DEFAULT_ACCEPT,
   maxSizeMB = DEFAULT_MAX_MB,
+  existingUrl,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadedName, setUploadedName] = useState<string | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [uploadedName, setUploadedName] = useState<string | null>(existingUrl ? fileNameFromUrl(existingUrl) : null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(existingUrl ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const isImage = uploadedName ? /\.(png|jpe?g|gif|webp|svg)$/i.test(uploadedName) : false;
