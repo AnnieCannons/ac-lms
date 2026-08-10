@@ -1209,6 +1209,7 @@ function SortableResource({
           <FileUpload
             bucket="lms-resources"
             path={`module-day-${resource.module_day_id}/`}
+            existingUrl={editType === resource.type ? (resource.content ?? undefined) : undefined}
             onUpload={(url, fileName) => {
               setEditContent(url);
               if (!editTitle.trim()) setEditTitle(fileName);
@@ -1336,11 +1337,29 @@ function SortableResource({
         {resource.content && resource.type !== "reading" && resource.type !== "link" && (() => {
           const href = resource.content.startsWith("http") ? resource.content : `https://${resource.content}`;
           const isImg = resource.type === "file" && /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(resource.content);
-          return isImg ? (
-            <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-              <img src={href} alt={resource.title} className="mt-1 h-12 w-auto rounded border border-border object-contain" />
-            </a>
-          ) : (
+          const isPdf = resource.type === "file" && /\.pdf(\?|$)/i.test(resource.content);
+          const fileName = (() => {
+            try { return decodeURIComponent(new URL(href).pathname.split("/").pop() || resource.content); }
+            catch { return resource.content; }
+          })();
+          if (isImg) {
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                <img src={href} alt={resource.title} className="mt-1 h-12 w-auto rounded border border-border object-contain" />
+              </a>
+            );
+          }
+          if (isPdf) {
+            return (
+              <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                <iframe src={href} title={resource.title} className="w-full h-48 rounded border border-border bg-white" />
+                <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-primary truncate hover:underline block mt-1">
+                  Open full PDF ↗
+                </a>
+              </div>
+            );
+          }
+          return (
             <a
               href={href}
               target="_blank"
@@ -1348,7 +1367,7 @@ function SortableResource({
               className="text-xs text-teal-primary truncate hover:underline block"
               onClick={(e) => e.stopPropagation()}
             >
-              {resource.content}
+              {fileName}
             </a>
           );
         })()}
@@ -1671,6 +1690,7 @@ function SortableDay({
   onWikiDeleted,
   moduleTitle,
   onRegisterResources,
+  onResourceCreated,
 }: {
   day: Day;
   weekNumber: number | null;
@@ -1690,6 +1710,7 @@ function SortableDay({
   onWikiDeleted: (wikiId: string) => void;
   moduleTitle: string;
   onRegisterResources: (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => void;
+  onResourceCreated: (moduleId: string, day: { id: string; day_name: string; isNew: boolean }) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -1903,7 +1924,7 @@ function SortableDay({
       {/* Hidden quiz create trigger */}
       {!readOnly && (
         <div ref={quizTriggerRef} className="hidden">
-          <CreateButton courseId={courseId} compact defaultType="quiz" defaultModuleId={day.module_id} defaultDayId={day.id} onWikiCreated={onWikiCreated} />
+          <CreateButton courseId={courseId} compact defaultType="quiz" defaultModuleId={day.module_id} defaultDayId={day.id} onWikiCreated={onWikiCreated} onResourceCreated={onResourceCreated} />
         </div>
       )}
 
@@ -2146,6 +2167,7 @@ function SortableModule({
   onWikiPublishToggled,
   onWikiDeleted,
   onRegisterResources,
+  onResourceCreated,
 }: {
   module: Module;
   courseId: string;
@@ -2173,6 +2195,7 @@ function SortableModule({
   onWikiPublishToggled: (wikiId: string, published: boolean) => void;
   onWikiDeleted: (wikiId: string) => void;
   onRegisterResources: (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => void;
+  onResourceCreated: (moduleId: string, day: { id: string; day_name: string; isNew: boolean }) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -2309,7 +2332,7 @@ function SortableModule({
         )}
         {!readOnly && (
           <span onClick={e => e.stopPropagation()}>
-            <CreateButton courseId={courseId} compact defaultModuleId={module.id} onWikiCreated={onWikiCreated} />
+            <CreateButton courseId={courseId} compact defaultModuleId={module.id} onWikiCreated={onWikiCreated} onResourceCreated={onResourceCreated} />
           </span>
         )}
         <button
@@ -2396,6 +2419,7 @@ function SortableModule({
                   courseId={courseId}
                   forceOpen={expandDays}
                   onWikiCreated={onWikiCreated}
+                  onResourceCreated={onResourceCreated}
                   onWikiUpdated={onWikiUpdated}
                   onWikiPublishToggled={onWikiPublishToggled}
                   onWikiDeleted={onWikiDeleted}
@@ -3398,6 +3422,21 @@ export default function CourseEditor({
     setModules((prev) => [...prev, newModule as unknown as Module]);
   };
 
+  // ── Resource/assignment day resolution (CreateButton can silently create a
+  //    hidden day, e.g. Level Up's "General" day — router.refresh() alone won't
+  //    surface it since this component's `modules` state doesn't re-derive from
+  //    refreshed props) ──────────────────────────────────────────────────────
+  const handleResourceCreated = (moduleId: string, day: { id: string; day_name: string; isNew: boolean }) => {
+    if (day.isNew) {
+      setModules(prev => prev.map(m =>
+        m.id === moduleId && !m.module_days.some(d => d.id === day.id)
+          ? { ...m, module_days: [...m.module_days, { id: day.id, day_name: day.day_name, order: m.module_days.length, module_id: moduleId, assignments: [] }] }
+          : m
+      ));
+    }
+    setDayRefreshTriggers(prev => ({ ...prev, [day.id]: (prev[day.id] ?? 0) + 1 }));
+  };
+
   // ── Wiki state management ──────────────────────────────────────────────────
 
   const handleWikiCreated = (wiki: Wiki) => {
@@ -3670,6 +3709,7 @@ export default function CourseEditor({
                   expandDays={expandDaysTriggers[module.id]}
                   onRegisterResources={handleRegisterResources}
                   onWikiCreated={handleWikiCreated}
+                  onResourceCreated={handleResourceCreated}
                   onWikiUpdated={handleWikiUpdated}
                   onWikiPublishToggled={handleWikiPublishToggled}
                   onWikiDeleted={handleWikiDeleted}
