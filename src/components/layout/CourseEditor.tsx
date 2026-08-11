@@ -1215,6 +1215,27 @@ function SortableResource({
               if (!editTitle.trim()) setEditTitle(fileName);
             }}
           />
+        ) : editType === "video" ? (
+          <div className="flex flex-col gap-1.5">
+            <FileUpload
+              bucket="lms-resources"
+              path={`module-day-${resource.module_day_id}/`}
+              accept="video/*"
+              maxSizeMB={20}
+              existingUrl={editType === resource.type ? (resource.content ?? undefined) : undefined}
+              onUpload={(url, fileName) => {
+                setEditContent(url);
+                if (!editTitle.trim()) setEditTitle(fileName);
+              }}
+            />
+            <input
+              type="text"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="or paste a video URL (YouTube, Vimeo, etc.)"
+              className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+            />
+          </div>
         ) : editType === "reading" ? (
           <RichTextEditor content={editContent} onChange={setEditContent} placeholder="Reading content" />
         ) : (
@@ -2038,6 +2059,28 @@ function SortableDay({
                           if (!newResTitle.trim()) setNewResTitle(fileName);
                         }}
                       />
+                    ) : newResType === "video" ? (
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <FileUpload
+                          key={fileUploadKey}
+                          bucket="lms-resources"
+                          path={`module-day-${day.id}/`}
+                          accept="video/*"
+                          maxSizeMB={20}
+                          onUpload={(url, fileName) => {
+                            setNewResContent(url);
+                            if (!newResTitle.trim()) setNewResTitle(fileName);
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="or paste a video URL (YouTube, Vimeo, etc.)"
+                          value={newResContent}
+                          onChange={(e) => setNewResContent(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") submitNewResource(); }}
+                          className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                        />
+                      </div>
                     ) : newResType === "reading" ? (
                       <div className="flex-1">
                         <RichTextEditor key={fileUploadKey} content={newResContent} onChange={setNewResContent} placeholder="Reading content…" />
