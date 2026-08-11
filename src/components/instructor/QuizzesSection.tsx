@@ -134,6 +134,7 @@ export default function QuizzesSection({ courseId, quizzes = [], initialOpenQuiz
       const quiz = localQuizzes.find(q => q.id === initialOpenQuizId);
       if (quiz) setSelectedQuiz(quiz);
     }
+    setNavigating(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOpenQuizId]);
   const [creating, setCreating] = useState(false);
