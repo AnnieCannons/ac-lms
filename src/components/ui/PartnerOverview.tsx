@@ -1809,35 +1809,37 @@ export default function PartnerOverview({
                           <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div className="flex items-center gap-2 flex-wrap">
                               {hasStages ? (
-                                editingStatus ? (
-                                  <select
-                                    value={ds.stage}
-                                    onChange={e => { handleStageChange(dept, e.target.value); setStatusEditDept(null) }}
-                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => setStatusEditDept(editingStatus ? null : dept)}
+                                    className={`inline-flex items-center gap-1 text-sm font-medium rounded-full px-2.5 py-0.5 transition-colors ${ds.stage ? `${STAGE_COLORS[ds.stage] ?? 'bg-background text-dark-text border border-border'} hover:opacity-80` : 'text-muted-text border border-border hover:bg-background'}`}
                                   >
-                                    <option value="">— Select status —</option>
-                                    {DEPARTMENT_STAGES[dept].map(stage => (
-                                      <option key={stage} value={stage}>{stage}</option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <>
-                                    {ds.stage ? (
-                                      <span className={`text-sm font-medium rounded-full px-2.5 py-0.5 ${STAGE_COLORS[ds.stage] ?? 'bg-background text-dark-text border border-border'}`}>
-                                        {ds.stage}
-                                      </span>
-                                    ) : (
-                                      <span className="text-sm text-muted-text">No status set</span>
-                                    )}
-                                    <button type="button" onClick={() => setStatusEditDept(dept)} className="text-xs text-teal-primary hover:underline">
-                                      Update Status
-                                    </button>
-                                    {isPending && <span className="text-xs text-muted-text">Saving…</span>}
-                                  </>
-                                )
+                                    {ds.stage || 'No status set'}
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  </button>
+                                  {editingStatus && (
+                                    <>
+                                      <div className="fixed inset-0 z-10" onClick={() => setStatusEditDept(null)} />
+                                      <div className="absolute left-0 top-7 z-20 flex flex-col gap-1 rounded-xl border border-border bg-surface shadow-lg p-2 min-w-48">
+                                        {DEPARTMENT_STAGES[dept].map(stage => (
+                                          <button
+                                            key={stage}
+                                            type="button"
+                                            onClick={() => { handleStageChange(dept, stage); setStatusEditDept(null) }}
+                                            className={`text-left text-sm font-medium rounded-full px-2.5 py-0.5 transition-opacity hover:opacity-80 ${STAGE_COLORS[stage] ?? 'bg-background text-dark-text border border-border'} ${stage === ds.stage ? 'ring-2 ring-teal-primary' : ''}`}
+                                          >
+                                            {stage}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-sm text-muted-text">No stages tracked.</span>
                               )}
+                              {isPending && <span className="text-xs text-muted-text">Saving…</span>}
                             </div>
                             <button
                               type="button"
