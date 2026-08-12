@@ -27,17 +27,43 @@ function buildAddOn(e) {
     var message = GmailApp.getMessageById(e.gmail.messageId);
     var recipientEmails = getRecipientEmails_(message, userEmail);
     var subject = message.getSubject() || '';
+    var thread = message.getThread();
+    var threadInfo = getThreadInfo_(thread, message);
 
     var partners = searchByEmails_(recipientEmails);
 
     if (partners.length > 0) {
-      return [buildLogCard_(partners[0], subject, userEmail)];
+      return [buildLogCard_(partners[0], subject, userEmail, threadInfo)];
     } else {
-      return [buildNoMatchCard_(recipientEmails, subject, userEmail)];
+      return [buildNoMatchCard_(recipientEmails, subject, userEmail, e.gmail.messageId)];
     }
   } catch (err) {
     return [buildErrorCard_('Could not load message: ' + err.message)];
   }
+}
+
+function getThreadInfo_(thread, message) {
+  var messages = thread.getMessages();
+  var currentId = message.getId();
+  var index = 0;
+  var others = [];
+
+  for (var i = 0; i < messages.length; i++) {
+    if (messages[i].getId() === currentId) {
+      index = i;
+    } else {
+      others.push(messages[i]);
+    }
+  }
+
+  return {
+    threadId: thread.getId(),
+    messageId: currentId,
+    messageDate: message.getDate(),
+    messageIndex: index + 1,
+    messageCount: messages.length,
+    otherMessages: others,
+  };
 }
 
 function buildHomepageCard() {
@@ -53,7 +79,7 @@ function buildHomepageCard() {
 
 // ─── Card builders ────────────────────────────────────────────────────────────
 
-function buildLogCard_(partner, subject, userEmail) {
+function buildLogCard_(partner, subject, userEmail, threadInfo) {
   var location = [partner.city, partner.state].filter(Boolean).join(', ');
 
   var card = CardService.newCardBuilder();
@@ -72,6 +98,16 @@ function buildLogCard_(partner, subject, userEmail) {
       CardService.newTextParagraph().setText(
         htmlEscape_(partner.matched_contact.name) + ' &lt;' + htmlEscape_(partner.matched_contact.email) + '&gt;'
       )
+    );
+  }
+
+  if (threadInfo) {
+    var dateLabel = formatDateLabel_(threadInfo.messageDate);
+    var positionLabel = threadInfo.messageCount > 1
+      ? ' · Message ' + threadInfo.messageIndex + ' of ' + threadInfo.messageCount + ' in this thread'
+      : '';
+    section.addWidget(
+      CardService.newTextParagraph().setText('<font color="#666666">' + dateLabel + positionLabel + '</font>')
     );
   }
 
@@ -115,6 +151,7 @@ function buildLogCard_(partner, subject, userEmail) {
             partnerName: partner.name,
             contactId: (partner.matched_contact && partner.matched_contact.id) ? partner.matched_contact.id : '',
             userEmail: userEmail,
+            messageDate: threadInfo ? formatDateIso_(threadInfo.messageDate) : '',
           })
       )
   );
@@ -125,15 +162,64 @@ function buildLogCard_(partner, subject, userEmail) {
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('navigateToSearch')
-          .setParameters({ userEmail: userEmail, subject: subject })
+          .setParameters({ userEmail: userEmail, subject: subject, messageId: threadInfo ? threadInfo.messageId : '' })
       )
   );
 
   card.addSection(section);
+
+  var threadSection = buildThreadChecklistSection_(partner, userEmail, threadInfo);
+  if (threadSection) card.addSection(threadSection);
+
   return card.build();
 }
 
-function buildNoMatchCard_(recipientEmails, subject, userEmail) {
+function buildThreadChecklistSection_(partner, userEmail, threadInfo) {
+  if (!threadInfo || !threadInfo.otherMessages || threadInfo.otherMessages.length === 0) return null;
+
+  var domain = partner.matched_contact ? domainOf_(partner.matched_contact.email) : null;
+
+  var section = CardService.newCardSection();
+  section.setHeader('Other messages in this thread');
+
+  var checkbox = CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.CHECK_BOX)
+    .setFieldName('selected_thread_ids');
+
+  for (var i = 0; i < threadInfo.otherMessages.length; i++) {
+    var msg = threadInfo.otherMessages[i];
+    var isMatch = domain ? messageMatchesDomain_(msg, domain, userEmail) : false;
+    var label = formatDateLabel_(msg.getDate()) + ' — ' + (msg.getSubject() || '(no subject)') +
+      (isMatch ? '' : '  ·  not matched to partner');
+    checkbox.addItem(label, msg.getId(), isMatch);
+  }
+
+  section.addWidget(checkbox);
+  section.addWidget(CardService.newTextParagraph().setText(
+    '<font color="#666666">Checked messages are logged with the department and reminder chosen above. ' +
+    'Check or uncheck any message to include or drop it.</font>'
+  ));
+
+  section.addWidget(
+    CardService.newTextButton()
+      .setText('Log Selected Messages')
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('logThreadMessages')
+          .setParameters({
+            partnerId: partner.id,
+            partnerName: partner.name,
+            contactId: (partner.matched_contact && partner.matched_contact.id) ? partner.matched_contact.id : '',
+            userEmail: userEmail,
+            threadId: threadInfo.threadId,
+          })
+      )
+  );
+
+  return section;
+}
+
+function buildNoMatchCard_(recipientEmails, subject, userEmail, messageId) {
   var firstEmail = recipientEmails.length > 0 ? recipientEmails[0] : '';
 
   var card = CardService.newCardBuilder();
@@ -154,7 +240,7 @@ function buildNoMatchCard_(recipientEmails, subject, userEmail) {
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('performNameSearch')
-          .setParameters({ userEmail: userEmail, subject: subject })
+          .setParameters({ userEmail: userEmail, subject: subject, messageId: messageId })
       )
   );
 
@@ -167,7 +253,7 @@ function buildNoMatchCard_(recipientEmails, subject, userEmail) {
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('navigateToQuickAdd')
-          .setParameters({ userEmail: userEmail, contactEmail: firstEmail, subject: subject, orgNameHint: '' })
+          .setParameters({ userEmail: userEmail, contactEmail: firstEmail, subject: subject, orgNameHint: '', messageId: messageId })
       )
   );
 
@@ -175,7 +261,7 @@ function buildNoMatchCard_(recipientEmails, subject, userEmail) {
   return card.build();
 }
 
-function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint) {
+function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint, messageId) {
   var card = CardService.newCardBuilder();
   card.setHeader(CardService.newCardHeader().setTitle('Add New Partner'));
 
@@ -230,7 +316,7 @@ function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint) {
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('quickAddPartner')
-          .setParameters({ userEmail: userEmail })
+          .setParameters({ userEmail: userEmail, messageId: messageId })
       )
   );
 
@@ -270,7 +356,7 @@ function logInteraction(e) {
   var formInput = e.formInput || {};
   var note = (formInput['note'] || '').trim();
   var remindDays = parseInt(formInput['remind_days'] || '0', 10);
-  var today = new Date().toISOString().split('T')[0];
+  var interactionDate = params['messageDate'] || new Date().toISOString().split('T')[0];
 
   if (!note) {
     return CardService.newActionResponseBuilder()
@@ -283,7 +369,7 @@ function logInteraction(e) {
   var result = callApi_('/api/partnerships/log-interaction', 'POST', {
     partner_id: params['partnerId'],
     note: note,
-    interaction_date: today,
+    interaction_date: interactionDate,
     remind_in_days: remindDays,
     contact_id: params['contactId'] || null,
     department: department,
@@ -319,7 +405,7 @@ function quickAddPartner(e) {
   var contactEmail = (formInput['contact_email'] || '').trim();
   var note = (formInput['note'] || '').trim();
   var remindDays = parseInt(formInput['remind_days'] || '0', 10);
-  var today = new Date().toISOString().split('T')[0];
+  var interactionDate = loadMessageDateIso_(e, params['messageId']) || new Date().toISOString().split('T')[0];
 
   if (!orgName) {
     return CardService.newActionResponseBuilder()
@@ -339,7 +425,7 @@ function quickAddPartner(e) {
     contact_name: contactName || null,
     contact_email: contactEmail || null,
     note: note,
-    interaction_date: today,
+    interaction_date: interactionDate,
     remind_in_days: remindDays,
     department: department,
     user_email: params['userEmail'],
@@ -365,9 +451,82 @@ function quickAddPartner(e) {
     .build();
 }
 
+function logThreadMessages(e) {
+  var params = e.parameters;
+  var formInput = e.formInput || {};
+  var selectedIds = (e.formInputs && e.formInputs['selected_thread_ids']) || [];
+
+  if (selectedIds.length === 0) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText('Select at least one message to log.'))
+      .build();
+  }
+
+  try {
+    if (e.gmail && e.gmail.accessToken) {
+      GmailApp.setCurrentMessageAccessToken(e.gmail.accessToken);
+    }
+    var thread = GmailApp.getThreadById(params['threadId']);
+    var messages = thread.getMessages();
+    var selectedSet = {};
+    selectedIds.forEach(function(id) { selectedSet[id] = true; });
+
+    var interactions = [];
+    messages.forEach(function(message) {
+      if (!selectedSet[message.getId()]) return;
+      interactions.push({
+        note: 'Subject line: ' + (message.getSubject() || ''),
+        interaction_date: formatDateIso_(message.getDate()),
+      });
+    });
+
+    if (interactions.length === 0) {
+      return CardService.newActionResponseBuilder()
+        .setNavigation(CardService.newNavigation().pushCard(buildErrorCard_('Could not find the selected messages.')))
+        .build();
+    }
+
+    var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+    var department = (formInput['department'] || '').trim() || null;
+
+    var result = callApi_('/api/partnerships/log-interactions-bulk', 'POST', {
+      partner_id: params['partnerId'],
+      contact_id: params['contactId'] || null,
+      department: department,
+      remind_in_days: remindDays,
+      user_email: params['userEmail'],
+      interactions: interactions,
+    });
+
+    if (result && result.success) {
+      var config = getConfig_();
+      var partnerUrl = config.apiBase + '/instructor/partnerships/' + params['partnerId'];
+      var reminder = remindDays > 0 ? " You'll get a Slack reminder." : '';
+      var card = buildSuccessCard_(
+        'Logged!',
+        result.count + ' interaction' + (result.count === 1 ? '' : 's') + ' with ' + params['partnerName'] + ' recorded.' + reminder,
+        partnerUrl,
+        'View ' + params['partnerName'] + ' →'
+      );
+      return CardService.newActionResponseBuilder()
+        .setNavigation(CardService.newNavigation().updateCard(card))
+        .build();
+    }
+
+    var errorMsg = (result && result.error) ? result.error : 'Request failed. Check your connection.';
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(buildErrorCard_(errorMsg)))
+      .build();
+  } catch (err) {
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(buildErrorCard_('Could not load thread: ' + err.message)))
+      .build();
+  }
+}
+
 function navigateToSearch(e) {
   var params = e.parameters;
-  var card = buildNoMatchCard_([], params['subject'] || '', params['userEmail']);
+  var card = buildNoMatchCard_([], params['subject'] || '', params['userEmail'], params['messageId'] || '');
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().pushCard(card))
     .build();
@@ -379,7 +538,8 @@ function navigateToQuickAdd(e) {
     params['userEmail'],
     params['contactEmail'] || '',
     params['subject'] || '',
-    params['orgNameHint'] || ''
+    params['orgNameHint'] || '',
+    params['messageId'] || ''
   );
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().pushCard(card))
@@ -417,6 +577,7 @@ function performNameSearch(e) {
               contactEmail: '',
               subject: params['subject'] || '',
               orgNameHint: query,
+              messageId: params['messageId'] || '',
             })
         )
     );
@@ -436,6 +597,7 @@ function performNameSearch(e) {
                 partnerName: p.name,
                 userEmail: params['userEmail'],
                 subject: params['subject'] || '',
+                messageId: params['messageId'] || '',
               })
           )
       );
@@ -457,7 +619,8 @@ function selectPartnerFromSearch(e) {
     state: null,
     matched_contact: null,
   };
-  var card = buildLogCard_(partner, params['subject'] || '', params['userEmail']);
+  var threadInfo = loadThreadInfoByMessageId_(e, params['messageId']);
+  var card = buildLogCard_(partner, params['subject'] || '', params['userEmail'], threadInfo);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().pushCard(card))
     .build();
@@ -489,6 +652,47 @@ function getRecipientEmails_(message, currentUserEmail) {
 function extractEmail_(str) {
   var match = str.match(/<([^>]+)>/);
   return match ? match[1].trim() : str.trim();
+}
+
+function domainOf_(email) {
+  if (!email) return null;
+  var at = email.indexOf('@');
+  return at >= 0 ? email.slice(at + 1).toLowerCase() : null;
+}
+
+function messageMatchesDomain_(message, domain, selfEmail) {
+  if (!domain) return false;
+  var emails = getRecipientEmails_(message, selfEmail);
+  for (var i = 0; i < emails.length; i++) {
+    if (domainOf_(emails[i]) === domain) return true;
+  }
+  return false;
+}
+
+function formatDateIso_(date) {
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function formatDateLabel_(date) {
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'MMM d, yyyy');
+}
+
+function loadThreadInfoByMessageId_(e, messageId) {
+  if (!messageId) return null;
+  try {
+    if (e.gmail && e.gmail.accessToken) {
+      GmailApp.setCurrentMessageAccessToken(e.gmail.accessToken);
+    }
+    var message = GmailApp.getMessageById(messageId);
+    return getThreadInfo_(message.getThread(), message);
+  } catch (err) {
+    return null;
+  }
+}
+
+function loadMessageDateIso_(e, messageId) {
+  var threadInfo = loadThreadInfoByMessageId_(e, messageId);
+  return threadInfo ? formatDateIso_(threadInfo.messageDate) : null;
 }
 
 function searchByEmails_(emails) {
