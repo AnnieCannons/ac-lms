@@ -80,6 +80,76 @@ export function TrendChart({ history }: { history: StatsHistoryPoint[] }) {
   )
 }
 
+export const ABSENCE_COLOR = '#2563eb'
+export const TARDY_COLOR = '#7c3aed'
+
+export type AttendanceHistoryPoint = { weekStart: string; absences: number; tardies: number }
+
+export function AttendanceTrendChart({ history }: { history: AttendanceHistoryPoint[] }) {
+  if (history.length < 2) {
+    return <p className="text-sm text-muted-text py-2">Trend appears after a couple weeks of data.</p>
+  }
+
+  const data = history.map(h => ({ week: formatWeekLabel(h.weekStart), absences: h.absences, tardies: h.tardies }))
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-4">
+        <span className="flex items-center gap-1.5 text-xs text-muted-text">
+          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: ABSENCE_COLOR }} />
+          Absences
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-text">
+          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: TARDY_COLOR }} />
+          Tardies
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={180}>
+        <LineChart data={data} margin={{ top: 20, right: 4, bottom: 0, left: 0 }}>
+          <XAxis
+            dataKey="week"
+            tick={{ fontSize: 11, fill: 'currentColor' }}
+            tickLine={false}
+            axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+            className="text-muted-text"
+          />
+          <YAxis
+            domain={[0, 'dataMax']}
+            allowDecimals={false}
+            tick={{ fontSize: 11, fill: 'currentColor' }}
+            tickLine={false}
+            axisLine={false}
+            width={24}
+            className="text-muted-text"
+          />
+          <Tooltip
+            labelFormatter={(label) => `Week of ${label}`}
+            contentStyle={{ fontSize: 12, borderRadius: 8 }}
+          />
+          <Line
+            type="linear"
+            dataKey="absences"
+            name="Absences"
+            stroke={ABSENCE_COLOR}
+            strokeWidth={2}
+            dot={data.length <= 8 ? { r: 2, fill: ABSENCE_COLOR, strokeWidth: 0 } : false}
+            isAnimationActive={false}
+          />
+          <Line
+            type="linear"
+            dataKey="tardies"
+            name="Tardies"
+            stroke={TARDY_COLOR}
+            strokeWidth={2}
+            dot={data.length <= 8 ? { r: 2, fill: TARDY_COLOR, strokeWidth: 0 } : false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 export function ZoneBadge({ absences }: { absences: number }) {
   if (absences >= 23) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900">Red zone</span>
   if (absences >= 12) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900">Yellow zone</span>
