@@ -1,18 +1,14 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
-import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from 'recharts'
 import {
   getStudentAssignmentStats,
   getStudentStatsHistory,
   type StudentAssignmentStats,
-  type AssignmentStat,
   type StatsHistoryPoint,
 } from '@/lib/student-stats-actions'
-import { getSubmissionComments, type SubmissionCommentPreview } from '@/lib/grade-actions'
-import MarkdownContent from '@/components/ui/MarkdownContent'
-import LocalDateTime from '@/components/ui/LocalDateTime'
+import { TrendChart, ZoneBadge, StatCard, AssignmentList } from '@/components/ui/StudentStatsWidgets'
 import type { CourseWithStudents } from '@/app/instructor/students/page'
 
 type AttendanceStats = {
@@ -29,207 +25,6 @@ type StudentData = {
   loading: boolean
   error: string | null
   activeBucket: 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused' | null
-}
-
-const MISSING_COLOR = '#dc2626'
-const NEEDS_REVISION_COLOR = '#ea580c'
-
-function formatWeekLabel(weekStart: string): string {
-  return new Date(`${weekStart}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function TrendChart({ history }: { history: StatsHistoryPoint[] }) {
-  if (history.length < 2) {
-    return <p className="text-sm text-muted-text py-2">Trend appears after a couple weeks of data.</p>
-  }
-
-  const data = history.map(h => ({ week: formatWeekLabel(h.weekStart), missing: h.missing, needsRevision: h.needsRevision }))
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-1.5 text-xs text-muted-text">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: MISSING_COLOR }} />
-          Missing
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-muted-text">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: NEEDS_REVISION_COLOR }} />
-          Needs Revision
-        </span>
-      </div>
-      <ResponsiveContainer width="100%" height={90}>
-        <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-          <YAxis domain={[0, 'dataMax']} hide />
-          <Tooltip
-            labelFormatter={(label) => `Week of ${label}`}
-            contentStyle={{ fontSize: 12, borderRadius: 8 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="missing"
-            name="Missing"
-            stroke={MISSING_COLOR}
-            strokeWidth={2}
-            dot={data.length <= 8 ? { r: 2, fill: MISSING_COLOR, strokeWidth: 0 } : false}
-            isAnimationActive={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="needsRevision"
-            name="Needs Revision"
-            stroke={NEEDS_REVISION_COLOR}
-            strokeWidth={2}
-            dot={data.length <= 8 ? { r: 2, fill: NEEDS_REVISION_COLOR, strokeWidth: 0 } : false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
-
-function ZoneBadge({ absences }: { absences: number }) {
-  if (absences >= 23) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900">Red zone</span>
-  if (absences >= 12) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900">Yellow zone</span>
-  return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Green zone</span>
-}
-
-function StatCard({
-  label,
-  count,
-  active,
-  onClick,
-  color,
-}: {
-  label: string
-  count: number
-  active: boolean
-  onClick: () => void
-  color: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1 px-4 py-3 rounded-xl border transition-all text-left ${
-        active
-          ? `${color} border-current shadow-sm`
-          : 'bg-background border-border hover:border-muted-text'
-      }`}
-    >
-      <span className={`text-2xl font-bold ${active ? '' : 'text-dark-text'}`}>{count}</span>
-      <span className={`text-xs font-medium ${active ? '' : 'text-muted-text'}`}>{label}</span>
-    </button>
-  )
-}
-
-function CommentsPreview({ submissionId, courseId }: { submissionId: string; courseId: string }) {
-  const [comments, setComments] = useState<SubmissionCommentPreview[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    getSubmissionComments(submissionId, courseId)
-      .then(result => { if (!cancelled) setComments(result) })
-      .catch(() => { if (!cancelled) setError('Could not load comments.') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [submissionId, courseId])
-
-  if (loading) return <p className="text-xs text-muted-text px-4 pb-3">Loading comments…</p>
-  if (error) return <p className="text-xs text-red-600 px-4 pb-3">{error}</p>
-  if (!comments || comments.length === 0) return <p className="text-xs text-muted-text italic px-4 pb-3">No comments.</p>
-
-  return (
-    <div className="flex flex-col gap-2 px-4 pb-3">
-      {comments.map(c => (
-        <div key={c.id} className="text-xs bg-background rounded-lg border border-border p-2.5">
-          <p className="font-semibold text-dark-text">
-            {c.author_name} <span className="font-normal text-muted-text">· {c.author_role}</span>
-            <span className="font-normal text-muted-text"> · <LocalDateTime iso={c.created_at} /></span>
-          </p>
-          <div className="mt-0.5">
-            <MarkdownContent content={c.content} />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function AssignmentRow({ a, courseId, studentId }: { a: AssignmentStat; courseId: string; studentId: string }) {
-  const [showComments, setShowComments] = useState(false)
-
-  return (
-    <li className="bg-surface hover:bg-background transition-colors">
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <div className="min-w-0">
-          <Link
-            href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${studentId}?by=student`}
-            className="text-sm font-medium text-teal-primary hover:underline truncate block"
-          >
-            {a.title}
-          </Link>
-          {a.module_title && (
-            <span className="text-xs text-muted-text">{a.module_title}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {a.comment_count > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowComments(v => !v)}
-              className="flex items-center gap-1 text-xs text-teal-primary hover:underline"
-            >
-              {a.comment_count} comment{a.comment_count === 1 ? '' : 's'}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`w-3 h-3 transition-transform ${showComments ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          )}
-          {a.due_date && (
-            <span className="text-xs text-muted-text">
-              Due {new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          )}
-        </div>
-      </div>
-      {showComments && a.submission_id && (
-        <CommentsPreview submissionId={a.submission_id} courseId={courseId} />
-      )}
-    </li>
-  )
-}
-
-function AssignmentList({
-  assignments,
-  courseId,
-  studentId,
-  label,
-}: {
-  assignments: AssignmentStat[]
-  courseId: string
-  studentId: string
-  label: string
-}) {
-  if (assignments.length === 0) {
-    return <p className="text-sm text-muted-text py-2">No {label.toLowerCase()} assignments.</p>
-  }
-  return (
-    <ul className="divide-y divide-border rounded-xl border border-border overflow-hidden">
-      {assignments.map(a => (
-        <AssignmentRow key={a.id} a={a} courseId={courseId} studentId={studentId} />
-      ))}
-    </ul>
-  )
 }
 
 function StudentRow({
@@ -293,23 +88,31 @@ function StudentRow({
 
   return (
     <li className="border-b border-border last:border-0">
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-background transition-colors text-left"
-      >
-        <span className="text-sm font-medium text-dark-text">{student.name}</span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className={`w-4 h-4 text-muted-text transition-transform ${expanded ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-background transition-colors">
+        <button type="button" onClick={toggle} className="flex-1 flex items-center text-left min-w-0">
+          <span className="text-sm font-medium text-dark-text truncate">{student.name}</span>
+        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href={`/instructor/students/${student.id}`}
+            className="text-xs text-teal-primary hover:underline"
+          >
+            View full profile
+          </Link>
+          <button type="button" onClick={toggle} aria-label={expanded ? 'Collapse details' : 'Expand details'}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`w-4 h-4 text-muted-text transition-transform ${expanded ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-5 space-y-5">
