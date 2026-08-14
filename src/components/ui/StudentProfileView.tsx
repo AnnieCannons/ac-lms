@@ -7,7 +7,7 @@ import {
   type StudentAssignmentStats,
   type StatsHistoryPoint,
 } from '@/lib/student-stats-actions'
-import { StatCard, TrendChart, ZoneBadge, AssignmentList } from '@/components/ui/StudentStatsWidgets'
+import { StatCard, TrendChart, ZoneBadge, AssignmentList, AttendanceTrendChart, type AttendanceHistoryPoint } from '@/components/ui/StudentStatsWidgets'
 
 export type ProfileCourse = {
   id: string
@@ -23,6 +23,7 @@ type AttendanceStats = {
   tardies: number
   totalBlocks: number
   percentMissed: number | null
+  history: AttendanceHistoryPoint[]
 }
 
 type Bucket = 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused' | null
@@ -135,6 +136,9 @@ export default function StudentProfileView({
                   )}
                   <ZoneBadge absences={attendance.absences} />
                 </div>
+              )}
+              {!loading && !error && attendance && (
+                <AttendanceTrendChart history={attendance.history} />
               )}
               {!loading && !error && !attendance && (
                 <p className="text-sm text-muted-text">No attendance data found for {student.name}.</p>
