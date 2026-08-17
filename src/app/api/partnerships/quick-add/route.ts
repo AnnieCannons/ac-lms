@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { notifyByEmail, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
+import { normalizeDepartments, normalizeRemindDays } from '@/lib/partnerships/addon-multi-select'
 
 function checkApiKey(req: NextRequest) {
   const key = req.headers.get('x-addon-api-key')
@@ -10,25 +11,20 @@ function checkApiKey(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, contact_name, contact_email, note, interaction_date, remind_in_days, remind_at, department, user_email } = await req.json()
+  const body = await req.json()
+  const { name, contact_name, contact_email, note, interaction_date, remind_at, user_email } = body
   if (!name || !note || !interaction_date || !user_email) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const hasExactReminder = !!remind_at
-  const days = !hasExactReminder && Number(remind_in_days) > 0 ? Number(remind_in_days) : null
-  const reminderAt = hasExactReminder
-    ? new Date(remind_at).toISOString()
-    : days
-      ? new Date(Date.now() + days * 86400 * 1000).toISOString()
-      : null
-  const postAt = hasExactReminder
-    ? Math.floor(new Date(remind_at).getTime() / 1000)
-    : days
-      ? Math.floor(Date.now() / 1000) + days * 86400
-      : null
+  const departments = normalizeDepartments(body)
+  const remindDaysList = normalizeRemindDays(body)
 
-  if (postAt != null && !isSchedulableTime(postAt)) {
+  // An exact remind_at (ISO datetime) takes priority over the relative remind_in_days list.
+  const hasExactReminder = !!remind_at
+  const exactPostAt = hasExactReminder ? Math.floor(new Date(remind_at).getTime() / 1000) : null
+
+  if (exactPostAt != null && !isSchedulableTime(exactPostAt)) {
     return NextResponse.json({ error: `Reminder must be in the future and within ${SLACK_SCHEDULE_MAX_DAYS} days.` }, { status: 400 })
   }
 
@@ -66,24 +62,36 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const { error: interactionError } = await supabase.from('partner_interactions').insert({
-    partner_id: partner.id,
-    note,
-    interaction_date,
-    department: department || null,
-    reminder_days: days,
-    reminder_at: reminderAt,
-    user_id: userRow.id,
-  })
+  const soonestDays = !hasExactReminder && remindDaysList.length > 0 ? Math.min(...remindDaysList) : null
+  const reminderAt = hasExactReminder
+    ? new Date(remind_at).toISOString()
+    : soonestDays
+      ? new Date(Date.now() + soonestDays * 86400 * 1000).toISOString()
+      : null
+
+  const departmentValues = departments.length > 0 ? departments : [null]
+  const { error: interactionError } = await supabase.from('partner_interactions').insert(
+    departmentValues.map((department) => ({
+      partner_id: partner.id,
+      note,
+      interaction_date,
+      department,
+      reminder_days: soonestDays,
+      reminder_at: reminderAt,
+      user_id: userRow.id,
+    }))
+  )
   if (interactionError) return NextResponse.json({ error: interactionError.message }, { status: 500 })
 
-  if (department) {
-    await supabase.from('partner_department_status').insert({
-      partner_id: partner.id,
-      department,
-      stage: '',
-      updated_by: userRow.id,
-    })
+  if (departments.length > 0) {
+    await supabase.from('partner_department_status').insert(
+      departments.map((department) => ({
+        partner_id: partner.id,
+        department,
+        stage: '',
+        updated_by: userRow.id,
+      }))
+    )
   }
 
   const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
@@ -95,12 +103,21 @@ export async function POST(req: NextRequest) {
     `🤝 New partner added: *${name.trim()}*\nComplete their profile: ${APP_URL}/instructor/partnerships/${partner.id}?edit=1`
   )
 
-  if (postAt != null) {
+  if (hasExactReminder) {
     await scheduleSlackDM(
       slackEmail,
       `⏰ Follow-up reminder: ${name.trim()}\n${APP_URL}/instructor/partnerships/${partner.id}`,
-      postAt
+      exactPostAt!
     )
+  } else {
+    for (const days of remindDaysList) {
+      const postAt = Math.floor(Date.now() / 1000) + days * 86400
+      await scheduleSlackDM(
+        slackEmail,
+        `⏰ Follow-up reminder: ${name.trim()}\n${APP_URL}/instructor/partnerships/${partner.id}`,
+        postAt
+      )
+    }
   }
 
   return NextResponse.json({ success: true, partnerId: partner.id })

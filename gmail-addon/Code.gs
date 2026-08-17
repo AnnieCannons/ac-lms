@@ -85,16 +85,16 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
   var card = CardService.newCardBuilder();
   card.setHeader(CardService.newCardHeader().setTitle('Log Interaction'));
 
-  var section = CardService.newCardSection();
+  var infoSection = CardService.newCardSection();
 
-  section.addWidget(
+  infoSection.addWidget(
     CardService.newTextParagraph().setText(
       '<b>' + htmlEscape_(partner.name) + '</b>' + (location ? ' · ' + htmlEscape_(location) : '')
     )
   );
 
   if (partner.matched_contact) {
-    section.addWidget(
+    infoSection.addWidget(
       CardService.newTextParagraph().setText(
         htmlEscape_(partner.matched_contact.name) + ' &lt;' + htmlEscape_(partner.matched_contact.email) + '&gt;'
       )
@@ -106,14 +106,24 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
     var positionLabel = threadInfo.messageCount > 1
       ? ' · Message ' + threadInfo.messageIndex + ' of ' + threadInfo.messageCount + ' in this thread'
       : '';
-    section.addWidget(
+    infoSection.addWidget(
       CardService.newTextParagraph().setText('<font color="#666666">' + dateLabel + positionLabel + '</font>')
     );
   }
 
-  section.addWidget(CardService.newDivider());
+  card.addSection(infoSection);
 
-  section.addWidget(
+  var threadSection = buildThreadChecklistSection_(partner, userEmail, threadInfo, {
+    departmentField: 'department',
+    remindDaysField: 'remind_days',
+  });
+  if (threadSection) card.addSection(threadSection);
+
+  var formSection = CardService.newCardSection();
+
+  formSection.addWidget(CardService.newDivider());
+
+  formSection.addWidget(
     CardService.newTextInput()
       .setFieldName('note')
       .setTitle('Note')
@@ -122,30 +132,17 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
       .setValue(subject ? 'Subject line: ' + subject : '')
   );
 
-  var defaultDept = (partner.matched_contact && partner.matched_contact.primary_departments && partner.matched_contact.primary_departments.length > 0)
-    ? partner.matched_contact.primary_departments[0]
-    : '';
-  section.addWidget(buildDepartmentInput_(defaultDept));
+  var defaultDepts = (partner.matched_contact && partner.matched_contact.primary_departments) || [];
+  formSection.addWidget(buildDepartmentInput_('department', defaultDepts));
+  formSection.addWidget(buildReminderInput_('remind_days'));
 
-  section.addWidget(
-    CardService.newSelectionInput()
-      .setType(CardService.SelectionInputType.RADIO_BUTTON)
-      .setTitle('Follow-up reminder')
-      .setFieldName('remind_days')
-      .addItem('No reminder', '0', true)
-      .addItem('In 3 days', '3', false)
-      .addItem('In 1 week', '7', false)
-      .addItem('In 2 weeks', '14', false)
-      .addItem('In 1 month', '30', false)
-  );
-
-  section.addWidget(
+  formSection.addWidget(
     CardService.newDateTimePicker()
-      .setTitle('Or pick an exact date & time (optional, overrides the choice above)')
+      .setTitle('Or pick an exact date & time (optional, overrides the checkboxes above)')
       .setFieldName('remind_at')
   );
 
-  section.addWidget(
+  formSection.addWidget(
     CardService.newTextButton()
       .setText('Log Interaction')
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
@@ -162,7 +159,7 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
       )
   );
 
-  section.addWidget(
+  formSection.addWidget(
     CardService.newTextButton()
       .setText('Not this partner →')
       .setOnClickAction(
@@ -172,18 +169,17 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
       )
   );
 
-  card.addSection(section);
-
-  var threadSection = buildThreadChecklistSection_(partner, userEmail, threadInfo);
-  if (threadSection) card.addSection(threadSection);
+  card.addSection(formSection);
 
   return card.build();
 }
 
-function buildThreadChecklistSection_(partner, userEmail, threadInfo) {
+function buildThreadChecklistSection_(partner, userEmail, threadInfo, sharedFields) {
   if (!threadInfo || !threadInfo.otherMessages || threadInfo.otherMessages.length === 0) return null;
 
   var domain = partner.matched_contact ? domainOf_(partner.matched_contact.email) : null;
+  var departmentField = (sharedFields && sharedFields.departmentField) || 'thread_department';
+  var remindDaysField = (sharedFields && sharedFields.remindDaysField) || 'thread_remind_days';
 
   var section = CardService.newCardSection();
   section.setHeader('Other messages in this thread');
@@ -197,14 +193,19 @@ function buildThreadChecklistSection_(partner, userEmail, threadInfo) {
     var isMatch = domain ? messageMatchesDomain_(msg, domain, userEmail) : false;
     var label = formatDateLabel_(msg.getDate()) + ' — ' + (msg.getSubject() || '(no subject)') +
       (isMatch ? '' : '  ·  not matched to partner');
-    checkbox.addItem(label, msg.getId(), isMatch);
+    checkbox.addItem(label, msg.getId(), false);
   }
 
   section.addWidget(checkbox);
-  section.addWidget(CardService.newTextParagraph().setText(
-    '<font color="#666666">Checked messages are logged with the department and reminder chosen above. ' +
-    'Check or uncheck any message to include or drop it.</font>'
-  ));
+
+  if (sharedFields) {
+    section.addWidget(CardService.newTextParagraph().setText(
+      '<font color="#666666">Checked messages are logged with the department and reminder chosen below.</font>'
+    ));
+  } else {
+    section.addWidget(buildDepartmentInput_(departmentField, []));
+    section.addWidget(buildReminderInput_(remindDaysField));
+  }
 
   section.addWidget(
     CardService.newTextButton()
@@ -218,6 +219,8 @@ function buildThreadChecklistSection_(partner, userEmail, threadInfo) {
             contactId: (partner.matched_contact && partner.matched_contact.id) ? partner.matched_contact.id : '',
             userEmail: userEmail,
             threadId: threadInfo.threadId,
+            departmentField: departmentField,
+            remindDaysField: remindDaysField,
           })
       )
   );
@@ -267,11 +270,21 @@ function buildNoMatchCard_(recipientEmails, subject, userEmail, messageId) {
   return card.build();
 }
 
-function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint, messageId) {
+function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint, messageId, threadInfo) {
   var card = CardService.newCardBuilder();
   card.setHeader(CardService.newCardHeader().setTitle('Add New Partner'));
 
   var section = CardService.newCardSection();
+
+  if (threadInfo) {
+    var dateLabel = formatDateLabel_(threadInfo.messageDate);
+    var positionLabel = threadInfo.messageCount > 1
+      ? ' · Message ' + threadInfo.messageIndex + ' of ' + threadInfo.messageCount + ' in this thread'
+      : '';
+    section.addWidget(
+      CardService.newTextParagraph().setText('<font color="#666666">' + dateLabel + positionLabel + '</font>')
+    );
+  }
 
   section.addWidget(
     CardService.newTextInput()
@@ -301,23 +314,12 @@ function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint, messa
       .setValue(subject ? 'Subject line: ' + subject : '')
   );
 
-  section.addWidget(buildDepartmentInput_(''));
-
-  section.addWidget(
-    CardService.newSelectionInput()
-      .setType(CardService.SelectionInputType.RADIO_BUTTON)
-      .setTitle('Follow-up reminder')
-      .setFieldName('remind_days')
-      .addItem('No reminder', '0', true)
-      .addItem('In 3 days', '3', false)
-      .addItem('In 1 week', '7', false)
-      .addItem('In 2 weeks', '14', false)
-      .addItem('In 1 month', '30', false)
-  );
+  section.addWidget(buildDepartmentInput_('department', []));
+  section.addWidget(buildReminderInput_('remind_days'));
 
   section.addWidget(
     CardService.newDateTimePicker()
-      .setTitle('Or pick an exact date & time (optional, overrides the choice above)')
+      .setTitle('Or pick an exact date & time (optional, overrides the checkboxes above)')
       .setFieldName('remind_at')
   );
 
@@ -352,6 +354,26 @@ function buildSuccessCard_(title, body, linkUrl, linkLabel) {
   return card.build();
 }
 
+function buildQuickAddSuccessCard_(title, body, linkUrl, linkLabel, partner, userEmail, threadInfo) {
+  var card = CardService.newCardBuilder();
+  card.setHeader(CardService.newCardHeader().setTitle(title));
+  var section = CardService.newCardSection();
+  section.addWidget(CardService.newTextParagraph().setText(body));
+  if (linkUrl) {
+    section.addWidget(
+      CardService.newTextButton()
+        .setText(linkLabel || 'View in Partnerships →')
+        .setOpenLink(CardService.newOpenLink().setUrl(linkUrl))
+    );
+  }
+  card.addSection(section);
+
+  var threadSection = buildThreadChecklistSection_(partner, userEmail, threadInfo, null);
+  if (threadSection) card.addSection(threadSection);
+
+  return card.build();
+}
+
 function buildErrorCard_(message) {
   var card = CardService.newCardBuilder();
   card.setHeader(CardService.newCardHeader().setTitle('Something went wrong'));
@@ -367,7 +389,8 @@ function logInteraction(e) {
   var params = e.parameters;
   var formInput = e.formInput || {};
   var note = (formInput['note'] || '').trim();
-  var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+  var departments = (e.formInputs && e.formInputs['department']) || [];
+  var remindDaysList = ((e.formInputs && e.formInputs['remind_days']) || []).map(function(d) { return parseInt(d, 10); });
   var remindAt = remindAtFromFormInput_(formInput);
   var interactionDate = params['messageDate'] || new Date().toISOString().split('T')[0];
 
@@ -377,23 +400,21 @@ function logInteraction(e) {
       .build();
   }
 
-  var department = (formInput['department'] || '').trim() || null;
-
   var result = callApi_('/api/partnerships/log-interaction', 'POST', {
     partner_id: params['partnerId'],
     note: note,
     interaction_date: interactionDate,
-    remind_in_days: remindDays,
+    remind_in_days: remindDaysList,
     remind_at: remindAt,
     contact_id: params['contactId'] || null,
-    department: department,
+    departments: departments,
     user_email: params['userEmail'],
   });
 
   if (result && result.success) {
     var config = getConfig_();
     var partnerUrl = config.apiBase + '/instructor/partnerships/' + params['partnerId'];
-    var reminder = (remindAt || remindDays > 0) ? " You'll get a Slack reminder." : '';
+    var reminder = (remindAt || remindDaysList.length > 0) ? " You'll get a Slack reminder." : '';
     var card = buildSuccessCard_(
       'Logged!',
       'Interaction with ' + params['partnerName'] + ' has been recorded.' + reminder,
@@ -418,7 +439,8 @@ function quickAddPartner(e) {
   var contactName = (formInput['contact_name'] || '').trim();
   var contactEmail = (formInput['contact_email'] || '').trim();
   var note = (formInput['note'] || '').trim();
-  var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+  var departments = (e.formInputs && e.formInputs['department']) || [];
+  var remindDaysList = ((e.formInputs && e.formInputs['remind_days']) || []).map(function(d) { return parseInt(d, 10); });
   var remindAt = remindAtFromFormInput_(formInput);
   var interactionDate = loadMessageDateIso_(e, params['messageId']) || new Date().toISOString().split('T')[0];
 
@@ -433,28 +455,35 @@ function quickAddPartner(e) {
       .build();
   }
 
-  var department = (formInput['department'] || '').trim() || null;
-
   var result = callApi_('/api/partnerships/quick-add', 'POST', {
     name: orgName,
     contact_name: contactName || null,
     contact_email: contactEmail || null,
     note: note,
     interaction_date: interactionDate,
-    remind_in_days: remindDays,
+    remind_in_days: remindDaysList,
     remind_at: remindAt,
-    department: department,
+    departments: departments,
     user_email: params['userEmail'],
   });
 
   if (result && result.success) {
     var config = getConfig_();
     var partnerUrl = config.apiBase + '/instructor/partnerships/' + result.partnerId;
-    var card = buildSuccessCard_(
+    var newPartner = {
+      id: result.partnerId,
+      name: orgName,
+      matched_contact: contactEmail ? { id: null, email: contactEmail } : null,
+    };
+    var threadInfo = loadThreadInfoByMessageId_(e, params['messageId']);
+    var card = buildQuickAddSuccessCard_(
       'Partner Added!',
       orgName + ' has been added as a prospect. Check Slack for the link to complete their profile.',
       partnerUrl,
-      'View ' + orgName + ' →'
+      'View ' + orgName + ' →',
+      newPartner,
+      params['userEmail'],
+      threadInfo
     );
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
@@ -469,7 +498,6 @@ function quickAddPartner(e) {
 
 function logThreadMessages(e) {
   var params = e.parameters;
-  var formInput = e.formInput || {};
   var selectedIds = (e.formInputs && e.formInputs['selected_thread_ids']) || [];
 
   if (selectedIds.length === 0) {
@@ -502,15 +530,18 @@ function logThreadMessages(e) {
         .build();
     }
 
-    var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+    var formInput = e.formInput || {};
+    var departmentField = params['departmentField'] || 'thread_department';
+    var remindDaysField = params['remindDaysField'] || 'thread_remind_days';
+    var departments = (e.formInputs && e.formInputs[departmentField]) || [];
+    var remindDaysList = ((e.formInputs && e.formInputs[remindDaysField]) || []).map(function(d) { return parseInt(d, 10); });
     var remindAt = remindAtFromFormInput_(formInput);
-    var department = (formInput['department'] || '').trim() || null;
 
     var result = callApi_('/api/partnerships/log-interactions-bulk', 'POST', {
       partner_id: params['partnerId'],
       contact_id: params['contactId'] || null,
-      department: department,
-      remind_in_days: remindDays,
+      departments: departments,
+      remind_in_days: remindDaysList,
       remind_at: remindAt,
       user_email: params['userEmail'],
       interactions: interactions,
@@ -519,7 +550,7 @@ function logThreadMessages(e) {
     if (result && result.success) {
       var config = getConfig_();
       var partnerUrl = config.apiBase + '/instructor/partnerships/' + params['partnerId'];
-      var reminder = remindDays > 0 ? " You'll get a Slack reminder." : '';
+      var reminder = (remindAt || remindDaysList.length > 0) ? " You'll get a Slack reminder." : '';
       var card = buildSuccessCard_(
         'Logged!',
         result.count + ' interaction' + (result.count === 1 ? '' : 's') + ' with ' + params['partnerName'] + ' recorded.' + reminder,
@@ -552,12 +583,14 @@ function navigateToSearch(e) {
 
 function navigateToQuickAdd(e) {
   var params = e.parameters;
+  var threadInfo = loadThreadInfoByMessageId_(e, params['messageId'] || '');
   var card = buildQuickAddCard_(
     params['userEmail'],
     params['contactEmail'] || '',
     params['subject'] || '',
     params['orgNameHint'] || '',
-    params['messageId'] || ''
+    params['messageId'] || '',
+    threadInfo
   );
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().pushCard(card))
@@ -769,23 +802,34 @@ function callApi_(path, method, body) {
   }
 }
 
-function buildDepartmentInput_(defaultDept) {
+function buildDepartmentInput_(fieldName, defaultDepts) {
   var input = CardService.newSelectionInput()
-    .setType(CardService.SelectionInputType.RADIO_BUTTON)
+    .setType(CardService.SelectionInputType.CHECK_BOX)
     .setTitle('Department')
-    .setFieldName('department');
+    .setFieldName(fieldName);
   var depts = [
-    ['', 'None'],
     ['student_success', 'Student Success'],
     ['career_development', 'Career Development'],
     ['resourcefull', 'ResourceFull'],
     ['funding_partnerships', 'Funding Partnerships'],
     ['admissions', 'Admissions'],
   ];
+  var defaults = defaultDepts || [];
   for (var i = 0; i < depts.length; i++) {
-    input.addItem(depts[i][1], depts[i][0], depts[i][0] === defaultDept);
+    input.addItem(depts[i][1], depts[i][0], defaults.indexOf(depts[i][0]) !== -1);
   }
   return input;
+}
+
+function buildReminderInput_(fieldName) {
+  return CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.CHECK_BOX)
+    .setTitle('Follow-up reminder')
+    .setFieldName(fieldName)
+    .addItem('In 3 days', '3', false)
+    .addItem('In 1 week', '7', false)
+    .addItem('In 2 weeks', '14', false)
+    .addItem('In 1 month', '30', false);
 }
 
 function htmlEscape_(str) {
