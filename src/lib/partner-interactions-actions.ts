@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
-import { notifyStaff, notifyByEmail, scheduleSlackDM } from '@/lib/slack'
+import { notifyStaff, notifyByEmail, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -33,18 +33,30 @@ export async function logInteraction(data: {
   department?: PartnerDepartment | null
   contact_id?: string | null
   remind_in_days?: number | null
+  remind_at?: string | null
   interaction_type?: string | null
 }) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  // Persist the reminder so the activity timeline can show it. reminder_at is the
-  // date the Slack DM fires (computed the same way as postAt below).
-  const hasReminder = data.remind_in_days != null && data.remind_in_days > 0
-  const reminderDays = hasReminder ? Math.round(data.remind_in_days!) : null
-  const reminderAt = hasReminder
-    ? new Date(Date.now() + data.remind_in_days! * 86400 * 1000).toISOString().slice(0, 10)
-    : null
+  // An exact remind_at (ISO datetime) takes priority over the relative day-count.
+  const hasExactReminder = !!data.remind_at
+  const hasRelativeReminder = !hasExactReminder && data.remind_in_days != null && data.remind_in_days > 0
+  const reminderDays = hasRelativeReminder ? Math.round(data.remind_in_days!) : null
+  const reminderAt = hasExactReminder
+    ? new Date(data.remind_at!).toISOString()
+    : hasRelativeReminder
+      ? new Date(Date.now() + data.remind_in_days! * 86400 * 1000).toISOString()
+      : null
+  const postAt = hasExactReminder
+    ? Math.floor(new Date(data.remind_at!).getTime() / 1000)
+    : hasRelativeReminder
+      ? Math.floor(Date.now() / 1000) + Math.round(data.remind_in_days! * 86400)
+      : null
+
+  if (postAt != null && !isSchedulableTime(postAt)) {
+    return { error: `Reminder must be in the future and within ${SLACK_SCHEDULE_MAX_DAYS} days.` }
+  }
 
   const { error: dbError } = await supabase.from('partner_interactions').insert({
     partner_id: data.partner_id,
@@ -68,12 +80,11 @@ export async function logInteraction(data: {
     .or(`last_interaction_date.is.null,last_interaction_date.lt.${data.interaction_date}`)
 
   // Schedule Slack follow-up reminder if requested
-  if (data.remind_in_days != null && data.remind_in_days > 0 && user?.email) {
+  if (postAt != null && user?.email) {
     const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
     const { data: partnerRow } = await supabase
       .from('partners').select('name').eq('id', data.partner_id).single()
     const partnerName = partnerRow?.name ?? 'partner'
-    const postAt = Math.floor(Date.now() / 1000) + data.remind_in_days * 86400
     const slackEmail = user.slack_email || user.email
     const scheduled = await scheduleSlackDM(
       slackEmail,

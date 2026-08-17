@@ -140,6 +140,12 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
   );
 
   section.addWidget(
+    CardService.newDateTimePicker()
+      .setTitle('Or pick an exact date & time (optional, overrides the choice above)')
+      .setFieldName('remind_at')
+  );
+
+  section.addWidget(
     CardService.newTextButton()
       .setText('Log Interaction')
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
@@ -310,6 +316,12 @@ function buildQuickAddCard_(userEmail, contactEmail, subject, orgNameHint, messa
   );
 
   section.addWidget(
+    CardService.newDateTimePicker()
+      .setTitle('Or pick an exact date & time (optional, overrides the choice above)')
+      .setFieldName('remind_at')
+  );
+
+  section.addWidget(
     CardService.newTextButton()
       .setText('Add Partner & Log')
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
@@ -356,6 +368,7 @@ function logInteraction(e) {
   var formInput = e.formInput || {};
   var note = (formInput['note'] || '').trim();
   var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+  var remindAt = remindAtFromFormInput_(formInput);
   var interactionDate = params['messageDate'] || new Date().toISOString().split('T')[0];
 
   if (!note) {
@@ -371,6 +384,7 @@ function logInteraction(e) {
     note: note,
     interaction_date: interactionDate,
     remind_in_days: remindDays,
+    remind_at: remindAt,
     contact_id: params['contactId'] || null,
     department: department,
     user_email: params['userEmail'],
@@ -379,7 +393,7 @@ function logInteraction(e) {
   if (result && result.success) {
     var config = getConfig_();
     var partnerUrl = config.apiBase + '/instructor/partnerships/' + params['partnerId'];
-    var reminder = remindDays > 0 ? " You'll get a Slack reminder." : '';
+    var reminder = (remindAt || remindDays > 0) ? " You'll get a Slack reminder." : '';
     var card = buildSuccessCard_(
       'Logged!',
       'Interaction with ' + params['partnerName'] + ' has been recorded.' + reminder,
@@ -405,6 +419,7 @@ function quickAddPartner(e) {
   var contactEmail = (formInput['contact_email'] || '').trim();
   var note = (formInput['note'] || '').trim();
   var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+  var remindAt = remindAtFromFormInput_(formInput);
   var interactionDate = loadMessageDateIso_(e, params['messageId']) || new Date().toISOString().split('T')[0];
 
   if (!orgName) {
@@ -427,6 +442,7 @@ function quickAddPartner(e) {
     note: note,
     interaction_date: interactionDate,
     remind_in_days: remindDays,
+    remind_at: remindAt,
     department: department,
     user_email: params['userEmail'],
   });
@@ -487,6 +503,7 @@ function logThreadMessages(e) {
     }
 
     var remindDays = parseInt(formInput['remind_days'] || '0', 10);
+    var remindAt = remindAtFromFormInput_(formInput);
     var department = (formInput['department'] || '').trim() || null;
 
     var result = callApi_('/api/partnerships/log-interactions-bulk', 'POST', {
@@ -494,6 +511,7 @@ function logThreadMessages(e) {
       contact_id: params['contactId'] || null,
       department: department,
       remind_in_days: remindDays,
+      remind_at: remindAt,
       user_email: params['userEmail'],
       interactions: interactions,
     });
@@ -675,6 +693,16 @@ function formatDateIso_(date) {
 
 function formatDateLabel_(date) {
   return Utilities.formatDate(date, Session.getScriptTimeZone(), 'MMM d, yyyy');
+}
+
+// DatetimePicker's formInput value is epoch millis as a string. Returns an ISO
+// datetime string, or null if the picker was left empty.
+function remindAtFromFormInput_(formInput) {
+  var raw = formInput['remind_at'];
+  if (!raw) return null;
+  var ms = parseInt(raw, 10);
+  if (!ms) return null;
+  return new Date(ms).toISOString();
 }
 
 function loadThreadInfoByMessageId_(e, messageId) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { notifyByEmail, scheduleSlackDM } from '@/lib/slack'
+import { notifyByEmail, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 
 function checkApiKey(req: NextRequest) {
   const key = req.headers.get('x-addon-api-key')
@@ -10,9 +10,26 @@ function checkApiKey(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, contact_name, contact_email, note, interaction_date, remind_in_days, department, user_email } = await req.json()
+  const { name, contact_name, contact_email, note, interaction_date, remind_in_days, remind_at, department, user_email } = await req.json()
   if (!name || !note || !interaction_date || !user_email) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  const hasExactReminder = !!remind_at
+  const days = !hasExactReminder && Number(remind_in_days) > 0 ? Number(remind_in_days) : null
+  const reminderAt = hasExactReminder
+    ? new Date(remind_at).toISOString()
+    : days
+      ? new Date(Date.now() + days * 86400 * 1000).toISOString()
+      : null
+  const postAt = hasExactReminder
+    ? Math.floor(new Date(remind_at).getTime() / 1000)
+    : days
+      ? Math.floor(Date.now() / 1000) + days * 86400
+      : null
+
+  if (postAt != null && !isSchedulableTime(postAt)) {
+    return NextResponse.json({ error: `Reminder must be in the future and within ${SLACK_SCHEDULE_MAX_DAYS} days.` }, { status: 400 })
   }
 
   const supabase = createServiceSupabaseClient()
@@ -54,6 +71,8 @@ export async function POST(req: NextRequest) {
     note,
     interaction_date,
     department: department || null,
+    reminder_days: days,
+    reminder_at: reminderAt,
     user_id: userRow.id,
   })
   if (interactionError) return NextResponse.json({ error: interactionError.message }, { status: 500 })
@@ -76,9 +95,7 @@ export async function POST(req: NextRequest) {
     `🤝 New partner added: *${name.trim()}*\nComplete their profile: ${APP_URL}/instructor/partnerships/${partner.id}?edit=1`
   )
 
-  const days = Number(remind_in_days)
-  if (days > 0) {
-    const postAt = Math.floor(Date.now() / 1000) + days * 86400
+  if (postAt != null) {
     await scheduleSlackDM(
       slackEmail,
       `⏰ Follow-up reminder: ${name.trim()}\n${APP_URL}/instructor/partnerships/${partner.id}`,

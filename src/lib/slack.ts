@@ -70,6 +70,14 @@ export async function notifyByEmail(email: string, text: string): Promise<boolea
   return slackPostMessage(slackId, text)
 }
 
+// Slack's chat.scheduleMessage rejects timestamps in the past or more than ~120 days out.
+export const SLACK_SCHEDULE_MAX_DAYS = 119
+
+export function isSchedulableTime(postAt: number): boolean {
+  const now = Math.floor(Date.now() / 1000)
+  return postAt > now && postAt <= now + SLACK_SCHEDULE_MAX_DAYS * 86400
+}
+
 /** Schedule a Slack DM to an email address at a future unix timestamp. Returns true if scheduled. */
 export async function scheduleSlackDM(email: string, text: string, postAt: number): Promise<boolean> {
   if (!SLACK_BOT_TOKEN) return false
