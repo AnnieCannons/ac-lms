@@ -2,8 +2,9 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { updateUserName } from '@/lib/account-actions'
+import { updateUserName, updateUserAvatar } from '@/lib/account-actions'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import AvatarUpload from '@/components/ui/AvatarUpload'
 
 const inputCls = 'w-full border border-border rounded-xl px-4 py-2.5 pr-12 text-sm text-dark-text bg-background focus:outline-none focus:ring-2 focus:ring-teal-primary placeholder:text-muted-text min-h-[44px]'
 
@@ -55,13 +56,17 @@ function StatusMsg({ msg }: { msg: { text: string; ok: boolean } | null }) {
 }
 
 export default function AccountForm({
+  userId,
   initialName,
   initialEmail,
   role = 'student',
+  initialAvatarUrl = null,
 }: {
+  userId: string
   initialName: string
   initialEmail: string
   role?: string
+  initialAvatarUrl?: string | null
 }) {
   const supabase = createClient()
   const router = useRouter()
@@ -154,6 +159,20 @@ export default function AccountForm({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Photo */}
+      <Section title="Photo">
+        <AvatarUpload
+          userId={userId}
+          name={initialName}
+          avatarUrl={initialAvatarUrl}
+          onSave={async (url) => {
+            const result = await updateUserAvatar(url)
+            if (!result.error) router.refresh()
+            return result
+          }}
+        />
+      </Section>
+
       {/* Name */}
       <Section title="Name">
         {role === 'student' ? (

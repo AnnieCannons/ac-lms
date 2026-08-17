@@ -92,7 +92,7 @@ export default async function CourseSubmissionsPage({
   // Enrolled students with names
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('user_id, users(id, name)')
+    .select('user_id, users(id, name, avatar_url)')
     .eq('course_id', id)
     .eq('role', 'student')
 
@@ -102,6 +102,7 @@ export default async function CourseSubmissionsPage({
       return {
         id: e.user_id,
         name: (u as { name: string } | null)?.name ?? 'Unknown',
+        avatarUrl: (u as { avatar_url: string | null } | null)?.avatar_url ?? null,
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name))

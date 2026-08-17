@@ -9,6 +9,7 @@ import {
   type StatsHistoryPoint,
 } from '@/lib/student-stats-actions'
 import { TrendChart, ZoneBadge, StatCard, AssignmentList } from '@/components/ui/StudentStatsWidgets'
+import UserAvatar from '@/components/ui/UserAvatar'
 import type { CourseWithStudents } from '@/app/instructor/students/page'
 
 type AttendanceStats = {
@@ -34,7 +35,7 @@ function StudentRow({
   endDate,
   airtableCourseName,
 }: {
-  student: { id: string; name: string }
+  student: { id: string; name: string; avatarUrl: string | null }
   courseId: string
   startDate: string | null
   endDate: string | null
@@ -89,7 +90,8 @@ function StudentRow({
   return (
     <li className="border-b border-border last:border-0">
       <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-background transition-colors">
-        <button type="button" onClick={toggle} className="flex-1 flex items-center text-left min-w-0">
+        <button type="button" onClick={toggle} className="flex-1 flex items-center gap-3 text-left min-w-0">
+          <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="md" />
           <span className="text-sm font-medium text-dark-text truncate">{student.name}</span>
         </button>
         <div className="flex items-center gap-3 shrink-0">

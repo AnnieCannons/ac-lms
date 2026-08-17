@@ -2,9 +2,10 @@
 import { useState, useTransition } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { setStudentGrader, bulkAssignStudentGraders, setAssignmentGrader, enableWeeklyRotation, disableWeeklyRotation } from '@/lib/grading-groups-actions'
+import UserAvatar from '@/components/ui/UserAvatar'
 
-interface Student    { id: string; name: string; email: string }
-interface Grader     { id: string; name: string; type: 'instructor' | 'ta' }
+interface Student    { id: string; name: string; email: string; avatarUrl?: string | null }
+interface Grader     { id: string; name: string; type: 'instructor' | 'ta'; avatarUrl?: string | null }
 interface Assignment { id: string; title: string }
 interface Module     { id: string; title: string; order: number }
 
@@ -326,7 +327,8 @@ export default function GradingGroupsManager({
             </div>
             <DragOverlay>
               {activeStudent ? (
-                <div className="px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
+                  <UserAvatar name={activeStudent.name} avatarUrl={activeStudent.avatarUrl} size="sm" />
                   {activeStudent.name}
                 </div>
               ) : null}
@@ -463,7 +465,8 @@ function WeekSection({
             </div>
             <DragOverlay>
               {activeStudent ? (
-                <div className="px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
+                  <UserAvatar name={activeStudent.name} avatarUrl={activeStudent.avatarUrl} size="sm" />
                   {activeStudent.name}
                 </div>
               ) : null}
@@ -485,6 +488,7 @@ function GraderCard({ grader, students, ungradedCount }: { grader: Grader; stude
       className={`rounded-2xl border-2 transition-colors ${isOver ? 'border-teal-primary bg-teal-light/10' : 'border-border bg-surface'}`}
     >
       <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+        <UserAvatar name={grader.name} avatarUrl={grader.avatarUrl} size="sm" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-dark-text text-sm truncate">{grader.name}</p>
         </div>
@@ -536,10 +540,11 @@ function DraggableStudent({ student }: { student: Student }) {
     <div
       ref={setNodeRef}
       style={{ touchAction: 'none', opacity: isDragging ? 0 : 1 }}
-      className="px-3 py-2 rounded-lg bg-background border border-border text-sm text-dark-text cursor-grab active:cursor-grabbing select-none hover:border-teal-primary/40"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background border border-border text-sm text-dark-text cursor-grab active:cursor-grabbing select-none hover:border-teal-primary/40"
       {...attributes}
       {...listeners}
     >
+      <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="sm" />
       {student.name}
     </div>
   )

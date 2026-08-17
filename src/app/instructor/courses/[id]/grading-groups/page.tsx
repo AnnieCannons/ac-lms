@@ -22,19 +22,22 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
   const { data: studentEnrollments } = await admin
     .from('course_enrollments').select('user_id').eq('course_id', id).eq('role', 'student')
   const studentIds = studentEnrollments?.map(e => e.user_id) ?? []
-  const { data: students } = studentIds.length
-    ? await admin.from('users').select('id, name, email').in('id', studentIds).order('name')
+  const { data: rawStudents } = studentIds.length
+    ? await admin.from('users').select('id, name, email, avatar_url').in('id', studentIds).order('name')
     : { data: [] }
+  const students = (rawStudents ?? []).map(s => ({ id: s.id, name: s.name, email: s.email, avatarUrl: s.avatar_url }))
 
   // Graders: instructors + TAs assigned to this course
   const { data: graderEnrollments } = await admin
     .from('course_enrollments').select('user_id, role').eq('course_id', id).in('role', ['instructor', 'ta'])
   const graderIds = graderEnrollments?.map(e => e.user_id) ?? []
   const { data: graderUsers } = graderIds.length
-    ? await admin.from('users').select('id, name').in('id', graderIds).order('name')
+    ? await admin.from('users').select('id, name, avatar_url').in('id', graderIds).order('name')
     : { data: [] }
   const graders = (graderUsers ?? []).map(u => ({
-    ...u,
+    id: u.id,
+    name: u.name,
+    avatarUrl: u.avatar_url,
     type: (graderEnrollments?.find(e => e.user_id === u.id)?.role ?? 'ta') as 'instructor' | 'ta',
   }))
 

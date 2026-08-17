@@ -5,6 +5,7 @@ import LogoutButton from '@/components/ui/LogoutButton'
 import NavMobileMenu from '@/components/ui/NavMobileMenu'
 import DocsHelpLink from '@/components/ui/DocsHelpLink'
 import NotificationBell from '@/components/ui/NotificationBell'
+import CurrentUserAvatar from '@/components/ui/CurrentUserAvatar'
 
 function ToolsDropdown() {
   const [open, setOpen] = useState(false)
@@ -64,7 +65,8 @@ export default function StudentTopNav({ name, role }: { name?: string | null; ro
         <ToolsDropdown />
         <NotificationBell />
         <DocsHelpLink guide="student" className="text-sm text-muted-text hover:text-teal-primary transition-colors" />
-        <Link href="/account" className="text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">
+        <Link href="/account" className="flex items-center gap-2 text-sm font-medium text-dark-text hover:text-teal-primary transition-colors">
+          <CurrentUserAvatar name={name} size="sm" />
           {name}
         </Link>
         <LogoutButton />

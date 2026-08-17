@@ -7,6 +7,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { upsertAccommodation } from '@/lib/accommodation-actions'
 import DatePickerField from '@/components/ui/DatePickerField'
 import RichTextEditor from '@/components/ui/RichTextEditor'
+import UserAvatar from '@/components/ui/UserAvatar'
 
 interface Accommodation {
   cameraOff: boolean
@@ -19,6 +20,7 @@ interface Student {
   userId: string
   name: string
   email: string
+  avatarUrl?: string | null
   accommodation: Accommodation | null
   enrollmentRole?: 'student' | 'observer'
 }
@@ -350,8 +352,9 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
         <td className="px-4 py-3 font-medium text-dark-text">
           <Link
             href={`/instructor/courses/${currentCourseId}/roster/${student.userId}`}
-            className="hover:text-teal-primary hover:underline"
+            className="flex items-center gap-2 hover:text-teal-primary hover:underline"
           >
+            <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="sm" />
             {student.name || '—'}
           </Link>
         </td>

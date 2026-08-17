@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 
-const ALLOWED_BUCKETS = ['lms-submissions', 'lms-resources']
+const ALLOWED_BUCKETS = ['lms-submissions', 'lms-resources', 'avatars']
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/']
@@ -59,8 +59,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
   }
 
-  // Students may only upload to lms-submissions, and only under their own user ID
-  if (!isStaff) {
+  // Anyone may upload their own avatar, under their own user ID
+  if (bucket === 'avatars') {
+    const segments = path.split('/')
+    // Expected path format: userId/filename
+    if (segments[0] !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  } else if (!isStaff) {
+    // Students may only upload to lms-submissions, and only under their own user ID
     if (bucket !== 'lms-submissions') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -69,10 +76,8 @@ export async function POST(request: NextRequest) {
     if (segments[1] !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-  }
-
-  // Staff may only upload to lms-resources
-  if (isStaff && bucket !== 'lms-resources') {
+  } else if (bucket !== 'lms-resources') {
+    // Staff may only upload to lms-resources (or avatars, handled above)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

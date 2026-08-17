@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { saveGrade } from '@/lib/grade-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
+import UserAvatar from '@/components/ui/UserAvatar'
 import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
 
 export type CategorizedAssignment = {
@@ -22,7 +23,7 @@ type StatCategory = 'missing' | 'submitted' | 'incomplete' | 'complete'
 
 interface Props {
   courseId: string
-  student: { id: string; name: string; email: string; role: string }
+  student: { id: string; name: string; email: string; role: string; avatarUrl?: string | null }
   accommodation: { cameraOff: boolean; notes: string } | null
   lastSignInAt: string | null
   missing: CategorizedAssignment[]
@@ -133,11 +134,14 @@ export default function StudentDetailView({
       {/* ── Student header ── */}
       <div className="bg-surface rounded-2xl border border-border p-5 sm:p-6 flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-dark-text">
-              {student.name || '(no name)'}
-            </h1>
-            <p className="text-sm text-muted-text mt-0.5">{student.email}</p>
+          <div className="flex items-center gap-3">
+            <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="lg" />
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-dark-text">
+                {student.name || '(no name)'}
+              </h1>
+              <p className="text-sm text-muted-text mt-0.5">{student.email}</p>
+            </div>
           </div>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize shrink-0 ${
             student.role === 'instructor' ? 'bg-purple-100 text-purple-700' :

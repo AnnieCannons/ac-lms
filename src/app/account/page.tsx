@@ -13,7 +13,7 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('name, role')
+    .select('name, role, avatar_url')
     .eq('id', user.id)
     .single()
 
@@ -34,9 +34,11 @@ export default async function AccountPage() {
         </div>
 
         <AccountForm
+          userId={user.id}
           initialName={profile?.name ?? ''}
           initialEmail={user.email ?? ''}
           role={profile?.role ?? 'student'}
+          initialAvatarUrl={profile?.avatar_url ?? null}
         />
         <div className="mt-6">
           <AccessibilitySettings />

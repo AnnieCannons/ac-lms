@@ -16,6 +16,7 @@ import { normalizeUrl } from '@/lib/url'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 import LocalDateTime from '@/components/ui/LocalDateTime'
+import UserAvatar from '@/components/ui/UserAvatar'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -69,7 +70,7 @@ export default async function GradingPage({
 
   const { data: student } = await admin
     .from('users')
-    .select('id, name')
+    .select('id, name, avatar_url')
     .eq('id', studentId)
     .single()
 
@@ -456,12 +457,15 @@ export default async function GradingPage({
         )}
 
         <div className="flex items-start justify-between gap-4 mb-8">
-          <div>
-            <Link href={`/instructor/courses/${id}/roster/${studentId}`} className="text-2xl font-bold text-dark-text hover:text-teal-primary transition-colors">
-              {student?.name ?? 'Student'}
-            </Link>
-            <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-base font-semibold text-teal-primary hover:underline transition-colors block truncate max-w-md">{assignment.title}</Link>
-            <AnswerKeyField assignmentId={assignmentId} courseId={id} initialUrl={assignment.answer_key_url ?? null} />
+          <div className="flex items-start gap-3">
+            <UserAvatar name={student?.name} avatarUrl={student?.avatar_url} size="lg" />
+            <div>
+              <Link href={`/instructor/courses/${id}/roster/${studentId}`} className="text-2xl font-bold text-dark-text hover:text-teal-primary transition-colors">
+                {student?.name ?? 'Student'}
+              </Link>
+              <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-base font-semibold text-teal-primary hover:underline transition-colors block truncate max-w-md">{assignment.title}</Link>
+              <AnswerKeyField assignmentId={assignmentId} courseId={id} initialUrl={assignment.answer_key_url ?? null} />
+            </div>
           </div>
           {submission && (
             <GradeButtons
