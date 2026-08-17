@@ -21,6 +21,7 @@ import {
 import { archiveContact, createContact, updateContact, deleteContact, setPartnerOwner, type ContactData } from '@/lib/partner-actions'
 import { DEPARTMENT_LABELS, DEPARTMENT_STAGES, DEPT_COLORS, STAGE_COLORS } from '@/lib/partner-constants'
 import PartnerForm from '@/components/ui/PartnerForm'
+import DatePickerField from '@/components/ui/DatePickerField'
 import { type StageHistoryEntry } from '@/components/ui/StageHistory'
 import type { PartnerFormData, PartnerType } from '@/lib/partner-actions'
 import type { PartnerRatingSummaryRow } from '@/lib/partner-ratings-actions'
@@ -195,6 +196,14 @@ function formatDate(dateStr: string) {
   })
 }
 
+// reminder_at is a real timestamp (unlike the plain-date interaction_date), so it
+// needs full Date parsing rather than the `+ 'T00:00:00'` trick above.
+function formatDateTime(isoStr: string) {
+  return new Date(isoStr).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
+}
+
 // Render a stored reminder interval (whole days) back into a friendly label.
 function humanizeReminder(days: number | null | undefined): string | null {
   if (!days || days <= 0) return null
@@ -299,8 +308,10 @@ function LogInteractionForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showReminder, setShowReminder] = useState(false)
+  const [remindMode, setRemindMode] = useState<'quick' | 'specific'>('specific')
   const [remindValue, setRemindValue] = useState(1)
   const [remindUnit, setRemindUnit] = useState<RemindUnit>('weeks')
+  const [remindAtLocal, setRemindAtLocal] = useState('')
   const [updateStatus, setUpdateStatus] = useState(false)
   const [newStage, setNewStage] = useState('')
 
@@ -319,10 +330,18 @@ function LogInteractionForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!note.trim()) return
+
+    const useSpecificReminder = showReminder && remindMode === 'specific'
+    if (useSpecificReminder && !remindAtLocal) {
+      setError('Pick a date and time for the reminder, or switch to Quick pick.')
+      return
+    }
+
     setSaving(true)
     setError(null)
 
-    const remindInDays = showReminder ? getRemindInDays() : null
+    const remindInDays = showReminder && remindMode === 'quick' ? getRemindInDays() : null
+    const remindAt = useSpecificReminder ? new Date(remindAtLocal).toISOString() : null
     const result = await logInteraction({
       partner_id: partnerId,
       note: note.trim(),
@@ -330,6 +349,7 @@ function LogInteractionForm({
       department: department || null,
       contact_id: contactId || null,
       remind_in_days: remindInDays,
+      remind_at: remindAt,
       interaction_type: interactionType || null,
     })
 
@@ -341,9 +361,10 @@ function LogInteractionForm({
     }
 
     const reminderDays = remindInDays && remindInDays > 0 ? Math.round(remindInDays) : null
-    const reminderAt = remindInDays && remindInDays > 0
-      ? new Date(Date.now() + remindInDays * 86400 * 1000).toISOString().slice(0, 10)
-      : null
+    const reminderAt = remindAt
+      ?? (remindInDays && remindInDays > 0
+        ? new Date(Date.now() + remindInDays * 86400 * 1000).toISOString()
+        : null)
 
     onLogged({
       id: crypto.randomUUID(),
@@ -475,25 +496,60 @@ function LogInteractionForm({
           <span className="text-xs text-muted-text">Send me a Slack follow-up reminder</span>
         </label>
         {showReminder && (
-          <div className="flex items-center gap-2 pl-5">
-            <input
-              type="number"
-              min={1}
-              value={remindValue}
-              onChange={e => setRemindValue(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-            />
-            <select
-              value={remindUnit}
-              onChange={e => setRemindUnit(e.target.value as RemindUnit)}
-              className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
-            >
-              <option value="minutes">minutes</option>
-              <option value="hours">hours</option>
-              <option value="days">days</option>
-              <option value="weeks">weeks</option>
-              <option value="months">months</option>
-            </select>
+          <div className="flex flex-col gap-2 pl-5">
+            <div className="flex items-center gap-3 text-xs text-muted-text">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="remindMode"
+                  checked={remindMode === 'quick'}
+                  onChange={() => setRemindMode('quick')}
+                  className="accent-teal-primary"
+                />
+                Quick pick
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="remindMode"
+                  checked={remindMode === 'specific'}
+                  onChange={() => setRemindMode('specific')}
+                  className="accent-teal-primary"
+                />
+                Specific date & time
+              </label>
+            </div>
+            {remindMode === 'quick' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={remindValue}
+                  onChange={e => setRemindValue(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                />
+                <select
+                  value={remindUnit}
+                  onChange={e => setRemindUnit(e.target.value as RemindUnit)}
+                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                >
+                  <option value="minutes">minutes</option>
+                  <option value="hours">hours</option>
+                  <option value="days">days</option>
+                  <option value="weeks">weeks</option>
+                  <option value="months">months</option>
+                </select>
+              </div>
+            ) : (
+              <DatePickerField
+                value={remindAtLocal}
+                onChange={setRemindAtLocal}
+                withTime
+                unifiedPopup
+                placeholder="Pick date & time"
+                className="w-64"
+              />
+            )}
           </div>
         )}
       </div>
@@ -581,7 +637,7 @@ function InteractionRow({
       {interaction.reminder_at && (
         <span className="self-start inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 bg-teal-primary/10 text-teal-primary">
           <AlarmClock className="w-3.5 h-3.5" />
-          Slack reminder{reminderLabel ? ` · ${reminderLabel}` : ''} ({formatDate(interaction.reminder_at)})
+          Slack reminder{reminderLabel ? ` · ${reminderLabel}` : ''} ({formatDateTime(interaction.reminder_at)})
         </span>
       )}
     </div>

@@ -9,6 +9,7 @@ export default function DatePickerField({
   value,
   onChange,
   withTime = false,
+  unifiedPopup = false,
   placeholder = 'Pick a date',
   className,
   dropUp = false,
@@ -17,6 +18,9 @@ export default function DatePickerField({
   value: string
   onChange: (val: string) => void
   withTime?: boolean
+  // When withTime is set, keep the time input inside the popup (one click, one
+  // popover) instead of as a separate control next to the button.
+  unifiedPopup?: boolean
   placeholder?: string
   className?: string
   dropUp?: boolean
@@ -58,16 +62,20 @@ export default function DatePickerField({
   function handleDateSelect(day: Date | undefined) {
     if (!day) {
       onChange('')
-    } else {
-      const formatted = format(day, 'yyyy-MM-dd')
-      onChange(withTime ? `${formatted}T${timePart || '23:59'}` : formatted)
+      setOpen(false)
+      return
     }
-    setOpen(false)
+    const formatted = format(day, 'yyyy-MM-dd')
+    onChange(withTime ? `${formatted}T${timePart || '23:59'}` : formatted)
+    // In unified mode, keep the popup open so the user can also set the time
+    // in the same interaction instead of it snapping shut on date pick.
+    if (!(withTime && unifiedPopup)) setOpen(false)
   }
 
   function handleTimeChange(t: string) {
-    if (!datePart) return
-    onChange(`${datePart}T${t}`)
+    // Setting a time before picking a day implies "today" at that time.
+    const effectiveDate = datePart || format(new Date(), 'yyyy-MM-dd')
+    onChange(`${effectiveDate}T${t}`)
   }
 
   return (
@@ -82,13 +90,17 @@ export default function DatePickerField({
             className="flex-1 w-full flex items-center justify-between border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary hover:border-teal-primary transition-colors"
           >
             <span className={selected ? 'text-dark-text' : 'text-muted-text'}>
-              {selected ? format(selected, 'MMM d, yyyy') : placeholder}
+              {selected
+                ? (withTime && unifiedPopup
+                    ? `${format(selected, 'MMM d, yyyy')}, ${format(new Date(`2000-01-01T${timePart}`), 'h:mm a')}`
+                    : format(selected, 'MMM d, yyyy'))
+                : placeholder}
             </span>
             <svg className="w-4 h-4 text-muted-text shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </button>
-          {withTime && (
+          {withTime && !unifiedPopup && (
             <input
               type="time"
               value={timePart}
@@ -140,6 +152,24 @@ export default function DatePickerField({
                   disabled: 'opacity-30 cursor-not-allowed',
                 }}
               />
+              {withTime && unifiedPopup && (
+                <div className="border-t border-border pt-2 mt-1 px-2 flex items-center gap-2">
+                  <label className="text-xs text-muted-text">Time</label>
+                  <input
+                    type="time"
+                    value={timePart}
+                    onChange={e => handleTimeChange(e.target.value)}
+                    className="border border-border rounded-lg px-2 py-1 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="ml-auto text-xs font-medium text-teal-primary hover:underline"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
               {selected && (
                 <div className="border-t border-border pt-2 mt-1 px-2">
                   <button
