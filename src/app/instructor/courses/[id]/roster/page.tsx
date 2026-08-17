@@ -32,7 +32,7 @@ export default async function RosterPage({
   // Students and observers enrolled in current course
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('user_id, role, users(id, name, email)')
+    .select('user_id, role, users(id, name, email, avatar_url)')
     .eq('course_id', id)
     .in('role', ['student', 'observer'])
 
@@ -85,6 +85,7 @@ export default async function RosterPage({
         userId: e.user_id,
         name: u?.name ?? '',
         email: u?.email ?? '',
+        avatarUrl: u?.avatar_url ?? null,
         accommodation: accommodationMap[e.user_id] ?? null,
         enrollmentRole: e.role as 'student' | 'observer',
       }

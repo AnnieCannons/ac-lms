@@ -29,7 +29,7 @@ export default async function StudentDetailPage({
 
   const { data: student } = await admin
     .from('users')
-    .select('id, name, email, role')
+    .select('id, name, email, role, avatar_url')
     .eq('id', userId)
     .single()
 
@@ -226,6 +226,7 @@ export default async function StudentDetailPage({
                 name: student.name ?? '',
                 email: student.email ?? '',
                 role: student.role ?? 'student',
+                avatarUrl: student.avatar_url ?? null,
               }}
               accommodation={
                 accommodation

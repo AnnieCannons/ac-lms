@@ -2,6 +2,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse, deleteStaffMember, sendInviteToEnrolledUser } from '@/lib/people-actions'
+import UserAvatar from '@/components/ui/UserAvatar'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
@@ -10,6 +11,7 @@ interface Member {
   name: string
   email: string
   role: Role
+  avatarUrl?: string | null
 }
 
 interface Invitation {
@@ -25,7 +27,7 @@ interface Props {
   members: Member[]
   invitations: Invitation[]
   currentUserRole: 'instructor' | 'admin'
-  instructors: { id: string; name: string; email: string }[]
+  instructors: { id: string; name: string; email: string; avatarUrl?: string | null }[]
   allCourses: { id: string; name: string }[]
   instructorCourseMap: Record<string, string[]>
 }
@@ -78,7 +80,7 @@ function InstructorSection({
   instructorCourseMap,
   currentUserRole,
 }: {
-  instructors: { id: string; name: string; email: string }[]
+  instructors: { id: string; name: string; email: string; avatarUrl?: string | null }[]
   allCourses: { id: string; name: string }[]
   instructorCourseMap: Record<string, string[]>
   currentUserRole: 'instructor' | 'admin'
@@ -141,7 +143,12 @@ function InstructorSection({
                 const unassigned = allCourses.filter(c => !assignedIds.includes(c.id))
                 return (
                   <tr key={instructor.id} className="bg-background">
-                    <td className="px-4 py-3 text-dark-text">{instructor.name || '—'}</td>
+                    <td className="px-4 py-3 text-dark-text">
+                      <div className="flex items-center gap-2">
+                        <UserAvatar name={instructor.name} avatarUrl={instructor.avatarUrl} size="sm" />
+                        {instructor.name || '—'}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-muted-text">{instructor.email}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -198,9 +205,12 @@ function InstructorSection({
             return (
               <div key={instructor.id} className="bg-background px-4 py-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-dark-text">{instructor.name || '—'}</p>
-                    <p className="text-xs text-muted-text mt-0.5">{instructor.email}</p>
+                  <div className="flex items-center gap-2">
+                    <UserAvatar name={instructor.name} avatarUrl={instructor.avatarUrl} size="sm" />
+                    <div>
+                      <p className="text-sm font-medium text-dark-text">{instructor.name || '—'}</p>
+                      <p className="text-xs text-muted-text mt-0.5">{instructor.email}</p>
+                    </div>
                   </div>
                   {currentUserRole === 'admin' && (
                     <button
@@ -281,7 +291,12 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   function renderMemberDesktopRow(member: Member, muted = false) {
     return (
       <tr key={member.userId} className={`bg-background ${muted ? 'opacity-60' : ''}`}>
-        <td className="px-4 py-3 text-dark-text">{member.name || '—'}</td>
+        <td className="px-4 py-3 text-dark-text">
+          <div className="flex items-center gap-2">
+            <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="sm" />
+            {member.name || '—'}
+          </div>
+        </td>
         <td className="px-4 py-3 text-muted-text">{member.email}</td>
         <td className="px-4 py-3">
           {editingRoleFor === member.userId ? (
@@ -347,12 +362,15 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   function renderMemberMobileCard(member: Member, muted = false) {
     return (
       <div key={member.userId} className={`bg-background px-4 py-3 flex items-center justify-between gap-3 ${muted ? 'opacity-60' : ''}`}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-dark-text truncate">{member.name || '—'}</span>
-            <RolePill role={member.role} />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="sm" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-dark-text truncate">{member.name || '—'}</span>
+              <RolePill role={member.role} />
+            </div>
+            <p className="text-xs text-muted-text mt-0.5 truncate">{member.email}</p>
           </div>
-          <p className="text-xs text-muted-text mt-0.5 truncate">{member.email}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button

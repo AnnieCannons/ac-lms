@@ -32,7 +32,7 @@ export default async function InstructorUsersPage({
 
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('user_id, role, users(id, name, email)')
+    .select('user_id, role, users(id, name, email, avatar_url)')
     .eq('course_id', id)
 
   const { data: rawInvitations } = await admin
@@ -69,6 +69,7 @@ export default async function InstructorUsersPage({
         userId: e.user_id,
         name: u?.name ?? '',
         email: u?.email ?? '',
+        avatarUrl: u?.avatar_url ?? null,
         role: e.role as 'student' | 'instructor' | 'admin' | 'observer' | 'ta',
       }
     })
@@ -76,7 +77,7 @@ export default async function InstructorUsersPage({
   // Global instructors list — all users with instructor/admin role
   const { data: instructorUsers } = await admin
     .from('users')
-    .select('id, name, email')
+    .select('id, name, email, avatar_url')
     .in('role', ['instructor', 'admin'])
     .order('name')
 
@@ -146,7 +147,7 @@ export default async function InstructorUsersPage({
               members={members}
               invitations={invitations ?? []}
               currentUserRole={profile?.role as 'instructor' | 'admin'}
-              instructors={instructorUsers ?? []}
+              instructors={(instructorUsers ?? []).map(i => ({ id: i.id, name: i.name ?? '', email: i.email ?? '', avatarUrl: i.avatar_url }))}
               allCourses={allCourses ?? []}
               instructorCourseMap={instructorCourseMap}
             />

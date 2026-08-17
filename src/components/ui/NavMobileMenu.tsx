@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import LogoutButton from '@/components/ui/LogoutButton'
+import CurrentUserAvatar from '@/components/ui/CurrentUserAvatar'
 
 export default function NavMobileMenu({
   name,
@@ -48,9 +49,10 @@ export default function NavMobileMenu({
             </Link>
             <Link
               href={accountHref}
-              className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
               onClick={() => setOpen(false)}
             >
+              <CurrentUserAvatar name={name} size="sm" />
               {name ?? 'Profile'}
             </Link>
             <div className="px-4 py-2.5">

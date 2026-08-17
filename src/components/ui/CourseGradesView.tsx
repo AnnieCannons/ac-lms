@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
 import { saveGrade } from '@/lib/grade-actions'
+import UserAvatar from '@/components/ui/UserAvatar'
 
 interface Assignment {
   id: string
@@ -21,6 +22,7 @@ interface Module {
 interface Student {
   id: string
   name: string
+  avatarUrl?: string | null
 }
 
 interface Sub {
@@ -302,7 +304,8 @@ function SpeedGrader({
         </div>
 
         {/* Student info */}
-        <div className="px-5 py-3 border-b border-border bg-background shrink-0">
+        <div className="px-5 py-3 border-b border-border bg-background shrink-0 flex items-center gap-2">
+          <UserAvatar name={current.student.name} avatarUrl={current.student.avatarUrl} size="sm" />
           <p className="text-base font-semibold text-dark-text">{current.student.name}</p>
           <p className="text-xs text-muted-text mt-0.5">
             {allGraded
@@ -645,7 +648,10 @@ function StudentsTab({
         return (
           <div key={student.id} className="bg-surface">
             <div className="px-6 py-4">
-              <Link href={`/instructor/courses/${courseId}/roster/${student.id}`} className="text-sm font-semibold text-dark-text hover:text-teal-primary hover:underline mb-1.5 inline-block">{student.name}</Link>
+              <Link href={`/instructor/courses/${courseId}/roster/${student.id}`} className="flex items-center gap-2 mb-1.5 w-fit text-sm font-semibold text-dark-text hover:text-teal-primary hover:underline">
+                <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="sm" />
+                {student.name}
+              </Link>
               <div className="flex items-center gap-4 text-xs flex-wrap">
                 {missing.length > 0 && (
                   <button
