@@ -231,7 +231,7 @@ function StudentRow({
 
 function CourseAccordion({ course }: { course: CourseWithStudents }) {
   const { startDate, endDate, airtableCourseName } = course
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   return (
     <div className="rounded-2xl border border-border bg-surface overflow-hidden">
@@ -269,7 +269,7 @@ function CourseAccordion({ course }: { course: CourseWithStudents }) {
 
 export default function StudentsDashboard({ courses }: { courses: CourseWithStudents[] }) {
   if (courses.length === 0) {
-    return <p className="text-muted-text">No students in current courses.</p>
+    return <p className="text-muted-text">No students found.</p>
   }
 
   return (
