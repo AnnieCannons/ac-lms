@@ -4,14 +4,6 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import Link from 'next/link'
 import StudentsDashboard from '@/components/ui/StudentsDashboard'
 
-function isCurrentCourse(startDate: string | null | undefined, endDate?: string | null): boolean {
-  if (!startDate) return false
-  const start = new Date(startDate).getTime()
-  const end = endDate ? new Date(endDate).getTime() : start + 105 * 24 * 60 * 60 * 1000
-  const now = Date.now()
-  return now >= start && now <= end
-}
-
 export type CourseWithStudents = {
   id: string
   name: string
@@ -31,29 +23,27 @@ export default async function StudentsPage() {
 
   const admin = createServiceSupabaseClient()
 
-  // Fetch all current courses
+  // Fetch all non-archived, non-template courses
   const { data: courses } = await admin
     .from('courses')
     .select('id, name, start_date, end_date, is_template, archived, airtable_course_name')
     .order('start_date', { ascending: false })
 
-  const currentCourses = (courses ?? []).filter(c =>
-    !c.is_template && !c.archived && isCurrentCourse(c.start_date, c.end_date)
-  )
+  const visibleCourses = (courses ?? []).filter(c => !c.is_template && !c.archived)
 
-  if (currentCourses.length === 0) {
+  if (visibleCourses.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <InstructorTopNav name={profile?.name} role={profile?.role} breadcrumbs={[{ label: 'Dashboard', href: '/instructor' }, { label: 'Students' }]} />
         <main className="max-w-3xl mx-auto px-6 py-12">
-          <p className="text-muted-text">No current courses found.</p>
+          <p className="text-muted-text">No courses found.</p>
         </main>
       </div>
     )
   }
 
-  // Fetch enrolled students for all current courses in one query
-  const courseIds = currentCourses.map(c => c.id)
+  // Fetch enrolled students for all visible courses in one query
+  const courseIds = visibleCourses.map(c => c.id)
   const { data: enrollments } = await admin
     .from('course_enrollments')
     .select('course_id, user_id, users(id, name, avatar_url)')
@@ -69,7 +59,7 @@ export default async function StudentsPage() {
     courseStudentMap.get(e.course_id)!.push({ id: e.user_id, name: e.users.name, avatarUrl: e.users.avatar_url })
   }
 
-  const coursesWithStudents: CourseWithStudents[] = currentCourses
+  const coursesWithStudents: CourseWithStudents[] = visibleCourses
     .map(c => ({
       id: c.id,
       name: c.name,
