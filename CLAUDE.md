@@ -1,4 +1,4 @@
-# AC-LMS — Claude Code Context
+# AC-LMS — Claude Code Context for Flashcard App
 
 ## What This Project Is
 A custom Learning Management System for AnnieCannons, a nonprofit coding school. Built with Next.js 14 (App Router), TypeScript, Tailwind CSS, Supabase (PostgreSQL + Auth), and Tiptap for rich text editing. Deployed on Vercel.
