@@ -241,14 +241,14 @@ Work through these sections in order. Check off each one when complete before mo
     - [x] Chunk 3d: Curriculum tag — add `course_tag` column to `decks` (migration), show tag picker in deck edit UI for admins only (TCF/ITP, Frontend, Backend, different color from subject tags), display read-only on imported decks for students
   - [x] Chunk 4: Import activity — `/flashcards/admin` is now a hub page with two link cards: Student Activity and Import Activity. Student activity stats moved to `/flashcards/admin/student-activity`. Import activity is at `/flashcards/admin/import-activity` (admin-only, table view of all shared decks with importer counts, last push date, collapsible student names per row). ChartLine button removed from DeckCard. Deck metadata (title, description, tags, course_tag) is auto-synced to all imported copies when the owner pushes updates — no user choice required.
   - [ ] Chunk 5: Cloze and image occlusion card types.
-    - [ ] Chunk 5a: Cloze cards
-      - [ ] Step 1: Migration — add `blank_index` (integer, nullable) to `cards` table; only populated for cloze cards, identifies which blank this card row targets (0-indexed)
-      - [ ] Step 2: Build a custom Tiptap extension (`ClozeBlank`) — wraps selected text in `{{word}}` syntax, renders as a visual pill in the editor with a × delete button to un-blank
-      - [ ] Step 3: Add "Blank" toolbar button to the card editor — only visible when card type is `cloze`; highlight text + click to wrap, click × on pill to remove
-      - [ ] Step 4: Update card type selector UI — when `cloze` is selected, hide the back content field and show the cloze editor instead
-      - [ ] Step 5: Wire up save — parse `{{word}}` markers from `front_content`, create one card row per blank (each shares the same `front_content`, different `blank_index`)
-      - [ ] Step 6: Card list preview — substitute `{{word}}` with `[blank]` in the card list display
-      - [ ] Step 7: Study session — render cloze card: all blanks as `[_____]`, target blank (matching `blank_index`) gets teal highlight/border, others grey/muted, click target to reveal word, then rate
+    - [x] Chunk 5a: Cloze cards
+      - [x] Step 1: Migration — add `blank_index` (integer, nullable) to `cards` table; only populated for cloze cards, identifies which blank this card row targets (0-indexed)
+      - [x] Step 2: Build a custom Tiptap extension (`ClozeBlank`) — wraps selected text in `{{word}}` syntax, renders as a visual pill in the editor with a × delete button to un-blank
+      - [x] Step 3: Add "Blank" toolbar button to the card editor — only visible when card type is `cloze`; highlight text + click to wrap, click × on pill to remove
+      - [x] Step 4: Update card type selector UI — when `cloze` is selected, hide the back content field and show the cloze editor instead
+      - [x] Step 5: Wire up save — parse blank nodes from `front_content`, create one card row per blank (each shares the same `front_content`, different `blank_index`)
+      - [x] Step 6: Card list preview — substitute `{{word}}` with `[blank]` in the card list display
+      - [x] Step 7: Study session — render cloze card: all blanks as `[_____]`, target blank (matching `blank_index`) gets teal highlight/border, others grey/muted, click target to reveal word, then rate
     - [ ] Chunk 5b: Image occlusion cards
       - [ ] Step 1: Install `react-konva` and `konva` packages
       - [ ] Step 2: Migration — add `target_zone_id` (text, nullable) to `cards` table; identifies which occlusion zone this card row targets
@@ -258,7 +258,11 @@ Work through these sections in order. Check off each one when complete before mo
       - [ ] Step 6: Wire up save — for each drawn zone, create one card row (same `front_content`, `image_url`, all `occlusion_zones`, different `target_zone_id`)
       - [ ] Step 7: Card list preview — image thumbnail with all teal boxes overlaid, question text below
       - [ ] Step 8: Study session — question above image, all boxes as opaque rectangles, target box teal + thick border, others grey + thin border, click "Show answer" → target box disappears, then rate
-  - [ ] Chunk 6: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
+  - [ ] Chunk 6: Anki-style interval previews in study session
+    - [ ] Step 1: Fetch `card_progress` (interval, ease_factor, repetitions) alongside due cards in the study session server component
+    - [ ] Step 2: Pass progress data to `StudyPageClient` and write a client-side SM-2 preview function that speculatively computes the next interval for each rating
+    - [ ] Step 3: Display interval labels above Again/Hard/Good/Easy buttons (e.g. `<1m`, `3d`, `2w`)
+  - [ ] Chunk 7: Badge system — DB tables (`badges`, `user_badges`), auto-award on triggers, student badge display (location TBD — ask Rai), retroactive award policy TBD
   - Bulk deck creation (Chunk 2) will also support appending cards to an existing deck, not just creating new ones
 - [ ] 12. Help page & tooltips
 - [ ] 15. Accessibility pass

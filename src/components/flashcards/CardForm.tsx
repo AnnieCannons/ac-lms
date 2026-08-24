@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RichTextEditor from '@/components/ui/RichTextEditor'
+import ClozeCardEditor from '@/components/flashcards/ClozeCardEditor'
 import type { CardType } from '@/lib/flashcards/seed'
 
 const CARD_TYPES: { value: CardType; label: string }[] = [
@@ -34,7 +35,7 @@ export default function CardForm({
   const [back, setBack] = useState(initialBack)
   const [saved, setSaved] = useState(false)
 
-  const isComingSoon = cardType === 'cloze' || cardType === 'image_occlusion'
+  const isComingSoon = cardType === 'image_occlusion'
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,14 +71,18 @@ export default function CardForm({
 
       {isComingSoon ? (
         <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-          <p className="text-sm font-medium text-dark-text mb-1">
-            {cardType === 'cloze' ? 'Cloze' : 'Image Occlusion'} — Coming Soon
-          </p>
-          <p className="text-xs text-muted-text">
-            {cardType === 'cloze'
-              ? 'Fill-in-the-blank cards will be available in a future update.'
-              : 'Image occlusion cards will be available in a future update.'}
-          </p>
+          <p className="text-sm font-medium text-dark-text mb-1">Image Occlusion — Coming Soon</p>
+          <p className="text-xs text-muted-text">Image occlusion cards will be available in a future update.</p>
+        </div>
+      ) : cardType === 'cloze' ? (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-dark-text">
+            Sentence <span className="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <ClozeCardEditor
+            content={front}
+            onChange={val => { setFront(val); setSaved(false) }}
+          />
         </div>
       ) : (
         <>
@@ -119,7 +124,7 @@ export default function CardForm({
       <div className="flex items-center gap-3 pt-2">
         <button
           type="submit"
-          disabled={!front.trim() || isComingSoon}
+          disabled={!front.trim() || isComingSoon || (cardType === 'cloze' && !front.includes('data-type="cloze-blank"'))}
           className="bg-teal-primary text-white text-sm font-medium px-5 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {mode === 'create' ? 'Add Card' : 'Save Changes'}

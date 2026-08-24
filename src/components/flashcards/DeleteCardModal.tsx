@@ -4,9 +4,10 @@ import { useEffect, useRef } from 'react'
 type Props = {
   onConfirm: () => void
   onCancel: () => void
+  groupCount?: number // for cloze cards — number of cards that will be deleted
 }
 
-export default function DeleteCardModal({ onConfirm, onCancel }: Props) {
+export default function DeleteCardModal({ onConfirm, onCancel, groupCount }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cancelRef.current?.focus() }, [])
@@ -31,11 +32,8 @@ export default function DeleteCardModal({ onConfirm, onCancel }: Props) {
       >
         <div>
           <h2 id="delete-card-modal-title" className="text-base font-semibold text-dark-text">
-            Delete card?
+            {groupCount && groupCount > 1 ? `Delete all ${groupCount} cards in this group?` : 'Delete card?'}
           </h2>
-          <p className="text-sm text-muted-text mt-1">
-            This card and its progress will be permanently deleted. This cannot be undone.
-          </p>
         </div>
         <div className="flex gap-3">
           <button

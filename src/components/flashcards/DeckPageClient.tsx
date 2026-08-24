@@ -374,6 +374,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
                   card={card}
                   deckId={deckId}
                   onDelete={handleDeleteCard}
+                  clozeGroupCount={card.card_type === 'cloze' ? cards.filter(c => c.card_type === 'cloze' && c.front_content === card.front_content).length : undefined}
                 />
               ))}
             </div>

@@ -11,6 +11,14 @@ async function getAuthUser() {
 }
 
 // ----------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------
+
+function parseClozeWords(html: string): string[] {
+  return [...html.matchAll(/data-word="([^"]+)"/g)].map(m => m[1])
+}
+
+// ----------------------------------------------------------------
 // Decks
 // ----------------------------------------------------------------
 
@@ -116,15 +124,83 @@ export async function updateCard(
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 
+export async function createClozeCards(deckId: string, frontContent: string) {
+  const { supabase } = await getAuthUser()
+  const words = parseClozeWords(frontContent)
+  if (words.length === 0) throw new Error('No blanks found')
+
+  const { data: last } = await supabase
+    .from('cards').select('order').eq('deck_id', deckId)
+    .order('order', { ascending: false }).limit(1)
+  const baseOrder = last?.[0]?.order != null ? last[0].order + 1 : 1
+
+  const rows = words.map((_, i) => ({
+    deck_id: deckId,
+    card_type: 'cloze',
+    front_content: frontContent,
+    back_content: '',
+    blank_index: i,
+    order: baseOrder + i,
+  }))
+
+  const { error } = await supabase.from('cards').insert(rows)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/flashcards/decks/${deckId}`)
+}
+
+export async function updateClozeCards(deckId: string, originalFrontContent: string, newFrontContent: string) {
+  const { supabase } = await getAuthUser()
+  const words = parseClozeWords(newFrontContent)
+  if (words.length === 0) throw new Error('No blanks found')
+
+  // Delete all cards in this cloze group (same sentence)
+  const { error: delError } = await supabase
+    .from('cards').delete()
+    .eq('deck_id', deckId).eq('card_type', 'cloze').eq('front_content', originalFrontContent)
+  if (delError) throw new Error(delError.message)
+
+  const { data: last } = await supabase
+    .from('cards').select('order').eq('deck_id', deckId)
+    .order('order', { ascending: false }).limit(1)
+  const baseOrder = last?.[0]?.order != null ? last[0].order + 1 : 1
+
+  const rows = words.map((_, i) => ({
+    deck_id: deckId,
+    card_type: 'cloze',
+    front_content: newFrontContent,
+    back_content: '',
+    blank_index: i,
+    order: baseOrder + i,
+  }))
+
+  const { error } = await supabase.from('cards').insert(rows)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/flashcards/decks/${deckId}`)
+}
+
 export async function deleteCard(cardId: string, deckId: string) {
   const { supabase } = await getAuthUser()
 
-  const { error } = await supabase
+  // For cloze cards, delete the entire group (all cards sharing the same front_content)
+  const { data: card } = await supabase
     .from('cards')
-    .delete()
+    .select('card_type, front_content')
     .eq('id', cardId)
+    .single()
 
-  if (error) throw new Error(error.message)
+  if (card?.card_type === 'cloze') {
+    const { error } = await supabase
+      .from('cards')
+      .delete()
+      .eq('deck_id', deckId)
+      .eq('card_type', 'cloze')
+      .eq('front_content', card.front_content)
+    if (error) throw new Error(error.message)
+  } else {
+    const { error } = await supabase.from('cards').delete().eq('id', cardId)
+    if (error) throw new Error(error.message)
+  }
+
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 

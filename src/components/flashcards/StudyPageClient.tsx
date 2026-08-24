@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
 import RichTextEditor from '@/components/ui/RichTextEditor'
@@ -39,6 +39,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   const [editBack, setEditBack] = useState('')
   const [typeAnswer, setTypeAnswer] = useState('')
   const [typeRevealed, setTypeRevealed] = useState(false)
+  const [clozeRevealed, setClozeRevealed] = useState(false)
   const [completed, setCompleted] = useState(0)
   const [sessionDone, setSessionDone] = useState(false)
 
@@ -51,9 +52,33 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   const front = card?.front_content ?? ''
   const back  = card?.back_content  ?? ''
   const isTypeIn = card?.card_type === 'type_in'
+  const isCloze = card?.card_type === 'cloze'
+
+  const clozeHtml = useMemo(() => {
+    if (!isCloze || !front) return ''
+    let idx = 0
+    return front.replace(
+      /<span[^>]*data-type="cloze-blank"[^>]*data-word="([^"]*)"[^>]*>[^<]*<\/span>/g,
+      (_match, word) => {
+        const isTarget = idx++ === (card?.blank_index ?? 0)
+        if (isTarget) {
+          return clozeRevealed
+            ? `<span class="cloze-study-revealed">${word}</span>`
+            : `<span class="cloze-study-target" role="button" tabindex="0" aria-label="Click to reveal">[...]</span>`
+        }
+        return `<span class="cloze-study-other">[...]</span>`
+      }
+    )
+  }, [isCloze, front, card?.blank_index, clozeRevealed])
+
+  const handleClozeClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).classList.contains('cloze-study-target')) {
+      setClozeRevealed(true)
+    }
+  }
 
   const doFlip = async () => {
-    if (isAnimating || isEditing || isTypeIn) return
+    if (isAnimating || isEditing || isTypeIn || isCloze) return
     setIsAnimating(true)
     setRotateY(90)
     await new Promise(r => setTimeout(r, 220))
@@ -75,6 +100,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     setIsAnimating(false)
     setTypeAnswer('')
     setTypeRevealed(false)
+    setClozeRevealed(false)
     setIsEditing(false)
   }
 
@@ -204,16 +230,24 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
               <p className="text-base font-semibold text-teal-primary mb-5">
                 {showingBack ? 'Answer' : 'Question'}
               </p>
-              <div
-                className={PROSE}
-                dangerouslySetInnerHTML={{ __html: sanitize(showingBack ? back : front) }}
-              />
+              {isCloze ? (
+                <div
+                  className={`${PROSE} [&_.cloze-study-target]:bg-teal-light [&_.cloze-study-target]:border-b-2 [&_.cloze-study-target]:border-teal-primary [&_.cloze-study-target]:text-teal-primary [&_.cloze-study-target]:px-1 [&_.cloze-study-target]:cursor-pointer [&_.cloze-study-target]:font-medium [&_.cloze-study-revealed]:bg-teal-light [&_.cloze-study-revealed]:border-b-2 [&_.cloze-study-revealed]:border-teal-primary [&_.cloze-study-revealed]:text-teal-primary [&_.cloze-study-revealed]:px-1 [&_.cloze-study-revealed]:font-medium [&_.cloze-study-other]:text-muted-text`}
+                  dangerouslySetInnerHTML={{ __html: sanitize(clozeHtml) }}
+                  onClick={handleClozeClick}
+                />
+              ) : (
+                <div
+                  className={PROSE}
+                  dangerouslySetInnerHTML={{ __html: sanitize(showingBack ? back : front) }}
+                />
+              )}
             </div>
           </div>
 
           <button
             onClick={() => { setEditFront(front); setEditBack(back); setIsEditing(true) }}
-            className="flex items-center gap-1 text-xs text-muted-text hover:text-dark-text transition-colors"
+            className={`flex items-center gap-1 text-xs text-muted-text hover:text-dark-text transition-colors ${isCloze ? 'invisible' : ''}`}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -263,7 +297,22 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
             </div>
           )}
 
-          {!isTypeIn && (
+          {isCloze && (
+            <div className="flex justify-center gap-3 mt-2">
+              {!clozeRevealed ? (
+                <p className="text-xs text-muted-text">Click the blank to reveal</p>
+              ) : (
+                RATINGS.map(r => (
+                  <button key={r.label} onClick={() => handleRate(r.label)}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
+                    {r.label}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {!isTypeIn && !isCloze && (
             <div className="flex justify-center gap-3 mt-2">
               {!showingBack ? (
                 <button

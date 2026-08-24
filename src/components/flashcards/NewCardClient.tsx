@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import CardForm from '@/components/flashcards/CardForm'
-import { createCard } from '@/lib/flashcards/actions'
+import { createCard, createClozeCards } from '@/lib/flashcards/actions'
 import type { CardType } from '@/lib/flashcards/seed'
 
 type Props = {
@@ -15,7 +15,11 @@ export default function NewCardClient({ deckId, deckTitle }: Props) {
 
   const handleSave = async ({ card_type, front_content, back_content }: { card_type: CardType; front_content: string; back_content: string }) => {
     try {
-      await createCard(deckId, { card_type, front_content, back_content })
+      if (card_type === 'cloze') {
+        await createClozeCards(deckId, front_content)
+      } else {
+        await createCard(deckId, { card_type, front_content, back_content })
+      }
       router.push(`/flashcards/decks/${deckId}`)
     } catch (err) {
       console.error('Failed to create card:', err)

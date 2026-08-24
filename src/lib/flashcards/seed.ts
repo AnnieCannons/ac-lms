@@ -48,6 +48,7 @@ export type Card = {
   created_at: string
   updated_at: string
   source_card_id: string | null
+  blank_index?: number | null
 }
 
 export type CardProgress = {

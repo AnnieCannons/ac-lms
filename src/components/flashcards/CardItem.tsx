@@ -22,9 +22,11 @@ type Props = {
   card: Card
   deckId: string
   onDelete: (cardId: string) => void
+  clozeGroupCount?: number
 }
 
-export default function CardItem({ card, deckId, onDelete }: Props) {
+
+export default function CardItem({ card, deckId, onDelete, clozeGroupCount }: Props) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -36,7 +38,21 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const frontPreview = sanitize(card.front_content)
+  const isCloze = card.card_type === 'cloze'
+  const rawFront = (() => {
+    if (!isCloze) return card.front_content
+    let idx = 0
+    return card.front_content.replace(
+      /<span[^>]*data-type="cloze-blank"[^>]*data-word="([^"]*)"[^>]*>[^<]*<\/span>/g,
+      (_match, word) => {
+        const isTarget = idx++ === (card.blank_index ?? 0)
+        return isTarget
+          ? `<span class="cloze-target">${word}</span>`
+          : '<span class="cloze-other">[...]</span>'
+      }
+    )
+  })()
+  const frontPreview = sanitize(rawFront)
   const backPreview = sanitize(card.back_content)
 
   return (
@@ -67,21 +83,23 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
               {TYPE_LABELS[card.card_type] ?? card.card_type}
             </span>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+          <div className={`grid grid-cols-1 gap-2 ${isCloze ? '' : 'sm:grid-cols-2 sm:gap-3'}`}>
             <div>
-              <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Front</p>
+              {!isCloze && <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Front</p>}
               <div
-                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
+                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_.cloze-target]:bg-teal-light [&_.cloze-target]:text-teal-primary [&_.cloze-target]:px-1 [&_.cloze-target]:rounded [&_.cloze-target]:font-medium [&_.cloze-other]:text-muted-text [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
                 dangerouslySetInnerHTML={{ __html: frontPreview || '<span class="text-muted-text">(empty)</span>' }}
               />
             </div>
-            <div>
-              <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Back</p>
-              <div
-                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
-                dangerouslySetInnerHTML={{ __html: backPreview || '<span class="text-muted-text">(empty)</span>' }}
-              />
-            </div>
+            {!isCloze && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Back</p>
+                <div
+                  className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
+                  dangerouslySetInnerHTML={{ __html: backPreview || '<span class="text-muted-text">(empty)</span>' }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -124,6 +142,7 @@ export default function CardItem({ card, deckId, onDelete }: Props) {
         <DeleteCardModal
           onConfirm={() => { onDelete(card.id); setShowDeleteModal(false) }}
           onCancel={() => setShowDeleteModal(false)}
+          groupCount={clozeGroupCount}
         />
       )}
     </>
