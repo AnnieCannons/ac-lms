@@ -30,6 +30,7 @@ import {
 } from "@/lib/quiz-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { parseQuizText } from "@/lib/quiz-parser";
+import { addSelfAsInstructor, getCourseName } from "@/lib/enrollment-actions";
 
 const CodeEditor = dynamic(() => import("@/components/ui/CodeEditor"), { ssr: false });
 const HighlightedContent = dynamic(() => import("@/components/ui/HighlightedContent"), { ssr: false });
@@ -132,6 +133,37 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
   const [bulkImportText, setBulkImportText] = useState("");
   useUnsavedChanges(editingQuestions);
 
+  // Recovery prompt for the "staff but not enrolled as instructor on this course" case
+  const [enrollPromptOpen, setEnrollPromptOpen] = useState(false);
+  const [enrollCourseName, setEnrollCourseName] = useState<string | null>(null);
+  const [enrolling, setEnrolling] = useState(false);
+  const [pendingRetry, setPendingRetry] = useState<(() => void) | null>(null);
+
+  const triggerEnrollPrompt = async (retry: () => void) => {
+    setSaving(false);
+    const { name } = await getCourseName(courseId);
+    setEnrollCourseName(name ?? "this course");
+    setPendingRetry(() => retry);
+    setEnrollPromptOpen(true);
+  };
+
+  const handleConfirmEnroll = async () => {
+    setEnrolling(true);
+    const result = await addSelfAsInstructor(courseId);
+    setEnrolling(false);
+    setEnrollPromptOpen(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    pendingRetry?.();
+  };
+
+  const handleCancelEnroll = () => {
+    setEnrollPromptOpen(false);
+    setError("You are not enrolled as an instructor on this course.");
+  };
+
   // Sync draft fields when quiz prop changes
   useEffect(() => {
     setTitleDraft(quiz.title);
@@ -195,6 +227,10 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
         onSaved?.({ ...quiz, ...updates, day_title: "day_title" in updates ? (updates.day_title ?? null) : (quiz.day_title ?? null) } as QuizRow);
       }
     } catch (err) {
+      if (err instanceof Error && (err as Error & { code?: string }).code === "NOT_ENROLLED") {
+        await triggerEnrollPrompt(() => void autoSave(updates));
+        return;
+      }
       setError(err instanceof Error ? err.message : "Save failed");
     }
     setSaving(false);
@@ -227,6 +263,10 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
         onSaved?.({ ...quiz, published: !quiz.published });
       }
     } catch (err) {
+      if (err instanceof Error && (err as Error & { code?: string }).code === "NOT_ENROLLED") {
+        await triggerEnrollPrompt(() => void handleTogglePublished());
+        return;
+      }
       setError(err instanceof Error ? err.message : "Save failed");
     }
     setSaving(false);
@@ -244,6 +284,10 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
       onDeleted?.(quiz.id);
       onClose();
     } catch (err) {
+      if (err instanceof Error && (err as Error & { code?: string }).code === "NOT_ENROLLED") {
+        await triggerEnrollPrompt(() => void handleDelete());
+        return;
+      }
       setError(err instanceof Error ? err.message : "Delete failed");
     }
     setSaving(false);
@@ -272,6 +316,10 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
       }
       router.refresh();
     } catch (err) {
+      if (err instanceof Error && (err as Error & { code?: string }).code === "NOT_ENROLLED") {
+        await triggerEnrollPrompt(() => void handleSaveQuestions());
+        return;
+      }
       setError(err instanceof Error ? err.message : "Save failed");
     }
     setSaving(false);
@@ -1001,6 +1049,36 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
             )}
           </>
       </div>
+
+      {enrollPromptOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-surface rounded-2xl border border-border shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-dark-text mb-2">Add yourself as instructor?</h3>
+            <p className="text-sm text-muted-text mb-5">
+              You have staff access, but you&apos;re not currently enrolled as an instructor on{" "}
+              <span className="text-dark-text font-medium">{enrollCourseName}</span>. Add yourself now so you can save changes here?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelEnroll}
+                disabled={enrolling}
+                className="text-sm text-muted-text hover:text-dark-text transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEnroll}
+                disabled={enrolling}
+                className="text-sm font-semibold bg-teal-primary text-white px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {enrolling ? "Adding…" : "Add me as instructor"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

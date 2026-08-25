@@ -31,6 +31,12 @@ async function getAuthedInstructorOrTa(courseId: string): Promise<{ error?: stri
   return { error: 'Unauthorized', code: 'NOT_STAFF' };
 }
 
+function throwAuthError(auth: { error?: string; code?: string }): never {
+  const e = new Error(auth.error) as Error & { code?: string }
+  e.code = auth.code
+  throw e
+}
+
 export async function createQuizWithQuestions(
   courseId: string,
   title: string,
@@ -40,11 +46,7 @@ export async function createQuizWithQuestions(
   linkedDayId: string | null = null
 ) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) {
-    const e = new Error(auth.error) as Error & { code?: string }
-    e.code = auth.code
-    throw e
-  }
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient()
   const identifier = `paste-${Date.now()}`
   const { data, error } = await admin
@@ -69,7 +71,7 @@ export async function createQuizWithQuestions(
 
 export async function createQuiz(courseId: string) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const identifier = `new-quiz-${Date.now()}`;
   const { data, error } = await admin
@@ -96,7 +98,7 @@ export async function updateQuizMeta(
   updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null }
 ) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -108,7 +110,7 @@ export async function updateQuizMeta(
 
 export async function updateQuizQuestions(quizId: string, courseId: string, questions: QuizQuestion[]) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -120,7 +122,7 @@ export async function updateQuizQuestions(quizId: string, courseId: string, ques
 
 export async function toggleQuizPublished(quizId: string, courseId: string, published: boolean) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -132,7 +134,7 @@ export async function toggleQuizPublished(quizId: string, courseId: string, publ
 
 export async function deleteQuiz(quizId: string, courseId: string) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   // Verify quiz belongs to this course
   const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
@@ -144,7 +146,7 @@ export async function deleteQuiz(quizId: string, courseId: string) {
 
 export async function getConductSubmissions(quizId: string, courseId: string) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   // Verify quiz belongs to this course
   const { data: quiz } = await admin.from("quizzes").select("id").eq("id", quizId).eq("course_id", courseId).single();
@@ -171,7 +173,7 @@ export async function getConductSubmissions(quizId: string, courseId: string) {
 
 export async function updateQuizDay(quizId: string, courseId: string, dayTitle: string | null) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
@@ -194,7 +196,7 @@ export async function upsertQuizFromJson(
   }
 ) {
   const auth = await getAuthedInstructorOrTa(courseId)
-  if (auth.error) throw new Error(auth.error)
+  if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const { data, error } = await admin
     .from("quizzes")
