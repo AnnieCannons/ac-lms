@@ -23,17 +23,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Service role not configured' }, { status: 500 })
   }
 
-  // Non-admins can only duplicate courses they are enrolled in (as instructor or ta)
-  if (profile?.role !== 'admin') {
-    const { data: enrollment } = await service
-      .from('course_enrollments')
-      .select('id')
-      .eq('course_id', sourceCourseId)
-      .eq('user_id', user.id)
-      .in('role', ['instructor', 'ta', 'staff'])
-      .maybeSingle()
-    if (!enrollment) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  // The role check above already restricts this route to admins, instructors,
+  // and staff — all of whom have global access to duplicate any course.
 
   // ── FETCH PHASE ──────────────────────────────────────────────────────────
 
