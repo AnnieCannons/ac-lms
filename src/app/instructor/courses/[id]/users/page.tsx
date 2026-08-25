@@ -74,11 +74,11 @@ export default async function InstructorUsersPage({
       }
     })
 
-  // Global instructors list — all users with instructor/admin role
+  // Global instructors list — all users with instructor/staff/admin role
   const { data: instructorUsers } = await admin
     .from('users')
     .select('id, name, email, avatar_url')
-    .in('role', ['instructor', 'admin'])
+    .in('role', ['instructor', 'staff', 'admin'])
     .order('name')
 
   // All courses for the assignment dropdown

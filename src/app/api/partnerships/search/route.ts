@@ -43,7 +43,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ partners: exact.map(formatContact) })
     }
 
-    // Domain fallback — skip generic providers
+    // Domain fallback — skip generic providers. This only tells us the
+    // organization, not which specific person the email belongs to, so we
+    // must not attach a matched_contact unless exactly one contact at that
+    // organization shares the domain — otherwise callers may mistakenly
+    // attribute the interaction to the wrong named contact.
     const domain = email.split('@')[1]
     if (domain && !COMMON_DOMAINS.has(domain)) {
       const { data: byDomain } = await supabase
@@ -51,17 +55,29 @@ export async function GET(req: NextRequest) {
         .select('id, name, email, primary_departments, partners(id, name, status, city, state)')
         .ilike('email', `%@${domain}`)
         .neq('is_archived', true)
-        .limit(5)
+        .limit(20)
 
       if (byDomain?.length) {
-        const seen = new Set<string>()
-        const partners = byDomain
-          .filter(c => {
-            const p = c.partners as unknown as PartnerSnippet
-            return p && !seen.has(p.id) && !!seen.add(p.id)
+        const contactsByPartner = new Map<string, typeof byDomain>()
+        for (const c of byDomain) {
+          const p = c.partners as unknown as PartnerSnippet
+          if (!p) continue
+          const group = contactsByPartner.get(p.id)
+          if (group) group.push(c)
+          else contactsByPartner.set(p.id, [c])
+        }
+
+        const partners = Array.from(contactsByPartner.values())
+          .slice(0, 5)
+          .map(contacts => {
+            const partner = contacts[0].partners as unknown as PartnerSnippet
+            return {
+              ...partner,
+              matched_contact: contacts.length === 1 ? formatContact(contacts[0]).matched_contact : null,
+              searched_email: email,
+            }
           })
-          .map(formatContact)
-        return NextResponse.json({ partners })
+        return NextResponse.json({ partners, match_type: 'domain' })
       }
     }
 

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('course_id', sourceCourseId)
       .eq('user_id', user.id)
-      .in('role', ['instructor', 'ta'])
+      .in('role', ['instructor', 'ta', 'staff'])
       .maybeSingle()
     if (!enrollment) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

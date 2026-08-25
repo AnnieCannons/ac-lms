@@ -99,6 +99,14 @@ function buildLogCard_(partner, subject, userEmail, threadInfo) {
         htmlEscape_(partner.matched_contact.name) + ' &lt;' + htmlEscape_(partner.matched_contact.email) + '&gt;'
       )
     );
+  } else if (partner.searched_email) {
+    // Matched by organization domain only — no specific contact on file for
+    // this address, so show the real address instead of guessing a name.
+    infoSection.addWidget(
+      CardService.newTextParagraph().setText(
+        '<font color="#666666">' + htmlEscape_(partner.searched_email) + ' (not on file as a contact yet)</font>'
+      )
+    );
   }
 
   if (threadInfo) {

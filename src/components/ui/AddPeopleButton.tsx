@@ -27,12 +27,6 @@ const INVITE_TYPES: { role: InviteRole; label: string; description: string; colo
     color: 'border-blue-400/40 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40',
   },
   {
-    role: 'instructor',
-    label: 'Instructor',
-    description: 'Course instructors — added globally, with access to all courses',
-    color: 'border-purple-primary/40 hover:border-purple-primary hover:bg-purple-light/50',
-  },
-  {
     role: 'staff',
     label: 'Staff',
     description: 'Operations and partnerships staff — added globally, with access to all courses',
