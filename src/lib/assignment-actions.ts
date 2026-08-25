@@ -46,7 +46,7 @@ export async function updateAssignmentDueDate(
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const isAdmin = profile?.role === 'admin'
-  const isInstructor = profile?.role === 'instructor'
+  const isInstructor = profile?.role === 'instructor' || profile?.role === 'staff'
 
   if (!isAdmin && !isInstructor) return { error: 'Not authorized' }
 

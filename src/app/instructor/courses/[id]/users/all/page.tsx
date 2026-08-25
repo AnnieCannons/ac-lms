@@ -65,11 +65,11 @@ export default async function AllUsersPage({
     courses: enrollmentsByCourseStudent.get(u.id) ?? [],
   }))
 
-  // All instructors/admins (deduplicated from users table)
+  // All instructors/staff/admins (deduplicated from users table)
   const { data: staffUsers } = await admin
     .from('users')
     .select('id, name, email, role')
-    .in('role', ['instructor', 'admin'])
+    .in('role', ['instructor', 'staff', 'admin'])
     .order('name', { ascending: true })
 
   return (

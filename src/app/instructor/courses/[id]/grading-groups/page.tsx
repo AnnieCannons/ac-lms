@@ -27,9 +27,9 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
     : { data: [] }
   const students = (rawStudents ?? []).map(s => ({ id: s.id, name: s.name, email: s.email, avatarUrl: s.avatar_url }))
 
-  // Graders: instructors + TAs assigned to this course
+  // Graders: instructors + staff + TAs assigned to this course
   const { data: graderEnrollments } = await admin
-    .from('course_enrollments').select('user_id, role').eq('course_id', id).in('role', ['instructor', 'ta'])
+    .from('course_enrollments').select('user_id, role').eq('course_id', id).in('role', ['instructor', 'ta', 'staff'])
   const graderIds = graderEnrollments?.map(e => e.user_id) ?? []
   const { data: graderUsers } = graderIds.length
     ? await admin.from('users').select('id, name, avatar_url').in('id', graderIds).order('name')

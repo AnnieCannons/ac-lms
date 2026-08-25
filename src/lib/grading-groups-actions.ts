@@ -130,7 +130,7 @@ export async function enableWeeklyRotation(
     .from('course_enrollments')
     .select('user_id')
     .eq('course_id', courseId)
-    .in('role', ['instructor', 'ta'])
+    .in('role', ['instructor', 'ta', 'staff'])
   const graderIds = graderEnrollments?.map(e => e.user_id) ?? []
   const { data: graderUsers } = graderIds.length
     ? await admin.from('users').select('id').in('id', graderIds).order('name')
