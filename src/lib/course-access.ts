@@ -11,10 +11,10 @@ export function isCourseAccessError(result: CourseAccessResult): result is Cours
 }
 
 /**
- * Verifies the caller is global instructor/staff/admin AND, unless they're admin,
- * enrolled as an instructor on this specific course. `code: 'NOT_ENROLLED'` is the
- * only case where the client should offer a "add yourself as instructor" recovery
- * prompt — it means they're already trusted staff, just missing the per-course link.
+ * Verifies the caller is global instructor/staff/admin. Instructors and staff are
+ * globally trusted — any course, not just ones they're personally enrolled in — so
+ * no per-course enrollment check is required. `courseId` is accepted for call-site
+ * consistency and future scoping but is not currently used to restrict access.
  */
 export async function requireCourseInstructorAccess(courseId: string): Promise<CourseAccessResult> {
   const supabase = await createServerSupabaseClient()
@@ -24,25 +24,9 @@ export async function requireCourseInstructorAccess(courseId: string): Promise<C
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const role = profile?.role
 
-  if (role === 'admin') return { user, role }
+  if (role === 'admin' || role === 'instructor' || role === 'staff') return { user, role }
 
-  if (role !== 'instructor' && role !== 'staff') {
-    return { error: 'Only instructors, staff, or admins can do this.', code: 'NOT_STAFF' }
-  }
-
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('role')
-    .eq('user_id', user.id)
-    .eq('course_id', courseId)
-    .eq('role', 'instructor')
-    .maybeSingle()
-
-  if (!enrollment) {
-    return { error: 'You are not enrolled as an instructor on this course.', code: 'NOT_ENROLLED' }
-  }
-
-  return { user, role }
+  return { error: 'Only instructors, staff, or admins can do this.', code: 'NOT_STAFF' }
 }
 
 export async function getCourseIdForModule(

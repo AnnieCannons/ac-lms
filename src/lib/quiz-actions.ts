@@ -8,18 +8,9 @@ async function getAuthedInstructorOrTa(courseId: string): Promise<{ error?: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not authenticated', code: 'NOT_AUTHENTICATED' };
   const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-  if (profile?.role === 'admin') return {};
-  if (profile?.role === 'instructor' || profile?.role === 'staff') {
-    const { data: enrollment } = await supabase
-      .from('course_enrollments')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('course_id', courseId)
-      .maybeSingle()
-    if (!enrollment) return { error: 'Not enrolled in this course', code: 'NOT_ENROLLED' };
-    return {};
-  }
-  // TA: role='student' in users table but 'ta' in course_enrollments
+  // Instructors/staff are globally trusted — any course, no per-course enrollment required.
+  if (profile?.role === 'admin' || profile?.role === 'instructor' || profile?.role === 'staff') return {};
+  // TA: role='student' in users table but 'ta' in course_enrollments — this is a real, course-scoped boundary.
   const { data: taEnrollment } = await supabase
     .from('course_enrollments')
     .select('role')
