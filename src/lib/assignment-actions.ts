@@ -40,26 +40,10 @@ export async function updateAssignmentDueDate(
   dueDate: string | null,
   courseId: string,
 ): Promise<{ error?: string }> {
+  const access = await requireCourseInstructorAccess(courseId)
+  if (isCourseAccessError(access)) return { error: access.error }
+
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
-
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isAdmin = profile?.role === 'admin'
-  const isInstructor = profile?.role === 'instructor' || profile?.role === 'staff'
-
-  if (!isAdmin && !isInstructor) return { error: 'Not authorized' }
-
-  // Instructors must be enrolled in the course
-  if (isInstructor) {
-    const { data: enrollment } = await supabase
-      .from('course_enrollments')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('course_id', courseId)
-      .maybeSingle()
-    if (!enrollment) return { error: 'Not enrolled in this course' }
-  }
 
   // Verify the assignment actually belongs to this course
   const { data: assignment } = await supabase
