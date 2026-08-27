@@ -371,13 +371,25 @@ export async function importDeck(sourceDeckId: string) {
 
 type Rating = 'Again' | 'Hard' | 'Good' | 'Easy'
 
-function computeSM2(interval: number, ef: number, rating: Rating) {
+// Learning steps in minutes: step 0 = 1min, step 1 = 10min. After step 1, card graduates.
+const LEARNING_STEPS_MINUTES = [1, 10]
+
+function minutesFromNow(minutes: number): string {
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString()
+}
+
+function daysFromNow(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+function computeGraduatedSM2(interval: number, ef: number, rating: Rating) {
   let newInterval = interval
   let newEF = ef
 
   if (rating === 'Again') {
     newInterval = 1
-    // EF unchanged
   } else if (rating === 'Hard') {
     newEF = Math.max(1.3, ef - 0.15)
     newInterval = Math.max(1, Math.ceil(interval * 1.2))
@@ -385,7 +397,6 @@ function computeSM2(interval: number, ef: number, rating: Rating) {
     if (interval === 0) newInterval = 1
     else if (interval === 1) newInterval = 6
     else newInterval = Math.round(interval * ef)
-    // EF unchanged
   } else {
     // Easy
     newEF = ef + 0.15
@@ -394,13 +405,7 @@ function computeSM2(interval: number, ef: number, rating: Rating) {
     else newInterval = Math.round(interval * ef * 1.3)
   }
 
-  const newState: 'in_progress' | 'review' = newInterval >= 2 ? 'review' : 'in_progress'
-
-  const due = new Date()
-  due.setDate(due.getDate() + newInterval)
-  const dueDate = due.toISOString().split('T')[0]
-
-  return { newInterval, newEF, newState, dueDate }
+  return { newInterval, newEF }
 }
 
 export async function rateCard(cardId: string, rating: Rating) {
@@ -408,16 +413,70 @@ export async function rateCard(cardId: string, rating: Rating) {
 
   const { data: existing } = await supabase
     .from('card_progress')
-    .select('interval, easiness_factor')
+    .select('interval, easiness_factor, learning_step, state')
     .eq('card_id', cardId)
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const { newInterval, newEF, newState, dueDate } = computeSM2(
-    existing?.interval ?? 0,
-    existing?.easiness_factor ?? 2.5,
-    rating
-  )
+  const currentStep = existing?.learning_step ?? 0
+  const isGraduated = existing?.state === 'review'
+  const interval = existing?.interval ?? 0
+  const ef = existing?.easiness_factor ?? 2.5
+
+  let newLearningStep = currentStep
+  let newInterval = interval
+  let newEF = ef
+  let newState: 'in_progress' | 'review' = 'in_progress'
+  let dueDate = daysFromNow(1)
+  let dueAt: string | null = null
+
+  if (isGraduated && rating === 'Again') {
+    // Lapse: send back to learning
+    newLearningStep = 0
+    newState = 'in_progress'
+    dueAt = minutesFromNow(LEARNING_STEPS_MINUTES[0])
+    dueDate = daysFromNow(1)
+  } else if (!isGraduated) {
+    // Still in learning phase
+    if (rating === 'Again') {
+      newLearningStep = 0
+      dueAt = minutesFromNow(LEARNING_STEPS_MINUTES[0])
+    } else if (rating === 'Hard') {
+      // Average of current and next step (Anki behavior)
+      const curr = LEARNING_STEPS_MINUTES[currentStep] ?? LEARNING_STEPS_MINUTES[0]
+      const next = LEARNING_STEPS_MINUTES[currentStep + 1] ?? curr
+      dueAt = minutesFromNow(Math.round((curr + next) / 2))
+    } else if (rating === 'Good') {
+      const nextStep = currentStep + 1
+      if (nextStep >= LEARNING_STEPS_MINUTES.length) {
+        // Graduate
+        newLearningStep = nextStep
+        newState = 'review'
+        newInterval = 1
+        dueDate = daysFromNow(1)
+        dueAt = null
+      } else {
+        newLearningStep = nextStep
+        dueAt = minutesFromNow(LEARNING_STEPS_MINUTES[nextStep])
+      }
+    } else {
+      // Easy: graduate immediately with 4-day interval
+      newLearningStep = LEARNING_STEPS_MINUTES.length
+      newState = 'review'
+      newInterval = 4
+      newEF = ef + 0.15
+      dueDate = daysFromNow(4)
+      dueAt = null
+    }
+  } else {
+    // Graduated card, normal SM-2
+    const result = computeGraduatedSM2(interval, ef, rating)
+    newInterval = result.newInterval
+    newEF = result.newEF
+    newState = 'review'
+    dueDate = daysFromNow(newInterval)
+    dueAt = null
+  }
 
   await supabase.from('card_progress').upsert(
     {
@@ -426,7 +485,9 @@ export async function rateCard(cardId: string, rating: Rating) {
       state: newState,
       interval: newInterval,
       easiness_factor: newEF,
+      learning_step: newLearningStep,
       due_date: dueDate,
+      due_at: dueAt,
       last_reviewed_at: new Date().toISOString(),
     },
     { onConflict: 'user_id,card_id' }

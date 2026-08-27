@@ -10,6 +10,40 @@ function sanitize(html: string) {
   return DOMPurify.sanitize(html)
 }
 
+const LEARNING_STEPS_MINUTES = [1, 10]
+
+function previewInterval(isGraduated: boolean, learningStep: number, interval: number, ef: number, rating: string): string {
+  if (!isGraduated) {
+    // Learning phase previews (in minutes)
+    if (rating === 'Again') return `<${LEARNING_STEPS_MINUTES[0]}m`
+    if (rating === 'Hard') {
+      const curr = LEARNING_STEPS_MINUTES[learningStep] ?? LEARNING_STEPS_MINUTES[0]
+      const next = LEARNING_STEPS_MINUTES[learningStep + 1] ?? curr
+      return `<${Math.round((curr + next) / 2)}m`
+    }
+    if (rating === 'Good') {
+      const nextStep = learningStep + 1
+      if (nextStep >= LEARNING_STEPS_MINUTES.length) return '1d' // graduates
+      return `<${LEARNING_STEPS_MINUTES[nextStep]}m`
+    }
+    // Easy: graduate with 4d
+    return '4d'
+  }
+
+  // Graduated: SM-2 day previews
+  if (rating === 'Again') return '1d'
+  let next = interval
+  if (rating === 'Hard') next = Math.max(1, Math.ceil(interval * 1.2))
+  else if (rating === 'Good') next = interval <= 1 ? (interval === 0 ? 1 : 6) : Math.round(interval * ef)
+  else next = interval === 0 ? 4 : interval === 1 ? 6 : Math.round(interval * ef * 1.3)
+
+  if (next === 1) return '1d'
+  if (next < 7) return `${next}d`
+  if (next < 30) return `${Math.round(next / 7)}w`
+  if (next < 365) return `${Math.round(next / 30)}mo`
+  return `${Math.round(next / 365)}y`
+}
+
 const RATINGS = [
   { label: 'Again', className: 'rating-again border border-red-300 text-red-700 bg-red-100 hover:bg-red-200' },
   { label: 'Hard',  className: 'rating-hard border border-orange-300 text-orange-700 bg-orange-100 hover:bg-orange-200' },
@@ -288,10 +322,13 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
               </div>
               <div className="flex justify-center gap-3">
                 {RATINGS.map(r => (
-                  <button key={r.label} onClick={() => handleRate(r.label)}
-                    className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${r.className}`}>
-                    {r.label}
-                  </button>
+                  <div key={r.label} className="flex flex-col items-center gap-1">
+                    <span className="text-[11px] text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
+                    <button onClick={() => handleRate(r.label)}
+                      className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${r.className}`}>
+                      {r.label}
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -303,10 +340,13 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 <p className="text-xs text-muted-text">Click the blank to reveal</p>
               ) : (
                 RATINGS.map(r => (
-                  <button key={r.label} onClick={() => handleRate(r.label)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
-                    {r.label}
-                  </button>
+                  <div key={r.label} className="flex flex-col items-center gap-1">
+                    <span className="text-[11px] text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
+                    <button onClick={() => handleRate(r.label)}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
+                      {r.label}
+                    </button>
+                  </div>
                 ))
               )}
             </div>
@@ -323,10 +363,13 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 </button>
               ) : (
                 RATINGS.map(r => (
-                  <button key={r.label} onClick={() => handleRate(r.label)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
-                    {r.label}
-                  </button>
+                  <div key={r.label} className="flex flex-col items-center gap-1">
+                    <span className="text-[11px] text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
+                    <button onClick={() => handleRate(r.label)}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
+                      {r.label}
+                    </button>
+                  </div>
                 ))
               )}
             </div>

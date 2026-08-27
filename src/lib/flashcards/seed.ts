@@ -49,6 +49,10 @@ export type Card = {
   updated_at: string
   source_card_id: string | null
   blank_index?: number | null
+  interval?: number
+  easiness_factor?: number
+  learning_step?: number
+  is_graduated?: boolean
 }
 
 export type CardProgress = {
@@ -59,6 +63,8 @@ export type CardProgress = {
   interval: number
   easiness_factor: number
   due_date: string
+  due_at: string | null
+  learning_step: number
   last_reviewed_at: string | null
 }
 
