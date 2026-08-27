@@ -14,8 +14,49 @@ const RULES = [
   { heading: 'First line = front', body: 'The first line of each section becomes the front of the card. If you want an image on the front, keep your question text on the same line as the image.' },
   { heading: 'Everything below = back', body: 'All content after the first line becomes the back. It can include bullet points, code blocks, bold text, images, and more.' },
   { heading: 'Blank line = new card', body: 'Press Enter twice (blank line) to separate one card from the next.' },
-  { heading: 'All cards start as Basic', body: 'You can change the card type to Type In or others on the deck page after importing.' },
+  { heading: 'All cards start as Basic', body: 'You can change the card type on the deck page after importing.' },
 ]
+
+const EXAMPLE_TEXT = `What is a variable?
+A container that stores a value under a name.
+
+Name three CSS box model properties.
+• margin
+• padding
+• border
+
+What does the following code do?
+console.log("hello world")
+Prints "hello world" to the console.`
+
+const EXAMPLE_HTML = [
+  '<p>What is a variable?</p><p>A container that stores a value under a name.</p>',
+  '<p>Name three CSS box model properties.</p><p>• margin</p><p>• padding</p><p>• border</p>',
+  '<p>What does the following code do?</p><p>console.log("hello world")</p><p>Prints "hello world" to the console.</p>',
+].join('<p></p>')
+
+function CopyExampleButton() {
+  const [copied, setCopied] = useState(false)
+  async function handleCopy() {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([EXAMPLE_TEXT], { type: 'text/plain' }),
+        'text/html': new Blob([EXAMPLE_HTML], { type: 'text/html' }),
+      }),
+    ])
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="text-xs text-teal-primary hover:opacity-70 transition-opacity"
+    >
+      {copied ? 'Copied!' : 'Copy example'}
+    </button>
+  )
+}
 
 export default function BulkImportClient({ deckId, deckTitle }: Props) {
   const router = useRouter()
@@ -78,19 +119,22 @@ export default function BulkImportClient({ deckId, deckTitle }: Props) {
               ))}
             </ul>
             <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-widest">Example</p>
-              <div className="bg-background rounded-lg p-4 font-mono text-xs text-dark-text leading-relaxed whitespace-pre-wrap">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-text uppercase tracking-widest">Example</p>
+                <CopyExampleButton />
+              </div>
+              <div className="bg-background rounded-lg p-4 font-mono text-xs text-dark-text leading-relaxed">
                 <p>What is a variable?</p>
                 <p>A container that stores a value under a name.</p>
-                <p>&nbsp;</p>
+                <p className="h-3" />
                 <p>Name three CSS box model properties.</p>
                 <p>• margin</p>
                 <p>• padding</p>
                 <p>• border</p>
-                <p>&nbsp;</p>
+                <p className="h-3" />
                 <p>What does the following code do?</p>
-                <pre className="bg-border/30 rounded px-3 py-2 my-1 text-xs overflow-x-auto"><code>console.log("hello world")</code></pre>
-                <p>Prints "hello world" to the console.</p>
+                <p>console.log(&quot;hello world&quot;)</p>
+                <p>Prints &quot;hello world&quot; to the console.</p>
               </div>
             </div>
           </div>

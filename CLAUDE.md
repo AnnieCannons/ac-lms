@@ -157,7 +157,7 @@ Deck card UI:
   What does CSS stand for?
   Cascading Style Sheets
   ```
-  Line 1 of each pair = front, line 2 = back, blank line separates pairs. All default to `basic` type; user can change before confirming.
+  Line 1 of each pair = front, following lines = back, blank line separates pairs. All default to `basic` type; user can change before confirming.
 - Bulk-created decks go into the instructor's own account and are shared via the existing share system
 - Stats page is a single scrollable page (no sub-pages). Course dropdown filters student activity table; most-studied decks is scoped to students in the selected course (any deck counts, not filtered by course tag).
 - Student activity table: all students enrolled in selected LMS course, past calendar week by default, columns: Name | Cards Studied | Days Active | Most Studied Deck(s)

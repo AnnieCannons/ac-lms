@@ -10,7 +10,7 @@ const PROSE = 'prose prose-sm max-w-none [&_code]:bg-border/40 [&_code]:px-1 [&_
 const TYPE_LABELS: Record<string, string> = {
   basic: 'Basic',
   type_in: 'Type In',
-  cloze: 'Cloze',
+  cloze: 'Fill in the Blank',
   image_occlusion: 'Image Occlusion',
 }
 

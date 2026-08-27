@@ -10,7 +10,7 @@ import type { Card } from '@/lib/flashcards/seed'
 const TYPE_LABELS: Record<string, string> = {
   basic: 'Basic',
   type_in: 'Type In',
-  cloze: 'Cloze',
+  cloze: 'Fill in the Blank',
   image_occlusion: 'Image Occlusion',
 }
 

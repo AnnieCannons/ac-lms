@@ -8,8 +8,8 @@ import type { CardType } from '@/lib/flashcards/seed'
 const CARD_TYPES: { value: CardType; label: string }[] = [
   { value: 'basic', label: 'Basic' },
   { value: 'type_in', label: 'Type In' },
-  { value: 'cloze', label: 'Cloze' },
-  { value: 'image_occlusion', label: 'Image Occlusion' },
+  { value: 'cloze', label: 'Fill in the Blank' },
+  // { value: 'image_occlusion', label: 'Image Occlusion' }, // hidden until implemented
 ]
 
 type Props = {
@@ -67,6 +67,21 @@ export default function CardForm({
             </button>
           ))}
         </div>
+        {cardType === 'basic' && (
+          <p className="text-xs text-muted-text pt-4">
+            Create a regular flashcard with a front and back. Write the prompt on the front and the answer on the back.
+          </p>
+        )}
+        {cardType === 'type_in' && (
+          <p className="text-xs text-muted-text pt-4">
+            Create a card where the answer is typed in. Enter the prompt or question on the front, then enter the correct answer you want to practice below.
+          </p>
+        )}
+        {cardType === 'cloze' && (
+          <p className="text-xs text-muted-text pt-4">
+            Type a sentence, highlight a word or phrase, then click <span className="font-medium text-teal-primary">[ Blank ]</span> in the toolbar to turn it into a blank. Each blank becomes its own card.
+          </p>
+        )}
       </div>
 
       {isComingSoon ? (
