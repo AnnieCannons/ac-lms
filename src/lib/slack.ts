@@ -80,9 +80,11 @@ export function isSchedulableTime(postAt: number): boolean {
 
 /** Schedule a Slack DM to an email address at a future unix timestamp. Returns true if scheduled. */
 export async function scheduleSlackDM(email: string, text: string, postAt: number): Promise<boolean> {
-  if (!SLACK_BOT_TOKEN) return false
-  const slackId = await slackLookupByEmail(email)
-  if (!slackId) return false
+  const scheduled = await scheduleSlackDMs(email, text, [postAt])
+  return scheduled > 0
+}
+
+async function scheduleMessageForSlackId(slackId: string, text: string, postAt: number): Promise<boolean> {
   try {
     const res = await fetch('https://slack.com/api/chat.scheduleMessage', {
       method: 'POST',
@@ -99,4 +101,20 @@ export async function scheduleSlackDM(email: string, text: string, postAt: numbe
     console.warn('Slack scheduleMessage failed:', e)
     return false
   }
+}
+
+/**
+ * Schedule Slack DMs to an email address at several future unix timestamps.
+ * Looks up the Slack ID once and fires the schedule calls in parallel, instead
+ * of a lookup+schedule round trip per timestamp — the addon routes call this
+ * with one entry per selected reminder checkbox, and doing those serially was
+ * slow enough to blow past the Gmail add-on's execution time limit.
+ * Returns the number successfully scheduled.
+ */
+export async function scheduleSlackDMs(email: string, text: string, postAts: number[]): Promise<number> {
+  if (!SLACK_BOT_TOKEN || postAts.length === 0) return 0
+  const slackId = await slackLookupByEmail(email)
+  if (!slackId) return 0
+  const results = await Promise.all(postAts.map((postAt) => scheduleMessageForSlackId(slackId, text, postAt)))
+  return results.filter(Boolean).length
 }

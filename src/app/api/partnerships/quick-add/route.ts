@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { notifyByEmail, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
+import { notifyByEmail, scheduleSlackDM, scheduleSlackDMs, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 import { normalizeDepartments, normalizeRemindDays } from '@/lib/partnerships/addon-multi-select'
 
 function checkApiKey(req: NextRequest) {
@@ -97,28 +97,33 @@ export async function POST(req: NextRequest) {
   const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
   const slackEmail = userRow.slack_email || user_email
 
-  // Immediate DM so they go complete the profile
-  await notifyByEmail(
-    slackEmail,
-    `🤝 New partner added: *${name.trim()}*\nComplete their profile: ${APP_URL}/instructor/partnerships/${partner.id}?edit=1`
-  )
+  // Immediate DM so they go complete the profile, in parallel with any reminder scheduling
+  const notifications: Promise<unknown>[] = [
+    notifyByEmail(
+      slackEmail,
+      `🤝 New partner added: *${name.trim()}*\nComplete their profile: ${APP_URL}/instructor/partnerships/${partner.id}?edit=1`
+    ),
+  ]
 
   if (hasExactReminder) {
-    await scheduleSlackDM(
-      slackEmail,
-      `⏰ Follow-up reminder: ${name.trim()}\n${APP_URL}/instructor/partnerships/${partner.id}`,
-      exactPostAt!
-    )
-  } else {
-    for (const days of remindDaysList) {
-      const postAt = Math.floor(Date.now() / 1000) + days * 86400
-      await scheduleSlackDM(
+    notifications.push(
+      scheduleSlackDM(
         slackEmail,
         `⏰ Follow-up reminder: ${name.trim()}\n${APP_URL}/instructor/partnerships/${partner.id}`,
-        postAt
+        exactPostAt!
       )
-    }
+    )
+  } else if (remindDaysList.length > 0) {
+    notifications.push(
+      scheduleSlackDMs(
+        slackEmail,
+        `⏰ Follow-up reminder: ${name.trim()}\n${APP_URL}/instructor/partnerships/${partner.id}`,
+        remindDaysList.map((days) => Math.floor(Date.now() / 1000) + days * 86400)
+      )
+    )
   }
+
+  await Promise.all(notifications)
 
   return NextResponse.json({ success: true, partnerId: partner.id })
 }
