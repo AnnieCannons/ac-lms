@@ -27,17 +27,22 @@ export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 border border-border text-muted-text text-sm font-medium px-4 py-2 rounded-lg hover:text-teal-primary hover:border-teal-primary transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Import Deck
-          </button>
+          <div className="relative group/tip">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 border border-border text-muted-text text-sm font-medium px-4 py-2 rounded-lg hover:text-teal-primary hover:border-teal-primary transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Import Deck
+            </button>
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-44 text-center rounded bg-zinc-800 px-1.5 py-1 text-[11px] text-white opacity-0 group-hover/tip:opacity-100 transition-opacity">
+              Import a deck shared with you via a link
+            </span>
+          </div>
           <Link
             href="/flashcards/decks/new"
             className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
