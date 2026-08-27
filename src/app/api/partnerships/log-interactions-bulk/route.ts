@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
+import { scheduleSlackDM, scheduleSlackDMs, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 import { normalizeDepartments, normalizeRemindDays } from '@/lib/partnerships/addon-multi-select'
 
 function checkApiKey(req: NextRequest) {
@@ -91,14 +91,11 @@ export async function POST(req: NextRequest) {
   } else if (remindDaysList.length > 0) {
     const { data: partner } = await supabase.from('partners').select('name').eq('id', partner_id).single()
     const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
-    for (const days of remindDaysList) {
-      const postAt = Math.floor(Date.now() / 1000) + days * 86400
-      await scheduleSlackDM(
-        userRow.slack_email || user_email,
-        `⏰ Follow-up reminder: ${partner?.name ?? 'partner'}\n${APP_URL}/instructor/partnerships/${partner_id}`,
-        postAt
-      )
-    }
+    await scheduleSlackDMs(
+      userRow.slack_email || user_email,
+      `⏰ Follow-up reminder: ${partner?.name ?? 'partner'}\n${APP_URL}/instructor/partnerships/${partner_id}`,
+      remindDaysList.map((days) => Math.floor(Date.now() / 1000) + days * 86400)
+    )
   }
 
   return NextResponse.json({ success: true, count: rows.length })
