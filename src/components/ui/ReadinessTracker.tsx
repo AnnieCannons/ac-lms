@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection } from '@/components/ui/ReadinessWidgets'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection } from '@/components/ui/ReadinessWidgets'
 import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord } from '@/lib/readiness-actions'
 import type { EscalationStatus } from '@/lib/readiness'
 
@@ -148,6 +148,8 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
         <h1 className="text-2xl sm:text-3xl font-bold text-dark-text mb-1">Weekly Readiness</h1>
         <p className="text-muted-text">Welcome back, <span className="font-semibold" style={{ color: '#6D2B5E' }}>{userName}</span></p>
       </div>
+
+      <HowThisWorksSection audience="student" />
 
       <div className="bg-surface rounded-2xl border border-border p-6 mb-6">
         <div className="flex items-center justify-between mb-4">

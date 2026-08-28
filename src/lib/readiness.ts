@@ -399,6 +399,8 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
         missing_count: missingCount,
         needs_revision_count: needsRevisionCount,
         attendance_pct_missed: attendancePctMissed,
+        blocks_missed: attendance?.absencesLastWeek ?? 0,
+        blocks_total: attendance?.blocksLastWeek ?? 0,
         readiness_score: score,
       }, { onConflict: 'student_id,course_id,week_start' })
 

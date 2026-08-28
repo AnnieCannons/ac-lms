@@ -5,7 +5,7 @@ import { saveGrade } from '@/lib/grade-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection } from '@/components/ui/ReadinessWidgets'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection } from '@/components/ui/ReadinessWidgets'
 import type { ReadinessHistoryPoint, EscalationEventRecord } from '@/lib/readiness-actions'
 
 export type CategorizedAssignment = {
@@ -197,6 +197,8 @@ export default function StudentDetailView({
 
       {/* ── Readiness score + escalation history ── */}
       {readinessHistory.length > 0 && (
+        <>
+        <HowThisWorksSection audience="staff" />
         <div className="bg-surface rounded-2xl border border-border p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide">Weekly Readiness</h2>
@@ -218,6 +220,7 @@ export default function StudentDetailView({
             </div>
           )}
         </div>
+        </>
       )}
 
       {/* ── Stat cards ── */}

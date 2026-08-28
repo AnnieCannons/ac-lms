@@ -267,13 +267,13 @@ async function status() {
 
   const { data: snapshots } = await supabase
     .from('student_stats_snapshots')
-    .select('week_start, missing_count, needs_revision_count, attendance_pct_missed, readiness_score')
+    .select('week_start, missing_count, needs_revision_count, attendance_pct_missed, blocks_missed, blocks_total, readiness_score')
     .eq('student_id', studentId).eq('course_id', courseId)
     .order('week_start', { ascending: true })
 
   console.log('\n--- Weekly snapshots ---')
   for (const s of snapshots ?? []) {
-    console.log(`  ${s.week_start}: score=${s.readiness_score?.toFixed(2)}  missing=${s.missing_count}  revision=${s.needs_revision_count}  attendance_missed=${s.attendance_pct_missed}%`)
+    console.log(`  ${s.week_start}: score=${s.readiness_score?.toFixed(2)}  missing=${s.missing_count}  revision=${s.needs_revision_count}  attendance=${s.blocks_missed ?? 0}/${s.blocks_total ?? 0} blocks (${s.attendance_pct_missed}%)`)
   }
 
   const { data: state } = await supabase

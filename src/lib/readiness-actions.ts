@@ -12,6 +12,8 @@ export type ReadinessHistoryPoint = {
   missing: number
   needsRevision: number
   attendancePctMissed: number | null
+  blocksMissed: number | null
+  blocksTotal: number | null
 }
 
 type SnapshotRow = {
@@ -19,8 +21,12 @@ type SnapshotRow = {
   missing_count: number
   needs_revision_count: number
   attendance_pct_missed: number | null
+  blocks_missed: number | null
+  blocks_total: number | null
   readiness_score: number | null
 }
+
+const SNAPSHOT_COLUMNS = 'week_start, missing_count, needs_revision_count, attendance_pct_missed, blocks_missed, blocks_total, readiness_score'
 
 function toHistoryPoint(r: SnapshotRow): ReadinessHistoryPoint {
   return {
@@ -30,6 +36,8 @@ function toHistoryPoint(r: SnapshotRow): ReadinessHistoryPoint {
     missing: r.missing_count,
     needsRevision: r.needs_revision_count,
     attendancePctMissed: r.attendance_pct_missed,
+    blocksMissed: r.blocks_missed,
+    blocksTotal: r.blocks_total,
   }
 }
 
@@ -42,7 +50,7 @@ export async function getMyReadinessHistory(courseId: string): Promise<Readiness
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('student_stats_snapshots')
-    .select('week_start, missing_count, needs_revision_count, attendance_pct_missed, readiness_score')
+    .select(SNAPSHOT_COLUMNS)
     .eq('student_id', user.id)
     .eq('course_id', courseId)
     .order('week_start', { ascending: true })
@@ -64,7 +72,7 @@ export async function getReadinessHistory(studentId: string, courseId: string): 
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('student_stats_snapshots')
-    .select('week_start, missing_count, needs_revision_count, attendance_pct_missed, readiness_score')
+    .select(SNAPSHOT_COLUMNS)
     .eq('student_id', studentId)
     .eq('course_id', courseId)
     .order('week_start', { ascending: true })
