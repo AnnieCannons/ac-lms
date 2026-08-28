@@ -33,7 +33,7 @@ function previewInterval(isGraduated: boolean, learningStep: number, interval: n
   // Graduated: SM-2 day previews
   if (rating === 'Again') return '1d'
   let next = interval
-  if (rating === 'Hard') next = Math.max(1, Math.ceil(interval * 1.2))
+  if (rating === 'Hard') next = Math.max(1, Math.round(interval * 1.2))
   else if (rating === 'Good') next = interval <= 1 ? (interval === 0 ? 1 : 6) : Math.round(interval * ef)
   else next = interval === 0 ? 4 : interval === 1 ? 6 : Math.round(interval * ef * 1.3)
 
@@ -45,10 +45,10 @@ function previewInterval(isGraduated: boolean, learningStep: number, interval: n
 }
 
 const RATINGS = [
-  { label: 'Again', className: 'rating-again border border-red-300 text-red-700 bg-red-100 hover:bg-red-200' },
-  { label: 'Hard',  className: 'rating-hard border border-orange-300 text-orange-700 bg-orange-100 hover:bg-orange-200' },
-  { label: 'Good',  className: 'rating-good border border-blue-300 text-blue-700 bg-blue-100 hover:bg-blue-200' },
-  { label: 'Easy',  className: 'rating-easy border border-emerald-300 text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
+  { label: 'Again', tooltip: "I didn't know this. Show it again soon.", className: 'rating-again border border-red-300 text-red-700 bg-red-100 hover:bg-red-200' },
+  { label: 'Hard',  tooltip: 'I got it but it was difficult.',           className: 'rating-hard border border-orange-300 text-orange-700 bg-orange-100 hover:bg-orange-200' },
+  { label: 'Good',  tooltip: 'I knew it with some effort.',              className: 'rating-good border border-blue-300 text-blue-700 bg-blue-100 hover:bg-blue-200' },
+  { label: 'Easy',  tooltip: 'I knew this immediately.',                 className: 'rating-easy border border-emerald-300 text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
 ] as const
 
 type RatingLabel = typeof RATINGS[number]['label']
@@ -322,12 +322,15 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
               </div>
               <div className="flex justify-center gap-3">
                 {RATINGS.map(r => (
-                  <div key={r.label} className="flex flex-col items-center gap-1">
-                    <span className="text-[11px] text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
+                  <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
+                    <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
                     <button onClick={() => handleRate(r.label)}
-                      className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${r.className}`}>
+                      className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
                       {r.label}
                     </button>
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 whitespace-nowrap text-center rounded bg-zinc-800 px-2 py-1 text-[11px] text-white opacity-0 group-hover/rating:opacity-100 transition-opacity">
+                      {r.tooltip}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -340,12 +343,15 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 <p className="text-xs text-muted-text">Click the blank to reveal</p>
               ) : (
                 RATINGS.map(r => (
-                  <div key={r.label} className="flex flex-col items-center gap-1">
-                    <span className="text-[11px] text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
+                  <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
+                    <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
                     <button onClick={() => handleRate(r.label)}
                       className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
                       {r.label}
                     </button>
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 whitespace-nowrap text-center rounded bg-zinc-800 px-2 py-1 text-[11px] text-white opacity-0 group-hover/rating:opacity-100 transition-opacity">
+                      {r.tooltip}
+                    </span>
                   </div>
                 ))
               )}
@@ -363,12 +369,15 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 </button>
               ) : (
                 RATINGS.map(r => (
-                  <div key={r.label} className="flex flex-col items-center gap-1">
-                    <span className="text-[11px] text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
+                  <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
+                    <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
                     <button onClick={() => handleRate(r.label)}
                       className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
                       {r.label}
                     </button>
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 whitespace-nowrap text-center rounded bg-zinc-800 px-2 py-1 text-[11px] text-white opacity-0 group-hover/rating:opacity-100 transition-opacity">
+                      {r.tooltip}
+                    </span>
                   </div>
                 ))
               )}

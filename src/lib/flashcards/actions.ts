@@ -392,7 +392,7 @@ function computeGraduatedSM2(interval: number, ef: number, rating: Rating) {
     newInterval = 1
   } else if (rating === 'Hard') {
     newEF = Math.max(1.3, ef - 0.15)
-    newInterval = Math.max(1, Math.ceil(interval * 1.2))
+    newInterval = Math.max(1, Math.round(interval * 1.2))
   } else if (rating === 'Good') {
     if (interval === 0) newInterval = 1
     else if (interval === 1) newInterval = 6
@@ -431,9 +431,10 @@ export async function rateCard(cardId: string, rating: Rating) {
   let dueAt: string | null = null
 
   if (isGraduated && rating === 'Again') {
-    // Lapse: send back to learning
+    // Lapse: send back to learning, penalize EF
     newLearningStep = 0
     newState = 'in_progress'
+    newEF = Math.max(1.3, ef - 0.20)
     dueAt = minutesFromNow(LEARNING_STEPS_MINUTES[0])
     dueDate = daysFromNow(1)
   } else if (!isGraduated) {
