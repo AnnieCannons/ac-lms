@@ -228,12 +228,6 @@ html.theme-dark.high-contrast body {
 html.theme-dark.high-contrast button {
   color: #ffffff !important;
 }
-/* teal-primary = #6D2B5E in dark mode for bg usage — #c870b0 fails WCAG AA with white text (3.28:1) */
-html.theme-dark .flashcard-app a.bg-teal-primary,
-html.theme-dark .flashcard-app button.bg-teal-primary,
-html.theme-dark .flashcard-app span.bg-teal-primary:not(.deck-due-dot) {
-  background-color: #6D2B5E;
-}
 /* teal-primary = #ff90f0 in dark high-contrast (bright pink) — white text fails; use dark text instead */
 html.theme-dark.high-contrast .bg-teal-primary {
   color: #0d0018 !important;
