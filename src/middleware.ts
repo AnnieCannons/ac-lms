@@ -47,6 +47,12 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Protect flashcard routes -- just confirms someone is logged in; each page
+  // enforces its own specific checks.
+  if (request.nextUrl.pathname.startsWith('/flashcards') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
   // Protect instructor-only routes -- just confirms someone is logged in; each
   // page enforces its own specific role/TA requirement.
   if (request.nextUrl.pathname.startsWith('/instructor') && !user) {
