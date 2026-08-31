@@ -10,7 +10,7 @@ export type CourseWithStudents = {
   startDate: string | null
   endDate: string | null
   airtableCourseName: string | null
-  students: { id: string; name: string; avatarUrl: string | null }[]
+  students: { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }[]
 }
 
 export default async function StudentsPage() {
@@ -46,17 +46,17 @@ export default async function StudentsPage() {
   const courseIds = visibleCourses.map(c => c.id)
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('course_id, user_id, users(id, name, avatar_url)')
+    .select('course_id, user_id, users(id, name, avatar_url, airtable_student_id)')
     .in('course_id', courseIds)
     .eq('role', 'student')
 
-  type EnrollmentRow = { course_id: string; user_id: string; users: { id: string; name: string; avatar_url: string | null } | null }
+  type EnrollmentRow = { course_id: string; user_id: string; users: { id: string; name: string; avatar_url: string | null; airtable_student_id: string | null } | null }
 
-  const courseStudentMap = new Map<string, { id: string; name: string; avatarUrl: string | null }[]>()
+  const courseStudentMap = new Map<string, { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }[]>()
   for (const e of (enrollments as unknown as EnrollmentRow[] ?? [])) {
     if (!e.users?.name) continue
     if (!courseStudentMap.has(e.course_id)) courseStudentMap.set(e.course_id, [])
-    courseStudentMap.get(e.course_id)!.push({ id: e.user_id, name: e.users.name, avatarUrl: e.users.avatar_url })
+    courseStudentMap.get(e.course_id)!.push({ id: e.user_id, name: e.users.name, avatarUrl: e.users.avatar_url, airtableStudentId: e.users.airtable_student_id })
   }
 
   const coursesWithStudents: CourseWithStudents[] = visibleCourses
