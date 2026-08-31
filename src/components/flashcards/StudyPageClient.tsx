@@ -1,5 +1,6 @@
 'use client'
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
 import RichTextEditor from '@/components/ui/RichTextEditor'
@@ -62,6 +63,7 @@ type Props = {
 
 export default function StudyPageClient({ deck, initialCards }: Props) {
   const sessionTotal = initialCards.length
+  const router = useRouter()
 
   const [queue, setQueue] = useState<Card[]>(initialCards)
   const [showingBack, setShowingBack] = useState(false)
@@ -80,7 +82,6 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
 
   // useRef so handleRate always reads the latest counts without stale closures
   const sessionStats = useRef({ Again: 0, Hard: 0, Good: 0, Easy: 0 })
-
 
   const card = queue[0]
   const front = card?.front_content ?? ''
@@ -111,7 +112,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     }
   }
 
-  const doFlip = async () => {
+  const doFlip = useCallback(async () => {
     if (isAnimating || isEditing || isTypeIn || isCloze) return
     setIsAnimating(true)
     setRotateY(90)
@@ -124,9 +125,9 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     setRotateY(0)
     await new Promise(r => setTimeout(r, 220))
     setIsAnimating(false)
-  }
+  }, [isAnimating, isEditing, isTypeIn, isCloze])
 
-  const resetToFront = () => {
+  const resetToFront = useCallback(() => {
     setShowingBack(false)
     setNoTransition(true)
     setRotateY(0)
@@ -136,9 +137,9 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     setTypeRevealed(false)
     setClozeRevealed(false)
     setIsEditing(false)
-  }
+  }, [])
 
-  const handleRate = (rating: RatingLabel) => {
+  const handleRate = useCallback((rating: RatingLabel) => {
     const [current, ...rest] = queue
 
     // Track rating count (ref = no stale closure)
@@ -165,7 +166,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
 
     setQueue(rest)
     resetToFront()
-  }
+  }, [queue, completed, deck.id, resetToFront])
 
   const handleTypeSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -190,6 +191,42 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   }
 
   const progress = sessionTotal > 0 ? completed / sessionTotal : 0
+
+  const ratingReady = !isEditing && (
+    (isTypeIn && typeRevealed) ||
+    (isCloze && clozeRevealed) ||
+    (!isTypeIn && !isCloze && showingBack)
+  )
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (isEditing) return
+      // Don't fire when typing in an input/textarea
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+
+      if (e.key === 'Escape') {
+        router.push(`/flashcards/decks/${deck.id}`)
+        return
+      }
+      if (e.code === 'Space') {
+        e.preventDefault()
+        if (!ratingReady) {
+          if (!isTypeIn && !isCloze) doFlip()
+          if (isCloze && !clozeRevealed) setClozeRevealed(true)
+        }
+        return
+      }
+      if (ratingReady) {
+        if (e.key === '1') handleRate('Again')
+        if (e.key === '2') handleRate('Hard')
+        if (e.key === '3') handleRate('Good')
+        if (e.key === '4') handleRate('Easy')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isEditing, ratingReady, isTypeIn, isCloze, clozeRevealed, showingBack, deck.id, doFlip, handleRate])
 
   if (sessionDone) {
     return <CompletionScreen completed={completed} />
