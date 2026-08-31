@@ -13,6 +13,7 @@ const STUDENT_SECTIONS = [
   { slug: 'courses', label: 'Course Outline' },
   { slug: 'assignments', label: 'Assignments' },
   { slug: 'quizzes', label: 'Quizzes' },
+  { slug: 'flashcards', label: 'Flashcard App' },
   { slug: 'resources', label: 'Resources' },
   { slug: 'observer', label: 'Observer Mode' },
   { slug: 'accessibility', label: 'Accessibility' },

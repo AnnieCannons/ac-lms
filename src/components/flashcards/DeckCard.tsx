@@ -69,7 +69,7 @@ export default function DeckCard({ deck, isAdmin }: { deck: DeckWithCounts; isAd
           Study →
         </Link>
         <div className="flex gap-1.5">
-          <ShareButton deckId={deck.id} shareToken={deck.share_token} deckTitle={deck.title} />
+          {isAdmin && <ShareButton deckId={deck.id} shareToken={deck.share_token} deckTitle={deck.title} />}
           <div className="relative group">
             <Link
               href={`/flashcards/decks/${deck.id}`}
