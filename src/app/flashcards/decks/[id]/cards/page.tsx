@@ -17,5 +17,5 @@ export default async function CardsPage({ params }: { params: Promise<{ id: stri
 
   if (!deck) notFound()
 
-  return <DeckPageClient deckId={deckId} deck={deck} initialCards={cards} />
+  return <DeckPageClient deckId={deckId} deck={deck} initialCards={cards} userId={user.id} pendingDiff={null} />
 }
