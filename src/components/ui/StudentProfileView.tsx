@@ -50,7 +50,7 @@ export default function StudentProfileView({
   student,
   courses,
 }: {
-  student: { id: string; name: string; email: string }
+  student: { id: string; name: string; email: string; airtableStudentId: string | null }
   courses: ProfileCourse[]
 }) {
   const currentCourse = courses.find(c => c.isCurrent) ?? null
@@ -67,7 +67,11 @@ export default function StudentProfileView({
     if (!currentCourse) return
     let cancelled = false
 
-    const attendanceParams = new URLSearchParams({ name: student.name })
+    // Prefer the stable airtable_student_id — safe even if this student's display
+    // name collides with someone else's. Fall back to name for students without one yet.
+    const attendanceParams = new URLSearchParams(
+      student.airtableStudentId ? { id: student.airtableStudentId } : { name: student.name },
+    )
     if (currentCourse.startDate) attendanceParams.set('since', currentCourse.startDate)
     if (currentCourse.endDate) attendanceParams.set('until', currentCourse.endDate)
     if (currentCourse.airtableCourseName) attendanceParams.set('courseName', currentCourse.airtableCourseName)
