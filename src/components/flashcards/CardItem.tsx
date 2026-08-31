@@ -87,7 +87,7 @@ export default function CardItem({ card, deckId, onDelete, clozeGroupCount }: Pr
             <div>
               {!isCloze && <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Front</p>}
               <div
-                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_.cloze-target]:bg-teal-light [&_.cloze-target]:text-teal-primary [&_.cloze-target]:px-1 [&_.cloze-target]:rounded [&_.cloze-target]:font-medium [&_.cloze-other]:text-muted-text [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
+                className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_.cloze-target]:bg-teal-light [&_.cloze-target]:text-teal-primary [&_.cloze-target]:px-1 [&_.cloze-target]:rounded [&_.cloze-target]:font-medium [&_.cloze-other]:text-muted-text [&_code]:bg-zinc-900 [&_code]:text-white [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-zinc-900 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_pre_code]:text-white [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
                 dangerouslySetInnerHTML={{ __html: frontPreview || '<span class="text-muted-text">(empty)</span>' }}
               />
             </div>
@@ -95,7 +95,7 @@ export default function CardItem({ card, deckId, onDelete, clozeGroupCount }: Pr
               <div>
                 <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-0.5">Back</p>
                 <div
-                  className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-border/40 [&_code]:text-dark-text [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-border/30 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
+                  className="text-xs text-dark-text max-h-32 overflow-y-auto prose prose-xs [&_code]:bg-zinc-900 [&_code]:text-white [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_pre]:bg-zinc-900 [&_pre]:overflow-x-auto [&_pre]:w-full [&_pre_code]:bg-transparent [&_pre_code]:text-white [&_ul]:pl-3 [&_ol]:pl-3 [&_li]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-teal-primary [&_blockquote]:pl-3 [&_blockquote]:text-dark-text [&_blockquote]:not-italic"
                   dangerouslySetInnerHTML={{ __html: backPreview || '<span class="text-muted-text">(empty)</span>' }}
                 />
               </div>

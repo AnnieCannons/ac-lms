@@ -190,7 +190,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
 
   const btn = (active: boolean) =>
     `px-2 py-1 rounded text-xs font-medium transition-colors ${
-      active ? "bg-purple-primary text-white" : "text-muted-text hover:bg-border/40 hover:text-dark-text"
+      active ? "bg-teal-primary text-white" : "text-muted-text hover:bg-teal-primary/10 hover:text-teal-primary"
     }`;
   const tool = (fn: () => void) => (e: React.MouseEvent) => { e.preventDefault(); fn(); };
 
