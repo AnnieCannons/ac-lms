@@ -1,8 +1,8 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import StudentActivityClient from './StudentActivityClient'
 
 export default async function StudentActivityPage() {
-  const supabase = await createServerSupabaseClient()
+  const supabase = createServiceSupabaseClient()
 
   const { data: enrolledCourseIds } = await supabase
     .from('course_enrollments')
