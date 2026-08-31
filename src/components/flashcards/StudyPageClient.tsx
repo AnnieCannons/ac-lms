@@ -264,7 +264,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
       <h1 className="text-xs font-medium text-teal-primary text-center mt-4 mb-6">{deck.title}</h1>
 
       {isEditing ? (
-        <div className="bg-border/30 border border-border rounded-2xl p-6 flex flex-col gap-5">
+        <div className="bg-purple-primary/10 border border-purple-primary/20 rounded-2xl p-6 flex flex-col gap-5">
           <h2 className="text-sm font-semibold text-dark-text">Edit Card</h2>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">Front</label>
