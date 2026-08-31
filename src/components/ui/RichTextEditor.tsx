@@ -17,11 +17,12 @@ type Props = {
   placeholder?: string;
   storagePath?: string;
   minHeight?: number;
+  ariaLabel?: string;
 };
 
 type HoveredLink = { href: string; top: number; left: number; domEl: HTMLAnchorElement };
 
-export default function RichTextEditor({ content, onChange, placeholder, storagePath, minHeight = 300 }: Props) {
+export default function RichTextEditor({ content, onChange, placeholder, storagePath, minHeight = 300, ariaLabel }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,6 +92,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         class:
           "max-h-[800px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
         style: `min-height: ${minHeight}px`,
+        ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
       },
       handlePaste: (_view, event) => {
         if (!storagePath) return false;

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
@@ -64,6 +64,8 @@ type Props = {
 export default function StudyPageClient({ deck, initialCards }: Props) {
   const sessionTotal = initialCards.length
   const router = useRouter()
+  const cardContentId = useId()
+  const completionRef = useRef<HTMLHeadingElement>(null)
 
   const [queue, setQueue] = useState<Card[]>(initialCards)
   const [showingBack, setShowingBack] = useState(false)
@@ -228,8 +230,12 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     return () => window.removeEventListener('keydown', handler)
   }, [isEditing, ratingReady, isTypeIn, isCloze, clozeRevealed, showingBack, deck.id, doFlip, handleRate])
 
+  useEffect(() => {
+    if (sessionDone) completionRef.current?.focus()
+  }, [sessionDone])
+
   if (sessionDone) {
-    return <CompletionScreen completed={completed} />
+    return <CompletionScreen completed={completed} headingRef={completionRef} />
   }
 
   return (
@@ -242,13 +248,20 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
         <span className="text-xs text-muted-text">{completed + 1} / {sessionTotal}</span>
       </div>
 
-      <div className="w-full h-1 progress-track rounded-full overflow-hidden">
+      <div
+        className="w-full h-1 progress-track rounded-full overflow-hidden"
+        role="progressbar"
+        aria-valuenow={completed}
+        aria-valuemin={0}
+        aria-valuemax={sessionTotal}
+        aria-label="Study session progress"
+      >
         <div
           className="h-1 bg-teal-primary rounded-full transition-all duration-500"
           style={{ width: `${progress * 100}%` }}
         />
       </div>
-      <p className="text-xs font-medium text-teal-primary text-center mt-4 mb-6">{deck.title}</p>
+      <h1 className="text-xs font-medium text-teal-primary text-center mt-4 mb-6">{deck.title}</h1>
 
       {isEditing ? (
         <div className="bg-border/30 border border-border rounded-2xl p-6 flex flex-col gap-5">
@@ -256,7 +269,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-text uppercase tracking-widest">Front</label>
             <div className="[&>div]:!bg-surface [&_.ProseMirror]:!bg-surface">
-              <RichTextEditor content={editFront} onChange={setEditFront} placeholder="Front of the card…" minHeight={100} storagePath={`flashcard-images/${deck.id}/`} />
+              <RichTextEditor content={editFront} onChange={setEditFront} placeholder="Front of the card…" minHeight={100} storagePath={`flashcard-images/${deck.id}/`} ariaLabel="Front of card" />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -264,7 +277,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
               {isTypeIn ? 'Expected Answer' : 'Back'}
             </label>
             <div className="[&>div]:!bg-surface [&_.ProseMirror]:!bg-surface">
-              <RichTextEditor content={editBack} onChange={setEditBack} placeholder="Back of the card…" minHeight={100} storagePath={`flashcard-images/${deck.id}/`} />
+              <RichTextEditor content={editBack} onChange={setEditBack} placeholder="Back of the card…" minHeight={100} storagePath={`flashcard-images/${deck.id}/`} ariaLabel={isTypeIn ? 'Expected answer' : 'Back of card'} />
             </div>
           </div>
           <div className="flex gap-3">
@@ -286,9 +299,13 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
         <div className="flex flex-col items-center flex-1 gap-4">
 
           <div
-            className="w-full cursor-pointer select-none"
+            className={`w-full select-none ${!isTypeIn && !isCloze ? 'cursor-pointer' : ''}`}
             style={{ perspective: '1200px' }}
-            onClick={doFlip}
+            role={!isTypeIn && !isCloze ? 'button' : undefined}
+            tabIndex={!isTypeIn && !isCloze ? 0 : undefined}
+            aria-label={!isTypeIn && !isCloze ? (showingBack ? 'Card showing answer — click to flip back' : 'Click to reveal answer') : undefined}
+            onClick={!isTypeIn && !isCloze ? doFlip : undefined}
+            onKeyDown={!isTypeIn && !isCloze ? (e => { if (e.key === 'Enter') doFlip() }) : undefined}
           >
             <div
               className="w-full bg-surface rounded-2xl p-8 min-h-[160px]"
@@ -298,21 +315,23 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 transition: noTransition ? 'none' : 'transform 0.22s ease-in-out',
               }}
             >
-              <p className="text-base font-semibold text-teal-primary mb-5">
+              <p className="text-base font-semibold text-teal-primary mb-5" aria-hidden="true">
                 {showingBack ? 'Answer' : 'Question'}
               </p>
-              {isCloze ? (
-                <div
-                  className={`${PROSE} [&_.cloze-study-target]:bg-teal-light [&_.cloze-study-target]:border-b-2 [&_.cloze-study-target]:border-teal-primary [&_.cloze-study-target]:text-teal-primary [&_.cloze-study-target]:px-1 [&_.cloze-study-target]:cursor-pointer [&_.cloze-study-target]:font-medium [&_.cloze-study-revealed]:bg-teal-light [&_.cloze-study-revealed]:border-b-2 [&_.cloze-study-revealed]:border-teal-primary [&_.cloze-study-revealed]:text-teal-primary [&_.cloze-study-revealed]:px-1 [&_.cloze-study-revealed]:font-medium [&_.cloze-study-other]:text-muted-text`}
-                  dangerouslySetInnerHTML={{ __html: sanitize(clozeHtml) }}
-                  onClick={handleClozeClick}
-                />
-              ) : (
-                <div
-                  className={PROSE}
-                  dangerouslySetInnerHTML={{ __html: sanitize(showingBack ? back : front) }}
-                />
-              )}
+              <div aria-live="polite" aria-atomic="true" id={cardContentId}>
+                {isCloze ? (
+                  <div
+                    className={`${PROSE} [&_.cloze-study-target]:bg-teal-light [&_.cloze-study-target]:border-b-2 [&_.cloze-study-target]:border-teal-primary [&_.cloze-study-target]:text-teal-primary [&_.cloze-study-target]:px-1 [&_.cloze-study-target]:cursor-pointer [&_.cloze-study-target]:font-medium [&_.cloze-study-revealed]:bg-teal-light [&_.cloze-study-revealed]:border-b-2 [&_.cloze-study-revealed]:border-teal-primary [&_.cloze-study-revealed]:text-teal-primary [&_.cloze-study-revealed]:px-1 [&_.cloze-study-revealed]:font-medium [&_.cloze-study-other]:text-muted-text`}
+                    dangerouslySetInnerHTML={{ __html: sanitize(clozeHtml) }}
+                    onClick={handleClozeClick}
+                  />
+                ) : (
+                  <div
+                    className={PROSE}
+                    dangerouslySetInnerHTML={{ __html: sanitize(showingBack ? back : front) }}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -361,7 +380,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 {RATINGS.map(r => (
                   <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
                     <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
-                    <button onClick={() => handleRate(r.label)}
+                    <button onClick={() => handleRate(r.label)} title={r.tooltip}
                       className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
                       {r.label}
                     </button>
@@ -382,7 +401,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 RATINGS.map(r => (
                   <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
                     <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
-                    <button onClick={() => handleRate(r.label)}
+                    <button onClick={() => handleRate(r.label)} title={r.tooltip}
                       className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
                       {r.label}
                     </button>
@@ -408,7 +427,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 RATINGS.map(r => (
                   <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
                     <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
-                    <button onClick={() => handleRate(r.label)}
+                    <button onClick={() => handleRate(r.label)} title={r.tooltip}
                       className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${r.className}`}>
                       {r.label}
                     </button>
@@ -426,12 +445,12 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   )
 }
 
-function CompletionScreen({ completed }: { completed: number }) {
+function CompletionScreen({ completed, headingRef }: { completed: number; headingRef: React.RefObject<HTMLHeadingElement | null> }) {
   return (
     <div className="max-w-xl mx-auto px-6 py-16 flex flex-col items-center text-center gap-6">
-      <div className="text-6xl select-none">🎉</div>
+      <div className="text-6xl select-none" aria-hidden="true">🎉</div>
       <div>
-        <h1 className="text-2xl font-bold text-dark-text mb-2">Session complete!</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-dark-text mb-2">Session complete!</h1>
         <p className="text-sm text-muted-text">
           You reviewed {completed} {completed === 1 ? 'card' : 'cards'}. Great work!
         </p>

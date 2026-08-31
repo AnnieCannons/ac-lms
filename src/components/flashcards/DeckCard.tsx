@@ -10,7 +10,8 @@ export default function DeckCard({ deck, isAdmin }: { deck: DeckWithCounts; isAd
 
       {hasDue && (
         <span
-          className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-teal-primary"
+          role="img"
+          className="deck-due-dot absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-teal-primary"
           aria-label="Cards available to study"
         />
       )}
@@ -46,13 +47,13 @@ export default function DeckCard({ deck, isAdmin }: { deck: DeckWithCounts; isAd
         {deck.in_progress_count > 0 && (
           <>
             {deck.new_count > 0 && <span className="text-border">·</span>}
-            <span className="text-amber-600 font-medium">{deck.in_progress_count} In Progress</span>
+            <span className="text-amber-700 dark:text-amber-400 font-medium">{deck.in_progress_count} In Progress</span>
           </>
         )}
         {deck.review_count > 0 && (
           <>
             {(deck.new_count > 0 || deck.in_progress_count > 0) && <span className="text-border">·</span>}
-            <span className="text-green-600 font-medium">{deck.review_count} Review</span>
+            <span className="text-green-700 dark:text-green-400 font-medium">{deck.review_count} Review</span>
           </>
         )}
         {!hasDue && (

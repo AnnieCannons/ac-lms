@@ -25,7 +25,7 @@ export default async function FlashcardLayout({ children }: { children: React.Re
   const isAdmin = ADMIN_ROLES.includes(profile?.role ?? '')
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flashcard-app min-h-screen bg-background">
       {isAdmin
         ? <FlashcardAdminNav name={profile?.name} role={profile?.role} />
         : <StudentTopNav name={profile?.name} role={profile?.role} />

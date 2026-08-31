@@ -9,8 +9,28 @@ type Props = {
 
 export default function DeleteCardModal({ onConfirm, onCancel, groupCount }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { cancelRef.current?.focus() }, [])
+
+  // Focus trap
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    const focusable = dialog.querySelectorAll<HTMLElement>('button')
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
+    dialog.addEventListener('keydown', trap)
+    return () => dialog.removeEventListener('keydown', trap)
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
@@ -27,6 +47,7 @@ export default function DeleteCardModal({ onConfirm, onCancel, groupCount }: Pro
       onClick={onCancel}
     >
       <div
+        ref={dialogRef}
         className="bg-surface rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 flex flex-col gap-4"
         onClick={e => e.stopPropagation()}
       >

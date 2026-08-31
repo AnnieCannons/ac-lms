@@ -19,7 +19,7 @@ export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
       <Link href={from ?? '/student/courses'} className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4">
         {from ? '← Back to Course' : '← Back to Home'}
       </Link>
-      <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
           <p className="text-sm text-muted-text mt-1">
@@ -54,7 +54,7 @@ export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
             New Deck
           </Link>
         </div>
-      </div>
+      </header>
 
       {showImport && <ImportDeckModal onClose={() => setShowImport(false)} />}
     </>
