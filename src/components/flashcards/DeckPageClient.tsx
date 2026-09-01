@@ -288,18 +288,18 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
               )}
               {(tags.length > 0 || courseTag.length > 0) && (
                 <div className="flex flex-wrap gap-1.5">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md"
-                    >
-                      {tag}
-                    </span>
-                  ))}
                   {courseTag.map((tag) => (
                     <span
                       key={tag}
                       className="bg-purple-primary/10 text-purple-primary text-xs font-medium px-2 py-0.5 rounded-md"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md"
                     >
                       {tag}
                     </span>
