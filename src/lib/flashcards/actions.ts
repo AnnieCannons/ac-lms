@@ -22,7 +22,7 @@ function parseClozeWords(html: string): string[] {
 // Decks
 // ----------------------------------------------------------------
 
-export async function createDeck(data: { title: string; description: string; tags: string[] }) {
+export async function createDeck(data: { title: string; description: string; tags: string[]; course_tag?: string[] }) {
   const { supabase, user } = await getAuthUser()
 
   const { data: deck, error } = await supabase
@@ -32,6 +32,7 @@ export async function createDeck(data: { title: string; description: string; tag
       title: data.title,
       description: data.description || null,
       tags: data.tags,
+      course_tag: data.course_tag ?? [],
     })
     .select('id')
     .single()

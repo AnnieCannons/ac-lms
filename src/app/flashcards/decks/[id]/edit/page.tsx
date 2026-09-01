@@ -17,7 +17,7 @@ export default function EditDeckPage() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  const handleSave = ({ title, description, tags }: { title: string; description: string; tags: string[] }) => {
+  const handleSave = ({ title, description, tags }: { title: string; description: string; tags: string[]; course_tag: string[] }) => {
     // TODO Chunk 5: Supabase update
     console.log('Update deck:', { id: deckId, title, description, tags })
   }

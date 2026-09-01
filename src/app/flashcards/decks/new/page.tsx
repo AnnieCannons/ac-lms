@@ -1,34 +1,21 @@
-'use client'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import DeckForm from '@/components/flashcards/DeckForm'
-import { createDeck } from '@/lib/flashcards/actions'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import NewDeckClient from './NewDeckClient'
 
-export default function NewDeckPage() {
-  const router = useRouter()
+const ADMIN_ROLES = ['instructor', 'staff', 'admin']
 
-  const handleSave = async ({ title, description, tags }: { title: string; description: string; tags: string[] }) => {
-    try {
-      const newId = await createDeck({ title, description, tags })
-      router.push(`/flashcards/decks/${newId}`)
-    } catch (err) {
-      console.error('Failed to create deck:', err)
-    }
-  }
+export default async function NewDeckPage() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  return (
-    <div className="max-w-xl mx-auto px-6 py-8">
-      <div className="mb-8">
-        <Link
-          href="/flashcards"
-          className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4"
-        >
-          ← Back to My Decks
-        </Link>
-        <h1 className="text-2xl font-bold text-dark-text">New Deck</h1>
-      </div>
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
 
-      <DeckForm mode="create" onSave={handleSave} />
-    </div>
-  )
+  const isAdmin = ADMIN_ROLES.includes(profile?.role ?? '')
+
+  return <NewDeckClient isAdmin={isAdmin} />
 }
