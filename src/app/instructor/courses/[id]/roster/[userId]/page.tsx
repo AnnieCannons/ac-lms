@@ -7,6 +7,7 @@ import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import StudentDetailView, { type CategorizedAssignment } from '@/components/ui/StudentDetailView'
 import ViewAsStudentButton from '@/components/ui/ViewAsStudentButton'
 import { localDate, todayLocal } from '@/lib/date-utils'
+import { getReadinessHistory, getEscalationHistory } from '@/lib/readiness-actions'
 
 export default async function StudentDetailPage({
   params,
@@ -116,13 +117,17 @@ export default async function StudentDetailPage({
   ])
 
   const quizIds = (quizzes ?? []).map(q => q.id)
-  const { data: quizSubmissions } = quizIds.length > 0
-    ? await admin
-        .from('quiz_submissions')
-        .select('quiz_id, submitted_at, score_percent')
-        .eq('student_id', userId)
-        .in('quiz_id', quizIds)
-    : { data: [] }
+  const [{ data: quizSubmissions }, readinessHistory, escalationHistory] = await Promise.all([
+    quizIds.length > 0
+      ? admin
+          .from('quiz_submissions')
+          .select('quiz_id, submitted_at, score_percent')
+          .eq('student_id', userId)
+          .in('quiz_id', quizIds)
+      : Promise.resolve({ data: [] }),
+    getReadinessHistory(userId, courseId),
+    getEscalationHistory(userId, courseId),
+  ])
 
   // Categorize assignments
   const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null; is_late: boolean }]))
@@ -240,6 +245,8 @@ export default async function StudentDetailPage({
               complete={complete}
               incomplete={incomplete}
               totalPublished={missing.length + submitted.length + complete.length + incomplete.length}
+              readinessHistory={readinessHistory}
+              escalationHistory={escalationHistory}
             />
           </main>
         </div>

@@ -194,21 +194,31 @@ export type CourseReport = {
   highlights: Highlight[]
 }
 
+export type CourseStudent = { id: string; name: string; airtableStudentId: string | null }
+
+/**
+ * Enrolled students for a course, excluding staff/QA test accounts
+ * (EXCLUDED_STUDENT_USER_IDS). Shared by the Friday digest and the readiness-score job.
+ */
+export async function getCourseStudents(admin: AdminClient, courseId: string): Promise<CourseStudent[]> {
+  const { data: enrollments } = await admin
+    .from('course_enrollments')
+    .select('user_id, users(id, name, airtable_student_id)')
+    .eq('course_id', courseId)
+    .eq('role', 'student')
+
+  type EnrollmentRow = { user_id: string; users: { id: string; name: string; airtable_student_id: string | null } | null }
+  return ((enrollments as unknown as EnrollmentRow[]) ?? [])
+    .filter(e => e.users?.name && !EXCLUDED_STUDENT_USER_IDS.has(e.user_id))
+    .map(e => ({ id: e.user_id, name: e.users!.name, airtableStudentId: e.users!.airtable_student_id }))
+}
+
 export async function buildCourseReport(
   admin: AdminClient,
   course: CourseInput,
   weekRanges: { thisWeek: WeekRange; lastWeek: WeekRange },
 ): Promise<CourseReport> {
-  const { data: enrollments } = await admin
-    .from('course_enrollments')
-    .select('user_id, users(id, name, airtable_student_id)')
-    .eq('course_id', course.id)
-    .eq('role', 'student')
-
-  type EnrollmentRow = { user_id: string; users: { id: string; name: string; airtable_student_id: string | null } | null }
-  const students = ((enrollments as unknown as EnrollmentRow[]) ?? [])
-    .filter(e => e.users?.name && !EXCLUDED_STUDENT_USER_IDS.has(e.user_id))
-    .map(e => ({ id: e.user_id, name: e.users!.name, airtableStudentId: e.users!.airtable_student_id }))
+  const students = await getCourseStudents(admin, course.id)
 
   if (students.length === 0) {
     return { attendanceRows: [], assignmentRows: [], highlights: [] }

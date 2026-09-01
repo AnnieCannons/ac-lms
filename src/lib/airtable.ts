@@ -384,6 +384,7 @@ export type ClassStudentWeekly = {
   absencesThisWeek: number
   blocksThisWeek: number
   absencesLastWeek: number
+  blocksLastWeek: number
   totalAbsences: number
   totalTardies: number
   totalBlocks: number
@@ -444,6 +445,7 @@ export async function fetchClassAttendanceWeekly(
     absencesThisWeek: number
     blocksThisWeek: number
     absencesLastWeek: number
+    blocksLastWeek: number
     totalAbsences: number
     totalTardies: number
     totalBlocks: number
@@ -467,6 +469,7 @@ export async function fetchClassAttendanceWeekly(
         absencesThisWeek: 0,
         blocksThisWeek: 0,
         absencesLastWeek: 0,
+        blocksLastWeek: 0,
         totalAbsences: 0,
         totalTardies: 0,
         totalBlocks: 0,
@@ -482,6 +485,7 @@ export async function fetchClassAttendanceWeekly(
       if (!s) continue
       map[studentId].totalBlocks++
       if (inThisWeek) map[studentId].blocksThisWeek++
+      if (inLastWeek) map[studentId].blocksLastWeek++
 
       if (s.includes('Absent')) {
         map[studentId].totalAbsences++

@@ -5,6 +5,8 @@ import { saveGrade } from '@/lib/grade-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection } from '@/components/ui/ReadinessWidgets'
+import type { ReadinessHistoryPoint, EscalationEventRecord } from '@/lib/readiness-actions'
 
 export type CategorizedAssignment = {
   id: string
@@ -32,6 +34,8 @@ interface Props {
   complete: CategorizedAssignment[]
   incomplete: CategorizedAssignment[]
   totalPublished: number
+  readinessHistory?: ReadinessHistoryPoint[]
+  escalationHistory?: EscalationEventRecord[]
 }
 
 const STAT_CONFIG: Record<StatCategory, {
@@ -78,6 +82,8 @@ export default function StudentDetailView({
   complete,
   incomplete,
   totalPublished,
+  readinessHistory = [],
+  escalationHistory = [],
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null)
   const [lateOpen, setLateOpen] = useState(false)
@@ -188,6 +194,34 @@ export default function StudentDetailView({
           </div>
         </div>
       </div>
+
+      {/* ── Readiness score + escalation history ── */}
+      {readinessHistory.length > 0 && (
+        <>
+        <HowThisWorksSection audience="staff" />
+        <div className="bg-surface rounded-2xl border border-border p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide">Weekly Readiness</h2>
+            {(() => {
+              const latest = readinessHistory[readinessHistory.length - 1]
+              return latest?.score != null ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold" style={{ color: '#6D2B5E' }}>{latest.score.toFixed(1)}<span className="text-xs text-muted-text font-normal">/5</span></span>
+                  <ReadinessZoneBadge zone={latest.zone} />
+                </div>
+              ) : null
+            })()}
+          </div>
+          <ReadinessTrendChart history={readinessHistory} />
+
+          {escalationHistory.length > 0 && (
+            <div className="mt-4">
+              <EscalationHistorySection events={escalationHistory} />
+            </div>
+          )}
+        </div>
+        </>
+      )}
 
       {/* ── Stat cards ── */}
       <div>
