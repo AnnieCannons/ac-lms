@@ -188,6 +188,18 @@ export default function InstructorCourseNav({
 
         <SectionHeader label="Course" open={courseOpen} onToggle={toggleCourseOpen} />
         {courseOpen && CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+        {courseOpen && (
+          <Link
+            href={`/flashcards?from=${encodeURIComponent(`/instructor/courses/${courseId}/level-up`)}`}
+            className={`pl-9 pr-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              pathname.startsWith('/flashcards')
+                ? 'bg-teal-light text-teal-primary'
+                : 'text-muted-text hover:text-dark-text hover:bg-border/20'
+            }`}
+          >
+            Flashcard App
+          </Link>
+        )}
 
         <SectionHeader label="Grades" open={gradesOpen} onToggle={toggleGradesOpen} />
         {gradesOpen && (

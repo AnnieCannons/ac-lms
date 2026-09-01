@@ -1,6 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Every /instructor page (and courses/new, see src/app/instructor/courses/new/page.tsx)
+// independently re-checks the caller's role server-side via createServerSupabaseClient,
+// so middleware only needs to know whether *someone* is logged in -- it doesn't need to
+// re-derive their role. Keeping middleware to a single lightweight auth check (rather than
+// the role + TA-enrollment DB queries this used to run on every request) avoids stacking
+// several un-timed network calls on the highest-traffic code path in the app: a slow
+// Supabase response here previously meant the whole middleware invocation could hang until
+// Vercel's Edge function timeout killed it (MIDDLEWARE_INVOCATION_TIMEOUT).
+const AUTH_CHECK_TIMEOUT_MS = 4000
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -23,35 +33,30 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // If Supabase is slow to respond, fail open (pass the request through as-is)
+  // rather than hang until the platform kills the whole invocation -- every
+  // protected page re-verifies auth on its own anyway, so this is safe.
+  let user: { id: string } | null = null
+  try {
+    const result = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('auth check timed out')), AUTH_CHECK_TIMEOUT_MS)),
+    ])
+    user = result.data.user
+  } catch {
+    return supabaseResponse
+  }
 
-  // Protect instructor-only routes
-  if (request.nextUrl.pathname.startsWith('/instructor')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
+  // Protect flashcard routes -- just confirms someone is logged in; each page
+  // enforces its own specific checks.
+  if (request.nextUrl.pathname.startsWith('/flashcards') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
 
-    // Check role from users table
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
-      // Allow TAs — they have role='ta' in course_enrollments for at least one course
-      const { data: taEnrollment } = await supabase
-        .from('course_enrollments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('role', 'ta')
-        .limit(1)
-        .maybeSingle()
-
-      if (!taEnrollment) {
-        return NextResponse.redirect(new URL('/unauthorized', request.url))
-      }
-    }
+  // Protect instructor-only routes -- just confirms someone is logged in; each
+  // page enforces its own specific role/TA requirement.
+  if (request.nextUrl.pathname.startsWith('/instructor') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Redirect logged-in users away from auth pages
@@ -63,5 +68,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/cron).*)'],
 }

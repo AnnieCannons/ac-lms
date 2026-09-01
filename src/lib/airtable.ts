@@ -62,8 +62,95 @@ export type StudentProfile = {
   enrolledCourseIds: string[] // IDs of current + all previous courses
 }
 
+// The Airtable student code (e.g. "S121") lives in the record's primary "Name"
+// field, formatted "S121 - ZanettaR" — a stable identifier that doesn't change
+// when a student edits their preferred display name, unlike Preferred Name.
+const CODE_RE = /^S\d+\s*-/i
+
+/** Resolves an Airtable Students record by its stable code, independent of preferred name. */
+async function resolveStudentByCode(airtableStudentId: string): Promise<AirtableRecord | null> {
+  const safeId = escapeAirtableString(airtableStudentId)
+  const p = new URLSearchParams()
+  p.set('filterByFormula', `OR(FIND('${safeId} - ', {Name})=1, FIND('${safeId} - ', {Preferred Name})=1)`)
+  const records = await paginate('Students', p)
+  return records[0] ?? null
+}
+
+const CODE_CAPTURE_RE = /^S(\d+)\s*-/i
+
+/** Extracts the S### code from whichever field it landed in on a Students record, if any. */
+function extractCode(fields: Record<string, unknown>): string | null {
+  const name = ((fields['Name'] as string) ?? '').trim()
+  const pref = ((fields['Preferred Name'] as string) ?? '').trim()
+  const match = name.match(CODE_CAPTURE_RE) ?? pref.match(CODE_CAPTURE_RE)
+  return match ? `S${match[1]}` : null
+}
+
+/**
+ * Looks up a student's airtable_student_id by their "Student Email" field —
+ * used at LMS account-creation time (invite acceptance) so new students get
+ * linked automatically, as long as staff filled in their email in Airtable
+ * beforehand. Returns null if there's no match or no code to extract.
+ */
+export async function resolveAirtableStudentIdByEmail(email: string): Promise<string | null> {
+  const safeEmail = escapeAirtableString(email.trim().toLowerCase())
+  const p = new URLSearchParams()
+  p.set('filterByFormula', `LOWER({Student Email})='${safeEmail}'`)
+  const records = await paginate('Students', p)
+  if (!records.length) return null
+  return extractCode(records[0].fields)
+}
+
+async function resolveCourseName(courseId: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID}/Courses/${courseId}`,
+      { headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' }, cache: 'no-store' },
+    )
+    if (res.ok) return ((await res.json()).fields?.Name as string) ?? null
+  } catch {}
+  return null
+}
+
+async function profileFromRecord(record: AirtableRecord): Promise<StudentProfile> {
+  const fields = record.fields
+  const courseIds = fields['Current Course'] as string[] | undefined
+  const currentCourse = courseIds?.length ? await resolveCourseName(courseIds[0]) : null
+  const previousCourseIds = (fields['Past Courses'] as string[] | undefined) ?? []
+  const rawPref = (fields['Preferred Name'] as string) ?? ''
+  // On a handful of records the S### code was typed into Preferred Name by mistake —
+  // never surface that as a display name.
+  const preferredName = CODE_RE.test(rawPref) ? ((fields['Name'] as string) ?? rawPref) : rawPref
+
+  return {
+    preferredName,
+    currentCourse,
+    enrolledCourseIds: [...(courseIds ?? []), ...previousCourseIds],
+  }
+}
+
+function mapAttendanceRecords(records: AirtableRecord[]): AttendanceRecord[] {
+  return records.map(r => ({
+    id: r.id,
+    date: (r.fields.Date as string) ?? null,
+    blockA: (r.fields['Block A'] as string) ?? null,
+    blockB: (r.fields['Block B'] as string) ?? null,
+    blockC: (r.fields['Block C'] as string) ?? null,
+    blockD: (r.fields['Block D'] as string) ?? null,
+  }))
+}
+
+function dateRangeFormula(since?: string, until?: string): string {
+  return since && until
+    ? `AND(NOT(IS_BEFORE({Date}, '${since}')), NOT(IS_AFTER({Date}, '${until}')))`
+    : since
+      ? `NOT(IS_BEFORE({Date}, '${since}'))`
+      : ''
+}
+
 export type ClassStudent = {
   preferredName: string
+  airtableStudentId: string | null
   absences: number
   tardies: number
   totalBlocks: number
@@ -89,11 +176,7 @@ export async function fetchStudentAttendance(preferredName: string, since?: stri
     if (!enrolled.length) return []
   }
 
-  const dateFilter = since && until
-    ? `AND(NOT(IS_BEFORE({Date}, '${since}')), NOT(IS_AFTER({Date}, '${until}')))`
-    : since
-      ? `NOT(IS_BEFORE({Date}, '${since}'))`
-      : ''
+  const dateFilter = dateRangeFormula(since, until)
   const nameFilter = `{PreferredNameText}='${safeName}'`
   const formula = dateFilter ? `AND(${nameFilter}, ${dateFilter})` : nameFilter
 
@@ -102,16 +185,51 @@ export async function fetchStudentAttendance(preferredName: string, since?: stri
   p.set('sort[0][field]', 'Date')
   p.set('sort[0][direction]', 'desc')
 
-  const records = await paginate(ATTENDANCE_TABLE, p)
+  return mapAttendanceRecords(await paginate(ATTENDANCE_TABLE, p))
+}
 
-  return records.map(r => ({
-    id: r.id,
-    date: (r.fields.Date as string) ?? null,
-    blockA: (r.fields['Block A'] as string) ?? null,
-    blockB: (r.fields['Block B'] as string) ?? null,
-    blockC: (r.fields['Block C'] as string) ?? null,
-    blockD: (r.fields['Block D'] as string) ?? null,
-  }))
+/**
+ * Same as fetchStudentAttendance, but keyed by the stable airtable_student_id
+ * instead of preferred name — safe to use even when the student's display name
+ * collides with another student's. Prefer this whenever the LMS already knows
+ * which student is being looked up.
+ */
+export async function fetchStudentAttendanceById(airtableStudentId: string, since?: string, until?: string): Promise<AttendanceRecord[]> {
+  const student = await resolveStudentByCode(airtableStudentId)
+  if (!student) return []
+
+  const dateFilter = dateRangeFormula(since, until)
+  const rawPref = (student.fields['Preferred Name'] as string) ?? ''
+
+  // Airtable can't formula-filter Attendance by the Student link's record id (only
+  // by its linked display value), so we can't push an exact filter to the server.
+  // Instead, pre-filter server-side by this student's current preferred name (fast —
+  // matches at most a handful of records, even if another student shares that name),
+  // then disambiguate the small result set client-side by the exact linked record id.
+  // Only fall back to a full unfiltered scan for the rare record with no preferred
+  // name at all to filter by.
+  let records: AirtableRecord[]
+  if (rawPref) {
+    const nameFilter = `{PreferredNameText}='${escapeAirtableString(rawPref)}'`
+    const formula = dateFilter ? `AND(${nameFilter}, ${dateFilter})` : nameFilter
+    const p = new URLSearchParams()
+    p.set('filterByFormula', formula)
+    p.set('sort[0][field]', 'Date')
+    p.set('sort[0][direction]', 'desc')
+    records = await paginate(ATTENDANCE_TABLE, p)
+  } else {
+    const p = new URLSearchParams()
+    if (dateFilter) p.set('filterByFormula', dateFilter)
+    p.set('sort[0][field]', 'Date')
+    p.set('sort[0][direction]', 'desc')
+    records = await paginate(ATTENDANCE_TABLE, p)
+  }
+
+  // The Attendance table's "Student" field is a real record link — its raw value
+  // is the linked record id(s), not the (ambiguous) display name.
+  const matching = records.filter(r => (r.fields['Student'] as string[] | undefined)?.includes(student.id))
+
+  return mapAttendanceRecords(matching)
 }
 
 export async function fetchStudentProfile(preferredName: string): Promise<StudentProfile | null> {
@@ -121,31 +239,14 @@ export async function fetchStudentProfile(preferredName: string): Promise<Studen
 
   const records = await paginate('Students', p)
   if (!records.length) return null
+  return profileFromRecord(records[0])
+}
 
-  const fields = records[0].fields
-  const courseIds = fields['Current Course'] as string[] | undefined
-  let currentCourse: string | null = null
-
-  if (courseIds?.length) {
-    try {
-      const res = await fetch(
-        `https://api.airtable.com/v0/${BASE_ID}/Courses/${courseIds[0]}`,
-        {
-          headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' },
-          cache: 'no-store',
-        },
-      )
-      if (res.ok) currentCourse = ((await res.json()).fields?.Name as string) ?? null
-    } catch {}
-  }
-
-  const previousCourseIds = (fields['Past Courses'] as string[] | undefined) ?? []
-
-  return {
-    preferredName: fields['Preferred Name'] as string,
-    currentCourse,
-    enrolledCourseIds: [...(courseIds ?? []), ...previousCourseIds],
-  }
+/** Same as fetchStudentProfile, but keyed by the stable airtable_student_id. */
+export async function fetchStudentProfileById(airtableStudentId: string): Promise<StudentProfile | null> {
+  const student = await resolveStudentByCode(airtableStudentId)
+  if (!student) return null
+  return profileFromRecord(student)
 }
 
 export type AttendanceCourse = {
@@ -217,8 +318,14 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   const enrolledStudents = await paginate('Students', sp)
   if (!enrolledStudents.length) return []
 
-  const enrolledNames = new Set(
-    enrolledStudents.map(s => s.fields['Preferred Name'] as string).filter(Boolean),
+  // Keyed by Airtable record id (not name) — the Attendance table's "Student"
+  // link field gives us record ids directly, so two students who happen to share
+  // a preferred name never get merged into the same row.
+  const enrolledById = new Map(
+    enrolledStudents.map(s => [
+      s.id,
+      { preferredName: (s.fields['Preferred Name'] as string) || null, airtableStudentId: extractCode(s.fields) },
+    ]),
   )
 
   // Fetch attendance records within the course date range
@@ -232,7 +339,7 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
   const attendanceRecords = await paginate(ATTENDANCE_TABLE, ap)
 
   // Aggregate by student, only for enrolled students
-  const map: Record<string, { preferredName: string; absences: number; tardies: number; totalBlocks: number }> = {}
+  const map: Record<string, { preferredName: string; airtableStudentId: string | null; absences: number; tardies: number; totalBlocks: number }> = {}
 
   for (const r of attendanceRecords) {
     const date = r.fields.Date as string | undefined
@@ -240,29 +347,32 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
     const d = new Date(date)
     if (d < since || d > until) continue
 
-    let name = r.fields.PreferredNameText as string | string[] | undefined
-    if (Array.isArray(name)) name = name[0]
-    if (!name || !enrolledNames.has(name)) continue
+    const studentIds = r.fields['Student'] as string[] | undefined
+    const studentId = studentIds?.[0]
+    const enrolled = studentId ? enrolledById.get(studentId) : undefined
+    if (!studentId || !enrolled?.preferredName) continue
 
-    if (!map[name]) map[name] = { preferredName: name, absences: 0, tardies: 0, totalBlocks: 0 }
+    if (!map[studentId]) {
+      map[studentId] = { preferredName: enrolled.preferredName, airtableStudentId: enrolled.airtableStudentId, absences: 0, tardies: 0, totalBlocks: 0 }
+    }
 
     for (const block of ['Block A', 'Block B', 'Block C', 'Block D']) {
       const s = r.fields[block] as string | undefined
       if (!s) continue
-      map[name].totalBlocks++
-      if (s.includes('Absent')) map[name].absences++
-      else if (s.includes('Tardy')) map[name].tardies++
+      map[studentId].totalBlocks++
+      if (s.includes('Absent')) map[studentId].absences++
+      else if (s.includes('Tardy')) map[studentId].tardies++
     }
   }
 
-  const names = Object.keys(map)
-  if (!names.length) return []
+  const ids = Object.keys(map)
+  if (!ids.length) return []
 
-  return names
-    .map(name => ({
-      ...map[name],
-      percentMissed: map[name].totalBlocks > 0
-        ? (map[name].absences / map[name].totalBlocks) * 100
+  return ids
+    .map(id => ({
+      ...map[id],
+      percentMissed: map[id].totalBlocks > 0
+        ? (map[id].absences / map[id].totalBlocks) * 100
         : null,
     }))
     .sort((a, b) => a.preferredName.localeCompare(b.preferredName))
@@ -270,6 +380,7 @@ export async function fetchClassAttendance(className: string): Promise<ClassStud
 
 export type ClassStudentWeekly = {
   preferredName: string
+  airtableStudentId: string | null
   absencesThisWeek: number
   blocksThisWeek: number
   absencesLastWeek: number
@@ -310,8 +421,12 @@ export async function fetchClassAttendanceWeekly(
   const enrolledStudents = await paginate('Students', sp)
   if (!enrolledStudents.length) return []
 
-  const enrolledNames = new Set(
-    enrolledStudents.map(s => s.fields['Preferred Name'] as string).filter(Boolean),
+  // Keyed by Airtable record id (not name) — see fetchClassAttendance for why.
+  const enrolledById = new Map(
+    enrolledStudents.map(s => [
+      s.id,
+      { preferredName: (s.fields['Preferred Name'] as string) || null, airtableStudentId: extractCode(s.fields) },
+    ]),
   )
 
   // Fetch attendance records within the course date range
@@ -326,6 +441,7 @@ export async function fetchClassAttendanceWeekly(
 
   const map: Record<string, {
     preferredName: string
+    airtableStudentId: string | null
     absencesThisWeek: number
     blocksThisWeek: number
     absencesLastWeek: number
@@ -341,13 +457,15 @@ export async function fetchClassAttendanceWeekly(
     const d = new Date(date)
     if (d < since || d > until) continue
 
-    let name = r.fields.PreferredNameText as string | string[] | undefined
-    if (Array.isArray(name)) name = name[0]
-    if (!name || !enrolledNames.has(name)) continue
+    const studentIds = r.fields['Student'] as string[] | undefined
+    const studentId = studentIds?.[0]
+    const enrolled = studentId ? enrolledById.get(studentId) : undefined
+    if (!studentId || !enrolled?.preferredName) continue
 
-    if (!map[name]) {
-      map[name] = {
-        preferredName: name,
+    if (!map[studentId]) {
+      map[studentId] = {
+        preferredName: enrolled.preferredName,
+        airtableStudentId: enrolled.airtableStudentId,
         absencesThisWeek: 0,
         blocksThisWeek: 0,
         absencesLastWeek: 0,
@@ -365,28 +483,28 @@ export async function fetchClassAttendanceWeekly(
     for (const block of ['Block A', 'Block B', 'Block C', 'Block D']) {
       const s = r.fields[block] as string | undefined
       if (!s) continue
-      map[name].totalBlocks++
-      if (inThisWeek) map[name].blocksThisWeek++
-      if (inLastWeek) map[name].blocksLastWeek++
+      map[studentId].totalBlocks++
+      if (inThisWeek) map[studentId].blocksThisWeek++
+      if (inLastWeek) map[studentId].blocksLastWeek++
 
       if (s.includes('Absent')) {
-        map[name].totalAbsences++
-        if (inThisWeek) map[name].absencesThisWeek++
-        if (inLastWeek) map[name].absencesLastWeek++
+        map[studentId].totalAbsences++
+        if (inThisWeek) map[studentId].absencesThisWeek++
+        if (inLastWeek) map[studentId].absencesLastWeek++
       } else if (s.includes('Tardy')) {
-        map[name].totalTardies++
+        map[studentId].totalTardies++
       }
     }
   }
 
-  const names = Object.keys(map)
-  if (!names.length) return []
+  const ids = Object.keys(map)
+  if (!ids.length) return []
 
-  return names
-    .map(name => ({
-      ...map[name],
-      percentMissed: map[name].totalBlocks > 0
-        ? (map[name].totalAbsences / map[name].totalBlocks) * 100
+  return ids
+    .map(id => ({
+      ...map[id],
+      percentMissed: map[id].totalBlocks > 0
+        ? (map[id].totalAbsences / map[id].totalBlocks) * 100
         : null,
     }))
     .sort((a, b) => a.preferredName.localeCompare(b.preferredName))

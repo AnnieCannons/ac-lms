@@ -35,7 +35,7 @@ function StudentRow({
   endDate,
   airtableCourseName,
 }: {
-  student: { id: string; name: string; avatarUrl: string | null }
+  student: { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }
   courseId: string
   startDate: string | null
   endDate: string | null
@@ -55,7 +55,11 @@ function StudentRow({
     if (data.assignments !== null || data.loading) return
     setData(d => ({ ...d, loading: true, error: null }))
     try {
-      const attendanceParams = new URLSearchParams({ name: student.name })
+      // Prefer the stable airtable_student_id — safe even if this student's display
+      // name collides with someone else's. Fall back to name for students without one yet.
+      const attendanceParams = new URLSearchParams(
+        student.airtableStudentId ? { id: student.airtableStudentId } : { name: student.name },
+      )
       if (startDate) attendanceParams.set('since', startDate)
       if (endDate) attendanceParams.set('until', endDate)
       if (airtableCourseName) attendanceParams.set('courseName', airtableCourseName)
@@ -74,7 +78,7 @@ function StudentRow({
     } catch {
       setData(d => ({ ...d, loading: false, error: 'Failed to load data.' }))
     }
-  }, [data.assignments, data.loading, student.id, student.name, courseId, startDate, endDate, airtableCourseName])
+  }, [data.assignments, data.loading, student.id, student.name, student.airtableStudentId, courseId, startDate, endDate, airtableCourseName])
 
   const toggle = () => {
     if (!expanded) load()

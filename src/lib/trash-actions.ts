@@ -171,17 +171,20 @@ export async function getTrashedItems(courseId: string): Promise<{ items?: Trash
 
   // Permanently delete any items that have been in the trash for more than 7 days
   const expiry = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  await Promise.all([
-    admin.from('quizzes').delete().eq('course_id', courseId).not('deleted_at', 'is', null).lt('deleted_at', expiry),
-    admin.from('modules').delete().eq('course_id', courseId).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+  // Cast each builder to Promise via .then() — TS can't infer depth on the chained builder types
+  const p = <T>(q: PromiseLike<T>) => Promise.resolve(q)
+  const deleteOps = [
+    p(admin.from('quizzes').delete().eq('course_id', courseId).not('deleted_at', 'is', null).lt('deleted_at', expiry)),
+    p(admin.from('modules').delete().eq('course_id', courseId).not('deleted_at', 'is', null).lt('deleted_at', expiry)),
     ...(allDayIds.length > 0 ? [
-      admin.from('assignments').delete().in('module_day_id', allDayIds).not('deleted_at', 'is', null).lt('deleted_at', expiry),
-      admin.from('resources').delete().in('module_day_id', allDayIds).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+      p(admin.from('assignments').delete().in('module_day_id', allDayIds).not('deleted_at', 'is', null).lt('deleted_at', expiry)),
+      p(admin.from('resources').delete().in('module_day_id', allDayIds).not('deleted_at', 'is', null).lt('deleted_at', expiry)),
     ] : []),
     ...(allModuleIds.length > 0 ? [
-      admin.from('module_days').delete().in('module_id', allModuleIds).not('deleted_at', 'is', null).lt('deleted_at', expiry),
+      p(admin.from('module_days').delete().in('module_id', allModuleIds).not('deleted_at', 'is', null).lt('deleted_at', expiry)),
     ] : []),
-  ])
+  ]
+  await Promise.all(deleteOps)
 
   const [modules, days, assignments, resources, quizzes] = await Promise.all([
     admin.from('modules').select('id, title, deleted_at').eq('course_id', courseId).not('deleted_at', 'is', null),
@@ -330,17 +333,18 @@ export async function emptyTrash(courseId: string): Promise<{ error?: string }> 
     : { data: [] }
   const courseDayIds = courseDays?.map(d => d.id) ?? []
 
+  const p2 = <T>(q: PromiseLike<T>) => Promise.resolve(q)
   const promises = [
-    admin.from('quizzes').delete().eq('course_id', courseId).not('deleted_at', 'is', null),
-    admin.from('modules').delete().eq('course_id', courseId).not('deleted_at', 'is', null),
+    p2(admin.from('quizzes').delete().eq('course_id', courseId).not('deleted_at', 'is', null)),
+    p2(admin.from('modules').delete().eq('course_id', courseId).not('deleted_at', 'is', null)),
     ...(courseDayIds.length > 0
       ? [
-          admin.from('assignments').delete().in('module_day_id', courseDayIds).not('deleted_at', 'is', null),
-          admin.from('resources').delete().in('module_day_id', courseDayIds).not('deleted_at', 'is', null),
+          p2(admin.from('assignments').delete().in('module_day_id', courseDayIds).not('deleted_at', 'is', null)),
+          p2(admin.from('resources').delete().in('module_day_id', courseDayIds).not('deleted_at', 'is', null)),
         ]
       : []),
     ...(courseModuleIds.length > 0
-      ? [admin.from('module_days').delete().in('module_id', courseModuleIds).not('deleted_at', 'is', null)]
+      ? [p2(admin.from('module_days').delete().in('module_id', courseModuleIds).not('deleted_at', 'is', null))]
       : []),
   ]
   const results = await Promise.all(promises)

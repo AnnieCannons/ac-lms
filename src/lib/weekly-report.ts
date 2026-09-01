@@ -3,6 +3,7 @@
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchClassAttendanceWeekly, type WeekRange } from '@/lib/airtable'
 import { computeStudentAssignmentStats } from '@/lib/student-stats-actions'
+import { EXCLUDED_STUDENT_USER_IDS } from '@/lib/excluded-students'
 
 type AdminClient = ReturnType<typeof createServiceSupabaseClient>
 
@@ -166,16 +167,6 @@ export type CourseInput = {
   airtableCourseName: string | null
 }
 
-/**
- * Staff/QA accounts enrolled with role='student' for testing purposes — not
- * real students, so they're excluded from the weekly attendance/assignment
- * report regardless of course.
- */
-const EXCLUDED_STUDENT_USER_IDS = new Set([
-  'f2736067-f31b-4c8c-adaf-aeb8b225e260', // RaiStudent (rai+1@anniecannons.com)
-  '378e107f-5a14-4de5-ac20-bb34ce0b936c', // HaniyaStudent (haniya+1@anniecannons.com)
-])
-
 export type AttendanceRow = {
   name: string
   thisWeek: number
@@ -203,7 +194,7 @@ export type CourseReport = {
   highlights: Highlight[]
 }
 
-export type CourseStudent = { id: string; name: string }
+export type CourseStudent = { id: string; name: string; airtableStudentId: string | null }
 
 /**
  * Enrolled students for a course, excluding staff/QA test accounts
@@ -212,14 +203,14 @@ export type CourseStudent = { id: string; name: string }
 export async function getCourseStudents(admin: AdminClient, courseId: string): Promise<CourseStudent[]> {
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('user_id, users(id, name)')
+    .select('user_id, users(id, name, airtable_student_id)')
     .eq('course_id', courseId)
     .eq('role', 'student')
 
-  type EnrollmentRow = { user_id: string; users: { id: string; name: string } | null }
+  type EnrollmentRow = { user_id: string; users: { id: string; name: string; airtable_student_id: string | null } | null }
   return ((enrollments as unknown as EnrollmentRow[]) ?? [])
     .filter(e => e.users?.name && !EXCLUDED_STUDENT_USER_IDS.has(e.user_id))
-    .map(e => ({ id: e.user_id, name: e.users!.name }))
+    .map(e => ({ id: e.user_id, name: e.users!.name, airtableStudentId: e.users!.airtable_student_id }))
 }
 
 export async function buildCourseReport(
@@ -233,6 +224,11 @@ export async function buildCourseReport(
     return { attendanceRows: [], assignmentRows: [], highlights: [] }
   }
 
+  // Keyed by airtable_student_id when known (safe even if two students share a
+  // display name). Also indexed by normalized name as a fallback — the Airtable
+  // side may have a resolvable code even when this LMS enrollment hasn't been
+  // backfilled with airtable_student_id yet (e.g. a just-added student), so a
+  // code-only key would otherwise make their attendance silently disappear here.
   const attendanceMap = new Map<string, Awaited<ReturnType<typeof fetchClassAttendanceWeekly>>[number]>()
   if (course.airtableCourseName) {
     try {
@@ -241,7 +237,11 @@ export async function buildCourseReport(
         weekRanges.thisWeek,
         weekRanges.lastWeek,
       )
-      for (const w of weekly) attendanceMap.set(normalizeName(w.preferredName), w)
+      for (const w of weekly) {
+        if (w.airtableStudentId) attendanceMap.set(w.airtableStudentId, w)
+        const nameKey = normalizeName(w.preferredName)
+        if (!attendanceMap.has(nameKey)) attendanceMap.set(nameKey, w)
+      }
     } catch (e) {
       console.warn(`weekly-report: attendance fetch failed for ${course.name}:`, e)
     }
@@ -266,7 +266,8 @@ export async function buildCourseReport(
     const missingLastWeek = stats.missing.filter(a => a.due_date && dateInRange(a.due_date, weekRanges.lastWeek)).length
     const missingTotal = stats.missing.length
 
-    const attendance = attendanceMap.get(normalizeName(student.name))
+    const attendance = (student.airtableStudentId && attendanceMap.get(student.airtableStudentId))
+      || attendanceMap.get(normalizeName(student.name))
 
     if (attendance && attendance.absencesThisWeek > 0) {
       attendanceRows.push({

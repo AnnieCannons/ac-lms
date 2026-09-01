@@ -17,11 +17,12 @@ type Props = {
   placeholder?: string;
   storagePath?: string;
   minHeight?: number;
+  ariaLabel?: string;
 };
 
 type HoveredLink = { href: string; top: number; left: number; domEl: HTMLAnchorElement };
 
-export default function RichTextEditor({ content, onChange, placeholder, storagePath, minHeight = 300 }: Props) {
+export default function RichTextEditor({ content, onChange, placeholder, storagePath, minHeight = 300, ariaLabel }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,6 +92,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         class:
           "max-h-[800px] overflow-y-auto focus:outline-none text-sm text-dark-text bg-background leading-relaxed px-3 py-2",
         style: `min-height: ${minHeight}px`,
+        ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
       },
       handlePaste: (_view, event) => {
         if (!storagePath) return false;
@@ -101,6 +103,15 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         if (!file) return false;
         event.preventDefault();
         handleImageFile(file);
+        return true;
+      },
+      handleDrop: (_view, event) => {
+        if (!storagePath) return false;
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        const imageFile = files.find(f => f.type.startsWith("image/"));
+        if (!imageFile) return false;
+        event.preventDefault();
+        handleImageFile(imageFile);
         return true;
       },
     },
@@ -179,7 +190,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
 
   const btn = (active: boolean) =>
     `px-2 py-1 rounded text-xs font-medium transition-colors ${
-      active ? "bg-purple-primary text-white" : "text-muted-text hover:bg-border/40 hover:text-dark-text"
+      active ? "bg-teal-primary text-white" : "text-muted-text hover:bg-teal-primary/10 hover:text-teal-primary"
     }`;
   const tool = (fn: () => void) => (e: React.MouseEvent) => { e.preventDefault(); fn(); };
 
