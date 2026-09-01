@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -16,8 +16,11 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   arrayMove,
+  useSortable,
 } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import CardItem from '@/components/flashcards/CardItem'
+import InlineCardEditor from '@/components/flashcards/InlineCardEditor'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
 import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
 import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
@@ -60,6 +63,26 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
   const [showDiffModal, setShowDiffModal] = useState(!!pendingDiff)
   useEffect(() => { if (pendingDiff) setShowDiffModal(true) }, [pendingDiff])
   const [applyingDiff, setApplyingDiff] = useState(false)
+  const [editingCardId, setEditingCardId] = useState<string | 'new' | null>(null)
+  const [editorKey, setEditorKey] = useState(0)
+  const newEditorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!editingCardId) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [editingCardId])
+
+  const openNewEditor = (scroll = false) => {
+    setEditorKey(k => k + 1)
+    setEditingCardId('new')
+    if (scroll) {
+      setTimeout(() => newEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+    }
+  }
+
+  const closeEditor = () => setEditingCardId(null)
 
   const isOwner = deck.owner_user_id === userId
   const canShareUpdates = isOwner && deck.is_shared
@@ -317,29 +340,21 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
               </div>
             </div>
           )}
-          <Link
-            href={`/flashcards/decks/${deckId}/cards/new`}
+          <button
+            onClick={() => openNewEditor(true)}
+
             className="flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             Add Card
-          </Link>
+          </button>
         </div>
       </div>
 
-      {cards.length === 0 ? (
+      {cards.length === 0 && editingCardId === null ? (
         <div className="text-center py-16 flex flex-col items-center gap-3">
           <p className="text-muted-text text-sm">No cards yet.</p>
           {isAdmin && (
@@ -350,36 +365,81 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
               Bulk Import
             </Link>
           )}
-          <Link
-            href={`/flashcards/decks/${deckId}/cards/new`}
+          <button
+            onClick={() => openNewEditor()}
             className="inline-flex items-center gap-1.5 bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
             Add your first card
-          </Link>
+          </button>
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={cards.map((c) => c.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="flex flex-col gap-2">
-              {cards.map((card) => (
-                <CardItem
-                  key={card.id}
-                  card={card}
-                  deckId={deckId}
-                  onDelete={handleDeleteCard}
-                  clozeGroupCount={card.card_type === 'cloze' ? cards.filter(c => c.card_type === 'cloze' && c.front_content === card.front_content).length : undefined}
-                />
-              ))}
+        <>
+          {cards.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={cards.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col gap-2">
+                  {cards.map((card) =>
+                    editingCardId === card.id ? (
+                      <SortableEditorWrapper key={card.id} id={card.id}>
+                        <InlineCardEditor
+                          key={editorKey}
+                          deckId={deckId}
+                          mode="edit"
+                          card={card}
+                          onSaved={() => { closeEditor(); router.refresh() }}
+                          onAddAnother={() => { router.refresh(); openNewEditor() }}
+                          onCancel={closeEditor}
+                        />
+                      </SortableEditorWrapper>
+                    ) : (
+                      <CardItem
+                        key={card.id}
+                        card={card}
+                        deckId={deckId}
+                        onDelete={handleDeleteCard}
+                        onEdit={() => setEditingCardId(card.id)}
+                        clozeGroupCount={card.card_type === 'cloze' ? cards.filter(c => c.card_type === 'cloze' && c.front_content === card.front_content).length : undefined}
+                      />
+                    )
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {editingCardId === 'new' && (
+            <div className="mt-2" ref={newEditorRef}>
+              <InlineCardEditor
+                key={editorKey}
+                deckId={deckId}
+                mode="create"
+                onSaved={() => { closeEditor(); router.refresh() }}
+                onAddAnother={() => { router.refresh(); openNewEditor() }}
+                onCancel={closeEditor}
+              />
             </div>
-          </SortableContext>
-        </DndContext>
+          )}
+
+          {editingCardId === null && (
+            <button
+              onClick={() => openNewEditor()}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 border border-dashed border-border rounded-xl py-3 text-sm text-muted-text hover:border-teal-primary hover:text-teal-primary transition-colors"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add Card
+            </button>
+          )}
+        </>
       )}
 
       {canShareUpdates && hasUnpushedChanges && !shareUpdatesDone && (
@@ -496,4 +556,13 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
       )}
     </div>
   );
+}
+
+function SortableEditorWrapper({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, transform, transition } = useSortable({ id })
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
+      {children}
+    </div>
+  )
 }

@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -22,11 +21,12 @@ type Props = {
   card: Card
   deckId: string
   onDelete: (cardId: string) => void
+  onEdit: () => void
   clozeGroupCount?: number
 }
 
 
-export default function CardItem({ card, deckId, onDelete, clozeGroupCount }: Props) {
+export default function CardItem({ card, deckId, onDelete, onEdit, clozeGroupCount }: Props) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -106,8 +106,8 @@ export default function CardItem({ card, deckId, onDelete, clozeGroupCount }: Pr
         {/* Actions */}
         <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="relative group/tip">
-            <Link
-              href={`/flashcards/decks/${deckId}/cards/${card.id}/edit`}
+            <button
+              onClick={onEdit}
               className="w-7 h-7 flex items-center justify-center border border-border rounded-lg text-muted-text hover:text-teal-primary hover:border-teal-primary transition-colors"
               aria-label="Edit card"
             >
@@ -115,7 +115,7 @@ export default function CardItem({ card, deckId, onDelete, clozeGroupCount }: Pr
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-            </Link>
+            </button>
             <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-white opacity-0 group-hover/tip:opacity-100 transition-opacity">
               Edit
             </span>
