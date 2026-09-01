@@ -1,6 +1,6 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getDeckByShareToken, getCardsByDeck, checkAlreadyImported } from '@/lib/flashcards/queries'
+import { checkAlreadyImported } from '@/lib/flashcards/queries'
 import ImportButton from './ImportButton'
 import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
@@ -20,7 +20,15 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const deck = await getDeckByShareToken(token)
+  // Use service client so RLS doesn't block reading another user's shared deck/cards
+  const service = createServiceSupabaseClient()
+
+  const { data: deck } = await service
+    .from('decks')
+    .select('*')
+    .eq('share_token', token)
+    .eq('is_shared', true)
+    .single()
 
   if (!deck) {
     return (
@@ -32,10 +40,11 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     )
   }
 
-  const [cards, alreadyImported] = await Promise.all([
-    getCardsByDeck(deck.id),
+  const [{ data: cards }, alreadyImported] = await Promise.all([
+    service.from('cards').select('*').eq('deck_id', deck.id).order('order', { ascending: true }),
     checkAlreadyImported(user.id, deck.id),
   ])
+  const cardList = cards ?? []
 
   return (
     <div className="max-w-xl mx-auto px-6 py-12 flex flex-col items-center gap-6">
@@ -56,11 +65,11 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
           ))}
         </div>
 
-        <p className="text-sm text-muted-text">{cards.length} {cards.length === 1 ? 'card' : 'cards'}</p>
+        <p className="text-sm text-muted-text">{cardList.length} {cardList.length === 1 ? 'card' : 'cards'}</p>
       </div>
 
       <div className="w-full flex flex-col gap-3">
-        {cards.map((card, i) => (
+        {cardList.map((card, i) => (
           <div key={card.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-text font-medium">{i + 1}</span>
