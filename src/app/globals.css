@@ -300,6 +300,12 @@ html.theme-dark .status-complete-text  { color: #4ade80 !important; }
 .badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }
 html.theme-dark .badge-amber { background-color: #2a1800; color: #fbbf24; border-color: #78350f; }
 
+/* Ongoing escalation cycle card — use instead of bg-orange-50/border-orange-200 so dark mode works */
+.escalation-ongoing-card { background-color: #fff7ed; border-color: #fed7aa; }
+html.theme-dark .escalation-ongoing-card { background-color: #1f1005; border-color: #4a2000; }
+.escalation-ongoing-badge { background-color: #ffedd5; color: #9a3412; }
+html.theme-dark .escalation-ongoing-badge { background-color: #3d1f00; color: #fb923c; }
+
 /* Error alert banner — use .alert-error instead of bg-red-50 so dark mode works */
 .alert-error { background-color: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 0.5rem; }
 html.theme-dark .alert-error { background-color: #1f0a0a; border-color: #4a1515; color: #f87171; }

@@ -249,12 +249,12 @@ export function EscalationHistorySection({ events }: { events: EscalationEventRe
             return (
               <div
                 key={cycle.events[0].id}
-                className={`rounded-xl border p-3.5 ${ongoing ? 'border-orange-200 bg-orange-50/40' : 'border-border bg-background'}`}
+                className={`rounded-xl border p-3.5 ${ongoing ? 'escalation-ongoing-card' : 'border-border bg-background'}`}
               >
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-text">{cycleLabel(cycle)}</span>
                   {ongoing && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Ongoing</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full escalation-ongoing-badge">Ongoing</span>
                   )}
                 </div>
                 <ul className="pl-0.5">
