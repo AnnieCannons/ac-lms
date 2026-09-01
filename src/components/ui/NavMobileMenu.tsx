@@ -34,13 +34,6 @@ export default function NavMobileMenu({
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-lg z-50 py-2">
             <Link
-              href="/student/confidence"
-              className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
-              onClick={() => setOpen(false)}
-            >
-              Confidence Tracker
-            </Link>
-            <Link
               href={attendanceHref}
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background"
               onClick={() => setOpen(false)}
