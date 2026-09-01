@@ -11,6 +11,15 @@ function sanitize(html: string) {
   return DOMPurify.sanitize(html)
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 const LEARNING_STEPS_MINUTES = [1, 10]
 
 function previewInterval(isGraduated: boolean, learningStep: number, interval: number, ef: number, rating: string): string {
@@ -80,6 +89,20 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
   const [clozeRevealed, setClozeRevealed] = useState(false)
   const [completed, setCompleted] = useState(0)
   const [sessionDone, setSessionDone] = useState(false)
+  const [shuffled, setShuffled] = useState(false)
+
+  const toggleShuffle = () => {
+    setShuffled(prev => {
+      if (!prev) {
+        setQueue(q => shuffle(q))
+      } else {
+        // Restore original relative order for remaining cards
+        const remaining = new Set(queue.map(c => c.id))
+        setQueue(initialCards.filter(c => remaining.has(c.id)))
+      }
+      return !prev
+    })
+  }
 
 
   // useRef so handleRate always reads the latest counts without stale closures
@@ -245,7 +268,20 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
         <Link href="/flashcards" className="text-sm text-muted-text hover:text-dark-text transition-colors">
           ← My Decks
         </Link>
-        <span className="text-xs text-muted-text">{completed + 1} / {sessionTotal}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleShuffle}
+            aria-pressed={shuffled}
+            title={shuffled ? 'Shuffle on — click to restore order' : 'Shuffle cards'}
+            className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+              shuffled ? 'text-teal-primary' : 'text-muted-text hover:text-dark-text'
+            }`}
+          >
+            <span aria-hidden="true">🔀</span>
+            Shuffle
+          </button>
+          <span className="text-xs text-muted-text">{completed + 1} / {sessionTotal}</span>
+        </div>
       </div>
 
       <div

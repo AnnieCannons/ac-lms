@@ -22,7 +22,7 @@ function parseClozeWords(html: string): string[] {
 // Decks
 // ----------------------------------------------------------------
 
-export async function createDeck(data: { title: string; description: string; tags: string[] }) {
+export async function createDeck(data: { title: string; description: string; tags: string[]; course_tag?: string[] }) {
   const { supabase, user } = await getAuthUser()
 
   const { data: deck, error } = await supabase
@@ -32,6 +32,7 @@ export async function createDeck(data: { title: string; description: string; tag
       title: data.title,
       description: data.description || null,
       tags: data.tags,
+      course_tag: data.course_tag ?? [],
     })
     .select('id')
     .single()
@@ -296,10 +297,11 @@ export async function pushDeckUpdates(deckId: string) {
 
 export async function importDeck(sourceDeckId: string) {
   const { supabase, user } = await getAuthUser()
+  const service = createServiceSupabaseClient()
 
   const [{ data: sourceDeck }, { data: sourceCards }, { data: existing }] = await Promise.all([
-    supabase.from('decks').select('*').eq('id', sourceDeckId).single(),
-    supabase.from('cards').select('*').eq('deck_id', sourceDeckId).order('order', { ascending: true }),
+    service.from('decks').select('*').eq('id', sourceDeckId).single(),
+    service.from('cards').select('*').eq('deck_id', sourceDeckId).order('order', { ascending: true }),
     supabase.from('decks').select('id').eq('owner_user_id', user.id).eq('original_deck_id', sourceDeckId).maybeSingle(),
   ])
 

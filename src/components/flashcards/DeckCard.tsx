@@ -21,13 +21,13 @@ export default function DeckCard({ deck, isAdmin }: { deck: DeckWithCounts; isAd
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {deck.tags.map(tag => (
-          <span key={tag} className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md">
+        {(deck.course_tag ?? []).map(tag => (
+          <span key={tag} className="bg-purple-primary/10 text-purple-primary text-xs font-medium px-2 py-0.5 rounded-md">
             {tag}
           </span>
         ))}
-        {(deck.course_tag ?? []).map(tag => (
-          <span key={tag} className="bg-purple-primary/10 text-purple-primary text-xs font-medium px-2 py-0.5 rounded-md">
+        {deck.tags.map(tag => (
+          <span key={tag} className="bg-teal-light text-teal-primary text-xs font-medium px-2 py-0.5 rounded-md">
             {tag}
           </span>
         ))}

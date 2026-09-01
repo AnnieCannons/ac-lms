@@ -8,13 +8,17 @@ const PREDEFINED_TAGS = [
   'Career Development', 'Other',
 ]
 
+const CURRICULUM_TAGS = ['TCF/ITP', 'Frontend', 'Backend']
+
 type Props = {
   mode: 'create' | 'edit'
   initialTitle?: string
   initialDescription?: string
   initialTags?: string[]
+  initialCourseTag?: string[]
+  isAdmin?: boolean
   deckId?: string
-  onSave: (data: { title: string; description: string; tags: string[] }) => void
+  onSave: (data: { title: string; description: string; tags: string[]; course_tag: string[] }) => void
 }
 
 export default function DeckForm({
@@ -22,12 +26,15 @@ export default function DeckForm({
   initialTitle = '',
   initialDescription = '',
   initialTags = [],
+  initialCourseTag = [],
+  isAdmin = false,
   onSave,
 }: Props) {
   const router = useRouter()
   const [title, setTitle] = useState(initialTitle)
   const [description, setDescription] = useState(initialDescription)
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags)
+  const [courseTag, setCourseTag] = useState<string[]>(initialCourseTag)
   const [saved, setSaved] = useState(false)
 
   const toggleTag = (tag: string) => {
@@ -39,7 +46,7 @@ export default function DeckForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-    onSave({ title: title.trim(), description: description.trim(), tags: selectedTags })
+    onSave({ title: title.trim(), description: description.trim(), tags: selectedTags, course_tag: courseTag })
     if (mode === 'edit') setSaved(true)
   }
 
@@ -101,6 +108,33 @@ export default function DeckForm({
           })}
         </div>
       </div>
+
+      {/* Course (admin only) */}
+      {isAdmin && (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-dark-text">Course</span>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Select course">
+            {CURRICULUM_TAGS.map(tag => {
+              const selected = courseTag.includes(tag)
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => { setCourseTag(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]); setSaved(false) }}
+                  aria-pressed={selected}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    selected
+                      ? 'bg-purple-primary text-white border-purple-primary'
+                      : 'bg-surface text-muted-text border-border hover:border-purple-primary hover:text-purple-primary'
+                  }`}
+                >
+                  {tag}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-2">
