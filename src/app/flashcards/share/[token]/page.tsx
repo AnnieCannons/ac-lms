@@ -2,10 +2,8 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { redirect } from 'next/navigation'
 import { checkAlreadyImported } from '@/lib/flashcards/queries'
 import ImportButton from './ImportButton'
+import CardContent from './CardContent'
 import Link from 'next/link'
-import DOMPurify from 'isomorphic-dompurify'
-
-const PROSE = 'prose prose-sm max-w-none [&_code]:bg-border/40 [&_code]:px-1 [&_code]:rounded [&_code]:text-dark-text [&_pre]:bg-border/30 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre_code]:bg-transparent [&_ul]:pl-4 [&_ol]:pl-4'
 
 const TYPE_LABELS: Record<string, string> = {
   basic: 'Basic',
@@ -80,17 +78,11 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-1">Front</p>
-                <div
-                  className={PROSE}
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(card.front_content) }}
-                />
+                <CardContent html={card.front_content} />
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-muted-text uppercase tracking-widest mb-1">Back</p>
-                <div
-                  className={PROSE}
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(card.back_content) }}
-                />
+                <CardContent html={card.back_content} />
               </div>
             </div>
           </div>
