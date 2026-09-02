@@ -33,13 +33,6 @@ function ToolsDropdown() {
               Weekly Readiness
             </Link>
             <Link
-              href="/student/confidence"
-              className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              Confidence Tracker
-            </Link>
-            <Link
               href="/student/attendance"
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
               onClick={() => setOpen(false)}
