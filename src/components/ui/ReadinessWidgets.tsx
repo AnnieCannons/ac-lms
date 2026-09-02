@@ -58,7 +58,7 @@ export function HowThisWorksSection({ audience }: { audience: 'student' | 'staff
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-text mb-2">The score starts at 5, then loses a point for every:</p>
             <div className="space-y-2">
-              <FormulaRow icon={CalendarX} color={ABSENCE_COLOR}>12% of class blocks missed that week</FormulaRow>
+              <FormulaRow icon={CalendarX} color={ABSENCE_COLOR}>2 class blocks missed that week</FormulaRow>
               <FormulaRow icon={FileX} color={MISSING_COLOR}>3 missing assignments</FormulaRow>
               <FormulaRow icon={RotateCcw} color={NEEDS_REVISION_COLOR}>2 assignments still needing revision</FormulaRow>
             </div>
@@ -69,21 +69,29 @@ export function HowThisWorksSection({ audience }: { audience: 'student' | 'staff
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-dark-text">
               <span className="flex items-center gap-1.5"><ReadinessZoneBadge zone="green" /> 4–5</span>
               <span className="flex items-center gap-1.5"><ReadinessZoneBadge zone="yellow" /> 2–3</span>
-              <span className="flex items-center gap-1.5"><ReadinessZoneBadge zone="red" /> 1</span>
+              <span className="flex items-center gap-1.5"><ReadinessZoneBadge zone="red" /> 0–1</span>
             </div>
           </div>
 
           {audience === 'student' ? (
-            <div className="rounded-xl bg-teal-light p-3.5 text-sm text-dark-text">
-              A rough week doesn&apos;t define your progress — every week is a fresh chance to catch up and get back on track.
-              If your score stays low, we&apos;ll check in with a quick form, and if needed, a short reflection, just to see how we can help.
-              Two strong weeks in a row brings you right back to a clean slate.
+            <div className="rounded-xl bg-teal-light p-3.5 text-sm text-dark-text space-y-2.5">
+              <p>
+                A rough week doesn&apos;t define your progress — every week is a fresh chance to catch up and get back on track.
+                One yellow week on its own doesn&apos;t trigger anything, it&apos;s just a signal to keep an eye on things.
+                A red week, or a second yellow week within four rolling weeks, starts a short support process:
+              </p>
+              <ul className="space-y-1 list-disc pl-4">
+                <li><span className="font-semibold">Step 1 — Check-in:</span> a quick form just to see how you&apos;re doing.</li>
+                <li><span className="font-semibold">Step 2 — Reflection:</span> if things haven&apos;t turned around, a short form to think through what&apos;s going on and what might help.</li>
+                <li><span className="font-semibold">Step 3 — Meeting:</span> if it&apos;s still going on, a meeting with your instructor and Student Success will be scheduled to talk through next steps together.</li>
+              </ul>
+              <p>Two strong (green) weeks in a row at any point brings you right back to a clean slate.</p>
             </div>
           ) : (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-text mb-2">Escalation</p>
               <ul className="text-sm text-dark-text space-y-1 list-disc pl-4">
-                <li>Score of 1 (red) triggers a check-in immediately.</li>
+                <li>Score of 0–1 (red) triggers a check-in immediately.</li>
                 <li>2-3 (yellow) triggers only if it&apos;s 2 of the last 4 weeks — one isolated dip doesn&apos;t.</li>
                 <li>Step 1 (quick check-in) → step 2 (reflection): advances after a week with no improvement; one grace week is given if they moved to a better band but aren&apos;t fully green yet.</li>
                 <li>Step 2 → step 3 (staff meeting request): advances immediately on any non-green week — no grace period.</li>
@@ -183,10 +191,12 @@ function EscalationHistoryItem({ event, isLast }: { event: EscalationEventRecord
         {hasCheckin && expanded && event.checkin && (
           <div className="mt-2 rounded-lg border border-border bg-background p-3 text-sm space-y-1.5">
             {event.checkin.note && <p><span className="font-semibold text-dark-text">Notes: </span><span className="text-muted-text">{event.checkin.note}</span></p>}
-            {event.checkin.obstacles && <p><span className="font-semibold text-dark-text">What got in the way: </span><span className="text-muted-text">{event.checkin.obstacles}</span></p>}
-            {event.checkin.goals && <p><span className="font-semibold text-dark-text">Goals: </span><span className="text-muted-text">{event.checkin.goals}</span></p>}
+            {event.checkin.obstacles && <p><span className="font-semibold text-dark-text">Contributing factors: </span><span className="text-muted-text">{event.checkin.obstacles}</span></p>}
+            {event.checkin.goals && <p><span className="font-semibold text-dark-text">What will change: </span><span className="text-muted-text">{event.checkin.goals}</span></p>}
+            {event.checkin.targetGreenDate && <p><span className="font-semibold text-dark-text">Anticipated back in green: </span><span className="text-muted-text">{event.checkin.targetGreenDate}</span></p>}
+            {event.checkin.questionsForInstructor && <p><span className="font-semibold text-dark-text">Questions for instructors: </span><span className="text-muted-text">{event.checkin.questionsForInstructor}</span></p>}
             {event.checkin.reflection && <p><span className="font-semibold text-dark-text">Reflection: </span><span className="text-muted-text">{event.checkin.reflection}</span></p>}
-            {!event.checkin.note && !event.checkin.obstacles && !event.checkin.goals && !event.checkin.reflection && (
+            {!event.checkin.note && !event.checkin.obstacles && !event.checkin.goals && !event.checkin.reflection && !event.checkin.targetGreenDate && !event.checkin.questionsForInstructor && (
               <p className="text-muted-text italic">No notes were left.</p>
             )}
           </div>
@@ -276,9 +286,9 @@ function formatWeekLabel(weekStart: string): string {
 }
 
 export function ReadinessZoneBadge({ zone }: { zone: Zone | null }) {
-  if (zone === 'green') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Ready</span>
+  if (zone === 'green') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Apprenticeship Ready</span>
   if (zone === 'yellow') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900">Needs improvement</span>
-  if (zone === 'red') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900">Not ready this week</span>
+  if (zone === 'red') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900">Needs Swift Improvement</span>
   return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-border/40 text-muted-text">No data yet</span>
 }
 

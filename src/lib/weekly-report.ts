@@ -197,10 +197,18 @@ export type CourseReport = {
 export type CourseStudent = { id: string; name: string; airtableStudentId: string | null }
 
 /**
- * Enrolled students for a course, excluding staff/QA test accounts
- * (EXCLUDED_STUDENT_USER_IDS). Shared by the Friday digest and the readiness-score job.
+ * Enrolled students for a course. By default excludes staff/QA test accounts
+ * (EXCLUDED_STUDENT_USER_IDS) -- that list exists to keep the Friday digest and
+ * Airtable-matching script's "still unmatched" list clean, so callers outside
+ * that purpose (e.g. the readiness-score job, which needs to score its own
+ * dedicated test account) should pass `excludeTestAccounts: false`.
  */
-export async function getCourseStudents(admin: AdminClient, courseId: string): Promise<CourseStudent[]> {
+export async function getCourseStudents(
+  admin: AdminClient,
+  courseId: string,
+  opts: { excludeTestAccounts?: boolean } = {},
+): Promise<CourseStudent[]> {
+  const { excludeTestAccounts = true } = opts
   const { data: enrollments } = await admin
     .from('course_enrollments')
     .select('user_id, users(id, name, airtable_student_id)')
@@ -209,7 +217,7 @@ export async function getCourseStudents(admin: AdminClient, courseId: string): P
 
   type EnrollmentRow = { user_id: string; users: { id: string; name: string; airtable_student_id: string | null } | null }
   return ((enrollments as unknown as EnrollmentRow[]) ?? [])
-    .filter(e => e.users?.name && !EXCLUDED_STUDENT_USER_IDS.has(e.user_id))
+    .filter(e => e.users?.name && (!excludeTestAccounts || !EXCLUDED_STUDENT_USER_IDS.has(e.user_id)))
     .map(e => ({ id: e.user_id, name: e.users!.name, airtableStudentId: e.users!.airtable_student_id }))
 }
 

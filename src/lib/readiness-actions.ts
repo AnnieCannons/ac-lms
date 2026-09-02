@@ -86,6 +86,8 @@ export type CheckinContent = {
   goals: string | null
   reflection: string | null
   obstacles: string | null
+  targetGreenDate: string | null
+  questionsForInstructor: string | null
 }
 
 export type EscalationEventRecord = {
@@ -114,6 +116,8 @@ type CheckinRow = {
   goals: string | null
   reflection: string | null
   obstacles: string | null
+  target_green_date: string | null
+  questions_for_instructor: string | null
 }
 
 async function fetchEscalationHistory(studentId: string, courseId: string): Promise<EscalationEventRecord[]> {
@@ -127,7 +131,7 @@ async function fetchEscalationHistory(studentId: string, courseId: string): Prom
       .order('created_at', { ascending: true }),
     admin
       .from('accountability_checkins')
-      .select('escalation_event_id, form_type, note, goals, reflection, obstacles')
+      .select('escalation_event_id, form_type, note, goals, reflection, obstacles, target_green_date, questions_for_instructor')
       .eq('student_id', studentId)
       .eq('course_id', courseId),
   ])
@@ -141,6 +145,7 @@ async function fetchEscalationHistory(studentId: string, courseId: string): Prom
     if (!c.escalation_event_id) continue
     checkinByStartedEvent.set(c.escalation_event_id, {
       formType: c.form_type, note: c.note, goals: c.goals, reflection: c.reflection, obstacles: c.obstacles,
+      targetGreenDate: c.target_green_date, questionsForInstructor: c.questions_for_instructor,
     })
   }
 
@@ -218,6 +223,8 @@ export async function submitCheckinForm(input: {
   goals?: string
   reflection?: string
   obstacles?: string
+  targetGreenDate?: string
+  questionsForInstructor?: string
 }): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -256,6 +263,8 @@ export async function submitCheckinForm(input: {
     goals: input.goals ?? null,
     reflection: input.reflection ?? null,
     obstacles: input.obstacles ?? null,
+    target_green_date: input.targetGreenDate ?? null,
+    questions_for_instructor: input.questionsForInstructor ?? null,
   })
   if (error) return { error: error.message }
 

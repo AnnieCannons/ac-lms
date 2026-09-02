@@ -21,24 +21,24 @@ type AdminClient = ReturnType<typeof createServiceSupabaseClient>
 export type Zone = 'red' | 'yellow' | 'green'
 
 /**
- * score = 5, minus 1 whole point per full 12% of blocks missed that week,
+ * score = 5, minus 1 whole point per every full 2 blocks missed that week,
  * minus 1 whole point per every full 3 missing assignments, minus 1 whole
  * point per every full 2 assignments currently sitting in Needs Revision.
  * Stepped, not continuous -- e.g. 1 needs-revision item costs nothing, 2 cost
- * exactly 1 point, 3 still only cost 1 point. Weights and the 1-5 scale were
+ * exactly 1 point, 3 still only cost 1 point. Weights and the 0-5 scale were
  * set directly by the program (student-accountability feature), not inferred
  * from data.
  */
 export function computeReadinessScore(
   missingCount: number,
   needsRevisionCount: number,
-  attendancePctMissed: number,
+  blocksMissed: number,
 ): number {
   const raw = 5
-    - Math.floor(attendancePctMissed / 12)
+    - Math.floor(blocksMissed / 2)
     - Math.floor(missingCount / 3)
     - Math.floor(needsRevisionCount / 2)
-  return Math.max(1, Math.min(5, raw))
+  return Math.max(0, Math.min(5, raw))
 }
 
 export function zoneForScore(score: number): Zone {
@@ -365,16 +365,24 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
     if (!track) continue
 
     const airtableCourseName = resolveAirtableCourseName(course, allCourses)
-    const students = await getCourseStudents(admin, (course as unknown as { id: string }).id)
+    const students = await getCourseStudents(admin, (course as unknown as { id: string }).id, { excludeTestAccounts: false })
     if (students.length === 0) continue
 
     const courseId = (course as unknown as { id: string }).id
 
+    // Keyed by airtable_student_id when known (safe even if two students share a
+    // display name); also indexed by normalized name as a fallback for
+    // enrollments not yet backfilled with airtable_student_id -- see the same
+    // pattern in buildCourseReport (weekly-report.ts).
     const attendanceMap = new Map<string, ClassStudentWeekly>()
     if (airtableCourseName) {
       try {
         const weekly = await fetchClassAttendanceWeekly(airtableCourseName, weekRanges.thisWeek, weekRanges.lastWeek)
-        for (const w of weekly) attendanceMap.set(w.preferredName.trim().toLowerCase(), w)
+        for (const w of weekly) {
+          if (w.airtableStudentId) attendanceMap.set(w.airtableStudentId, w)
+          const nameKey = w.preferredName.trim().toLowerCase()
+          if (!attendanceMap.has(nameKey)) attendanceMap.set(nameKey, w)
+        }
       } catch (e) {
         console.warn(`readiness-score: attendance fetch failed for ${course.name}:`, e)
       }
@@ -382,14 +390,16 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
 
     for (const student of students) {
       const stats = await computeStudentAssignmentStats(admin, student.id, courseId)
-      const attendance = attendanceMap.get(student.name.trim().toLowerCase())
+      const attendance = (student.airtableStudentId && attendanceMap.get(student.airtableStudentId))
+        || attendanceMap.get(student.name.trim().toLowerCase())
       const attendancePctMissed = attendance && attendance.blocksLastWeek > 0
         ? (attendance.absencesLastWeek / attendance.blocksLastWeek) * 100
         : 0
 
       const missingCount = stats.missing.length
       const needsRevisionCount = stats.needsRevision.length
-      const score = computeReadinessScore(missingCount, needsRevisionCount, attendancePctMissed)
+      const blocksMissed = attendance?.absencesLastWeek ?? 0
+      const score = computeReadinessScore(missingCount, needsRevisionCount, blocksMissed)
       const zone = zoneForScore(score)
 
       await admin.from('student_stats_snapshots').upsert({
