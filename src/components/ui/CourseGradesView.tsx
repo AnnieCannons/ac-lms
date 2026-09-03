@@ -247,6 +247,9 @@ function SpeedGrader({
 
   const grade = async (submissionId: string, result: 'complete' | 'incomplete') => {
     if (grading[submissionId]) return
+    if (result === 'incomplete' && !confirm(
+      "Mark this as Needs Revisions? Every time a submission is returned this way counts toward the student's weekly readiness score, so only use it when you actually want the student to redo the work."
+    )) return
     setGrading(prev => ({ ...prev, [submissionId]: true }))
     const { error } = await saveGrade(submissionId, result, courseId)
     if (error) {

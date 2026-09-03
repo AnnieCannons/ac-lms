@@ -125,6 +125,14 @@ function formatDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+// Converts a timestamp (e.g. a timestamptz column read back as a Date) to its
+// America/New_York calendar date, for comparing against the 'YYYY-MM-DD'
+// strings getWeekRanges() returns.
+export function toEtDateStr(d: Date): string {
+  const { year, month, day } = getEtDateParts(d)
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 /**
  * "This week" / "last week" are Mon–Thu (no attendance is taken on Fridays).
  * "This week" is the Mon–Thu containing "now" (in America/New_York), so a

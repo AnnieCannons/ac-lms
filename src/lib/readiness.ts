@@ -4,7 +4,7 @@
 
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchClassAttendanceWeekly, type ClassStudentWeekly } from '@/lib/airtable'
-import { computeStudentAssignmentStats } from '@/lib/student-stats-actions'
+import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats-actions'
 import {
   detectTrack,
   getCourseStudents,
@@ -23,11 +23,14 @@ export type Zone = 'red' | 'yellow' | 'green'
 /**
  * score = 5, minus 1 whole point per every full 2 blocks missed that week,
  * minus 1 whole point per every full 3 missing assignments, minus 1 whole
- * point per every full 2 assignments currently sitting in Needs Revision.
- * Stepped, not continuous -- e.g. 1 needs-revision item costs nothing, 2 cost
- * exactly 1 point, 3 still only cost 1 point. Weights and the 0-5 scale were
- * set directly by the program (student-accountability feature), not inferred
- * from data.
+ * point per every full 2 times a submission was returned as Needs Revision
+ * *during* that week -- every return counts (from grade_history), not just
+ * whatever is still sitting in that state when this runs, so resubmitting
+ * unfinished work just to clear the current-state count no longer helps.
+ * Stepped, not continuous -- e.g. 1 needs-revision return costs nothing, 2
+ * cost exactly 1 point, 3 still only cost 1 point. Weights and the 0-5 scale
+ * were set directly by the program (student-accountability feature), not
+ * inferred from data.
  */
 export function computeReadinessScore(
   missingCount: number,
@@ -341,8 +344,10 @@ export type ReadinessJobResult = { courses: string[] }
 
 /**
  * Monday-morning job: scores every student in every current course for the
- * week that just ended (Mon-Thu), using last week's attendance but *live*
- * backlog counts so weekend catch-up counts in the student's favor. Upserts
+ * week that just ended (Mon-Thu). Missing-assignment count is *live* (as of
+ * when this runs) so weekend catch-up counts in the student's favor, but the
+ * needs-revision count is a historical tally of every return that happened
+ * during that week -- it can't be "caught up" by resubmitting. Upserts
  * student_stats_snapshots and runs the escalation state machine.
  */
 export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseId?: string): Promise<ReadinessJobResult> {
@@ -397,7 +402,9 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
         : 0
 
       const missingCount = stats.missing.length
-      const needsRevisionCount = stats.needsRevision.length
+      const needsRevisionCount = await countNeedsRevisionEvents(
+        admin, student.id, courseId, weekRanges.lastWeek.start, weekRanges.lastWeek.end,
+      )
       const blocksMissed = attendance?.absencesLastWeek ?? 0
       const score = computeReadinessScore(missingCount, needsRevisionCount, blocksMissed)
       const zone = zoneForScore(score)

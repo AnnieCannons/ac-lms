@@ -60,7 +60,7 @@ export function HowThisWorksSection({ audience }: { audience: 'student' | 'staff
             <div className="space-y-2">
               <FormulaRow icon={CalendarX} color={ABSENCE_COLOR}>2 class blocks missed that week</FormulaRow>
               <FormulaRow icon={FileX} color={MISSING_COLOR}>3 missing assignments</FormulaRow>
-              <FormulaRow icon={RotateCcw} color={NEEDS_REVISION_COLOR}>2 assignments still needing revision</FormulaRow>
+              <FormulaRow icon={RotateCcw} color={NEEDS_REVISION_COLOR}>2 times an assignment is returned for revision that week</FormulaRow>
             </div>
           </div>
 
