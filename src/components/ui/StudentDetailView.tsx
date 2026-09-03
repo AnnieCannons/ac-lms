@@ -99,6 +99,9 @@ export default function StudentDetailView({
 
   const grade = async (assignment: CategorizedAssignment, result: 'complete' | 'incomplete') => {
     if (!assignment.submissionId || grading[assignment.id]) return
+    if (result === 'incomplete' && !confirm(
+      "Mark this as Needs Revisions? Every time a submission is returned this way counts toward the student's weekly readiness score, so only use it when you actually want the student to redo the work."
+    )) return
     setGrading(prev => ({ ...prev, [assignment.id]: true }))
 
     const { error } = await saveGrade(assignment.submissionId, result, courseId)

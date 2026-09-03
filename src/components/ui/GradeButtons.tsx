@@ -31,6 +31,9 @@ export default function GradeButtons({
   const mark = async (value: "complete" | "incomplete") => {
     if (savingRef.current) return;
     const newGrade: Grade = grade === value ? null : value;
+    if (newGrade === "incomplete" && !confirm(
+      "Mark this as Needs Revisions? Every time a submission is returned this way counts toward the student's weekly readiness score, so only use it when you actually want the student to redo the work."
+    )) return;
     const now = newGrade ? new Date().toISOString() : null;
     savingRef.current = true;
     setSaving(true);
