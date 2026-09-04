@@ -139,7 +139,7 @@ export async function getDepartmentStatuses(partnerId: string) {
 
   const { data, error: dbError } = await supabase
     .from('partner_department_status')
-    .select('id, department, stage, updated_at, updated_by, do_not_email, needs_outreach, users(name)')
+    .select('id, department, stage, updated_at, updated_by, do_not_email, needs_outreach, apprentice_placed, users(name)')
     .eq('partner_id', partnerId)
 
   if (dbError) return { error: dbError.message, statuses: [] }
@@ -169,6 +169,49 @@ export async function setDepartmentDoNotEmail(
   const note = value
     ? `Do not email enabled for this department.`
     : `Do not email removed — back on email list.`
+
+  const { data: inserted } = await supabase
+    .from('partner_interactions')
+    .insert({
+      partner_id: partnerId,
+      note,
+      interaction_date: today,
+      department,
+      user_id: user!.id,
+    })
+    .select('id, note, interaction_date, department, created_at, user_id')
+    .single()
+
+  const interaction = inserted
+    ? { ...inserted, users: { name: user!.name }, partner_contacts: null }
+    : null
+
+  revalidatePath(`/instructor/partnerships/${partnerId}`)
+  return { error: null, interaction }
+}
+
+// Career Development-specific: marks that a partner org has placed an
+// apprentice. Logged as an activity since it's a meaningful milestone.
+export async function setDepartmentApprenticePlaced(
+  partnerId: string,
+  department: PartnerDepartment,
+  value: boolean
+) {
+  const { error, supabase, user } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, interaction: null }
+
+  const { error: dbError } = await supabase
+    .from('partner_department_status')
+    .update({ apprentice_placed: value })
+    .eq('partner_id', partnerId)
+    .eq('department', department)
+
+  if (dbError) return { error: dbError.message, interaction: null }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const note = value
+    ? `Apprentice placed with this partner.`
+    : `Apprentice placed flag removed.`
 
   const { data: inserted } = await supabase
     .from('partner_interactions')

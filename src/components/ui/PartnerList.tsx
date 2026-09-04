@@ -9,7 +9,7 @@ import { SERVICE_CATEGORIES } from '@/lib/service-categories'
 
 interface PartnerContact { is_primary: boolean; name: string }
 interface PartnerTypeAssignment { partner_type: string }
-interface DeptStatus { department: PartnerDepartment; stage: string }
+interface DeptStatus { department: PartnerDepartment; stage: string; apprentice_placed?: boolean }
 interface StudentReferral { student_identifier: string; direction: string }
 interface Interaction {
   note: string
@@ -223,6 +223,7 @@ export default function PartnerList({ partners, department, sortOptions = ['name
   const [sort, setSort] = useState<SortOption>(sortOptions[0] ?? 'name')
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set())
+  const [apprenticePlacedOnly, setApprenticePlacedOnly] = useState(false)
 
   // All stages defined for this department — shown as filters even when no
   // partner currently sits in a given stage, so the filter set stays complete.
@@ -253,6 +254,10 @@ export default function PartnerList({ partners, department, sortOptions = ['name
         const stage = p.partner_department_status.find(ds => ds.department === department)?.stage ?? ''
         if (!selectedStages.has(stage)) return false
       }
+      if (apprenticePlacedOnly && department === 'career_development') {
+        const placed = p.partner_department_status.find(ds => ds.department === department)?.apprentice_placed
+        if (!placed) return false
+      }
       return true
     })
 
@@ -271,7 +276,7 @@ export default function PartnerList({ partners, department, sortOptions = ['name
           return a.name.localeCompare(b.name)
       }
     })
-  }, [partners, search, sort, selectedCategories, selectedStages, department])
+  }, [partners, search, sort, selectedCategories, selectedStages, apprenticePlacedOnly, department])
 
   return (
     <div className="flex flex-col gap-4">
@@ -291,6 +296,17 @@ export default function PartnerList({ partners, department, sortOptions = ['name
             selected={selectedStages}
             onChange={setSelectedStages}
           />
+        )}
+        {department === 'career_development' && (
+          <label className="flex items-center gap-1.5 text-xs text-muted-text cursor-pointer select-none w-fit">
+            <input
+              type="checkbox"
+              checked={apprenticePlacedOnly}
+              onChange={e => setApprenticePlacedOnly(e.target.checked)}
+              className="rounded border-border accent-teal-600"
+            />
+            Apprentice placed
+          </label>
         )}
         {showCategoryFilter && availableCategories.length > 0 && (
           <PartnerCategoryFilter
