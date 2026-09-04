@@ -14,6 +14,7 @@ import {
   removeDepartmentStatus,
   setDepartmentDoNotEmail,
   setDepartmentNeedsOutreach,
+  setDepartmentApprenticePlaced,
   createReferral,
   deleteReferral,
   type PartnerDepartment,
@@ -66,6 +67,7 @@ interface DepartmentStatus {
   users: { name: string } | null
   do_not_email?: boolean
   needs_outreach?: string | null
+  apprentice_placed?: boolean
 }
 
 interface Partner {
@@ -789,6 +791,11 @@ function DepartmentOverviewCards({
                 'bg-gray-100 text-gray-600 border border-gray-200'
               }`}>
                 Outreach: {ds.needs_outreach === 'yes' ? 'Yes' : ds.needs_outreach === 'waiting' ? 'Waiting' : ds.needs_outreach === 'discuss' ? 'Discuss' : 'No'}
+              </span>
+            )}
+            {ds.department === 'career_development' && ds.apprentice_placed && (
+              <span className="text-xs font-medium rounded-full px-2 py-0.5 bg-teal-100 text-teal-800 border border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-700/40">
+                Apprentice placed
               </span>
             )}
             {(ds.department === 'admissions' || ds.department === 'student_success') && (
@@ -1591,6 +1598,16 @@ export default function PartnerOverview({
     })
   }
 
+  function handleApprenticePlaced(dept: PartnerDepartment, value: boolean) {
+    setDeptStatuses(prev => prev.map(s => s.department === dept ? { ...s, apprentice_placed: value } : s))
+    startTransition(async () => {
+      const { interaction } = await setDepartmentApprenticePlaced(partner.id, dept, value)
+      if (interaction) {
+        setInteractions(prev => [interaction as Interaction, ...prev])
+      }
+    })
+  }
+
   function handleInteractionLogged(interaction: Interaction) {
     setInteractions(prev => [interaction, ...prev])
   }
@@ -1944,6 +1961,17 @@ export default function PartnerOverview({
                                   <option value="discuss">Discuss</option>
                                 </select>
                               </div>
+                            )}
+                            {dept === 'career_development' && (
+                              <label className={`flex items-center gap-1.5 cursor-pointer select-none ${ds.apprentice_placed ? 'text-teal-600 dark:text-teal-400' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!ds.apprentice_placed}
+                                  onChange={e => handleApprenticePlaced(dept, e.target.checked)}
+                                  className="rounded border-border accent-teal-600"
+                                />
+                                Apprentice placed
+                              </label>
                             )}
                             <label className={`flex items-center gap-1.5 cursor-pointer select-none ${ds.do_not_email ? 'text-red-500 dark:text-red-400' : ''}`}>
                               <input
