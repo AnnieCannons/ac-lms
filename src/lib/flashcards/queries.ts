@@ -1,5 +1,5 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
-import type { DeckWithCounts } from './seed'
+import type { DeckWithCounts } from './schema'
 
 export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts[]> {
   const supabase = await createServerSupabaseClient()
