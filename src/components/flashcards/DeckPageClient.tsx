@@ -24,6 +24,7 @@ import InlineCardEditor from '@/components/flashcards/InlineCardEditor'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
 import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
 import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
+import PrintModal from '@/components/flashcards/PrintModal'
 import type { Deck, Card } from '@/lib/flashcards/schema'
 import type { PendingDiff } from '@/app/flashcards/decks/[id]/page'
 import type { DiffSelection } from '@/components/flashcards/DeckUpdateModal'
@@ -323,9 +324,12 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-text">
-          {cards.length} {cards.length === 1 ? "card" : "cards"}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-text">
+            {cards.length} {cards.length === 1 ? "card" : "cards"}
+          </p>
+          {cards.length > 0 && <PrintModal cards={cards} deckTitle={deck.title} />}
+        </div>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <div className="relative group">
