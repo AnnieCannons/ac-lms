@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getDecksWithCounts, getActivityLog } from '@/lib/flashcards/queries'
+import { isFlashcardAdmin } from '@/lib/flashcards/schema'
 import DeckCard from '@/components/flashcards/DeckCard'
 import ActivityGrid from '@/components/flashcards/ActivityGrid'
 import Link from 'next/link'
@@ -13,7 +14,7 @@ export default async function FlashcardsPage() {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  const isAdmin = isFlashcardAdmin(profile?.role)
 
   const [decks, activityLog] = await Promise.all([
     getDecksWithCounts(user.id),
@@ -24,6 +25,7 @@ export default async function FlashcardsPage() {
     (sum, d) => sum + d.new_count + d.in_progress_count + d.review_count,
     0
   )
+
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">

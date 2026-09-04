@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { DeckWithCounts } from '@/lib/flashcards/seed'
+import type { DeckWithCounts } from '@/lib/flashcards/schema'
 import ShareButton from './ShareButton'
 
 export default function DeckCard({ deck, isAdmin }: { deck: DeckWithCounts; isAdmin?: boolean }) {

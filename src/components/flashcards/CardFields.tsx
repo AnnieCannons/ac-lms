@@ -1,7 +1,7 @@
 'use client'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import ClozeCardEditor from '@/components/flashcards/ClozeCardEditor'
-import type { CardType } from '@/lib/flashcards/seed'
+import type { CardType } from '@/lib/flashcards/schema'
 
 export const CARD_TYPES: { value: CardType; label: string }[] = [
   { value: 'basic', label: 'Basic' },

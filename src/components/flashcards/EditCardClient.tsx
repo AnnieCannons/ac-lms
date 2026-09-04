@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import CardForm from '@/components/flashcards/CardForm'
 import { updateCard, updateClozeCards } from '@/lib/flashcards/actions'
-import type { Card, CardType } from '@/lib/flashcards/seed'
+import type { Card, CardType } from '@/lib/flashcards/schema'
 
 type Props = {
   deckId: string

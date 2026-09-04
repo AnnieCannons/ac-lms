@@ -2,8 +2,8 @@
 import { useState, useTransition } from 'react'
 import CardFields, { canSubmitCard } from '@/components/flashcards/CardFields'
 import { createCard, updateCard, createClozeCards, updateClozeCards } from '@/lib/flashcards/actions'
-import type { CardType } from '@/lib/flashcards/seed'
-import type { Card } from '@/lib/flashcards/seed'
+import type { CardType } from '@/lib/flashcards/schema'
+import type { Card } from '@/lib/flashcards/schema'
 
 type Props = {
   deckId: string
@@ -21,6 +21,15 @@ export default function InlineCardEditor({ deckId, mode, card, onSaved, onAddAno
   const [isPending, startTransition] = useTransition()
 
   const canSubmit = canSubmitCard(cardType, front)
+
+  const handleCardTypeChange = (type: CardType) => {
+    if (type === 'cloze' && cardType !== 'cloze') {
+      const combined = [front, back].filter(s => s.trim()).join(' ')
+      setFront(combined)
+      setBack('')
+    }
+    setCardType(type)
+  }
 
   const save = (then: () => void) => {
     if (!canSubmit) return
@@ -53,10 +62,9 @@ export default function InlineCardEditor({ deckId, mode, card, onSaved, onAddAno
         cardType={cardType}
         front={front}
         back={back}
-        onCardTypeChange={setCardType}
+        onCardTypeChange={handleCardTypeChange}
         onFrontChange={setFront}
         onBackChange={setBack}
-        showTypeSelector={mode === 'create'}
       />
 
       <div className="flex items-center gap-3 flex-wrap">

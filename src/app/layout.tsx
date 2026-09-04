@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import FocusResetter from "@/components/ui/FocusResetter"
 import ThemeSync from "@/components/ui/ThemeSync";
+import DueCardsNotifier from "@/components/ui/DueCardsNotifier";
 import NextTopLoader from "nextjs-toploader";
 
 const inter = Inter({
@@ -38,6 +39,7 @@ export default function RootLayout({
         <NextTopLoader color="var(--color-teal-primary)" showSpinner={false} />
         <FocusResetter />
         <ThemeSync />
+        <DueCardsNotifier />
         {children}
       </body>
     </html>

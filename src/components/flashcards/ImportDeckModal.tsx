@@ -80,7 +80,7 @@ export default function ImportDeckModal({ onClose }: Props) {
           </button>
         </div>
 
-        <p className="text-sm text-muted-text">Paste a share link from a classmate or instructor to import their deck as your own editable copy.</p>
+        <p className="text-sm text-muted-text">Paste a share link to import their deck as your own editable copy.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <label htmlFor="import-link-input" className="sr-only">Share link</label>
