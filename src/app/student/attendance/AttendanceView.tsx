@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, AlertTriangle, Info } from 'lucide-react'
 import type { AttendanceRecord, StudentProfile, AttendanceCourse } from '@/lib/airtable'
 
 interface Props {
@@ -74,10 +74,40 @@ function calcStats(records: AttendanceRecord[]) {
   return { totalBlocks, onTimeBlocks, tardyBlocks, absentBlocks, percentMissed }
 }
 
-function getZone(absentBlocks: number) {
-  if (absentBlocks >= 23) return 'red' as const
-  if (absentBlocks >= 12) return 'yellow' as const
-  return 'green' as const
+type BlockStatus = 'onTime' | 'tardy' | 'absent'
+
+function blockStatus(block: string | null): BlockStatus | null {
+  if (!block) return null
+  if (block.includes('Tardy')) return 'tardy'
+  if (block.includes('Absent')) return 'absent'
+  return 'onTime'
+}
+
+const pillClasses: Record<BlockStatus, string> = {
+  onTime: 'bg-green-100 text-green-800',
+  tardy: 'bg-yellow-100 text-yellow-800',
+  absent: 'bg-red-100 text-red-800',
+}
+
+const pillLabels: Record<BlockStatus, string> = {
+  onTime: 'On time',
+  tardy: 'Tardy',
+  absent: 'Absent',
+}
+
+function BlockPill({ label, status }: { label: string; status: BlockStatus }) {
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${pillClasses[status]}`}>
+      {label}: {pillLabels[status]}
+    </span>
+  )
+}
+
+function formatDate(dateStr: string): string {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  const d = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function StatCard({
@@ -128,18 +158,13 @@ export default function AttendanceView({ records, profile, courses, defaultCours
   const filteredRecords = selectedCourse ? filterRecordsByCourse(records, selectedCourse) : records
 
   const stats = calcStats(filteredRecords)
-  const zone = getZone(stats.absentBlocks)
   const percentMissed = stats.percentMissed
 
-  const zoneBg = {
-    green: 'bg-green-100 border-green-400 text-green-900',
-    yellow: 'bg-yellow-100 border-yellow-400 text-yellow-900',
-    red: 'bg-red-100 border-red-400 text-red-900',
-  }[zone]
-
-  const warningBg = { yellow: 'bg-yellow-50 border-yellow-300 text-yellow-800', red: 'bg-red-50 border-red-300 text-red-800' }
-
   const noData = filteredRecords.length === 0
+
+  const sortedRecords = [...filteredRecords]
+    .filter(r => !!r.date)
+    .sort((a, b) => new Date(b.date as string).getTime() - new Date(a.date as string).getTime())
 
   return (
     <div className="space-y-6">
@@ -159,6 +184,14 @@ export default function AttendanceView({ records, profile, courses, defaultCours
         )}
       </div>
 
+      {/* Attendance note */}
+      <div className="p-4 rounded-xl border border-border bg-surface flex items-start gap-3 text-sm text-muted-text">
+        <Info className="w-5 h-5 shrink-0 mt-0.5 text-teal-primary" />
+        <p>
+          These are the attendance records we have on file for you. If you have any questions about a record below, please check in with your instructor.
+        </p>
+      </div>
+
       {noData ? (
         <div className="bg-surface border border-border rounded-xl p-8 text-center">
           <p className="text-dark-text font-semibold mb-1">No attendance records</p>
@@ -166,103 +199,41 @@ export default function AttendanceView({ records, profile, courses, defaultCours
         </div>
       ) : (
         <>
-          {/* Zone status banner */}
-          <div className={`p-4 rounded-xl border-2 flex items-center justify-center ${zoneBg}`}>
-            <p className="text-lg font-bold">You are in the {zone.toUpperCase()} zone</p>
-          </div>
-
-          {/* Warning banner — yellow/red only */}
-          {zone !== 'green' && (
-            <div className={`p-4 rounded-xl border-2 flex items-start gap-3 ${warningBg[zone]}`}>
-              <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">
-                  {zone === 'red'
-                    ? `Critical: You have missed ${stats.absentBlocks} blocks`
-                    : `Warning: You have missed ${stats.absentBlocks} blocks`}
-                </p>
-                <p className="text-sm mt-1">
-                  {zone === 'red'
-                    ? 'Please speak with the Student Success Coordinator as soon as possible.'
-                    : 'You are approaching the absence limit. Please improve your attendance.'}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Stat cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard label="On Time Blocks" value={stats.onTimeBlocks} icon={CheckCircle} colorClass="bg-green-100 text-green-600" />
-            <StatCard label="Absent Blocks" value={stats.absentBlocks} icon={XCircle} colorClass="bg-red-100 text-red-600" />
             <StatCard label="Tardy Blocks" value={stats.tardyBlocks} icon={Clock} colorClass="bg-yellow-100 text-yellow-600" />
+            <StatCard label="Absent Blocks" value={stats.absentBlocks} icon={XCircle} colorClass="bg-red-100 text-red-600" />
             {percentMissed !== null && (
               <StatCard
                 label="% Missed"
                 value={`${Math.round(percentMissed)}%`}
                 icon={AlertTriangle}
-                colorClass={
-                  percentMissed > 7 ? 'bg-red-100 text-red-600'
-                  : percentMissed > 4 ? 'bg-yellow-100 text-yellow-600'
-                  : 'bg-green-100 text-green-600'
-                }
+                colorClass="bg-gray-100 text-gray-600"
               />
             )}
           </div>
+
+          {/* Records list */}
+          <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
+            <ul className="divide-y divide-border">
+              {sortedRecords.map(r => (
+                <li key={r.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <span className="text-sm font-medium text-dark-text sm:w-40 shrink-0">{formatDate(r.date as string)}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {(['A', 'B', 'C', 'D'] as const).map(letter => {
+                      const block = { A: r.blockA, B: r.blockB, C: r.blockC, D: r.blockD }[letter]
+                      const status = blockStatus(block)
+                      if (!status) return null
+                      return <BlockPill key={letter} label={`Block ${letter}`} status={status} />
+                    })}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </>
       )}
-
-      {/* Zone reference table — always visible */}
-      <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
-        <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-base font-semibold text-dark-text">Attendance Zone Reference</h2>
-          <div className="mt-2 space-y-1 text-sm text-muted-text">
-            <p>
-              <a
-                href="https://docs.google.com/document/d/1Tdj0PFWu98j3JDTBsvHHszxOKGazHUvt0faf2Ftogss/edit?tab=t.0#heading=h.1vg41lkd6ugb"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-teal-primary hover:underline"
-              >
-                Click here to view the full Attendance Policy.
-              </a>
-            </p>
-            <p>You are marked tardy if you arrive between 1 and 19 minutes late.</p>
-            <p>You are marked absent if you arrive more than 20 minutes late.</p>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-left text-gray-700">
-                <th className="px-6 py-3 font-medium border-b border-gray-200">Zone</th>
-                <th className="px-6 py-3 font-medium border-b border-gray-200"># of Absences</th>
-                <th className="px-6 py-3 font-medium border-b border-gray-200">What It Means</th>
-                <th className="px-6 py-3 font-medium border-b border-gray-200">Next Steps</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-green-50">
-                <td className="px-6 py-4 font-semibold text-green-800 border-b border-gray-200">Green Zone (On Track)</td>
-                <td className="px-6 py-4 text-gray-800 border-b border-gray-200">≤ 12 blocks (≈3 days, 4% of the course)</td>
-                <td className="px-6 py-4 text-gray-800 border-b border-gray-200">You are keeping up with attendance.</td>
-                <td className="px-6 py-4 text-gray-800 border-b border-gray-200">No action is needed.</td>
-              </tr>
-              <tr className="bg-yellow-50">
-                <td className="px-6 py-4 font-semibold text-yellow-800 border-b border-gray-200">Yellow Zone (Needs Attention)</td>
-                <td className="px-6 py-4 text-gray-800 border-b border-gray-200">13–20 blocks (≈3.5–5 days, 4–7% of course)</td>
-                <td className="px-6 py-4 text-gray-800 border-b border-gray-200">Attendance is starting to impact your progress.</td>
-                <td className="px-6 py-4 text-gray-800 border-b border-gray-200">Meet with the instructor, TA, and Student Success to make a plan. A PIP may be added if extra support is needed.</td>
-              </tr>
-              <tr className="bg-red-50">
-                <td className="px-6 py-4 font-semibold text-red-800">Red Zone (At Risk)</td>
-                <td className="px-6 py-4 text-gray-800">&gt; 20 blocks (≈more than 5 days, 7%+ of course)</td>
-                <td className="px-6 py-4 text-gray-800">Attendance is likely to affect your progress and may affect your ability to continue.</td>
-                <td className="px-6 py-4 text-gray-800">A PIP will be put in place. Pausing may be necessary, depending on the situation.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }
