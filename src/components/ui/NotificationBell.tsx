@@ -31,6 +31,9 @@ function notificationHref(n: Notification): string | null {
   if (n.type === 'deck_updated' && n.deck_id) {
     return `/flashcards/decks/${n.deck_id}?notification=${n.id}`
   }
+  if (n.type === 'cards_due_today') {
+    return '/flashcards'
+  }
   if (n.course_id && n.assignment_id) {
     return `/student/courses/${n.course_id}/assignments/${n.assignment_id}`
   }
@@ -56,7 +59,11 @@ export default function NotificationBell() {
     }
     fetchNotifications()
     window.addEventListener('focus', fetchNotifications)
-    return () => window.removeEventListener('focus', fetchNotifications)
+    window.addEventListener('notifications-updated', fetchNotifications)
+    return () => {
+      window.removeEventListener('focus', fetchNotifications)
+      window.removeEventListener('notifications-updated', fetchNotifications)
+    }
   }, [])
 
   useEffect(() => {

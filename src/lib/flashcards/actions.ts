@@ -11,6 +11,76 @@ async function getAuthUser() {
 }
 
 // ----------------------------------------------------------------
+// Due-cards notification (called on any page load via client component)
+// ----------------------------------------------------------------
+
+export async function checkAndCreateDueCardsNotification(): Promise<boolean> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  if (isAdmin) return false
+
+  const today = new Date().toISOString().split('T')[0]
+
+  // Deduplicate: skip if already created today
+  const { data: existing } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('type', 'cards_due_today')
+    .gte('created_at', `${today}T00:00:00.000Z`)
+    .maybeSingle()
+  if (existing) return false
+
+  // Count due cards across all decks
+  const { data: decks } = await supabase.from('decks').select('id').eq('owner_user_id', user.id)
+  if (!decks?.length) return false
+
+  const deckIds = decks.map(d => d.id)
+  const { data: cards } = await supabase.from('cards').select('id, deck_id').in('deck_id', deckIds)
+  if (!cards?.length) return false
+
+  const cardIds = cards.map(c => c.id)
+  const now = new Date().toISOString()
+
+  const { data: progress } = await supabase
+    .from('card_progress')
+    .select('card_id, state, due_date, due_at')
+    .eq('user_id', user.id)
+    .in('card_id', cardIds)
+
+  const progressMap = new Map((progress ?? []).map(p => [p.card_id, p]))
+
+  let totalDue = 0
+  const decksWithDue = new Set<string>()
+  for (const card of cards) {
+    const p = progressMap.get(card.id)
+    const isDue = !p
+      || (p.state !== 'review' && (!p.due_at || p.due_at <= now))
+      || (p.state === 'review' && p.due_date <= today)
+    if (isDue) {
+      totalDue++
+      decksWithDue.add(card.deck_id)
+    }
+  }
+
+  if (totalDue === 0) return false
+
+  const deckLabel = decksWithDue.size === 1 ? '1 deck' : `${decksWithDue.size} decks`
+  const service = createServiceSupabaseClient()
+  await service.from('notifications').insert({
+    user_id: user.id,
+    type: 'cards_due_today',
+    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} due today across ${deckLabel}.`,
+    read: false,
+  })
+  return true
+}
+
+// ----------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------
 

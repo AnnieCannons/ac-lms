@@ -203,6 +203,7 @@ export async function checkAlreadyImported(userId: string, sourceDeckId: string)
   return data !== null
 }
 
+
 export type ActivityEntry = { date: string; cards_studied_count: number }
 
 export async function getActivityLog(userId: string): Promise<ActivityEntry[]> {
