@@ -4,7 +4,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import DeleteCardModal from './DeleteCardModal'
-import type { Card } from '@/lib/flashcards/seed'
+import type { Card } from '@/lib/flashcards/schema'
 
 const TYPE_LABELS: Record<string, string> = {
   basic: 'Basic',

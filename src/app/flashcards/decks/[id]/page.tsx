@@ -2,7 +2,8 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { redirect, notFound } from 'next/navigation'
 import { getDeck, getCardsByDeck } from '@/lib/flashcards/queries'
 import DeckPageClient from '@/components/flashcards/DeckPageClient'
-import type { Card } from '@/lib/flashcards/seed'
+import type { Card } from '@/lib/flashcards/schema'
+import { isFlashcardAdmin } from '@/lib/flashcards/schema'
 
 export type SnapshotCard = {
   source_card_id: string
@@ -75,7 +76,7 @@ export default async function DeckPage({
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  const isAdmin = isFlashcardAdmin(profile?.role)
 
   const [deck, cards] = await Promise.all([
     getDeck(deckId, user.id),

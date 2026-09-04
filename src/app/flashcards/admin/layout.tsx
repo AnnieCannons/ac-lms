@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-
-const ADMIN_ROLES = ['instructor', 'staff', 'admin']
+import { isFlashcardAdmin } from '@/lib/flashcards/schema'
 
 export default async function FlashcardAdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -14,7 +13,7 @@ export default async function FlashcardAdminLayout({ children }: { children: Rea
     .eq('id', user.id)
     .single()
 
-  if (!profile || !ADMIN_ROLES.includes(profile.role ?? '')) {
+  if (!profile || !isFlashcardAdmin(profile.role)) {
     redirect('/flashcards')
   }
 

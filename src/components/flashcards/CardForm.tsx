@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import CardFields, { canSubmitCard } from '@/components/flashcards/CardFields'
-import type { CardType } from '@/lib/flashcards/seed'
+import type { CardType } from '@/lib/flashcards/schema'
 
 type Props = {
   mode: 'create' | 'edit'

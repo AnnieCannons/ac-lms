@@ -5,7 +5,7 @@ import Link from 'next/link'
 import DOMPurify from 'isomorphic-dompurify'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import { updateCard, rateCard, completeStudySession } from '@/lib/flashcards/actions'
-import type { Deck, Card } from '@/lib/flashcards/seed'
+import type { Deck, Card } from '@/lib/flashcards/schema'
 
 function sanitize(html: string) {
   return DOMPurify.sanitize(html)

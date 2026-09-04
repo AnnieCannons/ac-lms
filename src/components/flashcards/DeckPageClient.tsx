@@ -24,7 +24,7 @@ import InlineCardEditor from '@/components/flashcards/InlineCardEditor'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
 import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
 import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
-import type { Deck, Card } from '@/lib/flashcards/seed'
+import type { Deck, Card } from '@/lib/flashcards/schema'
 import type { PendingDiff } from '@/app/flashcards/decks/[id]/page'
 import type { DiffSelection } from '@/components/flashcards/DeckUpdateModal'
 

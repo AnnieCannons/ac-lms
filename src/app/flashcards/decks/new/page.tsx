@@ -1,8 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import NewDeckClient from './NewDeckClient'
-
-const ADMIN_ROLES = ['instructor', 'staff', 'admin']
+import { isFlashcardAdmin } from '@/lib/flashcards/schema'
 
 export default async function NewDeckPage() {
   const supabase = await createServerSupabaseClient()
@@ -15,7 +14,7 @@ export default async function NewDeckPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = ADMIN_ROLES.includes(profile?.role ?? '')
+  const isAdmin = isFlashcardAdmin(profile?.role)
 
   return <NewDeckClient isAdmin={isAdmin} />
 }

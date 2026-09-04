@@ -2,8 +2,8 @@
 import { useState, useTransition } from 'react'
 import CardFields, { canSubmitCard } from '@/components/flashcards/CardFields'
 import { createCard, updateCard, createClozeCards, updateClozeCards } from '@/lib/flashcards/actions'
-import type { CardType } from '@/lib/flashcards/seed'
-import type { Card } from '@/lib/flashcards/seed'
+import type { CardType } from '@/lib/flashcards/schema'
+import type { Card } from '@/lib/flashcards/schema'
 
 type Props = {
   deckId: string
