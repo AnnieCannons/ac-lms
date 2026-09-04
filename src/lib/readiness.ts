@@ -83,22 +83,67 @@ async function studentContactEmail(admin: AdminClient, studentId: string): Promi
   return row ? { name: row.name, email: row.slack_email ?? row.email } : null
 }
 
-async function sendStep1(admin: AdminClient, studentId: string): Promise<void> {
+async function courseTrack(admin: AdminClient, courseId: string): Promise<ReturnType<typeof detectTrack>> {
+  const { data: courseRow } = await admin
+    .from('courses')
+    .select('name, airtable_course_name')
+    .eq('id', courseId)
+    .single()
+  type Course = { name: string; airtable_course_name: string | null }
+  const course = courseRow as Course | null
+  return course ? detectTrack(course.name, course.airtable_course_name) : null
+}
+
+/** Posts to the class's track channel when a student starts step 1 or advances to step 2. */
+async function notifyChannelOfStepStart(admin: AdminClient, courseId: string, studentName: string, step: 1 | 2): Promise<void> {
+  const track = await courseTrack(admin, courseId)
+  if (!track) return
+  const startedText = step === 1 ? 'started the accountability process' : 'moved to step 2'
+  await slackPostMessage(
+    TRACK_CHANNELS[track],
+    `${studentName} has ${startedText}. Once they submit their form this channel will be notified. If 48 hours passes and the form is not submitted, both the student and this channel will get a notification.`,
+  )
+}
+
+async function sendStep1(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
   const student = await studentContactEmail(admin, studentId)
   if (!student) return
   await notifyByEmail(
     student.email,
-    `Hi ${student.name}! We noticed you've had a tough week or two. Can you take a minute to fill out a quick check-in? ${APP_URL}/student/readiness`,
+    `Hi ${student.name}! We noticed you've had a tough week or two. Please take a few minutes to fill out a quick check in. ${APP_URL}/student/readiness`,
   )
+  await notifyChannelOfStepStart(admin, courseId, student.name, 1)
 }
 
-async function sendStep2(admin: AdminClient, studentId: string): Promise<void> {
+async function sendStep2(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
   const student = await studentContactEmail(admin, studentId)
   if (!student) return
   await notifyByEmail(
     student.email,
     `Hi ${student.name}, since things haven't turned around yet, we'd like you to fill out a short goals & reflection check-in. ${APP_URL}/student/readiness`,
   )
+  await notifyChannelOfStepStart(admin, courseId, student.name, 2)
+}
+
+/** Posts to the class's track channel and DMs the student when 2 consecutive good weeks close out the process. */
+async function sendResolved(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
+  const student = await studentContactEmail(admin, studentId)
+  const name = student?.name ?? 'This student'
+  const track = await courseTrack(admin, courseId)
+
+  if (track) {
+    await slackPostMessage(
+      TRACK_CHANNELS[track],
+      `${name} has completed the accountability process after two consecutive weeks in good standing. Please follow up and congratulate them!`,
+    )
+  }
+
+  if (student) {
+    await notifyByEmail(
+      student.email,
+      `Great news, ${student.name}! You've had two solid weeks in a row and you're back in good standing. Keep up the momentum! \u{1F389}`,
+    )
+  }
 }
 
 async function sendStep3(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
@@ -251,7 +296,7 @@ async function evaluateEscalationForStudent(
         reminder_sent_at: null,
       }, { onConflict: 'student_id,course_id' })
       await logEvent('step1_started', 'red zone')
-      await sendStep1(admin, studentId)
+      await sendStep1(admin, studentId, courseId)
       return
     }
 
@@ -270,7 +315,7 @@ async function evaluateEscalationForStudent(
           reminder_sent_at: null,
         }, { onConflict: 'student_id,course_id' })
         await logEvent('step1_started', `${yellowWeeks} of last 4 weeks in yellow zone`)
-        await sendStep1(admin, studentId)
+        await sendStep1(admin, studentId, courseId)
       }
     }
     return
@@ -293,6 +338,7 @@ async function evaluateEscalationForStudent(
       trigger_reason: null,
     }).eq('id', state.id)
     await logEvent('reset', '2 consecutive weeks in good standing')
+    await sendResolved(admin, studentId, courseId)
     return
   }
 
@@ -319,7 +365,7 @@ async function evaluateEscalationForStudent(
       reminder_sent_at: null,
     }).eq('id', state.id)
     await logEvent('step2_started')
-    await sendStep2(admin, studentId)
+    await sendStep2(admin, studentId, courseId)
     return
   }
 
@@ -453,9 +499,12 @@ export type EscalationReminderResult = { reminded: number }
 
 /**
  * Checks for step1/step2 students who haven't completed their check-in within
- * 48 hours and haven't already been reminded, and posts a staff-visibility
- * nudge to the student's track monitor channel (not another DM to the
- * student -- this reminder doesn't address the student directly).
+ * 48 hours and haven't already been reminded. Posts a staff-visibility nudge
+ * to the student's track monitor channel, and separately opens a group Slack
+ * DM with the student and that course's instructors so the student is
+ * addressed directly with the instructor already looped in -- falling back to
+ * an individual DM to the student alone if the group DM can't be formed (e.g.
+ * a course with no enrolled instructor, or an unresolvable Slack account).
  */
 export async function runEscalationReminders(admin: AdminClient, cutoffHours = 48, onlyCourseId?: string): Promise<EscalationReminderResult> {
   const cutoff = new Date(Date.now() - cutoffHours * 60 * 60 * 1000).toISOString()
@@ -487,12 +536,43 @@ export async function runEscalationReminders(admin: AdminClient, cutoffHours = 4
     const { data: studentRow } = await admin.from('users').select('name').eq('id', row.student_id).single()
     const studentName = (studentRow as { name: string } | null)?.name ?? 'A student'
 
+    const stepLabel = row.status === 'step1' ? '1' : '2'
+
     if (track) {
-      const stepLabel = row.status === 'step1' ? '1' : '2'
       await slackPostMessage(
         TRACK_CHANNELS[track],
         `Heads up: *${studentName}* hasn't completed their step ${stepLabel} accountability check-in yet (sent 48h+ ago).`,
       )
+    }
+
+    // Also nudge the student directly, in a group DM with the course's
+    // instructors so they see it land and can follow up without a second hop.
+    const { data: instructorRows } = await admin
+      .from('course_enrollments')
+      .select('users(email, slack_email)')
+      .eq('course_id', row.course_id)
+      .eq('role', 'instructor')
+    type InstructorRow = { users: { email: string; slack_email: string | null } | null }
+    const instructorEmails = ((instructorRows as unknown as InstructorRow[]) ?? [])
+      .map(r => r.users?.slack_email ?? r.users?.email)
+      .filter((e): e is string => !!e)
+
+    const student = await studentContactEmail(admin, row.student_id)
+    const reminderText = `Reminder: ${studentName}, your step ${stepLabel} form is overdue. Please fill it out as soon as possible, and let your instructor know if you need support. ${APP_URL}/student/readiness`
+
+    const reminderEmails = [student?.email, ...instructorEmails].filter((e): e is string => !!e)
+    const reminderSlackIds = (await Promise.all(reminderEmails.map(slackLookupByEmail))).filter((id): id is string => !!id)
+    const reminderChannel = reminderSlackIds.length >= 2 ? await openGroupDM(reminderSlackIds) : null
+
+    if (reminderChannel) {
+      await slackPostMessage(reminderChannel, reminderText)
+    } else {
+      // Couldn't form the group DM (missing instructor, unresolvable Slack
+      // account, etc.) -- fall back to the staff channel (already notified
+      // above via the "Heads up" post) plus the student individually, so a
+      // lookup failure never means the student hears nothing.
+      console.warn(`readiness: could not open 48h reminder group DM for student ${row.student_id} -- falling back to individual DM`)
+      if (student) await notifyByEmail(student.email, reminderText)
     }
 
     await admin.from('escalation_states').update({ reminder_sent_at: new Date().toISOString() }).eq('id', row.id)
