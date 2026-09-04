@@ -22,6 +22,15 @@ export default function InlineCardEditor({ deckId, mode, card, onSaved, onAddAno
 
   const canSubmit = canSubmitCard(cardType, front)
 
+  const handleCardTypeChange = (type: CardType) => {
+    if (type === 'cloze' && cardType !== 'cloze') {
+      const combined = [front, back].filter(s => s.trim()).join(' ')
+      setFront(combined)
+      setBack('')
+    }
+    setCardType(type)
+  }
+
   const save = (then: () => void) => {
     if (!canSubmit) return
     startTransition(async () => {
@@ -53,10 +62,9 @@ export default function InlineCardEditor({ deckId, mode, card, onSaved, onAddAno
         cardType={cardType}
         front={front}
         back={back}
-        onCardTypeChange={setCardType}
+        onCardTypeChange={handleCardTypeChange}
         onFrontChange={setFront}
         onBackChange={setBack}
-        showTypeSelector={mode === 'create'}
       />
 
       <div className="flex items-center gap-3 flex-wrap">
