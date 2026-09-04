@@ -315,6 +315,7 @@ export async function importDeck(sourceDeckId: string) {
       title: sourceDeck.title,
       description: sourceDeck.description,
       tags: sourceDeck.tags,
+      course_tag: sourceDeck.course_tag ?? [],
     }).eq('id', existing.id)
 
     if (cards.length > 0) {
@@ -342,6 +343,7 @@ export async function importDeck(sourceDeckId: string) {
       title: sourceDeck.title,
       description: sourceDeck.description,
       tags: sourceDeck.tags,
+      course_tag: sourceDeck.course_tag ?? [],
       original_deck_id: sourceDeckId,
       is_shared: false,
     })
