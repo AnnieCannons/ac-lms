@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { getDeck } from '@/lib/flashcards/queries'
 import BulkImportClient from './BulkImportClient'
-import { isFlashcardAdmin } from '@/lib/flashcards/schema'
+import { getIsFlashcardAdmin } from '@/lib/flashcards/queries'
 
 export default async function BulkImportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: deckId } = await params
@@ -11,8 +11,8 @@ export default async function BulkImportPage({ params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (!profile || !isFlashcardAdmin(profile.role)) redirect('/flashcards')
+  const isAdmin = await getIsFlashcardAdmin(user.id)
+  if (!isAdmin) redirect('/flashcards')
 
   const deck = await getDeck(deckId, user.id)
   if (!deck) notFound()
