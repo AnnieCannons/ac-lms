@@ -298,15 +298,18 @@ export default function PartnerList({ partners, department, sortOptions = ['name
           />
         )}
         {department === 'career_development' && (
-          <label className="flex items-center gap-1.5 text-xs text-muted-text cursor-pointer select-none w-fit">
-            <input
-              type="checkbox"
-              checked={apprenticePlacedOnly}
-              onChange={e => setApprenticePlacedOnly(e.target.checked)}
-              className="rounded border-border accent-teal-600"
-            />
-            Apprentice placed
-          </label>
+          <button
+            type="button"
+            onClick={() => setApprenticePlacedOnly(v => !v)}
+            aria-pressed={apprenticePlacedOnly}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors w-fit ${
+              apprenticePlacedOnly
+                ? 'bg-teal-primary text-white border-teal-primary'
+                : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+            }`}
+          >
+            Apprentice Placed
+          </button>
         )}
         {showCategoryFilter && availableCategories.length > 0 && (
           <PartnerCategoryFilter
