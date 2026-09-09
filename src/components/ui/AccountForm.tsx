@@ -101,7 +101,10 @@ export default function AccountForm({
     if (!email.trim() || email.trim() === initialEmail) return
     setEmailSaving(true)
     setEmailMsg(null)
-    const { error } = await supabase.auth.updateUser({ email: email.trim() })
+    const { error } = await supabase.auth.updateUser(
+      { email: email.trim() },
+      { emailRedirectTo: `${window.location.origin}/account` }
+    )
     if (error) {
       setEmailMsg({ text: error.message, ok: false })
     } else {
