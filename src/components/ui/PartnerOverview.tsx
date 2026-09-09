@@ -1600,6 +1600,9 @@ export default function PartnerOverview({
 
   function handleApprenticePlaced(dept: PartnerDepartment, value: boolean) {
     setDeptStatuses(prev => prev.map(s => s.department === dept ? { ...s, apprentice_placed: value } : s))
+    if (value && dept === 'career_development') {
+      updateStageInState(dept, 'Active Apprenticeship')
+    }
     startTransition(async () => {
       const { interaction } = await setDepartmentApprenticePlaced(partner.id, dept, value)
       if (interaction) {

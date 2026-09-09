@@ -192,6 +192,9 @@ export async function setDepartmentDoNotEmail(
 
 // Career Development-specific: marks that a partner org has placed an
 // apprentice. Logged as an activity since it's a meaningful milestone.
+// Checking it also moves the department stage to "Active Apprenticeship"
+// (the dept_status_history trigger records that transition); unchecking
+// does not auto-revert the stage — staff change that manually if needed.
 export async function setDepartmentApprenticePlaced(
   partnerId: string,
   department: PartnerDepartment,
@@ -200,9 +203,16 @@ export async function setDepartmentApprenticePlaced(
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error, interaction: null }
 
+  const autoStage = value && department === 'career_development'
+  const update: { apprentice_placed: boolean; updated_by: string; stage?: string } = {
+    apprentice_placed: value,
+    updated_by: user!.id,
+  }
+  if (autoStage) update.stage = 'Active Apprenticeship'
+
   const { error: dbError } = await supabase
     .from('partner_department_status')
-    .update({ apprentice_placed: value })
+    .update(update)
     .eq('partner_id', partnerId)
     .eq('department', department)
 
@@ -210,7 +220,7 @@ export async function setDepartmentApprenticePlaced(
 
   const today = new Date().toISOString().slice(0, 10)
   const note = value
-    ? `Apprentice placed with this partner.`
+    ? `Apprentice placed with this partner.${autoStage ? ' Status moved to Active Apprenticeship.' : ''}`
     : `Apprentice placed flag removed.`
 
   const { data: inserted } = await supabase
