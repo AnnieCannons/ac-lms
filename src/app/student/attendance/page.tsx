@@ -10,6 +10,7 @@ import {
   fetchStudentProfileById,
   fetchAttendanceCourses,
 } from '@/lib/airtable'
+import { filterRecordsByCourse } from '@/lib/attendance-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,6 +77,19 @@ export default async function StudentAttendancePage({
   } catch (err) {
     console.error('Airtable fetch error:', err)
     airtableError = true
+  }
+
+  // Diagnostic: a student with attendance data on file but none of it landing in
+  // their active course's date range usually means the course's Start/End Date is
+  // wrong in Airtable, not that the student truly has no attendance yet.
+  if (records && records.length > 0 && studentProfile?.currentCourse) {
+    const activeCourse = courses?.find(c => c.name === studentProfile!.currentCourse) ?? null
+    const who = airtableStudentId ?? name
+    if (!activeCourse) {
+      console.warn(`[attendance] ${who}: current course "${studentProfile.currentCourse}" not found among fetchAttendanceCourses() results — track-name mismatch?`)
+    } else if (filterRecordsByCourse(records, activeCourse).length === 0) {
+      console.warn(`[attendance] ${who}: has ${records.length} attendance record(s) but none fall within active course "${activeCourse.name}" date range (${activeCourse.startDate} - ${activeCourse.endDate ?? 'open'}) — check the course's dates in Airtable`)
+    }
   }
 
   const displayName = name ?? studentProfile?.preferredName ?? profile?.name ?? ''

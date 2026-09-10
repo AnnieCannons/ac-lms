@@ -2,24 +2,13 @@
 import { useState } from 'react'
 import { CheckCircle, XCircle, Clock, AlertTriangle, Info } from 'lucide-react'
 import type { AttendanceRecord, StudentProfile, AttendanceCourse } from '@/lib/airtable'
+import { filterRecordsByCourse } from '@/lib/attendance-utils'
 
 interface Props {
   records: AttendanceRecord[]
   profile: StudentProfile | null
   courses: AttendanceCourse[]
   defaultCourseName?: string
-}
-
-
-function filterRecordsByCourse(records: AttendanceRecord[], course: AttendanceCourse): AttendanceRecord[] {
-  const start = new Date(course.startDate)
-  const end = course.endDate ? new Date(course.endDate) : new Date()
-  end.setHours(23, 59, 59, 999)
-  return records.filter(r => {
-    if (!r.date) return false
-    const d = new Date(r.date)
-    return d >= start && d <= end
-  })
 }
 
 function defaultCourseId(
