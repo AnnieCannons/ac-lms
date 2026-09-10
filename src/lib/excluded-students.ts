@@ -38,7 +38,4 @@ export const EXCLUDED_STUDENT_USER_IDS = new Set([
   'd6985f6a-3562-4496-86d3-4720863f8668', // Ainslie (ainslie@anniecannons.com) — used while acting as a TA, no longer active; the real ongoing Ainslie account is ainsliefrancisdec16@gmail.com
   'f3d70cec-d6fd-4f5f-837d-2073040632f7', // Jenny (jencvon@gmail.com) — graduated
   'cccce8d6-0cc0-4650-bd62-fb6db5def278', // Tessa (tessa@edifyanother.com)
-  '4ca07f37-0c3b-4706-9478-91715052575f', // Yani (yanilove8914@gmail.com)
-  '43917ca3-bbb7-4a11-ad46-a7ec5e61d8bc', // Cheyenne (cheytdraw25@gmail.com)
-  '0265d6a0-67b1-44e6-8a44-711140f748ce', // Aria (sowder.aria@gmail.com)
 ])
