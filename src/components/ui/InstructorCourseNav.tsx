@@ -175,11 +175,9 @@ export default function InstructorCourseNav({
         )}
       </div>
 
-      {!isTa && (
-        <div className="mb-6 px-3">
-          <CreateButton courseId={courseId} />
-        </div>
-      )}
+      <div className="mb-6 px-3">
+        <CreateButton courseId={courseId} />
+      </div>
 
       <div className="flex flex-col gap-0.5">
         {navLink('General Info', 'info')}
@@ -227,9 +225,7 @@ export default function InstructorCourseNav({
           </>
         )}
 
-        {!isTa && (
-          <TrashNavLink courseId={courseId} pathname={pathname} />
-        )}
+        <TrashNavLink courseId={courseId} pathname={pathname} />
 
         {isTa && (
           <>

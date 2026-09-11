@@ -9,7 +9,17 @@ async function getAuthedAdmin(courseId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' as const }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' as const }
+  const isGloballyTrusted = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
+  if (!isGloballyTrusted) {
+    const { data: taEnrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .eq('role', 'ta')
+      .maybeSingle()
+    if (!taEnrollment) return { error: 'Not authorized' as const }
+  }
   const admin = createServiceSupabaseClient()
   return { user, admin, courseId }
 }

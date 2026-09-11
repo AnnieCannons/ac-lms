@@ -107,7 +107,7 @@ export default async function InstructorSyllabusPage({
               )}
             </div>
 
-            <CourseEditor course={course} initialModules={modulesWithWikis} filterCategory="syllabus" courseQuizzes={courseQuizzes} readOnly={isTa} />
+            <CourseEditor course={course} initialModules={modulesWithWikis} filterCategory="syllabus" courseQuizzes={courseQuizzes} readOnly={false} />
           </main>
         </div>
       </div>

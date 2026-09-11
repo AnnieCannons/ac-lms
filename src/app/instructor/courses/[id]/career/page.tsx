@@ -72,7 +72,7 @@ export default async function InstructorCareerPage({
               ← Courses
             </Link>
             <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Career Development</h2>
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="career" readOnly={isTa} />
+            <CourseEditor course={course} initialModules={modules || []} filterCategory="career" readOnly={false} />
           </main>
         </div>
       </div>
