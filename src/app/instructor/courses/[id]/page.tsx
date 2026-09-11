@@ -111,7 +111,7 @@ export default async function CoursePage({
               currentWeek={currentWeek}
             />
 
-            <CourseEditor course={course} initialModules={filteredModulesWithWikis} courseQuizzes={courseQuizzes} readOnly={isTa} />
+            <CourseEditor course={course} initialModules={filteredModulesWithWikis} courseQuizzes={courseQuizzes} readOnly={false} />
           </main>
         </div>
       </div>

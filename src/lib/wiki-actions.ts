@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModule, getCourseIdForModuleDay } from '@/lib/course-access'
 
 type WikiData = {
@@ -11,17 +11,6 @@ type WikiData = {
   order: number
   module_id: string | null
   module_day_id: string | null
-}
-
-async function getInstructorOrAdminUser() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { user: null, role: null, error: 'Not authenticated' }
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
-    return { user: null, role: null, error: 'Unauthorized' }
-  }
-  return { user, role: profile.role, error: null }
 }
 
 /** Resolve the course_id for a wiki, or return null if not found */
@@ -47,27 +36,6 @@ async function getWikiCourseId(
     return mod?.course_id ?? null
   }
   return null
-}
-
-/** Verify the authenticated user is enrolled as instructor (or is admin) in the wiki's course */
-async function verifyWikiAccess(
-  admin: ReturnType<typeof createServiceSupabaseClient>,
-  userId: string,
-  userRole: string,
-  wikiId: string
-): Promise<boolean> {
-  if (userRole === 'admin') return true
-  const courseId = await getWikiCourseId(admin, wikiId)
-  if (!courseId) return false
-  const supabase = await createServerSupabaseClient()
-  const { data } = await supabase
-    .from('course_enrollments')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('course_id', courseId)
-    .eq('role', 'instructor')
-    .maybeSingle()
-  return !!data
 }
 
 export async function createWiki(params: {
@@ -134,12 +102,12 @@ export async function createWiki(params: {
 export async function updateWiki(
   wikiId: string,
   updates: { title?: string; content?: string }
-): Promise<{ error?: string }> {
-  const { user, role, error: authError } = await getInstructorOrAdminUser()
-  if (!user || !role) return { error: authError ?? 'Unauthorized' }
-
+): Promise<{ error?: string; code?: string }> {
   const admin = createServiceSupabaseClient()
-  if (!await verifyWikiAccess(admin, user.id, role, wikiId)) return { error: 'Not authorized' }
+  const courseId = await getWikiCourseId(admin, wikiId)
+  if (!courseId) return { error: 'Wiki not found' }
+  const access = await requireCourseInstructorAccess(courseId)
+  if (isCourseAccessError(access)) return { error: access.error, code: access.code }
 
   const { error } = await admin.from('wikis').update(updates).eq('id', wikiId)
   if (error) return { error: error.message }
@@ -149,24 +117,24 @@ export async function updateWiki(
 export async function toggleWikiPublished(
   wikiId: string,
   published: boolean
-): Promise<{ error?: string }> {
-  const { user, role, error: authError } = await getInstructorOrAdminUser()
-  if (!user || !role) return { error: authError ?? 'Unauthorized' }
-
+): Promise<{ error?: string; code?: string }> {
   const admin = createServiceSupabaseClient()
-  if (!await verifyWikiAccess(admin, user.id, role, wikiId)) return { error: 'Not authorized' }
+  const courseId = await getWikiCourseId(admin, wikiId)
+  if (!courseId) return { error: 'Wiki not found' }
+  const access = await requireCourseInstructorAccess(courseId)
+  if (isCourseAccessError(access)) return { error: access.error, code: access.code }
 
   const { error } = await admin.from('wikis').update({ published }).eq('id', wikiId)
   if (error) return { error: error.message }
   return {}
 }
 
-export async function deleteWiki(wikiId: string): Promise<{ error?: string }> {
-  const { user, role, error: authError } = await getInstructorOrAdminUser()
-  if (!user || !role) return { error: authError ?? 'Unauthorized' }
-
+export async function deleteWiki(wikiId: string): Promise<{ error?: string; code?: string }> {
   const admin = createServiceSupabaseClient()
-  if (!await verifyWikiAccess(admin, user.id, role, wikiId)) return { error: 'Not authorized' }
+  const courseId = await getWikiCourseId(admin, wikiId)
+  if (!courseId) return { error: 'Wiki not found' }
+  const access = await requireCourseInstructorAccess(courseId)
+  if (isCourseAccessError(access)) return { error: access.error, code: access.code }
 
   const { error } = await admin.from('wikis').delete().eq('id', wikiId)
   if (error) return { error: error.message }
