@@ -107,6 +107,8 @@ export default function InstructorCourseNav({
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/users`)
     } else if (slug === 'roster') {
       isActive = pathname.startsWith(`/instructor/courses/${courseId}/roster`)
+    } else if (slug === 'readiness') {
+      isActive = pathname.startsWith(`/instructor/courses/${courseId}/readiness`)
     } else if (slug === '') {
       isActive = pathname === baseHref && !COURSE_SLUGS.some(s => pathname.endsWith(`/${s}`))
     } else {
@@ -183,6 +185,7 @@ export default function InstructorCourseNav({
         {navLink('General Info', 'info')}
         {!isTa && navLink('Users', 'users')}
         {navLink('Roster', 'roster')}
+        {!isTa && navLink('Class Readiness', 'readiness')}
 
         <SectionHeader label="Course" open={courseOpen} onToggle={toggleCourseOpen} />
         {courseOpen && CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}

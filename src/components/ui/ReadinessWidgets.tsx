@@ -281,20 +281,16 @@ export function EscalationHistorySection({ events }: { events: EscalationEventRe
   )
 }
 
-function formatWeekLabel(weekStart: string): string {
-  return new Date(`${weekStart}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 export function ReadinessZoneBadge({ zone }: { zone: Zone | null }) {
-  if (zone === 'green') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Apprenticeship Ready</span>
-  if (zone === 'yellow') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900">Needs improvement</span>
-  if (zone === 'red') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900">Needs Swift Improvement</span>
-  return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-border/40 text-muted-text">No data yet</span>
+  if (zone === 'green') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800 whitespace-nowrap">Apprenticeship Ready</span>
+  if (zone === 'yellow') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900 whitespace-nowrap">Needs improvement</span>
+  if (zone === 'red') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900 whitespace-nowrap">Needs Swift Improvement</span>
+  return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-border/40 text-muted-text whitespace-nowrap">No data yet</span>
 }
 
 type TrendPoint = {
   week: string
-  score: number
+  score: number | null
   missing: number
   needsRevision: number
   attendancePctMissed: number | null
@@ -313,13 +309,14 @@ function formatAttendance(p: TrendPoint): string {
 function ReadinessTooltip({ active, payload }: { active?: boolean; payload?: { payload: TrendPoint }[] }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
+  if (p.score == null) return null
 
   return (
     <div
       className="rounded-lg px-3 py-2 text-xs"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      <div className="font-semibold text-dark-text mb-1.5">Week of {p.week}</div>
+      <div className="font-semibold text-dark-text mb-1.5">Week {p.week}</div>
       <div className="font-bold mb-1.5" style={{ color: READINESS_COLOR }}>Score: {p.score.toFixed(1)} / 5</div>
       <div className="text-muted-text space-y-0.5">
         <div>Missing: <span className="text-dark-text">{p.missing}</span></div>
@@ -330,31 +327,48 @@ function ReadinessTooltip({ active, payload }: { active?: boolean; payload?: { p
   )
 }
 
+// Minimum number of week slots to reserve on the x-axis, so an early data
+// point (or two) sits toward the left with room to grow rightward instead of
+// floating alone in the center of the chart. Once real weeks exceed this,
+// the axis just grows to fit them -- no padding needed.
+const MIN_WEEK_SLOTS = 6
+
 /** Curvy weekly readiness-score trend, 1-5, with the red/yellow/green bands shaded behind it. */
 export function ReadinessTrendChart({ history }: { history: ReadinessHistoryPoint[] }) {
   const scored = history.filter(h => h.score != null)
-  if (scored.length < 2) {
+  if (scored.length < 1) {
     return <p className="text-sm text-muted-text py-2">Your trend line appears after a couple weeks of data.</p>
   }
 
-  const data: TrendPoint[] = scored.map(h => ({
-    week: formatWeekLabel(h.weekStart),
-    score: h.score as number,
-    missing: h.missing,
-    needsRevision: h.needsRevision,
-    attendancePctMissed: h.attendancePctMissed,
-    blocksMissed: h.blocksMissed,
-    blocksTotal: h.blocksTotal,
-  }))
+  // Indexed by the course's actual calendar week number (not array position),
+  // so a skipped break week (e.g. Thanksgiving -- see isWeekOnFullBreak in
+  // readiness.ts) shows as a real gap instead of silently renumbering every
+  // week after it.
+  const byWeekNumber = new Map(scored.map(h => [h.weekNumber, h]))
+  const totalSlots = Math.max(...scored.map(h => h.weekNumber), MIN_WEEK_SLOTS)
+  const data: TrendPoint[] = Array.from({ length: totalSlots }, (_, i) => {
+    const weekNumber = i + 1
+    const h = byWeekNumber.get(weekNumber)
+    return {
+      week: String(weekNumber),
+      score: h ? (h.score as number) : null,
+      missing: h?.missing ?? 0,
+      needsRevision: h?.needsRevision ?? 0,
+      attendancePctMissed: h?.attendancePctMissed ?? null,
+      blocksMissed: h?.blocksMissed ?? null,
+      blocksTotal: h?.blocksTotal ?? null,
+    }
+  })
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
+      <LineChart data={data} margin={{ top: 20, right: 8, bottom: 20, left: 0 }}>
         <ReferenceArea y1={1} y2={2} fill="#dc2626" fillOpacity={0.06} />
         <ReferenceArea y1={2} y2={4} fill="#f59e0b" fillOpacity={0.06} />
         <ReferenceArea y1={4} y2={5} fill="#16a34a" fillOpacity={0.06} />
         <XAxis
           dataKey="week"
+          label={{ value: 'Weeks', position: 'insideBottom', offset: -12, fontSize: 11, fill: 'currentColor' }}
           tick={{ fontSize: 11, fill: 'currentColor' }}
           tickLine={false}
           axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}

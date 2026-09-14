@@ -7,7 +7,14 @@ import {
   type StudentAssignmentStats,
   type StatsHistoryPoint,
 } from '@/lib/student-stats-actions'
-import { StatCard, TrendChart, ZoneBadge, AssignmentList, AttendanceTrendChart, type AttendanceHistoryPoint } from '@/components/ui/StudentStatsWidgets'
+import { StatCard, TrendChart, AssignmentList, AttendanceTrendChart, type AttendanceHistoryPoint } from '@/components/ui/StudentStatsWidgets'
+import {
+  getReadinessHistory,
+  getEscalationHistory,
+  type ReadinessHistoryPoint,
+  type EscalationEventRecord,
+} from '@/lib/readiness-actions'
+import { HowThisWorksSection, ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
 
 export type ProfileCourse = {
   id: string
@@ -59,6 +66,8 @@ export default function StudentProfileView({
   const [assignments, setAssignments] = useState<StudentAssignmentStats | null>(null)
   const [history, setHistory] = useState<StatsHistoryPoint[] | null>(null)
   const [attendance, setAttendance] = useState<AttendanceStats | null>(null)
+  const [readinessHistory, setReadinessHistory] = useState<ReadinessHistoryPoint[]>([])
+  const [escalationHistory, setEscalationHistory] = useState<EscalationEventRecord[]>([])
   const [loading, setLoading] = useState(!!currentCourse)
   const [error, setError] = useState<string | null>(null)
   const [activeBucket, setActiveBucket] = useState<Bucket>(null)
@@ -80,12 +89,16 @@ export default function StudentProfileView({
       getStudentAssignmentStats(student.id, currentCourse.id),
       fetch(`/api/attendance/instructor/student?${attendanceParams}`).then(r => r.json()),
       getStudentStatsHistory(student.id, currentCourse.id).catch(() => []),
+      getReadinessHistory(student.id, currentCourse.id).catch(() => []),
+      getEscalationHistory(student.id, currentCourse.id).catch(() => []),
     ])
-      .then(([a, attendanceRes, h]) => {
+      .then(([a, attendanceRes, h, readiness, escalation]) => {
         if (cancelled) return
         setAssignments(a)
         setAttendance(attendanceRes.error ? null : attendanceRes)
         setHistory(h)
+        setReadinessHistory(readiness)
+        setEscalationHistory(escalation)
       })
       .catch(() => { if (!cancelled) setError('Failed to load data.') })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -138,7 +151,6 @@ export default function StudentProfileView({
                       <span className="text-sm font-semibold text-dark-text">{Math.round(attendance.percentMissed)}%</span>
                     </div>
                   )}
-                  <ZoneBadge absences={attendance.absences} />
                 </div>
               )}
               {!loading && !error && attendance && (
@@ -178,6 +190,32 @@ export default function StudentProfileView({
           <Card title="Trend">
             {history && <TrendChart history={history} />}
           </Card>
+
+          {readinessHistory.length > 0 && (
+            <>
+              <HowThisWorksSection audience="staff" />
+              <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-text uppercase tracking-wider">Weekly Readiness</p>
+                  {(() => {
+                    const latest = readinessHistory[readinessHistory.length - 1]
+                    return latest?.score != null ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold" style={{ color: READINESS_COLOR }}>{latest.score.toFixed(1)}<span className="text-xs text-muted-text font-normal">/5</span></span>
+                        <ReadinessZoneBadge zone={latest.zone} />
+                      </div>
+                    ) : null
+                  })()}
+                </div>
+                <ReadinessTrendChart history={readinessHistory} />
+                {escalationHistory.length > 0 && (
+                  <div className="mt-2">
+                    <EscalationHistorySection events={escalationHistory} />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 

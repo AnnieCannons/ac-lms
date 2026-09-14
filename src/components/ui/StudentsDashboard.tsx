@@ -8,7 +8,7 @@ import {
   type StudentAssignmentStats,
   type StatsHistoryPoint,
 } from '@/lib/student-stats-actions'
-import { TrendChart, ZoneBadge, StatCard, AssignmentList } from '@/components/ui/StudentStatsWidgets'
+import { TrendChart, StatCard, AssignmentList } from '@/components/ui/StudentStatsWidgets'
 import UserAvatar from '@/components/ui/UserAvatar'
 import type { CourseWithStudents } from '@/app/instructor/students/page'
 
@@ -219,7 +219,6 @@ function StudentRow({
                     <span className="text-sm font-semibold text-dark-text">{Math.round(data.attendance.percentMissed)}%</span>
                   </div>
                 )}
-                <ZoneBadge absences={data.attendance.absences} />
               </div>
             </div>
           )}
@@ -239,26 +238,36 @@ function CourseAccordion({ course }: { course: CourseWithStudents }) {
 
   return (
     <div className="rounded-2xl border border-border bg-surface overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-background transition-colors"
-      >
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="w-full flex items-center justify-between px-5 py-4 hover:bg-background transition-colors">
+        <button
+          type="button"
+          onClick={() => setOpen(v => !v)}
+          className="flex-1 flex items-center gap-3 min-w-0 text-left"
+        >
           <span className="font-semibold text-dark-text truncate">{course.name}</span>
           <span className="text-xs text-muted-text shrink-0">{course.students.length} student{course.students.length !== 1 ? 's' : ''}</span>
+        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href={`/instructor/courses/${course.id}/readiness`}
+            className="text-xs text-teal-primary hover:underline"
+          >
+            Class Readiness
+          </Link>
+          <button type="button" onClick={() => setOpen(v => !v)} aria-label={open ? 'Collapse' : 'Expand'}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`w-4 h-4 text-muted-text transition-transform ${open ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className={`w-4 h-4 text-muted-text shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      </div>
 
       {open && (
         <ul className="border-t border-border divide-y divide-border">

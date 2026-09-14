@@ -26,11 +26,13 @@ export default function EditCourseDatesButton({
   initialStartDate,
   initialEndDate,
   initialAirtableCourseName,
+  initialReadinessEnabled,
 }: {
   courseId: string
   initialStartDate: string | null
   initialEndDate: string | null
   initialAirtableCourseName: string | null
+  initialReadinessEnabled: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -38,6 +40,7 @@ export default function EditCourseDatesButton({
   const [endDate, setEndDate] = useState(initialEndDate ?? '')
   const [airtableName, setAirtableName] = useState(initialAirtableCourseName ?? '')
   const [airtableNameDirty, setAirtableNameDirty] = useState(false)
+  const [readinessEnabled, setReadinessEnabled] = useState(initialReadinessEnabled)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,6 +51,7 @@ export default function EditCourseDatesButton({
     setEndDate(initialEndDate ?? '')
     setAirtableName(initialAirtableCourseName ?? '')
     setAirtableNameDirty(false)
+    setReadinessEnabled(initialReadinessEnabled)
     setError(null)
     setOpen(true)
   }
@@ -61,6 +65,7 @@ export default function EditCourseDatesButton({
       startDate || null,
       endDate || null,
       airtableName || null,
+      readinessEnabled,
     )
     setSaving(false)
     if (result.error) { setError(result.error); return }
@@ -79,7 +84,7 @@ export default function EditCourseDatesButton({
       </button>
 
       {open && (
-        <Modal title="Edit Course Dates" onClose={() => !saving && setOpen(false)} maxWidth="max-w-sm">
+        <Modal title="Edit Course Settings" onClose={() => !saving && setOpen(false)} maxWidth="max-w-sm">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <DatePickerField label="Start Date" value={startDate} onChange={setStartDate} />
             <DatePickerField label="End Date" value={endDate} onChange={setEndDate} />
@@ -114,6 +119,19 @@ export default function EditCourseDatesButton({
                 </p>
               )}
             </div>
+
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={readinessEnabled}
+                onChange={e => setReadinessEnabled(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-dark-text">Use weekly readiness score for this course</span>
+                <span className="text-xs text-muted-text">Only works for classes where attendance is taken in Airtable — requires the Airtable Course Name above.</span>
+              </span>
+            </label>
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
