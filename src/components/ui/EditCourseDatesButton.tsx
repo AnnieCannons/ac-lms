@@ -90,7 +90,16 @@ export default function EditCourseDatesButton({
             <DatePickerField label="End Date" value={endDate} onChange={setEndDate} />
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-dark-text">Airtable Course Name</label>
+              <label className="text-sm font-medium text-dark-text">
+                <a
+                  href="https://airtable.com/appcKIWosoHxuZhY4/tbl8c7Y8pGl4nOehJ/viwzW8AK2RbCZMXrV?blocks=hide"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-teal-primary hover:underline"
+                >
+                  Airtable Course Name
+                </a>
+              </label>
               <input
                 type="text"
                 value={airtableName}
