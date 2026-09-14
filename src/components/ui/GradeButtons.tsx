@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { saveGrade } from "@/lib/grade-actions";
+import { saveGrade, undoNeedsRevision } from "@/lib/grade-actions";
 
 type Grade = "complete" | "incomplete" | null;
 
@@ -58,6 +58,28 @@ export default function GradeButtons({
     router.refresh();
   };
 
+  const undoRevision = async () => {
+    if (savingRef.current) return;
+    if (!confirm(
+      "Undo this Needs Revisions mark? This sets the grade to Complete and removes it from this week's readiness score count."
+    )) return;
+    savingRef.current = true;
+    setSaving(true);
+    const result = await undoNeedsRevision(submissionId, courseId);
+    if (result.error) {
+      console.error("Failed to undo grade:", result.error);
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
+    setGrade("complete");
+    setGradedAt(new Date().toISOString());
+    savingRef.current = false;
+    setSaving(false);
+    setJustGraded(true);
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col items-end gap-2 shrink-0">
       <div className="flex items-center gap-2">
@@ -83,6 +105,16 @@ export default function GradeButtons({
         >
           {saving && grade === null ? "…" : "Incomplete"}
         </button>
+        {grade === "incomplete" && (
+          <button
+            onClick={undoRevision}
+            disabled={saving}
+            title="Mark complete and remove this from the weekly readiness count"
+            className="text-xs font-medium px-3 py-2 rounded-full text-muted-text hover:text-dark-text hover:underline disabled:opacity-50 transition-colors"
+          >
+            Undo (mistake)
+          </button>
+        )}
         {justGraded && nextUrl && (
           <Link
             href={nextUrl}

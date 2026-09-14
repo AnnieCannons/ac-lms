@@ -575,7 +575,7 @@ export default async function GradingPage({
 
           {/* Grade history */}
           {gradeHistory && gradeHistory.length > 0 && (
-            <GradeHistoryList entries={gradeHistory as GradeHistoryEntry[]} />
+            <GradeHistoryList entries={gradeHistory as GradeHistoryEntry[]} courseId={id} canManage />
           )}
 
           {/* Checklist */}

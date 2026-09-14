@@ -207,6 +207,163 @@ export async function saveGrade(
   return {}
 }
 
+// Undo an accidental "Needs Revision" grade: marks the submission complete
+// and removes the most recent incomplete grade_history event so it stops
+// counting toward that week's readiness score. Distinct from saveGrade(),
+// which intentionally keeps past incomplete events on the ledger (a real
+// revision cycle should still count even after the student fixes it).
+export async function undoNeedsRevision(
+  submissionId: string,
+  courseId?: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    if (!courseId) return { error: 'Not authorized' }
+    const { data: enr } = await supabase.from('course_enrollments')
+      .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+    if (enr?.role !== 'ta') return { error: 'Not authorized' }
+  }
+
+  const admin = createServiceSupabaseClient()
+
+  const { data: current } = await admin
+    .from('submissions')
+    .select('grade, student_id, assignment_id')
+    .eq('id', submissionId)
+    .single()
+  if (!current) return { error: 'Submission not found' }
+  if (current.grade !== 'incomplete') return { error: 'Submission is not currently marked Needs Revision' }
+
+  const assignmentCourseId = await getAssignmentCourseId(admin, current.assignment_id)
+  if (courseId && assignmentCourseId !== courseId) return { error: 'Not authorized' }
+
+  // Remove the event that caused this week's readiness penalty.
+  const { data: lastIncomplete } = await admin
+    .from('grade_history')
+    .select('id')
+    .eq('submission_id', submissionId)
+    .eq('grade', 'incomplete')
+    .order('graded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (lastIncomplete) {
+    await admin.from('grade_history').delete().eq('id', lastIncomplete.id)
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await admin
+    .from('submissions')
+    .update({ grade: 'complete', status: 'graded', graded_at: now, graded_by: user.id })
+    .eq('id', submissionId)
+  if (error) return { error: error.message }
+
+  await admin.from('grade_history').insert({ submission_id: submissionId, grade: 'complete', graded_at: now })
+
+  if (assignmentCourseId) {
+    const { data: asgn } = await admin
+      .from('assignments')
+      .select('title')
+      .eq('id', current.assignment_id)
+      .single()
+    if (asgn) {
+      await admin.from('notifications').insert({
+        user_id: current.student_id,
+        type: 'grade_posted',
+        course_id: assignmentCourseId,
+        assignment_id: current.assignment_id,
+        message: `Your "${asgn.title}" submission was marked complete.`,
+      })
+    }
+  }
+
+  if (courseId) {
+    revalidatePath(`/instructor/courses/${courseId}`)
+    revalidatePath(`/student/courses/${courseId}`, 'layout')
+  } else {
+    revalidatePath('/instructor/courses', 'layout')
+    revalidatePath('/student/courses', 'layout')
+  }
+
+  return {}
+}
+
+// Delete a single grade_history entry (e.g. a stray "Needs Revision" event
+// from a misclick that has since been corrected). This is independent of the
+// submission's current grade — it only affects what counts toward the weekly
+// readiness score. If the deleted entry was the most recent event and the
+// submission's current grade still reflects it, the submission is flipped to
+// complete as well.
+export async function deleteGradeHistoryEntry(
+  historyId: string,
+  courseId?: string,
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    if (!courseId) return { error: 'Not authorized' }
+    const { data: enr } = await supabase.from('course_enrollments')
+      .select('role').eq('user_id', user.id).eq('course_id', courseId).maybeSingle()
+    if (enr?.role !== 'ta') return { error: 'Not authorized' }
+  }
+
+  const admin = createServiceSupabaseClient()
+
+  const { data: entry } = await admin
+    .from('grade_history')
+    .select('id, submission_id, grade')
+    .eq('id', historyId)
+    .single()
+  if (!entry) return { error: 'Not found' }
+
+  const { data: submission } = await admin
+    .from('submissions')
+    .select('grade, student_id, assignment_id')
+    .eq('id', entry.submission_id)
+    .single()
+  if (!submission) return { error: 'Submission not found' }
+
+  const assignmentCourseId = await getAssignmentCourseId(admin, submission.assignment_id)
+  if (courseId && assignmentCourseId !== courseId) return { error: 'Not authorized' }
+
+  const { data: latest } = await admin
+    .from('grade_history')
+    .select('id')
+    .eq('submission_id', entry.submission_id)
+    .order('graded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const wasMostRecent = latest?.id === entry.id
+
+  const { error } = await admin.from('grade_history').delete().eq('id', historyId)
+  if (error) return { error: error.message }
+
+  // If we just removed the event backing the submission's current "Needs
+  // Revision" grade, bring the current grade in line with the correction.
+  if (wasMostRecent && entry.grade === 'incomplete' && submission.grade === 'incomplete') {
+    const now = new Date().toISOString()
+    await admin
+      .from('submissions')
+      .update({ grade: 'complete', status: 'graded', graded_at: now, graded_by: user.id })
+      .eq('id', entry.submission_id)
+    await admin.from('grade_history').insert({ submission_id: entry.submission_id, grade: 'complete', graded_at: now })
+  }
+
+  if (courseId) {
+    revalidatePath(`/instructor/courses/${courseId}`)
+    revalidatePath(`/student/courses/${courseId}`, 'layout')
+  } else {
+    revalidatePath('/instructor/courses', 'layout')
+    revalidatePath('/student/courses', 'layout')
+  }
+
+  return {}
+}
+
 // Toggle a checklist response for a submission (instructors, TAs only)
 export async function toggleChecklistResponse(
   submissionId: string,
