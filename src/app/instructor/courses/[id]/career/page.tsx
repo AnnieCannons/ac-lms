@@ -12,7 +12,7 @@ export default async function InstructorCareerPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/career`);
   const supabase = await createServerSupabaseClient();
   const admin = createServiceSupabaseClient();
 

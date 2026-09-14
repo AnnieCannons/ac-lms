@@ -12,7 +12,7 @@ export default async function QuizSubmissionsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`);
 
   let admin: ReturnType<typeof createServiceSupabaseClient>;
   try {

@@ -15,7 +15,7 @@ export default async function InstructorResourcesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { profile, isTa } = await getInstructorOrTaAccess(id);
+  const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`);
   const admin = createServiceSupabaseClient();
 
   const { data: course } = await admin

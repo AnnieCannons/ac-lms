@@ -24,6 +24,7 @@ export default async function AllUsersPage({
     .single()
 
   if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    if (profile?.role === 'student') redirect(`/student/courses/${id}`)
     redirect('/unauthorized')
   }
 

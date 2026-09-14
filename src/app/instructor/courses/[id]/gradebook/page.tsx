@@ -13,7 +13,7 @@ export default async function GradebookPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
 
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect('/instructor/courses') }
