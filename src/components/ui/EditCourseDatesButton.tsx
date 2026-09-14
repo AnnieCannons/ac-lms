@@ -138,7 +138,18 @@ export default function EditCourseDatesButton({
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-dark-text">Use weekly readiness score for this course</span>
-                <span className="text-xs text-muted-text">Only works for classes where attendance is taken in Airtable — requires the Airtable Course Name above.</span>
+                <span className="text-xs text-muted-text">
+                  Only works for classes where attendance is taken in Airtable — requires the{' '}
+                  <a
+                    href="https://airtable.com/appcKIWosoHxuZhY4/tbl8c7Y8pGl4nOehJ/viwzW8AK2RbCZMXrV?blocks=hide"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-teal-primary underline hover:opacity-80"
+                  >
+                    Airtable Course Name
+                  </a>{' '}
+                  above.
+                </span>
               </span>
             </label>
 
