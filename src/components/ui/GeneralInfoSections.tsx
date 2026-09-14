@@ -5,6 +5,7 @@ import DailySchedule from './DailySchedule'
 import { CourseOutlineView } from './GeneralInfoEditor'
 import YearlyScheduleSection from './YearlyScheduleSection'
 import GlobalContentSection from './GlobalContentSection'
+import { getCourseWeekNumber } from '@/lib/date-utils'
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3 [&_h1:first-child]:mt-0
@@ -25,18 +26,9 @@ interface Section {
   order: number
 }
 
-function getCurrentWeek(startDate: string | null | undefined): number | null {
-  if (!startDate) return null
-  const start = new Date(startDate)
-  const today = new Date()
-  const diffMs = today.getTime() - start.getTime()
-  if (diffMs < 0) return null
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
-}
-
 export default function GeneralInfoSections({ sections, courseStartDate }: { sections: Section[]; courseStartDate?: string | null }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(sections.map(s => s.id)))
-  const currentWeek = getCurrentWeek(courseStartDate)
+  const currentWeek = getCourseWeekNumber(courseStartDate)
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)

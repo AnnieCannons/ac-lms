@@ -6,6 +6,7 @@ import CourseEditor from "@/components/layout/CourseEditor";
 import CourseNameEditor from "@/components/ui/CourseNameEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
+import { getCourseWeekNumber } from "@/lib/date-utils";
 
 export default async function CoursePage({
   params,
@@ -33,13 +34,7 @@ export default async function CoursePage({
 
   if (!course) redirect("/instructor/courses");
 
-  function getCurrentWeek(startDate: string | null): number | null {
-    if (!startDate) return null
-    const diffMs = Date.now() - new Date(startDate).getTime()
-    if (diffMs < 0) return null
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
-  }
-  const currentWeek = getCurrentWeek(course.start_date ?? null)
+  const currentWeek = getCourseWeekNumber(course.start_date ?? null)
 
   // Filter out soft-deleted nested items
   const filteredModules = (modules ?? []).map(m => ({

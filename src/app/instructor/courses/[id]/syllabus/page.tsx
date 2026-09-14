@@ -5,6 +5,7 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import CourseEditor from "@/components/layout/CourseEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
+import { getCourseWeekNumber } from "@/lib/date-utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,13 +27,7 @@ export default async function InstructorSyllabusPage({
 
   if (!course) redirect("/instructor/courses");
 
-  function getCurrentWeek(startDate: string | null): number | null {
-    if (!startDate) return null
-    const diffMs = Date.now() - new Date(startDate).getTime()
-    if (diffMs < 0) return null
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
-  }
-  const currentWeek = getCurrentWeek(course.start_date ?? null)
+  const currentWeek = getCourseWeekNumber(course.start_date ?? null)
 
   const { data: rawModules } = await admin
     .from("modules")

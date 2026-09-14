@@ -8,19 +8,9 @@ import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
 import PageRefresher from '@/components/ui/PageRefresher'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import { getCourseWeekNumber } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
-
-function getCurrentWeek(startDate: string | null, endDate: string | null): number | null {
-  if (!startDate) return null
-  const start = new Date(startDate)
-  const today = new Date()
-  if (endDate && today > new Date(endDate)) return null // course has ended
-  const diffMs = today.getTime() - start.getTime()
-  if (diffMs < 0) return null // course hasn't started yet
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  return Math.floor(diffDays / 7) + 1
-}
 
 export default async function StudentCourseDetailPage({
   params,
@@ -146,7 +136,7 @@ export default async function StudentCourseDetailPage({
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)
 
-  const currentWeek = getCurrentWeek(course.start_date, course.end_date ?? null)
+  const currentWeek = getCourseWeekNumber(course.start_date, course.end_date ?? null)
 
   return (
     <div className="min-h-screen bg-background">
