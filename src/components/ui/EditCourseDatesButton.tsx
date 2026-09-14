@@ -95,7 +95,7 @@ export default function EditCourseDatesButton({
                   href="https://airtable.com/appcKIWosoHxuZhY4/tbl8c7Y8pGl4nOehJ/viwzW8AK2RbCZMXrV?blocks=hide"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-teal-primary hover:underline"
+                  className="text-teal-primary underline hover:opacity-80"
                 >
                   Airtable Course Name
                 </a>
