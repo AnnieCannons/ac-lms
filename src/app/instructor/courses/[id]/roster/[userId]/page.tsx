@@ -16,7 +16,7 @@ export default async function StudentDetailPage({
 }) {
   const { id: courseId, userId } = await params
 
-  const { profile } = await getInstructorOrTaAccess(courseId)
+  const { profile } = await getInstructorOrTaAccess(courseId, `/student/courses/${courseId}`)
 
   const admin = createServiceSupabaseClient()
 

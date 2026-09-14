@@ -13,7 +13,7 @@ export default async function InstructorAssignmentsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/assignments`);
   const supabase = await createServerSupabaseClient();
 
   const { data: course } = await supabase

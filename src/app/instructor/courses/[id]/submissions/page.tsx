@@ -18,7 +18,7 @@ export default async function CourseSubmissionsPage({
 }) {
   const { id } = await params
   const { tab } = await searchParams
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
 
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect('/instructor/courses') }

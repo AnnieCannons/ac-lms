@@ -9,7 +9,7 @@ import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
 export default async function GradingGroupsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { profile, isTa } = await getInstructorOrTaAccess(id)
+  const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
   if (isTa) redirect(`/instructor/courses/${id}`)
 
   let admin: ReturnType<typeof createServiceSupabaseClient>

@@ -9,7 +9,7 @@ import ExtensionRequestList from '@/components/instructor/ExtensionRequestList'
 
 export default async function ExtensionRequestsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { profile } = await getInstructorOrTaAccess(id)
+  const { profile } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
 
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect('/instructor/courses') }
