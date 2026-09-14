@@ -69,6 +69,7 @@ export async function updateCourseDates(
   startDate: string | null,
   endDate: string | null,
   airtableCourseName: string | null = null,
+  readinessEnabled: boolean | null = null,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -97,6 +98,16 @@ export async function updateCourseDates(
 
   const update: Record<string, unknown> = { start_date: startDate || null, end_date: endDate || null }
   if (airtableCourseName !== null) update.airtable_course_name = airtableCourseName || null
+
+  if (readinessEnabled !== null) {
+    const effectiveAirtableName = airtableCourseName !== null ? airtableCourseName : (
+      (await supabase.from('courses').select('airtable_course_name').eq('id', courseId).single()).data?.airtable_course_name ?? null
+    )
+    if (readinessEnabled && !effectiveAirtableName) {
+      return { error: 'Set an Airtable Course Name before enabling the weekly readiness score.' }
+    }
+    update.readiness_enabled = readinessEnabled
+  }
 
   const { error } = await supabase
     .from('courses')

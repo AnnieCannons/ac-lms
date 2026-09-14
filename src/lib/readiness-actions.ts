@@ -7,6 +7,7 @@ import { zoneForScore, notifyStaffOfCheckinCompletion, type Zone, type Escalatio
 
 export type ReadinessHistoryPoint = {
   weekStart: string
+  weekNumber: number
   score: number | null
   zone: Zone | null
   missing: number
@@ -28,9 +29,26 @@ type SnapshotRow = {
 
 const SNAPSHOT_COLUMNS = 'week_start, missing_count, needs_revision_count, attendance_pct_missed, blocks_missed, blocks_total, readiness_score'
 
-function toHistoryPoint(r: SnapshotRow): ReadinessHistoryPoint {
+/** Monday of the week containing this date, as a YYYY-MM-DD string. */
+function mondayOf(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`)
+  const daysSinceMonday = (d.getDay() + 6) % 7
+  d.setDate(d.getDate() - daysSinceMonday)
+  return d.toISOString().slice(0, 10)
+}
+
+/** 1-indexed week number relative to the course's first Monday -- stays stable
+ * across a skipped break week (e.g. Thanksgiving), unlike an array index. */
+function weekNumberFor(weekStart: string, courseWeek1Monday: string): number {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const diff = new Date(`${weekStart}T00:00:00`).getTime() - new Date(`${courseWeek1Monday}T00:00:00`).getTime()
+  return Math.round(diff / msPerWeek) + 1
+}
+
+function toHistoryPoint(r: SnapshotRow, courseWeek1Monday: string): ReadinessHistoryPoint {
   return {
     weekStart: r.week_start,
+    weekNumber: weekNumberFor(r.week_start, courseWeek1Monday),
     score: r.readiness_score,
     zone: r.readiness_score != null ? zoneForScore(r.readiness_score) : null,
     missing: r.missing_count,
@@ -41,6 +59,11 @@ function toHistoryPoint(r: SnapshotRow): ReadinessHistoryPoint {
   }
 }
 
+async function getCourseWeek1Monday(admin: ReturnType<typeof createServiceSupabaseClient>, courseId: string): Promise<string> {
+  const { data: course } = await admin.from('courses').select('start_date').eq('id', courseId).single()
+  return mondayOf(course?.start_date ?? new Date().toISOString().slice(0, 10))
+}
+
 /** A student's own weekly readiness history for a course. */
 export async function getMyReadinessHistory(courseId: string): Promise<ReadinessHistoryPoint[]> {
   const supabase = await createServerSupabaseClient()
@@ -48,14 +71,17 @@ export async function getMyReadinessHistory(courseId: string): Promise<Readiness
   if (!user) redirect('/login')
 
   const admin = createServiceSupabaseClient()
-  const { data } = await admin
-    .from('student_stats_snapshots')
-    .select(SNAPSHOT_COLUMNS)
-    .eq('student_id', user.id)
-    .eq('course_id', courseId)
-    .order('week_start', { ascending: true })
+  const [{ data }, week1Monday] = await Promise.all([
+    admin
+      .from('student_stats_snapshots')
+      .select(SNAPSHOT_COLUMNS)
+      .eq('student_id', user.id)
+      .eq('course_id', courseId)
+      .order('week_start', { ascending: true }),
+    getCourseWeek1Monday(admin, courseId),
+  ])
 
-  return ((data as SnapshotRow[]) ?? []).map(toHistoryPoint)
+  return ((data as SnapshotRow[]) ?? []).map(r => toHistoryPoint(r, week1Monday))
 }
 
 /** Staff/instructor/admin view of any student's weekly readiness history. */
@@ -70,14 +96,82 @@ export async function getReadinessHistory(studentId: string, courseId: string): 
   }
 
   const admin = createServiceSupabaseClient()
-  const { data } = await admin
-    .from('student_stats_snapshots')
-    .select(SNAPSHOT_COLUMNS)
-    .eq('student_id', studentId)
-    .eq('course_id', courseId)
-    .order('week_start', { ascending: true })
+  const [{ data }, week1Monday] = await Promise.all([
+    admin
+      .from('student_stats_snapshots')
+      .select(SNAPSHOT_COLUMNS)
+      .eq('student_id', studentId)
+      .eq('course_id', courseId)
+      .order('week_start', { ascending: true }),
+    getCourseWeek1Monday(admin, courseId),
+  ])
 
-  return ((data as SnapshotRow[]) ?? []).map(toHistoryPoint)
+  return ((data as SnapshotRow[]) ?? []).map(r => toHistoryPoint(r, week1Monday))
+}
+
+export type CourseReadinessSummaryRow = {
+  studentId: string
+  name: string
+  avatarUrl: string | null
+  latest: ReadinessHistoryPoint | null
+}
+
+type EnrolledUserRow = {
+  user_id: string
+  users: { id: string; name: string | null; avatar_url: string | null } | { id: string; name: string | null; avatar_url: string | null }[] | null
+}
+
+const ZONE_SORT_ORDER: Record<Zone, number> = { red: 0, yellow: 1, green: 2 }
+
+/** Whole-class snapshot of every enrolled student's latest weekly readiness score/zone -- staff/instructor/admin only. */
+export async function getCourseReadinessSummary(courseId: string): Promise<CourseReadinessSummaryRow[]> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    throw new Error('Forbidden')
+  }
+
+  const admin = createServiceSupabaseClient()
+
+  const { data: enrollments } = await admin
+    .from('course_enrollments')
+    .select('user_id, users(id, name, avatar_url)')
+    .eq('course_id', courseId)
+    .eq('role', 'student')
+
+  const students = ((enrollments as unknown as EnrolledUserRow[]) ?? []).map(e => {
+    const u = Array.isArray(e.users) ? e.users[0] : e.users
+    return { studentId: e.user_id, name: u?.name ?? '', avatarUrl: u?.avatar_url ?? null }
+  })
+
+  if (students.length === 0) return []
+
+  const [{ data: snapshots }, week1Monday] = await Promise.all([
+    admin
+      .from('student_stats_snapshots')
+      .select(`${SNAPSHOT_COLUMNS}, student_id`)
+      .eq('course_id', courseId)
+      .in('student_id', students.map(s => s.studentId))
+      .order('week_start', { ascending: false }),
+    getCourseWeek1Monday(admin, courseId),
+  ])
+
+  const latestByStudent = new Map<string, ReadinessHistoryPoint>()
+  for (const row of (snapshots as (SnapshotRow & { student_id: string })[] | null) ?? []) {
+    if (!latestByStudent.has(row.student_id)) latestByStudent.set(row.student_id, toHistoryPoint(row, week1Monday))
+  }
+
+  return students
+    .map(s => ({ ...s, latest: latestByStudent.get(s.studentId) ?? null }))
+    .sort((a, b) => {
+      const za = a.latest?.zone ? ZONE_SORT_ORDER[a.latest.zone] : -1
+      const zb = b.latest?.zone ? ZONE_SORT_ORDER[b.latest.zone] : -1
+      if (za !== zb) return za - zb
+      return a.name.localeCompare(b.name)
+    })
 }
 
 export type CheckinContent = {

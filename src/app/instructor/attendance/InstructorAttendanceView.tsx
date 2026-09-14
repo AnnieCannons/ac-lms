@@ -6,26 +6,6 @@ interface Props {
   initialClasses: string[]
 }
 
-function ZoneBadge({ absences }: { absences: number }) {
-  if (absences >= 23)
-    return (
-      <span className="inline-flex px-3 py-1 rounded-full text-sm font-semibold bg-red-200 text-red-900">
-        Red
-      </span>
-    )
-  if (absences >= 12)
-    return (
-      <span className="inline-flex px-3 py-1 rounded-full text-sm font-semibold bg-yellow-200 text-yellow-900">
-        Yellow
-      </span>
-    )
-  return (
-    <span className="inline-flex px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
-      Green
-    </span>
-  )
-}
-
 function CountBadge({
   value,
   redAbove,
@@ -161,7 +141,6 @@ export default function InstructorAttendanceView({ initialClasses }: Props) {
                   <th className="px-6 py-3 text-left font-semibold text-dark-text">Absences</th>
                   <th className="px-6 py-3 text-left font-semibold text-dark-text">Tardies</th>
                   <th className="px-6 py-3 text-left font-semibold text-dark-text">% Missed</th>
-                  <th className="px-6 py-3 text-left font-semibold text-dark-text">Zone</th>
                   <th className="px-6 py-3 text-left font-semibold text-dark-text">Total Blocks</th>
                 </tr>
               </thead>
@@ -188,9 +167,6 @@ export default function InstructorAttendanceView({ initialClasses }: Props) {
                     </td>
                     <td className="px-6 py-4">
                       <PercentBadge value={s.percentMissed} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <ZoneBadge absences={s.absences} />
                     </td>
                     <td className="px-6 py-4 text-muted-text">{s.totalBlocks}</td>
                   </tr>

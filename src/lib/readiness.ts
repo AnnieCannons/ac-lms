@@ -386,7 +386,30 @@ async function evaluateEscalationForStudent(
   // step3: no further automated advancement -- stays until a staff member resolves it.
 }
 
-export type ReadinessJobResult = { courses: string[] }
+export type ReadinessJobResult = { courses: string[]; skippedBreak?: string }
+
+/**
+ * True when the given Mon-Thu scoring window falls entirely inside a
+ * calendar_holidays entry (e.g. Thanksgiving Week). A single-day holiday that
+ * only covers the Monday (MLK Day, Labor Day, etc.) does NOT count -- classes
+ * still meet the rest of that week, so it should still be scored normally.
+ * We deliberately do not score a break week at all (rather than scoring it
+ * and getting an all-green result) -- a quiet week with no assignments due
+ * and no attendance taken would otherwise look like real progress and could
+ * incorrectly count toward the 2-consecutive-good-weeks reset in the
+ * escalation state machine, pulling a student out of the process for a week
+ * where nothing was actually demonstrated.
+ */
+async function isWeekOnFullBreak(admin: AdminClient, weekStart: string, weekEnd: string): Promise<boolean> {
+  const { data } = await admin
+    .from('calendar_holidays')
+    .select('date, end_date')
+    .lte('date', weekStart)
+
+  return ((data as { date: string; end_date: string | null }[]) ?? []).some(
+    h => (h.end_date ?? h.date) >= weekEnd,
+  )
+}
 
 /**
  * Monday-morning job: scores every student in every current course for the
@@ -397,23 +420,25 @@ export type ReadinessJobResult = { courses: string[] }
  * student_stats_snapshots and runs the escalation state machine.
  */
 export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseId?: string): Promise<ReadinessJobResult> {
+  const weekRanges = getWeekRanges(now)
+  if (await isWeekOnFullBreak(admin, weekRanges.lastWeek.start, weekRanges.lastWeek.end)) {
+    return { courses: [], skippedBreak: weekRanges.lastWeek.start }
+  }
+
   const { data: courses } = await admin
     .from('courses')
-    .select('id, name, start_date, end_date, is_template, archived, airtable_course_name')
+    .select('id, name, start_date, end_date, is_template, archived, airtable_course_name, readiness_enabled')
 
-  type CourseRecord = CourseRow & { id: string; start_date: string | null; end_date: string | null }
+  type CourseRecord = CourseRow & { id: string; start_date: string | null; end_date: string | null; readiness_enabled: boolean | null }
   const allCourses = (courses as CourseRecord[]) ?? []
 
-  const weekRanges = getWeekRanges(now)
   const scoredCourses: string[] = []
 
   for (const course of allCourses) {
     if (onlyCourseId && (course as unknown as { id: string }).id !== onlyCourseId) continue
     if (course.is_template || course.archived) continue
     if (!isCurrentCourse(course.start_date, course.end_date)) continue
-
-    const track = detectTrack(course.name, course.airtable_course_name)
-    if (!track) continue
+    if (!course.readiness_enabled) continue
 
     const airtableCourseName = resolveAirtableCourseName(course, allCourses)
     const students = await getCourseStudents(admin, (course as unknown as { id: string }).id, { excludeTestAccounts: false })

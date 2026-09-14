@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import Link from 'next/link'
@@ -42,21 +43,25 @@ export default async function StudentsPage() {
     )
   }
 
-  // Fetch enrolled students for all visible courses in one query
+  // Fetch enrolled students for all visible courses
   const courseIds = visibleCourses.map(c => c.id)
-  const { data: enrollments } = await admin
-    .from('course_enrollments')
-    .select('course_id, user_id, users(id, name, avatar_url, airtable_student_id)')
-    .in('course_id', courseIds)
-    .eq('role', 'student')
+  const [enrollments, students] = await Promise.all([
+    fetchAllRows<{ course_id: string; user_id: string }>((from, to) =>
+      admin.from('course_enrollments').select('course_id, user_id').in('course_id', courseIds).eq('role', 'student').range(from, to)
+    ),
+    fetchAllRows<{ id: string; name: string | null; avatar_url: string | null; airtable_student_id: string | null }>((from, to) =>
+      admin.from('users').select('id, name, avatar_url, airtable_student_id').eq('role', 'student').range(from, to)
+    ),
+  ])
 
-  type EnrollmentRow = { course_id: string; user_id: string; users: { id: string; name: string; avatar_url: string | null; airtable_student_id: string | null } | null }
+  const studentById = new Map(students.map(s => [s.id, s]))
 
   const courseStudentMap = new Map<string, { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }[]>()
-  for (const e of (enrollments as unknown as EnrollmentRow[] ?? [])) {
-    if (!e.users?.name) continue
+  for (const e of enrollments) {
+    const s = studentById.get(e.user_id)
+    if (!s?.name) continue
     if (!courseStudentMap.has(e.course_id)) courseStudentMap.set(e.course_id, [])
-    courseStudentMap.get(e.course_id)!.push({ id: e.user_id, name: e.users.name, avatarUrl: e.users.avatar_url, airtableStudentId: e.users.airtable_student_id })
+    courseStudentMap.get(e.course_id)!.push({ id: s.id, name: s.name, avatarUrl: s.avatar_url, airtableStudentId: s.airtable_student_id })
   }
 
   const coursesWithStudents: CourseWithStudents[] = visibleCourses
