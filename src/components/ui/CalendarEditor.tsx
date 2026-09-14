@@ -89,12 +89,29 @@ export default function CalendarEditor() {
     setPreviewKey(k => k + 1)
   }
 
+  // Shifts a date forward by exactly one year (same month/day). Fixed-date holidays
+  // (July 4th, Juneteenth, Veterans Day) land correctly; weekday-anchored holidays
+  // (MLK Day, Presidents' Day, Memorial Day, Labor Day, Indigenous Peoples' Day,
+  // Thanksgiving) will need their date and date_display double-checked afterward,
+  // since "3rd Monday of the month" isn't the same calendar date every year.
+  const addOneYear = (d: string) => {
+    const dt = new Date(d + 'T12:00:00')
+    dt.setFullYear(dt.getFullYear() + 1)
+    return dt.toISOString().slice(0, 10)
+  }
+
   const copyToNextYear = async () => {
     if (!holidays.length) return
     setCopying(true)
     const supabase = createClient()
     const nextYear = holidayYear + 1
-    const rows = holidays.map(h => ({ label: h.label, date_display: h.date_display, date: h.date, end_date: h.end_date || null, year: nextYear }))
+    const rows = holidays.map(h => ({
+      label: h.label,
+      date_display: h.date_display,
+      date: addOneYear(h.date),
+      end_date: h.end_date ? addOneYear(h.end_date) : null,
+      year: nextYear,
+    }))
     await supabase.from('calendar_holidays').insert(rows)
     setHolidayYear(nextYear)
     setCopying(false)
