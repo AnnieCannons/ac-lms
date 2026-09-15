@@ -148,31 +148,36 @@ export default function SubmissionForm({
     setError(null);
     setSubmitting(true);
 
-    const result = await saveSubmission(
-      assignmentId,
-      status,
-      content,
-      type,
-      saved?.id ?? null,
-      saved?.submitted_at ?? null,
-      status === 'submitted' ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? null) : null,
-    );
+    try {
+      const result = await saveSubmission(
+        assignmentId,
+        status,
+        content,
+        type,
+        saved?.id ?? null,
+        saved?.submitted_at ?? null,
+        status === 'submitted' ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? null) : null,
+      );
 
-    setSubmitting(false);
+      if (result.error) {
+        setError(`Failed to save: ${result.error}`);
+        return null;
+      }
 
-    if (result.error) {
-      setError(`Failed to save: ${result.error}`);
+      const newSaved = result.data as Submission;
+      setSaved(newSaved);
+
+      if (status === "submitted" && result.historyEntry) {
+        setHistory(prev => [result.historyEntry as HistoryEntry, ...prev]);
+      }
+
+      return newSaved;
+    } catch {
+      setError("Failed to save: network error. Please check your connection and try again.");
       return null;
+    } finally {
+      setSubmitting(false);
     }
-
-    const newSaved = result.data as Submission;
-    setSaved(newSaved);
-
-    if (status === "submitted" && result.historyEntry) {
-      setHistory(prev => [result.historyEntry as HistoryEntry, ...prev]);
-    }
-
-    return newSaved;
   };
 
   const handleSubmit = async () => {

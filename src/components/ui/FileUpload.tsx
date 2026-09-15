@@ -64,24 +64,30 @@ export default function FileUpload({
     formData.append("bucket", bucket);
     formData.append("path", filePath);
 
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const json = await res.json();
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const json = await res.json();
 
-    if (!res.ok || json.error) {
-      const msg = `Upload failed: ${json.error ?? res.statusText}`;
+      if (!res.ok || json.error) {
+        const msg = `Upload failed: ${json.error ?? res.statusText}`;
+        setError(msg);
+        onError?.(msg);
+        return;
+      }
+
+      setUploadedName(safeName);
+      setUploadedUrl(json.url);
+      onUpload(json.url, safeName);
+
+      // Reset input so same file can be re-selected if needed
+      if (inputRef.current) inputRef.current.value = "";
+    } catch {
+      const msg = "Upload failed: network error. Please check your connection and try again.";
       setError(msg);
       onError?.(msg);
+    } finally {
       setUploading(false);
-      return;
     }
-
-    setUploadedName(safeName);
-    setUploadedUrl(json.url);
-    setUploading(false);
-    onUpload(json.url, safeName);
-
-    // Reset input so same file can be re-selected if needed
-    if (inputRef.current) inputRef.current.value = "";
   };
 
   return (
