@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/weekly-report",
       "schedule": "0 * * * 5"
+    },
+    {
+      "path": "/api/cron/readiness-score",
+      "schedule": "0 * * * 1"
+    },
+    {
+      "path": "/api/cron/escalation-reminders",
+      "schedule": "0 */4 * * *"
     }
   ]
 }

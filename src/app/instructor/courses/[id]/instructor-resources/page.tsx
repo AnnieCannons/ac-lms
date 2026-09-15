@@ -15,7 +15,7 @@ export default async function InstructorResourcesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { profile, isTa } = await getInstructorOrTaAccess(id);
+  const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`);
   const admin = createServiceSupabaseClient();
 
   const { data: course } = await admin
@@ -74,13 +74,13 @@ export default async function InstructorResourcesPage({
                 <h2 className="text-xl font-bold text-dark-text">Instructor Resources</h2>
                 <p className="text-sm text-muted-text mt-1">Only visible to instructors, admins, and TAs — never shown to students.</p>
               </div>
-              {!isTa && <AddResourceButton courseId={id} instructorOnly />}
+              <AddResourceButton courseId={id} instructorOnly />
             </div>
             <ResourceOutline
               modules={modules as Parameters<typeof ResourceOutline>[0]['modules']}
               courseId={id}
               mode="resources"
-              editable={!isTa}
+              editable={true}
             />
           </main>
         </div>

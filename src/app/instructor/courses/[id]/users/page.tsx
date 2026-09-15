@@ -13,7 +13,7 @@ export default async function InstructorUsersPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { profile, isTa } = await getInstructorOrTaAccess(id)
+  const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
 
   // TAs cannot manage users
   if (isTa) redirect(`/instructor/courses/${id}`)

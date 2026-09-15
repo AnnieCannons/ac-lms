@@ -13,7 +13,7 @@ export default async function InstructorLevelUpPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/level-up`);
   const supabase = await createServerSupabaseClient();
   const admin = createServiceSupabaseClient();
 
@@ -96,7 +96,7 @@ export default async function InstructorLevelUpPage({
             </Link>
             <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Level Up Your Skills</h2>
 
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" readOnly={isTa} />
+            <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" readOnly={false} />
 
             {bonusAssignments.length > 0 && (
               <BonusAssignmentList assignments={bonusAssignments} courseId={id} />

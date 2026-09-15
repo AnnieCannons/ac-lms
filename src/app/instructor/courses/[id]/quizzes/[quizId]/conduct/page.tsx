@@ -21,7 +21,7 @@ export default async function ConductQuizPage({
     .eq("id", user.id)
     .single();
 
-  if (profile?.role === "student") redirect("/student/courses");
+  if (profile?.role === "student") redirect(`/student/courses/${id}/quizzes/${quizId}`);
 
   let admin: ReturnType<typeof createServiceSupabaseClient>;
   try {

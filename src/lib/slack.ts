@@ -70,6 +70,36 @@ export async function notifyByEmail(email: string, text: string): Promise<boolea
   return slackPostMessage(slackId, text)
 }
 
+/**
+ * Opens (or reuses) a private multi-person Slack conversation among the given
+ * user IDs — used for the accountability escalation's step-3 group ping
+ * (student + instructor + staff together). Returns the conversation's channel
+ * ID, which can then be passed to slackPostMessage. Requires the bot to have
+ * im:write/mpim:write scope.
+ */
+export async function openGroupDM(userIds: string[]): Promise<string | null> {
+  if (!SLACK_BOT_TOKEN || userIds.length === 0) return null
+  try {
+    const res = await fetch('https://slack.com/api/conversations.open', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ users: userIds.join(',') }),
+    })
+    const json = (await res.json()) as { ok: boolean; channel?: { id: string }; error?: string }
+    if (!json.ok) {
+      console.warn(`Slack conversations.open error: ${json.error}`)
+      return null
+    }
+    return json.channel?.id ?? null
+  } catch (e) {
+    console.warn('Slack conversations.open failed:', e)
+    return null
+  }
+}
+
 // Slack's chat.scheduleMessage rejects timestamps in the past or more than ~120 days out.
 export const SLACK_SCHEDULE_MAX_DAYS = 119
 

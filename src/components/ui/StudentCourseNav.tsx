@@ -1,6 +1,8 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   courseId: string
@@ -28,6 +30,25 @@ const PAID_ITEMS = [
 
 export default function StudentCourseNav({ courseId, courseName, paidLearners }: Props) {
   const pathname = usePathname()
+  const [isTa, setIsTa] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('course_enrollments')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('course_id', courseId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!cancelled) setIsTa(data?.role === 'ta')
+        })
+    })
+    return () => { cancelled = true }
+  }, [courseId])
 
   const navLink = (label: string, slug: string) => {
     const href = `/student/courses/${courseId}${slug ? `/${slug}` : ''}`
@@ -53,6 +74,14 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         {courseName}
       </p>
       <div className="flex flex-col gap-0.5 pb-4">
+        {isTa && (
+          <Link
+            href={`/instructor/courses/${courseId}`}
+            className="pl-5 pr-3 py-2 mb-2 rounded-lg text-sm font-semibold bg-teal-light text-teal-primary hover:bg-teal-light/70 transition-colors"
+          >
+            TA / Instructor View →
+          </Link>
+        )}
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}

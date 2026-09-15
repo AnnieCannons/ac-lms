@@ -16,7 +16,7 @@ export default async function TrashPage({
 }) {
   const { id } = await params
   const { action } = await searchParams
-  const { profile, isTa } = await getInstructorOrTaAccess(id)
+  const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
   if (isTa) redirect(`/instructor/courses/${id}`)
 
   let admin: ReturnType<typeof createServiceSupabaseClient>

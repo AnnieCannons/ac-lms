@@ -28,7 +28,7 @@ export default async function StudentProfilePage({
 
   const admin = createServiceSupabaseClient()
 
-  const { data: student } = await admin.from('users').select('id, name, email').eq('id', studentId).single()
+  const { data: student } = await admin.from('users').select('id, name, email, airtable_student_id').eq('id', studentId).single()
   if (!student) redirect('/instructor/students')
 
   const { data: enrollments } = await admin
@@ -77,7 +77,7 @@ export default async function StudentProfilePage({
         <h1 className="text-2xl font-bold text-dark-text mb-1">{student.name}</h1>
         <p className="text-sm text-muted-text mb-8">{student.email}</p>
         <StudentProfileView
-          student={{ id: student.id, name: student.name ?? '', email: student.email ?? '' }}
+          student={{ id: student.id, name: student.name ?? '', email: student.email ?? '', airtableStudentId: student.airtable_student_id }}
           courses={courses}
         />
       </main>

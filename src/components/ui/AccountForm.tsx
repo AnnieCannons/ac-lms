@@ -59,13 +59,11 @@ export default function AccountForm({
   userId,
   initialName,
   initialEmail,
-  role = 'student',
   initialAvatarUrl = null,
 }: {
   userId: string
   initialName: string
   initialEmail: string
-  role?: string
   initialAvatarUrl?: string | null
 }) {
   const supabase = createClient()
@@ -101,7 +99,10 @@ export default function AccountForm({
     if (!email.trim() || email.trim() === initialEmail) return
     setEmailSaving(true)
     setEmailMsg(null)
-    const { error } = await supabase.auth.updateUser({ email: email.trim() })
+    const { error } = await supabase.auth.updateUser(
+      { email: email.trim() },
+      { emailRedirectTo: `${window.location.origin}/account` }
+    )
     if (error) {
       setEmailMsg({ text: error.message, ok: false })
     } else {
@@ -152,7 +153,7 @@ export default function AccountForm({
   }
 
   const isDirty =
-    (role !== 'student' && name.trim() !== initialName) ||
+    name.trim() !== initialName ||
     email.trim() !== initialEmail ||
     currentPw.length > 0 || newPw.length > 0 || confirmPw.length > 0
   useUnsavedChanges(isDirty)
@@ -175,37 +176,27 @@ export default function AccountForm({
 
       {/* Name */}
       <Section title="Name">
-        {role === 'student' ? (
-          <div>
-            <label className={labelCls}>Display name</label>
-            <p className="text-sm text-dark-text py-2.5">{initialName}</p>
-            <p className="text-xs text-muted-text mt-1">
-              Your name is managed by AnnieCannons staff. Contact your instructor if it needs to be updated.
-            </p>
+        <form onSubmit={saveName}>
+          <label htmlFor="name" className={labelCls}>Display name</label>
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className={inputCls}
+            required
+          />
+          <div className="flex items-center gap-4 mt-4">
+            <button
+              type="submit"
+              disabled={nameSaving || !name.trim() || name.trim() === initialName}
+              className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-40 transition-opacity"
+            >
+              {nameSaving ? 'Saving…' : 'Save name'}
+            </button>
           </div>
-        ) : (
-          <form onSubmit={saveName}>
-            <label htmlFor="name" className={labelCls}>Display name</label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className={inputCls}
-              required
-            />
-            <div className="flex items-center gap-4 mt-4">
-              <button
-                type="submit"
-                disabled={nameSaving || !name.trim() || name.trim() === initialName}
-                className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-40 transition-opacity"
-              >
-                {nameSaving ? 'Saving…' : 'Save name'}
-              </button>
-            </div>
-            <StatusMsg msg={nameMsg} />
-          </form>
-        )}
+          <StatusMsg msg={nameMsg} />
+        </form>
       </Section>
 
       {/* Email */}

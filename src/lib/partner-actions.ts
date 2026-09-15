@@ -88,7 +88,7 @@ export async function listPartners() {
       do_not_email, do_not_email_notes, do_not_email_set_at,
       partner_type_assignments (partner_type),
       partner_contacts (id, name, title, email, is_primary, website_url),
-      partner_department_status (department, stage),
+      partner_department_status (department, stage, apprentice_placed),
       partner_interactions (id, note, interaction_date, department, users(name)),
       student_referrals (student_identifier, direction),
       partner_ratings (score, reviewer_type),

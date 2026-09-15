@@ -49,6 +49,33 @@ export function isDueThisWeek(dueDate: string | null | undefined): boolean {
   return due >= monday && due <= sunday
 }
 
+/**
+ * Course week number for "today", anchored to Mon-Sun calendar weeks
+ * starting from the Monday on/before the course's start date. Without this
+ * anchoring, a mid-week start date drifts week boundaries away from Monday
+ * (e.g. a Tuesday start makes "week 2" begin on a Tuesday instead of the
+ * following Monday), which disagrees with the Monday-Thursday day structure
+ * shown elsewhere in the course outline.
+ * Returns null if the course hasn't started yet, or (when endDate is given)
+ * has already ended.
+ */
+export function getCourseWeekNumber(
+  startDate: string | null | undefined,
+  endDate?: string | null,
+): number | null {
+  if (!startDate) return null
+  const start = localDate(startDate)
+  const today = todayLocal()
+  if (endDate && today > localDate(endDate)) return null
+  if (today < start) return null
+  const startDay = start.getDay()
+  const diffToMonday = startDay === 0 ? -6 : 1 - startDay
+  const anchorMonday = new Date(start)
+  anchorMonday.setDate(start.getDate() + diffToMonday)
+  const diffDays = Math.floor((today.getTime() - anchorMonday.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.floor(diffDays / 7) + 1
+}
+
 export function formatDueDate(
   dateStr: string,
   options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' },

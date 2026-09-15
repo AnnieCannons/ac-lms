@@ -1,15 +1,140 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import CalendarPopover from './CalendarPopover'
 
 type Cohort   = { id: string; name: string; start_date: string; end_date: string; order: number }
-type Break    = { id: string; label: string; start_date: string; end_date: string }
+type Break    = { id: string; label: string; start_date: string; end_date: string; paid_only?: boolean | null }
 type Holiday  = { id: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
 
-type TimelineItem =
-  | { kind: 'cohort'; name: string; start: string; end: string; isCurrent: boolean }
-  | { kind: 'break';  label: string; start: string; end: string }
+type DayKind = 'session' | 'break' | 'holiday'
+const KIND_PRIORITY: Record<DayKind, number> = { session: 0, break: 1, holiday: 2 }
+const DAY_BG: Record<DayKind, string> = {
+  session: 'bg-teal-primary text-white',
+  break:   'bg-amber-500 text-white',
+  holiday: 'bg-purple-primary text-white dark:text-purple-950',
+}
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DOW_LETTERS = ['S','M','T','W','T','F','S']
+const WEEKEND_COL = new Set([0, 6])
+
+function dateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+type DayInfo = { kind: DayKind; label: string }
+
+function buildDayMap(cohorts: Cohort[], breaks: Break[], holidays: Holiday[]) {
+  const map = new Map<string, DayInfo>()
+  const apply = (kind: DayKind, label: string, start: string, end: string) => {
+    if (!start || !end) return
+    const cur = new Date(start + 'T00:00:00')
+    const endD = new Date(end + 'T00:00:00')
+    while (cur <= endD) {
+      const key = dateKey(cur)
+      const existing = map.get(key)
+      if (!existing || KIND_PRIORITY[kind] > KIND_PRIORITY[existing.kind]) map.set(key, { kind, label })
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+  cohorts.forEach(c => apply('session', c.name, c.start_date, c.end_date))
+  breaks.forEach(b => apply('break', b.label, b.start_date, b.end_date))
+  holidays.forEach(h => apply('holiday', h.label, h.date, h.end_date ?? h.date))
+  return map
+}
+
+function MonthMini({ year, month, dayMap }: { year: number; month: number; dayMap: Map<string, DayInfo> }) {
+  const firstDay = new Date(year, month, 1)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const startDow = firstDay.getDay()
+  const cells: (number | null)[] = [...Array(startDow).fill(null)]
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-dark-text text-center mb-1.5">{MONTHS_SHORT[month]}</p>
+      <div className="grid grid-cols-7 mb-0.5">
+        {DOW_LETTERS.map((d, col) => (
+          <span key={col} className={`text-center text-[10px] font-medium ${WEEKEND_COL.has(col) ? 'text-amber-700 dark:text-amber-400' : 'text-muted-text'}`}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />
+          const col = i % 7
+          const info = dayMap.get(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
+          const cls = info ? DAY_BG[info.kind] : (WEEKEND_COL.has(col) ? 'text-amber-700 dark:text-amber-400' : 'text-dark-text')
+          const isHoliday = info?.kind === 'holiday'
+          return (
+            <div key={i} className={isHoliday ? 'relative group/day' : undefined}>
+              <div className={`text-center text-[10px] py-1 rounded font-medium ${cls} ${isHoliday ? 'cursor-default' : ''}`}>
+                {day}
+              </div>
+              {isHoliday && (
+                <div className="pointer-events-none absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/day:block whitespace-nowrap rounded-md bg-gray-900/95 text-white text-[11px] font-medium px-2 py-1 shadow-lg">
+                  {info.label}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function YearlyCalendarGrid({
+  year, onYearChange, cohorts, breaks, holidays, hideCohorts,
+}: {
+  year: number
+  onYearChange: (y: number) => void
+  cohorts: Cohort[]
+  breaks: Break[]
+  holidays: Holiday[]
+  hideCohorts?: boolean
+}) {
+  const dayMap = useMemo(
+    () => buildDayMap(hideCohorts ? [] : cohorts, breaks, holidays),
+    [cohorts, breaks, holidays, hideCohorts]
+  )
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onYearChange(year - 1)}
+            aria-label="Previous year"
+            className="px-2 py-1 text-sm border border-border rounded-lg hover:border-teal-primary text-muted-text hover:text-teal-primary transition-colors"
+          >
+            ←
+          </button>
+          <span className="text-sm font-bold text-dark-text w-14 text-center">{year}</span>
+          <button
+            onClick={() => onYearChange(year + 1)}
+            aria-label="Next year"
+            className="px-2 py-1 text-sm border border-border rounded-lg hover:border-teal-primary text-muted-text hover:text-teal-primary transition-colors"
+          >
+            →
+          </button>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-muted-text flex-wrap">
+          {!hideCohorts && (
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-teal-primary" /> In session</span>
+          )}
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Break</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-purple-primary" /> Holiday</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-5 rounded-xl border border-border p-4 bg-surface">
+        {Array.from({ length: 12 }, (_, m) => (
+          <MonthMini key={m} year={year} month={m} dayMap={dayMap} />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function formatDate(d: string) {
   if (!d) return '—'
@@ -17,119 +142,55 @@ function formatDate(d: string) {
   catch { return d }
 }
 
-function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
-  const today = new Date()
-  const sorted = [...cohorts].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
-
-  let startIdx = sorted.findIndex(c => new Date(c.start_date) <= today && today <= new Date(c.end_date))
-  if (startIdx === -1) startIdx = sorted.findIndex(c => new Date(c.start_date) > today)
-  if (startIdx === -1) startIdx = Math.max(0, sorted.length - 3)
-
-  const display = sorted.slice(startIdx, startIdx + 3)
-  if (display.length === 0) return []
-
-  const rangeStart = new Date(display[0].start_date)
-  const rangeEnd   = new Date(display[display.length - 1].end_date)
-
-  const relevantBreaks = breaks.filter(b =>
-    new Date(b.start_date) <= rangeEnd && new Date(b.end_date) >= rangeStart
-  )
-
-  const items: TimelineItem[] = [
-    ...display.map(c => ({
-      kind: 'cohort' as const,
-      name: c.name,
-      start: c.start_date,
-      end: c.end_date,
-      isCurrent: new Date(c.start_date) <= today && today <= new Date(c.end_date),
-    })),
-    ...relevantBreaks.map(b => ({
-      kind: 'break' as const,
-      label: b.label,
-      start: b.start_date,
-      end: b.end_date,
-    })),
-  ]
-
-  return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-}
-
 export default function YearlyScheduleSection({ instructorEditHref, hideCohorts, paidOnly }: { instructorEditHref?: string; hideCohorts?: boolean; paidOnly?: boolean } = {}) {
-  const [timeline, setTimeline] = useState<TimelineItem[]>([])
+  const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [breaks, setBreaks] = useState<Break[]>([])
   const [loading, setLoading] = useState(true)
+  const [year, setYear] = useState(() => new Date().getFullYear())
 
   useEffect(() => {
     const supabase = createClient()
-    const currentYear = new Date().getFullYear()
     const breaksQuery = paidOnly
       ? supabase.from('calendar_breaks').select('*').eq('paid_only', true).order('start_date', { ascending: true })
       : supabase.from('calendar_breaks').select('*').order('start_date', { ascending: true })
     Promise.all([
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
       breaksQuery,
-      supabase.from('calendar_holidays').select('*').eq('year', currentYear).order('date', { ascending: true }),
-    ]).then(([{ data: cohorts }, { data: rawBreaks }, { data: hols }]) => {
-      setTimeline(buildTimeline(cohorts ?? [], rawBreaks ?? []))
+    ]).then(([{ data: c }, { data: rawBreaks }]) => {
+      setCohorts(c ?? [])
       setBreaks(rawBreaks ?? [])
-      setHolidays(hols ?? [])
       setLoading(false)
     })
-  }, [])
+  }, [paidOnly])
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('calendar_holidays').select('*').eq('year', year).order('date', { ascending: true })
+      .then(({ data }) => setHolidays(data ?? []))
+  }, [year])
 
   if (loading) return <p className="text-sm text-muted-text">Loading schedule…</p>
-  if (!hideCohorts && timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
+  if (!hideCohorts && cohorts.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
   if (hideCohorts && holidays.length === 0 && breaks.length === 0) return <p className="text-sm text-muted-text italic">No holidays or breaks added yet.</p>
 
   const holidayHighlights = holidays.map(h => ({ start: h.date, end: h.end_date ?? undefined, color: 'purple' as const, label: h.label }))
+  const breaksThisYear = breaks.filter(b =>
+    (paidOnly || !b.paid_only) &&
+    (new Date(b.start_date).getFullYear() === year || new Date(b.end_date).getFullYear() === year)
+  )
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Cohort / break timeline */}
-      {!hideCohorts && <div className="rounded-xl border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_1fr_32px] bg-teal-light/60 border-b border-border">
-          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
-          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
-          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">End</div>
-          <div />
-        </div>
-        {timeline.map((item, i) => (
-          <div
-            key={i}
-            className={`grid grid-cols-[1fr_1fr_1fr_32px] items-center border-b border-border last:border-b-0 ${
-              item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50 dark:bg-amber-900/20'
-            }`}
-          >
-            <div className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 ${
-              item.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700 dark:text-amber-400'
-            }`}>
-              {item.kind === 'cohort' ? item.name : item.label}
-              {item.kind === 'cohort' && item.isCurrent && (
-                <span className="text-[10px] font-bold bg-teal-primary text-white px-1.5 py-0.5 rounded-full leading-none">
-                  Current
-                </span>
-              )}
-            </div>
-            <div className={`px-4 py-2.5 text-sm ${item.kind === 'break' ? 'text-amber-800 dark:text-amber-300' : 'text-dark-text'}`}>{formatDate(item.start)}</div>
-            <div className={`px-4 py-2.5 text-sm ${item.kind === 'break' ? 'text-amber-800 dark:text-amber-300' : 'text-dark-text'}`}>{formatDate(item.end)}</div>
-            <div className="flex items-center justify-center pr-1">
-              <CalendarPopover
-                label={item.kind === 'cohort' ? item.name : item.label}
-                initialDate={item.start}
-                highlights={[{ start: item.start, end: item.end, color: item.kind === 'cohort' ? 'teal' : 'amber', label: item.kind === 'cohort' ? item.name : item.label }]}
-              />
-            </div>
-          </div>
-        ))}
-      </div>}
+      {/* Color-coded year calendar */}
+      <YearlyCalendarGrid year={year} onYearChange={setYear} cohorts={cohorts} breaks={breaks} holidays={holidays} hideCohorts={hideCohorts} />
 
       {/* Holidays */}
       {holidays.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
             <p role="heading" aria-level={2} className="text-sm font-extrabold text-dark-text uppercase tracking-widest m-0">
-              {new Date().getFullYear()} Holidays
+              {year} Holidays
             </p>
             <CalendarPopover
               label="All Holidays"
@@ -149,14 +210,14 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
         </div>
       )}
 
-      {/* School Breaks */}
-      {breaks.length > 0 && (
+      {/* Breaks */}
+      {breaksThisYear.length > 0 && (
         <div>
           <p role="heading" aria-level={2} className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3 m-0">
-            School Breaks
+            Breaks — {year}
           </p>
           <div className="rounded-xl border border-border overflow-hidden">
-            {breaks.map((b, i) => (
+            {breaksThisYear.map((b, i) => (
               <div key={b.id} className={`flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 ${i % 2 === 0 ? 'bg-surface' : 'bg-background'}`}>
                 <span className="text-sm font-medium text-dark-text">{b.label}</span>
                 <div className="flex items-center gap-2">

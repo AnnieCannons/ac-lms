@@ -92,7 +92,7 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
       cellLabel = 'Submitted – needs grading'
     }
   } else if (isPastDue) {
-    icon = '–'
+    icon = '✗'
     cellClass = 'status-late-badge'
     cellLabel = 'Missing / past due'
   }

@@ -9,6 +9,7 @@ import HtmlContent from '@/components/ui/HtmlContent'
 import DailySchedule from '@/components/ui/DailySchedule'
 import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
 import GlobalContentSection from '@/components/ui/GlobalContentSection'
+import { getCourseWeekNumber } from '@/lib/date-utils'
 import {
   DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor,
   useSensor, useSensors, type DragEndEvent, type DraggableAttributes,
@@ -86,18 +87,9 @@ function GripIcon() {
 
 // ── Read-only section content (shared with student view) ──────────────────────
 
-function getCurrentWeek(startDate: string | null | undefined): number | null {
-  if (!startDate) return null
-  const start = new Date(startDate)
-  const today = new Date()
-  const diffMs = today.getTime() - start.getTime()
-  if (diffMs < 0) return null
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1
-}
-
 export function CourseOutlineView({ content, courseStartDate }: { content: string | null; courseStartDate?: string | null }) {
   const rows = parseOutline(content)
-  const currentWeek = getCurrentWeek(courseStartDate)
+  const currentWeek = getCourseWeekNumber(courseStartDate)
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="grid grid-cols-[88px_1fr_1.5fr] bg-teal-light/60 border-b border-border">

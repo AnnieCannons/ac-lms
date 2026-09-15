@@ -11,10 +11,11 @@ export function isCourseAccessError(result: CourseAccessResult): result is Cours
 }
 
 /**
- * Verifies the caller is global instructor/staff/admin. Instructors and staff are
- * globally trusted — any course, not just ones they're personally enrolled in — so
- * no per-course enrollment check is required. `courseId` is accepted for call-site
- * consistency and future scoping but is not currently used to restrict access.
+ * Verifies the caller is a global instructor/staff/admin, or a course-scoped TA.
+ * Instructors and staff are globally trusted — any course, not just ones they're
+ * personally enrolled in. TAs are trusted only within the specific course they're
+ * enrolled in as `course_enrollments.role = 'ta'`, which is why `courseId` is
+ * required here (unlike the global roles, it actually gates TA access).
  */
 export async function requireCourseInstructorAccess(courseId: string): Promise<CourseAccessResult> {
   const supabase = await createServerSupabaseClient()
@@ -26,7 +27,16 @@ export async function requireCourseInstructorAccess(courseId: string): Promise<C
 
   if (role === 'admin' || role === 'instructor' || role === 'staff') return { user, role }
 
-  return { error: 'Only instructors, staff, or admins can do this.', code: 'NOT_STAFF' }
+  const { data: taEnrollment } = await supabase
+    .from('course_enrollments')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('course_id', courseId)
+    .eq('role', 'ta')
+    .maybeSingle()
+  if (taEnrollment) return { user, role: 'ta' }
+
+  return { error: 'Only instructors, staff, admins, or TAs can do this.', code: 'NOT_STAFF' }
 }
 
 export async function getCourseIdForModule(

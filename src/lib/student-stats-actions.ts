@@ -3,6 +3,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isDueThisWeek } from '@/lib/date-utils'
+import { toEtDateStr } from '@/lib/weekly-report'
 
 export type AssignmentBucket = 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused'
 
@@ -68,12 +69,13 @@ export async function getStudentStatsHistory(studentId: string, courseId: string
   }))
 }
 
-export async function computeStudentAssignmentStats(
+type CourseAssignment = Omit<AssignmentStat, 'submission_id' | 'comment_count'> & { submission_required: boolean }
+
+// Fetch all published, non-deleted assignments for this course that require submission
+async function fetchCourseAssignments(
   admin: ReturnType<typeof createServiceSupabaseClient>,
-  studentId: string,
   courseId: string,
-): Promise<StudentAssignmentStats> {
-  // Fetch all published, non-deleted assignments for this course that require submission
+): Promise<CourseAssignment[]> {
   const { data: modules } = await admin
     .from('modules')
     .select('title, module_days(assignments!module_day_id(id, title, due_date, submission_required, deleted_at, published))')
@@ -85,7 +87,7 @@ export async function computeStudentAssignmentStats(
   type RawDay = { assignments: RawAssignment[] }
   type RawModule = { title: string; module_days: RawDay[] }
 
-  const assignments: (Omit<AssignmentStat, 'submission_id' | 'comment_count'> & { submission_required: boolean })[] = []
+  const assignments: CourseAssignment[] = []
   for (const m of (modules as RawModule[] ?? [])) {
     for (const d of m.module_days ?? []) {
       for (const a of d.assignments ?? []) {
@@ -94,6 +96,54 @@ export async function computeStudentAssignmentStats(
       }
     }
   }
+  return assignments
+}
+
+/**
+ * Counts how many times this student had a submission returned as Needs
+ * Revision (grade_history rows with grade='incomplete') within [weekStart,
+ * weekEnd] (ET calendar dates, inclusive) -- every bounce counts, not just
+ * whatever is still sitting in that state as of when this is called. This is
+ * what feeds the weekly readiness score, replacing the old Monday-morning
+ * snapshot of current state.
+ */
+export async function countNeedsRevisionEvents(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  studentId: string,
+  courseId: string,
+  weekStart: string,
+  weekEnd: string,
+): Promise<number> {
+  const assignments = await fetchCourseAssignments(admin, courseId)
+  if (assignments.length === 0) return 0
+
+  const { data: submissions } = await admin
+    .from('submissions')
+    .select('id')
+    .eq('student_id', studentId)
+    .in('assignment_id', assignments.map(a => a.id))
+
+  const submissionIds = (submissions as { id: string }[] ?? []).map(s => s.id)
+  if (submissionIds.length === 0) return 0
+
+  const { data: historyRows } = await admin
+    .from('grade_history')
+    .select('graded_at')
+    .in('submission_id', submissionIds)
+    .eq('grade', 'incomplete')
+
+  return ((historyRows as { graded_at: string }[]) ?? []).filter(r => {
+    const etDate = toEtDateStr(new Date(r.graded_at))
+    return etDate >= weekStart && etDate <= weekEnd
+  }).length
+}
+
+export async function computeStudentAssignmentStats(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  studentId: string,
+  courseId: string,
+): Promise<StudentAssignmentStats> {
+  const assignments = await fetchCourseAssignments(admin, courseId)
 
   if (assignments.length === 0) {
     return { complete: [], waitingToBeGraded: [], needsRevision: [], missing: [], dueThisWeek: [], excused: [] }

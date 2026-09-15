@@ -72,7 +72,7 @@ export default async function StudentCoursesPage() {
               return (
                 <div key={course.id} className="relative bg-surface rounded-2xl border border-border hover:border-teal-primary transition-colors">
                   <div className="flex items-center justify-between gap-4 p-4 sm:p-6">
-                    <Link href={`/student/courses/${course.id}`} className="flex-1 min-w-0">
+                    <Link href={isTa ? `/instructor/courses/${course.id}` : `/student/courses/${course.id}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h2 className="font-semibold text-dark-text truncate text-base">{course.name}</h2>
                         {current && (

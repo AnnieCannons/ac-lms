@@ -48,7 +48,7 @@ export default async function GradingPage({
   const isGraderMode = grader === 'all' || grader === 'me'
   const isStudentMode = by === 'student'
 
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/assignments/${assignmentId}`)
 
   // Use service role for cross-user queries (bypasses RLS)
   let admin: ReturnType<typeof createServiceSupabaseClient>
@@ -575,7 +575,7 @@ export default async function GradingPage({
 
           {/* Grade history */}
           {gradeHistory && gradeHistory.length > 0 && (
-            <GradeHistoryList entries={gradeHistory as GradeHistoryEntry[]} />
+            <GradeHistoryList entries={gradeHistory as GradeHistoryEntry[]} courseId={id} canManage />
           )}
 
           {/* Checklist */}

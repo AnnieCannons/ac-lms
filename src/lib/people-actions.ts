@@ -1,5 +1,6 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { resolveAirtableStudentIdByEmail } from '@/lib/airtable'
 
 type Role = 'student' | 'instructor' | 'staff' | 'admin' | 'observer' | 'ta'
 const VALID_ROLES: Role[] = ['student', 'instructor', 'staff', 'admin', 'observer', 'ta']
@@ -524,6 +525,21 @@ export async function acceptInvite(
     .from('users')
     .upsert({ id: user.id, email: user.email!, name, role: profileRole }, { onConflict: 'id' })
   if (profileError) return { error: profileError.message }
+
+  // Link to their Airtable Students record by email, if staff have already added
+  // it there — lets attendance/profile lookups avoid preferred-name collisions
+  // from day one. Best-effort: must never block invite acceptance if Airtable is
+  // slow/unreachable or the student isn't in Airtable yet.
+  if (profileRole === 'student') {
+    try {
+      const airtableStudentId = await resolveAirtableStudentIdByEmail(user.email!)
+      if (airtableStudentId) {
+        await admin.from('users').update({ airtable_student_id: airtableStudentId }).eq('id', user.id)
+      }
+    } catch (e) {
+      console.error('Airtable student ID lookup failed during invite acceptance:', e)
+    }
+  }
 
   // Enroll in course
   if (courseId) {

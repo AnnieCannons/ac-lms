@@ -139,7 +139,7 @@ export async function getDepartmentStatuses(partnerId: string) {
 
   const { data, error: dbError } = await supabase
     .from('partner_department_status')
-    .select('id, department, stage, updated_at, updated_by, do_not_email, needs_outreach, users(name)')
+    .select('id, department, stage, updated_at, updated_by, do_not_email, needs_outreach, apprentice_placed, users(name)')
     .eq('partner_id', partnerId)
 
   if (dbError) return { error: dbError.message, statuses: [] }
@@ -169,6 +169,59 @@ export async function setDepartmentDoNotEmail(
   const note = value
     ? `Do not email enabled for this department.`
     : `Do not email removed — back on email list.`
+
+  const { data: inserted } = await supabase
+    .from('partner_interactions')
+    .insert({
+      partner_id: partnerId,
+      note,
+      interaction_date: today,
+      department,
+      user_id: user!.id,
+    })
+    .select('id, note, interaction_date, department, created_at, user_id')
+    .single()
+
+  const interaction = inserted
+    ? { ...inserted, users: { name: user!.name }, partner_contacts: null }
+    : null
+
+  revalidatePath(`/instructor/partnerships/${partnerId}`)
+  return { error: null, interaction }
+}
+
+// Career Development-specific: marks that a partner org has placed an
+// apprentice. Logged as an activity since it's a meaningful milestone.
+// Checking it also moves the department stage to "Active Apprenticeship"
+// (the dept_status_history trigger records that transition); unchecking
+// does not auto-revert the stage — staff change that manually if needed.
+export async function setDepartmentApprenticePlaced(
+  partnerId: string,
+  department: PartnerDepartment,
+  value: boolean
+) {
+  const { error, supabase, user } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error, interaction: null }
+
+  const autoStage = value && department === 'career_development'
+  const update: { apprentice_placed: boolean; updated_by: string; stage?: string } = {
+    apprentice_placed: value,
+    updated_by: user!.id,
+  }
+  if (autoStage) update.stage = 'Active Apprenticeship'
+
+  const { error: dbError } = await supabase
+    .from('partner_department_status')
+    .update(update)
+    .eq('partner_id', partnerId)
+    .eq('department', department)
+
+  if (dbError) return { error: dbError.message, interaction: null }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const note = value
+    ? `Apprentice placed with this partner.${autoStage ? ' Status moved to Active Apprenticeship.' : ''}`
+    : `Apprentice placed flag removed.`
 
   const { data: inserted } = await supabase
     .from('partner_interactions')

@@ -16,7 +16,7 @@ export default async function InstructorQuizzesPage({
 }) {
   const { id } = await params;
   const { open: initialOpenQuizId } = await searchParams;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/quizzes`);
   const supabase = await createServerSupabaseClient();
 
   const { data: course } = await supabase
