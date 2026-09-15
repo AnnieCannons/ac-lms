@@ -8,20 +8,17 @@ import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import FlashcardAdminNav from '@/components/flashcards/FlashcardAdminNav'
 import FlashcardAdminTabs from '@/components/flashcards/FlashcardAdminTabs'
-import { isFlashcardAdmin } from '@/lib/flashcards/schema'
+import { getIsFlashcardAdmin } from '@/lib/flashcards/queries'
 
 export default async function FlashcardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const isAdmin = isFlashcardAdmin(profile?.role)
+  const [{ data: profile }, isAdmin] = await Promise.all([
+    supabase.from('users').select('name, role').eq('id', user.id).single(),
+    getIsFlashcardAdmin(user.id),
+  ])
 
   return (
     <div className="flashcard-app min-h-screen bg-background">

@@ -1,6 +1,30 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import type { DeckWithCounts } from './schema'
 
+const ADMIN_USER_ROLES = ['instructor', 'staff', 'admin']
+const ADMIN_ENROLLMENT_ROLES = ['instructor', 'ta']
+
+export async function getIsFlashcardAdmin(userId: string): Promise<boolean> {
+  const supabase = await createServerSupabaseClient()
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  if (ADMIN_USER_ROLES.includes(profile?.role ?? '')) return true
+
+  const { data: enrollment } = await supabase
+    .from('course_enrollments')
+    .select('role')
+    .eq('user_id', userId)
+    .in('role', ADMIN_ENROLLMENT_ROLES)
+    .limit(1)
+    .maybeSingle()
+
+  return enrollment !== null
+}
+
 export async function getDecksWithCounts(userId: string): Promise<DeckWithCounts[]> {
   const supabase = await createServerSupabaseClient()
 

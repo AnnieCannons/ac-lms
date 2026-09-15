@@ -19,8 +19,8 @@ export async function checkAndCreateDueCardsNotification(): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  const { getIsFlashcardAdmin } = await import('@/lib/flashcards/queries')
+  const isAdmin = await getIsFlashcardAdmin(user.id)
   if (isAdmin) return false
 
   const today = new Date().toISOString().split('T')[0]

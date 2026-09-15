@@ -1,9 +1,5 @@
 // Types mirroring the flashcard database schema.
 
-export const FLASHCARD_ADMIN_ROLES = ['instructor', 'staff', 'admin', 'ta'] as const
-export function isFlashcardAdmin(role: string | null | undefined): boolean {
-  return FLASHCARD_ADMIN_ROLES.includes(role as typeof FLASHCARD_ADMIN_ROLES[number])
-}
 
 export type CardType =
   | 'basic'
