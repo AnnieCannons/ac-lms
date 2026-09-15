@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import CalendarPopover from './CalendarPopover'
 
 type Cohort   = { id: string; name: string; start_date: string; end_date: string; order: number }
-type Break    = { id: string; label: string; start_date: string; end_date: string }
+type Break    = { id: string; label: string; start_date: string; end_date: string; paid_only?: boolean | null }
 type Holiday  = { id: string; label: string; date_display: string; date: string; end_date?: string | null; year: number }
 
 type DayKind = 'session' | 'break' | 'holiday'
@@ -12,7 +12,7 @@ const KIND_PRIORITY: Record<DayKind, number> = { session: 0, break: 1, holiday: 
 const DAY_BG: Record<DayKind, string> = {
   session: 'bg-teal-primary text-white',
   break:   'bg-amber-500 text-white',
-  holiday: 'bg-purple-primary text-white',
+  holiday: 'bg-purple-primary text-white dark:text-purple-950',
 }
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const DOW_LETTERS = ['S','M','T','W','T','F','S']
@@ -136,55 +136,13 @@ function YearlyCalendarGrid({
   )
 }
 
-type TimelineItem =
-  | { kind: 'cohort'; name: string; start: string; end: string; isCurrent: boolean }
-  | { kind: 'break';  label: string; start: string; end: string }
-
 function formatDate(d: string) {
   if (!d) return '—'
   try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
   catch { return d }
 }
 
-function buildTimeline(cohorts: Cohort[], breaks: Break[]): TimelineItem[] {
-  const today = new Date()
-  const sorted = [...cohorts].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
-
-  let startIdx = sorted.findIndex(c => new Date(c.start_date) <= today && today <= new Date(c.end_date))
-  if (startIdx === -1) startIdx = sorted.findIndex(c => new Date(c.start_date) > today)
-  if (startIdx === -1) startIdx = Math.max(0, sorted.length - 3)
-
-  const display = sorted.slice(startIdx, startIdx + 3)
-  if (display.length === 0) return []
-
-  const rangeStart = new Date(display[0].start_date)
-  const rangeEnd   = new Date(display[display.length - 1].end_date)
-
-  const relevantBreaks = breaks.filter(b =>
-    new Date(b.start_date) <= rangeEnd && new Date(b.end_date) >= rangeStart
-  )
-
-  const items: TimelineItem[] = [
-    ...display.map(c => ({
-      kind: 'cohort' as const,
-      name: c.name,
-      start: c.start_date,
-      end: c.end_date,
-      isCurrent: new Date(c.start_date) <= today && today <= new Date(c.end_date),
-    })),
-    ...relevantBreaks.map(b => ({
-      kind: 'break' as const,
-      label: b.label,
-      start: b.start_date,
-      end: b.end_date,
-    })),
-  ]
-
-  return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-}
-
 export default function YearlyScheduleSection({ instructorEditHref, hideCohorts, paidOnly }: { instructorEditHref?: string; hideCohorts?: boolean; paidOnly?: boolean } = {}) {
-  const [timeline, setTimeline] = useState<TimelineItem[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [breaks, setBreaks] = useState<Break[]>([])
@@ -200,7 +158,6 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
       supabase.from('calendar_cohorts').select('*').order('start_date', { ascending: true }),
       breaksQuery,
     ]).then(([{ data: c }, { data: rawBreaks }]) => {
-      setTimeline(buildTimeline(c ?? [], rawBreaks ?? []))
       setCohorts(c ?? [])
       setBreaks(rawBreaks ?? [])
       setLoading(false)
@@ -214,56 +171,19 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
   }, [year])
 
   if (loading) return <p className="text-sm text-muted-text">Loading schedule…</p>
-  if (!hideCohorts && timeline.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
+  if (!hideCohorts && cohorts.length === 0) return <p className="text-sm text-muted-text italic">No schedule data yet.</p>
   if (hideCohorts && holidays.length === 0 && breaks.length === 0) return <p className="text-sm text-muted-text italic">No holidays or breaks added yet.</p>
 
   const holidayHighlights = holidays.map(h => ({ start: h.date, end: h.end_date ?? undefined, color: 'purple' as const, label: h.label }))
   const breaksThisYear = breaks.filter(b =>
-    new Date(b.start_date).getFullYear() === year || new Date(b.end_date).getFullYear() === year
+    (paidOnly || !b.paid_only) &&
+    (new Date(b.start_date).getFullYear() === year || new Date(b.end_date).getFullYear() === year)
   )
 
   return (
     <div className="flex flex-col gap-8">
       {/* Color-coded year calendar */}
       <YearlyCalendarGrid year={year} onYearChange={setYear} cohorts={cohorts} breaks={breaks} holidays={holidays} hideCohorts={hideCohorts} />
-
-      {/* Cohort / break timeline */}
-      {!hideCohorts && <div className="rounded-xl border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_1fr_32px] bg-teal-light/60 border-b border-border">
-          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Period</div>
-          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">Start</div>
-          <div className="px-4 py-2 text-xs font-bold text-dark-text uppercase tracking-wide">End</div>
-          <div />
-        </div>
-        {timeline.map((item, i) => (
-          <div
-            key={i}
-            className={`grid grid-cols-[1fr_1fr_1fr_32px] items-center border-b border-border last:border-b-0 ${
-              item.kind === 'cohort' ? 'bg-teal-light/30' : 'bg-amber-50 dark:bg-amber-900/20'
-            }`}
-          >
-            <div className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 ${
-              item.kind === 'cohort' ? 'text-teal-primary' : 'text-amber-700 dark:text-amber-400'
-            }`}>
-              {item.kind === 'cohort' ? item.name : item.label}
-              {item.kind === 'cohort' && item.isCurrent && (
-                <span className="text-[10px] font-bold bg-teal-primary text-white px-1.5 py-0.5 rounded-full leading-none">
-                  Current
-                </span>
-              )}
-            </div>
-            <div className={`px-4 py-2.5 text-sm ${item.kind === 'break' ? 'text-amber-800 dark:text-amber-300' : 'text-dark-text'}`}>{formatDate(item.start)}</div>
-            <div className={`px-4 py-2.5 text-sm ${item.kind === 'break' ? 'text-amber-800 dark:text-amber-300' : 'text-dark-text'}`}>{formatDate(item.end)}</div>
-            <div className="flex items-center justify-center pr-1">
-              <CalendarPopover
-                label={item.kind === 'cohort' ? item.name : item.label}
-                initialDate={item.start}
-                highlights={[{ start: item.start, end: item.end, color: item.kind === 'cohort' ? 'teal' : 'amber', label: item.kind === 'cohort' ? item.name : item.label }]}
-              />
-            </div>
-          </div>
-        ))}
-      </div>}
 
       {/* Holidays */}
       {holidays.length > 0 && (
@@ -290,11 +210,11 @@ export default function YearlyScheduleSection({ instructorEditHref, hideCohorts,
         </div>
       )}
 
-      {/* School Breaks */}
+      {/* Breaks */}
       {breaksThisYear.length > 0 && (
         <div>
           <p role="heading" aria-level={2} className="text-sm font-extrabold text-dark-text uppercase tracking-widest mb-3 m-0">
-            School Breaks — {year}
+            Breaks — {year}
           </p>
           <div className="rounded-xl border border-border overflow-hidden">
             {breaksThisYear.map((b, i) => (
