@@ -21,6 +21,13 @@ figma-component (if used): <figma-component-name>
 - ...
 
 ## Open Questions
+<!--
+When a question here gets answered (e.g. via an inline PR/file comment), do not delete or replace the question text.
+Keep the original question and add the answer beneath it, like:
+- <original question>
+  - **Answer:** <answer>
+This preserves a visible record of what was asked and decided, for anyone reading the spec later.
+-->
 - ...
 
 ## Testing Guidelines
