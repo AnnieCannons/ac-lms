@@ -207,17 +207,17 @@ export default function RequestExtensionButton({
       {/* Modal backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-8"
           onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false) }}
         >
           <div
             ref={modalRef}
-            className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Request Extension"
           >
-            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border">
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border shrink-0">
               <h2 className="text-base font-semibold text-dark-text">
                 {localRequest?.status === 'approved' ? 'Extension Approved' :
                  localRequest?.status === 'denied' ? 'Extension Request' :
@@ -229,7 +229,7 @@ export default function RequestExtensionButton({
               </button>
             </div>
 
-            <div className="px-6 py-5">
+            <div className="px-6 py-5 overflow-y-auto min-h-0">
               {/* ── Status view (after submit or existing non-pending) ── */}
               {localRequest && step === 'confirm' && (
                 <div className="flex flex-col gap-4">
@@ -288,7 +288,7 @@ export default function RequestExtensionButton({
 
               {/* ── Request form ── */}
               {!localRequest && step === 'form' && (
-                <form onSubmit={e => { e.preventDefault(); handleSubmit() }} className="flex flex-col gap-5">
+                <form id="extension-request-form" onSubmit={e => { e.preventDefault(); handleSubmit() }} className="flex flex-col gap-5">
                   {/* Reason */}
                   <fieldset>
                     <legend className="text-sm font-semibold text-dark-text mb-2">
@@ -411,26 +411,29 @@ export default function RequestExtensionButton({
                   </div>
 
                   {error && <p className="text-sm text-red-500">{error}</p>}
-
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      type="submit"
-                      disabled={!canSubmit || submitting}
-                      className="flex-1 bg-teal-primary text-white text-sm font-semibold py-2 rounded-full hover:bg-teal-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {submitting ? 'Submitting…' : 'Submit Request'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOpen(false)}
-                      className="px-5 text-sm text-muted-text hover:text-dark-text transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
                 </form>
               )}
             </div>
+
+            {!localRequest && step === 'form' && (
+              <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+                <button
+                  type="submit"
+                  form="extension-request-form"
+                  disabled={!canSubmit || submitting}
+                  className="flex-1 bg-teal-primary text-white text-sm font-semibold py-2 rounded-full hover:bg-teal-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submitting ? 'Submitting…' : 'Submit Request'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-5 text-sm text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
