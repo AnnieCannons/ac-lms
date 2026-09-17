@@ -5,6 +5,7 @@ import DailySchedule from './DailySchedule'
 import { CourseOutlineView } from './GeneralInfoEditor'
 import YearlyScheduleSection from './YearlyScheduleSection'
 import GlobalContentSection from './GlobalContentSection'
+import LaunchSetupView from './LaunchSetupView'
 import { getCourseWeekNumber } from '@/lib/date-utils'
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
@@ -91,6 +92,7 @@ export default function GeneralInfoSections({ sections, courseStartDate }: { sec
               {section.type === 'computer_wifi' && <GlobalContentSection slug="computer-wifi" />}
               {section.type === 'policies_procedures' && <GlobalContentSection slug="policies" />}
               {section.type?.startsWith('global:') && <GlobalContentSection slug={section.type.slice(7)} />}
+              {section.type === 'launch_setup' && <LaunchSetupView content={section.content} />}
               {(section.type === 'text' || !section.type) && (
                 section.content
                   ? <HtmlContent html={section.content} className={HTML_CLASSES} />

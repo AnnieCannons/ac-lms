@@ -9,6 +9,7 @@ import HtmlContent from '@/components/ui/HtmlContent'
 import DailySchedule from '@/components/ui/DailySchedule'
 import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
 import GlobalContentSection from '@/components/ui/GlobalContentSection'
+import LaunchSetupView from '@/components/ui/LaunchSetupView'
 import { getCourseWeekNumber } from '@/lib/date-utils'
 import {
   DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor,
@@ -348,6 +349,51 @@ function DailyScheduleCard({
   )
 }
 
+// ── Launch Setup card (edited via the sidebar Launch Setup modal) ─────────────
+
+function LaunchSetupCard({
+  section, dragListeners, dragAttributes, dragRef, dragStyle, dragIsDragging, onDelete, onTogglePublish, onToggleCollapse,
+}: {
+  section: CourseSection
+  dragListeners: object | undefined; dragAttributes: DraggableAttributes; dragRef: (el: HTMLElement | null) => void
+  dragStyle: React.CSSProperties; dragIsDragging: boolean
+  onDelete: () => Promise<void>
+  onTogglePublish: () => void
+  onToggleCollapse?: () => void
+}) {
+  const readOnly = useContext(ReadOnlyCtx)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  return (
+    <div ref={dragRef} style={dragStyle} className={`bg-surface rounded-2xl border border-border p-5 group flex gap-3 ${dragIsDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      {!readOnly && <button {...dragAttributes} {...dragListeners} className="shrink-0 mt-1 text-border hover:text-muted-text cursor-grab active:cursor-grabbing transition-colors touch-none" tabIndex={-1} aria-label="Drag to reorder">
+        <GripIcon />
+      </button>}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-3 mb-3">
+          <button type="button" onClick={onToggleCollapse} className="flex-1 flex items-center gap-2 text-left group/title min-w-0">
+            <h3 className="font-semibold text-dark-text">{section.title}</h3>
+            <span className="text-xs text-muted-text opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0">▴</span>
+          </button>
+          {!readOnly && <PublishToggle published={section.published} onToggle={onTogglePublish} />}
+          {!readOnly && <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <span className="text-xs text-muted-text">✎ Edit via 🚀 Launch setup in sidebar</span>
+            {confirmDelete ? (
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-text">Delete?</span>
+                <button onClick={() => onDelete()} className="text-red-500 font-medium hover:underline">Yes</button>
+                <button onClick={() => setConfirmDelete(false)} className="text-muted-text hover:text-dark-text">No</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="text-xs text-muted-text hover:text-red-500 transition-colors">Delete</button>
+            )}
+          </div>}
+        </div>
+        <LaunchSetupView content={section.content} />
+      </div>
+    </div>
+  )
+}
+
 // ── Global content card (Computer & Wifi, Policies) ───────────────────────────
 
 function GlobalTextCard({
@@ -566,6 +612,7 @@ function SectionCard({ section, courseId, collapsed, onToggleCollapse, onUpdate,
   const shared = { dragListeners: listeners, dragAttributes: attributes, dragRef: setNodeRef, dragStyle: style, dragIsDragging: isDragging, onTogglePublish, onToggleCollapse }
 
   if (section.type === 'daily_schedule') return <DailyScheduleCard section={section} {...shared} onDelete={onDelete} />
+  if (section.type === 'launch_setup') return <LaunchSetupCard section={section} {...shared} onDelete={onDelete} />
   if (section.type === 'course_outline') return <CourseOutlineCard section={section} {...shared} onUpdate={onUpdate} onDelete={onDelete} />
   if (section.type === 'yearly_schedule') return <YearlyScheduleGlobalCard section={section} {...shared} onDelete={onDelete} />
   if (section.type === 'computer_wifi') return <GlobalTextCard section={section} {...shared} onDelete={onDelete} slug="computer-wifi" editHref={`/instructor/globals/computer-wifi?from=${courseId}`} />
