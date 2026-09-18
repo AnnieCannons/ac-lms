@@ -10,6 +10,9 @@ interface FileUploadProps {
   accept?: string;
   maxSizeMB?: number;
   existingUrl?: string;
+  /** Allow selecting and uploading more than one file per interaction. Each
+   *  uploaded file fires `onUpload` individually; the caller accumulates them. */
+  multiple?: boolean;
 }
 
 const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.tar,.gz,image/*";
@@ -31,6 +34,7 @@ export default function FileUpload({
   accept = DEFAULT_ACCEPT,
   maxSizeMB = DEFAULT_MAX_MB,
   existingUrl,
+  multiple = false,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -40,21 +44,11 @@ export default function FileUpload({
 
   const isImage = uploadedName ? /\.(png|jpe?g|gif|webp|svg)$/i.test(uploadedName) : false;
 
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setError(null);
-    setUploadedName(null);
-
+  const uploadOne = async (file: File): Promise<{ ok: true; url: string; name: string } | { ok: false; msg: string }> => {
     if (file.size > maxSizeMB * 1024 * 1024) {
-      const msg = `File exceeds ${maxSizeMB}MB limit`;
-      setError(msg);
-      onError?.(msg);
-      return;
+      return { ok: false, msg: `${file.name} exceeds ${maxSizeMB}MB limit` };
     }
 
-    setUploading(true);
     // Sanitize filename: replace spaces with underscores
     const safeName = file.name.replace(/\s+/g, "_");
     const filePath = `${path}${safeName}`;
@@ -69,25 +63,44 @@ export default function FileUpload({
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        const msg = `Upload failed: ${json.error ?? res.statusText}`;
-        setError(msg);
-        onError?.(msg);
-        return;
+        return { ok: false, msg: `${file.name}: ${json.error ?? res.statusText}` };
       }
 
-      setUploadedName(safeName);
-      setUploadedUrl(json.url);
-      onUpload(json.url, safeName);
-
-      // Reset input so same file can be re-selected if needed
-      if (inputRef.current) inputRef.current.value = "";
+      return { ok: true, url: json.url, name: safeName };
     } catch {
-      const msg = "Upload failed: network error. Please check your connection and try again.";
+      return { ok: false, msg: `${file.name}: network error. Please check your connection and try again.` };
+    }
+  };
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
+    setError(null);
+    if (!multiple) setUploadedName(null);
+    setUploading(true);
+
+    const errors: string[] = [];
+    for (const file of files) {
+      const result = await uploadOne(file);
+      if (result.ok) {
+        setUploadedName(result.name);
+        setUploadedUrl(result.url);
+        onUpload(result.url, result.name);
+      } else {
+        errors.push(result.msg);
+      }
+    }
+
+    if (errors.length > 0) {
+      const msg = errors.join("; ");
       setError(msg);
       onError?.(msg);
-    } finally {
-      setUploading(false);
     }
+
+    // Reset input so the same file(s) can be re-selected if needed
+    if (inputRef.current) inputRef.current.value = "";
+    setUploading(false);
   };
 
   return (
@@ -99,9 +112,11 @@ export default function FileUpload({
           disabled={uploading}
           className="bg-background border border-border rounded px-3 py-1.5 text-xs text-dark-text hover:border-teal-primary hover:text-teal-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
-          {uploading ? "Uploading…" : "Choose file"}
+          {uploading ? "Uploading…" : multiple ? "Add file(s)" : "Choose file"}
         </button>
-        {uploadedName && uploadedUrl ? (
+        {multiple ? (
+          !uploading && <span className="text-xs text-muted-text truncate">Images or files, one or more</span>
+        ) : uploadedName && uploadedUrl ? (
           <a
             href={uploadedUrl}
             target="_blank"
@@ -117,11 +132,12 @@ export default function FileUpload({
           ref={inputRef}
           type="file"
           accept={accept}
+          multiple={multiple}
           onChange={handleChange}
           className="hidden"
         />
       </div>
-      {isImage && uploadedUrl && (
+      {!multiple && isImage && uploadedUrl && (
         <a href={uploadedUrl} target="_blank" rel="noopener noreferrer">
           <img
             src={uploadedUrl}

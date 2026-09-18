@@ -8,6 +8,9 @@ import SubmissionComments, { type CommentEntry } from "@/components/ui/Submissio
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 import { saveSubmission } from "@/lib/submission-actions";
+import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
+
+const MAX_SUBMISSION_FILES = 10;
 
 
 
@@ -42,6 +45,14 @@ type HistoryEntry = {
 function isImageUrl(url: string | null): boolean {
   if (!url) return false
   return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(url)
+}
+
+function fileNameFromUrl(url: string): string {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split("/").pop() || url);
+  } catch {
+    return url;
+  }
 }
 
 export default function SubmissionForm({
@@ -95,7 +106,7 @@ export default function SubmissionForm({
   const [tab, setTab] = useState<SubmissionType>(existingSubmission?.submission_type ?? "link");
   const [linkContent, setLinkContent] = useState("");
   const [textContent, setTextContent] = useState("");
-  const [fileUrl, setFileUrl] = useState("");
+  const [fileUrls, setFileUrls] = useState<string[]>([]);
 
   const [previewMd, setPreviewMd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -104,14 +115,14 @@ export default function SubmissionForm({
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
     if (tab === "text") return textContent.trim();
-    return fileUrl;
+    return fileUrls.length > 0 ? serializeFileUrls(fileUrls) : "";
   };
 
   const hasContent = tab === "link"
     ? linkContent.trim().length > 0
     : tab === "text"
       ? textContent.trim().length > 0
-      : fileUrl.length > 0;
+      : fileUrls.length > 0;
 
   const [commentText, setCommentText] = useState('');
   useUnsavedChanges((mode === 'edit' && hasContent) || commentText.trim().length > 0);
@@ -119,7 +130,7 @@ export default function SubmissionForm({
   const clearForm = () => {
     setLinkContent("");
     setTextContent("");
-    setFileUrl("");
+    setFileUrls([]);
     setError(null);
   };
 
@@ -128,7 +139,7 @@ export default function SubmissionForm({
       setTab(saved.submission_type)
       if (saved.submission_type === "link") setLinkContent(saved.content ?? "")
       else if (saved.submission_type === "text") setTextContent(saved.content ?? "")
-      else setFileUrl(saved.content ?? "")
+      else setFileUrls(parseFileUrls(saved.content))
     }
     setError(null)
     setMode("edit")
@@ -342,15 +353,31 @@ export default function SubmissionForm({
             </p>
             {!saved.content ? (
               <p className="text-sm text-muted-text italic">No submission content — graded by instructor.</p>
-            ) : saved.submission_type === "file" && isImageUrl(saved.content) ? (
-              <a href={normalizeUrl(saved.content)} target="_blank" rel="noopener noreferrer" className="block w-fit">
-                <img
-                  src={saved.content ?? ""}
-                  alt="Submitted file"
-                  className="max-h-48 max-w-full rounded-lg border border-border object-contain hover:opacity-90 transition-opacity"
-                />
-              </a>
-            ) : saved.submission_type === "file" || saved.submission_type === "link" ? (
+            ) : saved.submission_type === "file" ? (
+              <div className="flex flex-wrap gap-2">
+                {parseFileUrls(saved.content).map((url, i) => (
+                  isImageUrl(url) ? (
+                    <a key={i} href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer" className="block w-fit">
+                      <img
+                        src={url}
+                        alt="Submitted file"
+                        className="max-h-48 max-w-full rounded-lg border border-border object-contain hover:opacity-90 transition-opacity"
+                      />
+                    </a>
+                  ) : (
+                    <a
+                      key={i}
+                      href={normalizeUrl(url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-teal-primary underline break-all"
+                    >
+                      {fileNameFromUrl(url)}
+                    </a>
+                  )
+                ))}
+              </div>
+            ) : saved.submission_type === "link" ? (
               <a
                 href={normalizeUrl(saved.content)}
                 target="_blank"
@@ -399,15 +426,31 @@ export default function SubmissionForm({
                       hour: "numeric", minute: "2-digit",
                     })}
                   </span>
-                  {entry.submission_type === "file" && isImageUrl(entry.content) ? (
-                    <a href={normalizeUrl(entry.content)} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <img
-                        src={entry.content ?? ""}
-                        alt="Submitted file"
-                        className="max-h-16 max-w-full rounded border border-border object-contain hover:opacity-90 transition-opacity"
-                      />
-                    </a>
-                  ) : entry.submission_type === "file" || entry.submission_type === "link" ? (
+                  {entry.submission_type === "file" ? (
+                    <div className="flex flex-wrap gap-2 flex-1">
+                      {parseFileUrls(entry.content).map((url, i) => (
+                        isImageUrl(url) ? (
+                          <a key={i} href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={url}
+                              alt="Submitted file"
+                              className="max-h-16 max-w-full rounded border border-border object-contain hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            key={i}
+                            href={normalizeUrl(url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-primary underline break-all"
+                          >
+                            {fileNameFromUrl(url)}
+                          </a>
+                        )
+                      ))}
+                    </div>
+                  ) : entry.submission_type === "link" ? (
                     <a
                       href={normalizeUrl(entry.content)}
                       target="_blank"
@@ -527,12 +570,47 @@ export default function SubmissionForm({
           )}
 
           {tab === "file" && (
-            <FileUpload
-              bucket="lms-submissions"
-              path={`${assignmentId}/${studentId}/`}
-              onUpload={(url) => setFileUrl(url)}
-              onError={setError}
-            />
+            <div className="flex flex-col gap-2">
+              <FileUpload
+                bucket="lms-submissions"
+                path={`${assignmentId}/${studentId}/`}
+                multiple
+                onUpload={(url) => {
+                  setError(null);
+                  setFileUrls(prev => {
+                    if (prev.includes(url)) return prev;
+                    if (prev.length >= MAX_SUBMISSION_FILES) {
+                      setError(`You can attach up to ${MAX_SUBMISSION_FILES} files per submission.`);
+                      return prev;
+                    }
+                    return [...prev, url];
+                  });
+                }}
+                onError={setError}
+              />
+              {fileUrls.length > 0 && (
+                <ul className="flex flex-col gap-1">
+                  {fileUrls.map((url, i) => (
+                    <li key={url} className="flex items-center gap-2 text-xs">
+                      {isImageUrl(url) ? (
+                        <img src={url} alt="" className="h-10 w-10 rounded border border-border object-cover shrink-0" />
+                      ) : null}
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="text-teal-primary truncate hover:underline flex-1">
+                        {fileNameFromUrl(url)}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setFileUrls(prev => prev.filter((_, idx) => idx !== i))}
+                        className="text-muted-text hover:text-red-400 transition-colors shrink-0"
+                        aria-label={`Remove ${fileNameFromUrl(url)}`}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
 
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
