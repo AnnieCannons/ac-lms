@@ -5,10 +5,6 @@
       "schedule": "0 23 * * *"
     },
     {
-      "path": "/api/cron/weekly-report",
-      "schedule": "0 * * * 5"
-    },
-    {
       "path": "/api/cron/readiness-score",
       "schedule": "0 * * * 1"
     },
