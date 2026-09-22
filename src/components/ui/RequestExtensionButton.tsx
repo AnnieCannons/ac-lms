@@ -372,7 +372,7 @@ export default function RequestExtensionButton({
                           ),
                         }}
                         classNames={{
-                          root: 'text-sm p-2', months: 'flex', month: 'relative space-y-2',
+                          root: 'relative text-sm p-2', months: 'flex', month: 'relative space-y-2',
                           month_caption: 'flex items-center justify-center px-8 py-1',
                           caption_label: 'text-sm font-semibold text-dark-text',
                           nav: 'absolute top-0 left-0 right-0 flex items-center justify-between z-10',
