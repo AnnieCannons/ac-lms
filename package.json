@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "backfill-quizzes": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/backfill-quizzes.ts"
   },
   "dependencies": {
@@ -77,16 +78,25 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "tsx": "^4.22.4",
     "typescript": "^5",
+    "vite": "^8.3.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.1",
     "xlsx": "^0.18.5"
   }
 }
