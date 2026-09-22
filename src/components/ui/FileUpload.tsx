@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { uploadFile } from "@/lib/upload-file";
 
 interface FileUploadProps {
   bucket: string;
@@ -53,23 +54,9 @@ export default function FileUpload({
     const safeName = file.name.replace(/\s+/g, "_");
     const filePath = `${path}${safeName}`;
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("bucket", bucket);
-    formData.append("path", filePath);
-
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const json = await res.json();
-
-      if (!res.ok || json.error) {
-        return { ok: false, msg: `${file.name}: ${json.error ?? res.statusText}` };
-      }
-
-      return { ok: true, url: json.url, name: safeName };
-    } catch {
-      return { ok: false, msg: `${file.name}: network error. Please check your connection and try again.` };
-    }
+    const result = await uploadFile(file, bucket, filePath);
+    if (!result.ok) return { ok: false, msg: `${file.name}: ${result.error}` };
+    return { ok: true, url: result.url, name: safeName };
   };
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
