@@ -83,7 +83,7 @@ export default function InlineDueDatePicker({ assignmentId, courseId, dueDate, o
               ),
             }}
             classNames={{
-              root: 'text-sm', months: 'flex', month: 'relative space-y-2',
+              root: 'relative text-sm', months: 'flex', month: 'relative space-y-2',
               month_caption: 'flex items-center justify-center px-8 py-1',
               caption_label: 'text-sm font-semibold text-dark-text',
               nav: 'absolute top-0 left-0 right-0 flex items-center justify-between z-10',

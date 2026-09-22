@@ -132,7 +132,7 @@ export default function DatePickerField({
                   ),
                 }}
                 classNames={{
-                  root: 'text-sm',
+                  root: 'relative text-sm',
                   months: 'flex',
                   month: 'relative space-y-2',
                   month_caption: 'flex items-center justify-center px-8 py-1',
