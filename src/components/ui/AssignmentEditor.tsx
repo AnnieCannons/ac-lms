@@ -10,6 +10,8 @@ import DatePicker from './DatePicker'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { trashAssignment } from '@/lib/trash-actions'
 import { upsertAssignmentOverride, removeAssignmentOverride } from '@/lib/override-actions'
+import { listAssignmentSkills, setAssignmentSkills, type ConfidenceSkill } from '@/lib/skill-actions'
+import ConfidenceSkillsField from './ConfidenceSkillsField'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -76,6 +78,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [showCustomTag, setShowCustomTag] = useState(false)
   const [customTagInput, setCustomTagInput] = useState('')
   const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
+  const [confidenceSkills, setConfidenceSkills] = useState<ConfidenceSkill[]>([])
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
   const checklistSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const [newItemText, setNewItemText] = useState('')
@@ -103,6 +106,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       if (data) setCustomTemplates(data as CustomTemplate[])
     })
   }, [])
+
+  useEffect(() => {
+    listAssignmentSkills(assignment.id).then(({ error, skills }) => {
+      if (error) { alert(error); return }
+      setConfidenceSkills(skills)
+    })
+  }, [assignment.id])
 
   const saveAsTemplate = async () => {
     if (!templateName.trim() || checklist.length === 0) return
@@ -227,8 +237,10 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         answer_key_url: answerKeyUrl.trim() || null,
       })
       .eq('id', assignment.id)
+    if (error) { setSaving(false); alert(error.message); return }
+    const { error: skillsError } = await setAssignmentSkills(assignment.id, confidenceSkills.map(s => s.id))
     setSaving(false)
-    if (error) { alert(error.message); return }
+    if (skillsError) { alert(skillsError); return }
     setIsDirty(false)
     if (onSaved) {
       onSaved(
@@ -462,6 +474,16 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         {isBonus && (
           <p className="text-xs text-purple-primary mt-2">This assignment is marked as bonus — it will appear in Level Up Your Skills.</p>
         )}
+      </div>
+
+      {/* Confidence Skills */}
+      <div>
+        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Confidence Skills</label>
+        <p className="text-xs text-muted-text mb-2">Separate from the Skills field above — these feed the confidence tracker, not Level Up.</p>
+        <ConfidenceSkillsField
+          value={confidenceSkills}
+          onChange={skills => { setConfidenceSkills(skills); setIsDirty(true) }}
+        />
       </div>
 
       {/* Due date */}

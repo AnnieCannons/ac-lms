@@ -9,9 +9,11 @@ npm run dev      # start Next.js dev server (Turbopack)
 npm run build    # production build
 npm run start    # run a production build
 npm run lint     # eslint (eslint-config-next: core-web-vitals + typescript)
+npm test         # vitest run — see Testing below
 ```
 
-There is no test suite in this repo (no Jest/Vitest/Playwright config or dependency). Don't assume one exists — verify manually via the dev server, or ask before introducing a test framework.
+### Testing
+Vitest + React Testing Library, config in `vitest.config.mts`, tests live in `./tests` (not co-located with source). This is new as of the confidence-tracker-v2 work — most existing code predates it and has no test coverage; don't assume untested code is covered, and don't feel obligated to backfill tests for unrelated code you touch in passing. Component tests mock server actions via `vi.mock` rather than hitting a real Supabase instance — there's no test database in this repo.
 
 ### One-off / maintenance scripts (`scripts/`)
 Scripts are run directly with `ts-node`, not compiled or added to `package.json`. The standard invocation (see the usage comment at the top of most scripts) is:

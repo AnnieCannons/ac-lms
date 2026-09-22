@@ -569,6 +569,32 @@ Individual score log entries per tracked skill.
 
 ---
 
+### confidence_tracker_skills
+Canonical, shared skill taxonomy for Confidence Tracker v2 (Phase 1: assignment tagging). Deliberately separate from `confidence_skills` (the older per-student, free-text tracker) and from `assignments.skill_tags`/`modules.skill_tags` (the unrelated "Level Up Your Skills" preset+free-text tags).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `name` | text | Display name, preserves the instructor's original casing |
+| `normalized_name` | text | Unique — lowercased with whitespace/punctuation stripped, so "JS", "js", and "J.S." all resolve to the same row |
+| `created_at` | timestamptz | Default: now() |
+
+---
+
+### confidence_tracker_assignment_skills
+Join table: which confidence-tracker skills are tagged on which assignment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `created_at` | timestamptz | Default: now() |
+
+Unique on `(assignment_id, skill_id)`. Removing a tag deletes only this join row — never the underlying skill.
+
+---
+
 ### partners
 Partner organizations (employers, funders, advisors, etc.).
 

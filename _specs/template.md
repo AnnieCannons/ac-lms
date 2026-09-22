@@ -1,6 +1,7 @@
 # Spec for <feature-name>
 
 branch: claude/feature/<feature-name>
+
 figma-component (if used): <figma-component-name>
 
 ## Summary
