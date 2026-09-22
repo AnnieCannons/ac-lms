@@ -29,13 +29,24 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 
-  const formData = await request.formData()
-  const file = formData.get('file') as File | null
-  const bucket = formData.get('bucket') as string | null
-  const path = formData.get('path') as string | null
+  // The file itself never passes through this route: Vercel rejects function
+  // request bodies over 4.5 MB before our code runs. The client sends only the
+  // file's metadata, we authorize it, and hand back a signed URL the browser
+  // uploads to directly. Bucket-level file_size_limit / allowed_mime_types
+  // (see migration 20260922000000) enforce the real size and type at storage.
+  let body: { bucket?: unknown; path?: unknown; size?: unknown; type?: unknown }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+  const bucket = typeof body.bucket === 'string' ? body.bucket : null
+  const path = typeof body.path === 'string' ? body.path : null
+  const size = typeof body.size === 'number' ? body.size : null
+  const mimeType = typeof body.type === 'string' ? body.type : ''
 
-  if (!file || !bucket || !path) {
-    return NextResponse.json({ error: 'Missing file, bucket, or path' }, { status: 400 })
+  if (!bucket || !path || size === null) {
+    return NextResponse.json({ error: 'Missing bucket, path, or size' }, { status: 400 })
   }
 
   // Reject unknown buckets for everyone
@@ -49,12 +60,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Enforce file size limit
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+  if (size > MAX_FILE_SIZE_BYTES) {
     return NextResponse.json({ error: 'File exceeds 20 MB limit' }, { status: 413 })
   }
 
   // Validate MIME type
-  const mimeType = file.type || ''
   if (!isAllowedMimeType(mimeType)) {
     return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
   }
@@ -82,12 +92,12 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createServiceSupabaseClient()
-  const { error } = await admin.storage.from(bucket).upload(path, file, { upsert: true })
+  const { data: signed, error } = await admin.storage.from(bucket).createSignedUploadUrl(path, { upsert: true })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error || !signed) {
+    return NextResponse.json({ error: error?.message ?? 'Could not prepare upload' }, { status: 500 })
   }
 
   const { data } = admin.storage.from(bucket).getPublicUrl(path)
-  return NextResponse.json({ url: data.publicUrl })
+  return NextResponse.json({ path: signed.path, token: signed.token, url: data.publicUrl })
 }

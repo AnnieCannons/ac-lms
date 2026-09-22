@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import UserAvatar from '@/components/ui/UserAvatar'
+import { uploadFile } from '@/lib/upload-file'
 
 const MAX_SIZE_MB = 5
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -43,25 +44,19 @@ export default function AvatarUpload({
 
     setUploading(true)
     const ext = EXT_BY_TYPE[file.type]
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('bucket', 'avatars')
-    formData.append('path', `${userId}/avatar-${Date.now()}.${ext}`)
+    const result = await uploadFile(file, 'avatars', `${userId}/avatar-${Date.now()}.${ext}`)
 
-    const res = await fetch('/api/upload', { method: 'POST', body: formData })
-    const json = await res.json()
-
-    if (!res.ok || json.error) {
-      setMsg({ text: `Upload failed: ${json.error ?? res.statusText}`, ok: false })
+    if (!result.ok) {
+      setMsg({ text: `Upload failed: ${result.error}`, ok: false })
       setUploading(false)
       return
     }
 
-    const { error } = await onSave(json.url)
+    const { error } = await onSave(result.url)
     if (error) {
       setMsg({ text: error, ok: false })
     } else {
-      setPreview(json.url)
+      setPreview(result.url)
       setMsg({ text: 'Photo updated.', ok: true })
     }
     setUploading(false)
