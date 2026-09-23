@@ -49,12 +49,15 @@ export async function POST(req: NextRequest) {
     : [{ data: [] }, { data: [] }]
 
   const assignmentIds = (assignments ?? []).map(a => a.id)
-  const [{ data: checklistItems }, { data: courseSections }, { data: quizzes }] = await Promise.all([
+  const [{ data: checklistItems }, { data: courseSections }, { data: quizzes }, { data: confidenceSkillTags }] = await Promise.all([
     assignmentIds.length
       ? service.from('checklist_items').select('*').in('assignment_id', assignmentIds).order('order')
       : Promise.resolve({ data: [] }),
     service.from('course_sections').select('*').eq('course_id', sourceCourseId).order('order'),
     service.from('quizzes').select('*').eq('course_id', sourceCourseId).is('deleted_at', null),
+    assignmentIds.length
+      ? service.from('confidence_tracker_assignment_skills').select('*').in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [] }),
   ])
 
   // ── DATE SHIFT ───────────────────────────────────────────────────────────
@@ -176,6 +179,16 @@ export async function POST(req: NextRequest) {
     : { data: [], error: null }
   if (checklistError) return NextResponse.json({ error: checklistError.message }, { status: 500 })
 
+  // Confidence skill tags — reuse the same shared skill_id; only the tag/join rows are copied
+  const confidenceSkillTagInserts = (confidenceSkillTags ?? []).map(t => ({
+    assignment_id: assignmentIdMap.get(t.assignment_id)!,
+    skill_id: t.skill_id,
+  }))
+  const { data: newConfidenceSkillTags, error: confidenceSkillTagsError } = confidenceSkillTagInserts.length
+    ? await service.from('confidence_tracker_assignment_skills').insert(confidenceSkillTagInserts).select()
+    : { data: [], error: null }
+  if (confidenceSkillTagsError) return NextResponse.json({ error: confidenceSkillTagsError.message }, { status: 500 })
+
   // Course sections
   const sectionInserts = (courseSections ?? []).map(s => ({
     course_id: newCourse.id,
@@ -238,6 +251,7 @@ export async function POST(req: NextRequest) {
       assignments: newAssignments?.length ?? 0,
       resources: newResources?.length ?? 0,
       checklistItems: newChecklists?.length ?? 0,
+      confidenceSkillTags: newConfidenceSkillTags?.length ?? 0,
       sections: newSections?.length ?? 0,
       quizzes: newQuizzes?.length ?? 0,
       datesShifted,
