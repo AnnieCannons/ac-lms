@@ -13,6 +13,7 @@ import { LateBadge, DueDatePill } from '@/components/ui/AssignmentDueStatus'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
 import { getExtensionRequestForStudent } from '@/lib/extension-actions'
+import { listAssignmentSkills } from '@/lib/skill-actions'
 
 export default async function StudentAssignmentPage({
   params,
@@ -115,6 +116,8 @@ export default async function StudentAssignmentPage({
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false })
+
+  const { skills: confidenceSkills } = await listAssignmentSkills(assignmentId)
 
   const { data: gradeHistory } = (admin && existingSubmission)
     ? await admin
@@ -318,6 +321,7 @@ export default async function StudentAssignmentPage({
               courseId={id}
               existingSubmission={existingSubmission ?? null}
               initialHistory={submissionHistory ?? []}
+              confidenceSkills={confidenceSkills}
               checklistItems={checklistItems ?? undefined}
               initialChecked={initialChecked}
               instructorResponseMap={hasInstructorReview ? instructorResponseMap : undefined}

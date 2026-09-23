@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MarkdownContent, { PlainTextContent } from "@/components/ui/MarkdownContent";
 import FileUpload from "@/components/ui/FileUpload";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
@@ -9,6 +9,9 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 import { saveSubmission } from "@/lib/submission-actions";
 import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
+import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
+import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
+import type { ConfidenceSkill } from "@/lib/skill-actions";
 
 const MAX_SUBMISSION_FILES = 10;
 
@@ -61,6 +64,7 @@ export default function SubmissionForm({
   courseId,
   existingSubmission,
   initialHistory,
+  confidenceSkills,
   checklistItems,
   initialChecked,
   instructorResponseMap,
@@ -75,6 +79,7 @@ export default function SubmissionForm({
   courseId: string;
   existingSubmission: Submission | null;
   initialHistory: HistoryEntry[];
+  confidenceSkills: ConfidenceSkill[];
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
   instructorResponseMap?: Map<string, boolean>;
@@ -111,6 +116,42 @@ export default function SubmissionForm({
   const [previewMd, setPreviewMd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showRatingPrompt = confidenceSkills.length > 0 && initialHistory.length === 0 && (!saved || saved.status === 'draft');
+  const ratingStorageKey = `confidence-ratings:${studentId}:${assignmentId}`;
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [ratingError, setRatingError] = useState<string | null>(null);
+
+  // Hydrate from sessionStorage after mount, not during the initial render — reading it
+  // in a lazy useState initializer would make the client's first render diverge from the
+  // server-rendered HTML (which has no access to sessionStorage), causing a hydration
+  // mismatch on whichever rating was previously selected.
+  useEffect(() => {
+    if (!showRatingPrompt) return;
+    try {
+      const stored = sessionStorage.getItem(ratingStorageKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from an external system (sessionStorage) on mount, not deriving state from props
+      if (stored) setRatings(JSON.parse(stored));
+    } catch { /* sessionStorage unavailable — ratings just won't survive navigation */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally mount-only
+  }, []);
+
+  const handleRatingChange = (skillId: string, rating: number | null) => {
+    setRatings(prev => {
+      const next = { ...prev };
+      if (rating === null) {
+        delete next[skillId];
+      } else {
+        next[skillId] = rating;
+      }
+      try { sessionStorage.setItem(ratingStorageKey, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const clearStoredRatings = () => {
+    try { sessionStorage.removeItem(ratingStorageKey); } catch { /* ignore */ }
+  };
 
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
@@ -195,6 +236,16 @@ export default function SubmissionForm({
     const content = getContent();
     const newSaved = await doSave("submitted", content, tab);
     if (newSaved) {
+      if (showRatingPrompt) {
+        const entries = Object.entries(ratings).map(([skillId, rating]) => ({ skillId, rating }));
+        if (entries.length > 0) {
+          const { error: ratingSaveError } = await saveConfidenceRatings(assignmentId, entries);
+          if (ratingSaveError) {
+            setRatingError("Your assignment was submitted, but we couldn't save your confidence ratings due to an error — please let your instructor know.");
+          }
+        }
+        clearStoredRatings();
+      }
       clearForm();
       setMode("view");
     }
@@ -338,6 +389,12 @@ export default function SubmissionForm({
           </span>
         )}
       </div>
+
+      {ratingError && (
+        <p role="alert" aria-live="assertive" className="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+          {ratingError}
+        </p>
+      )}
 
       {/* ── VIEW MODE: show submitted content ── */}
       {mode === "view" && saved && (
@@ -505,8 +562,10 @@ export default function SubmissionForm({
       )}
 
       {/* ── EDIT MODE: submission form ── */}
-      {!isObserver && mode === "edit" && (
+      {mode === "edit" && (
         <>
+          {!isObserver && (
+          <>
           {/* Tab selector */}
           <div role="tablist" aria-label="Submission type" className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">
             {(["link", "text", "file"] as SubmissionType[]).map(t => (
@@ -612,7 +671,20 @@ export default function SubmissionForm({
               )}
             </div>
           )}
+          </>
+          )}
 
+          {showRatingPrompt && (
+            <ConfidenceRatingPrompt
+              skills={confidenceSkills}
+              value={ratings}
+              onChange={handleRatingChange}
+              disabled={isObserver || isStudentPreview}
+            />
+          )}
+
+          {!isObserver && (
+          <>
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -651,6 +723,8 @@ export default function SubmissionForm({
               </button>
             )}
           </div>
+          </>
+          )}
         </>
       )}
     </div>
