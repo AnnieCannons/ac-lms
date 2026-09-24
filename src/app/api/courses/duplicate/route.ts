@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 
 export async function POST(req: NextRequest) {
   // Auth check
@@ -27,35 +28,56 @@ export async function POST(req: NextRequest) {
   // and staff — all of whom have global access to duplicate any course.
 
   // ── FETCH PHASE ──────────────────────────────────────────────────────────
+  // Large courses exceed PostgREST's 1000-row response cap (checklist items especially),
+  // so every fetch pages through, and long id lists are chunked to keep URLs short.
+
+  type Row = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const chunk = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, (i + 1) * size))
+
+  async function fetchIn(table: string, column: string, ids: string[], opts: { excludeDeleted?: boolean } = {}): Promise<Row[]> {
+    const rows: Row[] = []
+    for (const idChunk of chunk(ids, 150)) {
+      rows.push(...await fetchAllRows<Row>((from, to) => {
+        let q = service.from(table).select('*').in(column, idChunk)
+        if (opts.excludeDeleted) q = q.is('deleted_at', null)
+        return q.order('id').range(from, to)
+      }))
+    }
+    return rows
+  }
 
   const { data: sourceCourse } = await service
     .from('courses').select('*').eq('id', sourceCourseId).single()
   if (!sourceCourse) return NextResponse.json({ error: 'Source course not found' }, { status: 404 })
 
-  const { data: modules } = await service
-    .from('modules').select('*').eq('course_id', sourceCourseId).is('deleted_at', null).order('order')
-
-  const moduleIds = (modules ?? []).map(m => m.id)
-  const { data: days } = moduleIds.length
-    ? await service.from('module_days').select('*').in('module_id', moduleIds).is('deleted_at', null).order('order')
-    : { data: [] }
-
-  const dayIds = (days ?? []).map(d => d.id)
-  const [{ data: assignments }, { data: resources }] = dayIds.length
-    ? await Promise.all([
-        service.from('assignments').select('*').in('module_day_id', dayIds).is('deleted_at', null),
-        service.from('resources').select('*').in('module_day_id', dayIds).is('deleted_at', null).order('order'),
-      ])
-    : [{ data: [] }, { data: [] }]
-
-  const assignmentIds = (assignments ?? []).map(a => a.id)
-  const [{ data: checklistItems }, { data: courseSections }, { data: quizzes }] = await Promise.all([
-    assignmentIds.length
-      ? service.from('checklist_items').select('*').in('assignment_id', assignmentIds).order('order')
-      : Promise.resolve({ data: [] }),
-    service.from('course_sections').select('*').eq('course_id', sourceCourseId).order('order'),
-    service.from('quizzes').select('*').eq('course_id', sourceCourseId).is('deleted_at', null),
-  ])
+  let modules: Row[], days: Row[], assignments: Row[], resources: Row[], checklistItems: Row[]
+  let courseSections: Row[], quizzes: Row[], wikis: Row[], assignmentSkills: Row[]
+  try {
+    modules = await fetchIn('modules', 'course_id', [sourceCourseId], { excludeDeleted: true })
+    const moduleIds = modules.map(m => m.id)
+    days = await fetchIn('module_days', 'module_id', moduleIds, { excludeDeleted: true })
+    const dayIds = days.map(d => d.id)
+    ;[assignments, resources, courseSections, quizzes] = await Promise.all([
+      fetchIn('assignments', 'module_day_id', dayIds, { excludeDeleted: true }),
+      fetchIn('resources', 'module_day_id', dayIds, { excludeDeleted: true }),
+      fetchIn('course_sections', 'course_id', [sourceCourseId]),
+      fetchIn('quizzes', 'course_id', [sourceCourseId], { excludeDeleted: true }),
+    ])
+    const assignmentIds = assignments.map(a => a.id)
+    const [moduleWikis, dayWikis] = await Promise.all([
+      fetchIn('wikis', 'module_id', moduleIds),
+      fetchIn('wikis', 'module_day_id', dayIds),
+    ])
+    wikis = [...new Map([...moduleWikis, ...dayWikis].map(w => [w.id, w])).values()]
+    ;[checklistItems, assignmentSkills] = await Promise.all([
+      fetchIn('checklist_items', 'assignment_id', assignmentIds),
+      fetchIn('confidence_tracker_assignment_skills', 'assignment_id', assignmentIds),
+    ])
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+  }
 
   // ── DATE SHIFT ───────────────────────────────────────────────────────────
 
@@ -78,22 +100,51 @@ export async function POST(req: NextRequest) {
 
   function shiftDateOnly(dateStr: string | null): string | null {
     if (!dateStr || shiftMs === 0) return dateStr
-    return new Date(new Date(dateStr + 'T00:00:00Z').getTime() + shiftMs)
+    return new Date(new Date(dateStr.slice(0, 10) + 'T00:00:00Z').getTime() + shiftMs)
       .toISOString().split('T')[0]
   }
 
-  // ── INSERT PHASE ─────────────────────────────────────────────────────────
+  // Assignment due dates are stored as plain YYYY-MM-DD; keep them that way (legacy rows may be timestamps)
+  const shiftDueDate = (d: string | null) => (d && d.length === 10 ? shiftDateOnly(d) : shiftDate(d))
 
-  // Course
+  // ── INSERT PHASE ─────────────────────────────────────────────────────────
+  // Rows are copied column-for-column (so new columns carry over automatically), minus
+  // identity/timestamp columns, with foreign keys remapped to the new course's rows.
+
+  const ROW_META = ['id', 'created_at', 'updated_at']
+  const copyRow = (row: Row, overrides: Row, omit: string[] = []): Row => {
+    const out: Row = { ...row }
+    for (const k of [...ROW_META, ...omit]) delete out[k]
+    return { ...out, ...overrides }
+  }
+
+  // Inserts in chunks; PostgREST returns inserted rows in input order, which the id maps rely on
+  async function insertAll(table: string, rows: Row[]): Promise<Row[]> {
+    const inserted: Row[] = []
+    for (const rowChunk of chunk(rows, 500)) {
+      const { data, error } = await service.from(table).insert(rowChunk).select('id')
+      if (error) throw new Error(`${table}: ${error.message}`)
+      inserted.push(...(data ?? []))
+    }
+    return inserted
+  }
+
+  const idMap = (source: Row[], inserted: Row[]) =>
+    new Map(source.map((r, i) => [r.id as string, inserted[i].id as string]))
+
+  // Course — everything except per-cohort links (Canvas, Airtable attendance) and status flags
   const { data: newCourse, error: courseError } = await service
     .from('courses')
-    .insert({
+    .insert(copyRow(sourceCourse, {
       name: newName,
       code: newCode,
-      syllabus_content: sourceCourse.syllabus_content,
       start_date: newStartDate ?? sourceCourse.start_date,
       end_date: shiftDateOnly(sourceCourse.end_date),
-    })
+      archived: false,
+      is_template: false,
+      canvas_course_id: null,
+      airtable_course_name: null,
+    }))
     .select().single()
 
   if (courseError) {
@@ -103,109 +154,69 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: courseError.message }, { status: 500 })
   }
 
-  // Modules
-  const moduleInserts = (modules ?? []).map(m => ({
-    course_id: newCourse.id,
-    title: m.title,
-    week_number: m.week_number,
-    order: m.order,
-    category: m.category,
-  }))
-  const { data: newModules, error: modulesError } = moduleInserts.length
-    ? await service.from('modules').insert(moduleInserts).select()
-    : { data: [], error: null }
-  if (modulesError) return NextResponse.json({ error: modulesError.message }, { status: 500 })
+  let stats: Record<string, number>
+  try {
+    const newModules = await insertAll('modules', modules.map(m => copyRow(m, { course_id: newCourse.id })))
+    const moduleIdMap = idMap(modules, newModules)
 
-  const moduleIdMap = new Map<string, string>()
-  ;(modules ?? []).forEach((m, i) => moduleIdMap.set(m.id, newModules![i].id))
+    const newDays = await insertAll('module_days', days.map(d => copyRow(d, { module_id: moduleIdMap.get(d.module_id)! })))
+    const dayIdMap = idMap(days, newDays)
 
-  // Days
-  const dayInserts = (days ?? []).map(d => ({
-    module_id: moduleIdMap.get(d.module_id)!,
-    day_name: d.day_name,
-    order: d.order,
-  }))
-  const { data: newDays, error: daysError } = dayInserts.length
-    ? await service.from('module_days').insert(dayInserts).select()
-    : { data: [], error: null }
-  if (daysError) return NextResponse.json({ error: daysError.message }, { status: 500 })
+    // Cross-posts (Career Dev → coding course) are remapped when the target day is in this course;
+    // links into another course are dropped so the copy doesn't show up in the original's outline
+    const remapLinkedDay = (id: string | null) => (id ? dayIdMap.get(id) ?? null : null)
 
-  const dayIdMap = new Map<string, string>()
-  ;(days ?? []).forEach((d, i) => dayIdMap.set(d.id, newDays![i].id))
+    const newResources = await insertAll('resources', resources.map(r => copyRow(r, {
+      module_day_id: dayIdMap.get(r.module_day_id)!,
+      linked_day_id: remapLinkedDay(r.linked_day_id),
+    })))
 
-  // Resources
-  const resourceInserts = (resources ?? []).map(r => ({
-    module_day_id: dayIdMap.get(r.module_day_id)!,
-    type: r.type,
-    title: r.title,
-    content: r.content,
-    order: r.order,
-    instructor_only: r.instructor_only ?? false,
-  }))
-  const { data: newResources, error: resourcesError } = resourceInserts.length
-    ? await service.from('resources').insert(resourceInserts).select()
-    : { data: [], error: null }
-  if (resourcesError) return NextResponse.json({ error: resourcesError.message }, { status: 500 })
+    // Grader and Canvas ids are per-cohort, so they start fresh
+    const newAssignments = await insertAll('assignments', assignments.map(a => copyRow(a, {
+      module_day_id: dayIdMap.get(a.module_day_id)!,
+      linked_day_id: remapLinkedDay(a.linked_day_id),
+      due_date: shiftDueDate(a.due_date),
+      grader_id: null,
+      canvas_assignment_id: null,
+    })))
+    const assignmentIdMap = idMap(assignments, newAssignments)
 
-  // Assignments
-  const assignmentInserts = (assignments ?? []).map(a => ({
-    module_day_id: dayIdMap.get(a.module_day_id)!,
-    title: a.title,
-    description: a.description,
-    how_to_turn_in: a.how_to_turn_in,
-    due_date: shiftDate(a.due_date),
-    published: a.published,
-  }))
-  const { data: newAssignments, error: assignmentsError } = assignmentInserts.length
-    ? await service.from('assignments').insert(assignmentInserts).select()
-    : { data: [], error: null }
-  if (assignmentsError) return NextResponse.json({ error: assignmentsError.message }, { status: 500 })
+    const newChecklists = await insertAll('checklist_items', checklistItems.map(ci => copyRow(ci, {
+      assignment_id: assignmentIdMap.get(ci.assignment_id)!,
+    })))
 
-  const assignmentIdMap = new Map<string, string>()
-  ;(assignments ?? []).forEach((a, i) => assignmentIdMap.set(a.id, newAssignments![i].id))
+    await insertAll('confidence_tracker_assignment_skills', assignmentSkills.map(s => copyRow(s, {
+      assignment_id: assignmentIdMap.get(s.assignment_id)!,
+    })))
 
-  // Checklist items
-  const checklistInserts = (checklistItems ?? []).map(ci => ({
-    assignment_id: assignmentIdMap.get(ci.assignment_id)!,
-    text: ci.text,
-    description: ci.description,
-    order: ci.order,
-  }))
-  const { data: newChecklists, error: checklistError } = checklistInserts.length
-    ? await service.from('checklist_items').insert(checklistInserts).select()
-    : { data: [], error: null }
-  if (checklistError) return NextResponse.json({ error: checklistError.message }, { status: 500 })
+    const newSections = await insertAll('course_sections', courseSections.map(cs => copyRow(cs, { course_id: newCourse.id })))
 
-  // Course sections
-  const sectionInserts = (courseSections ?? []).map(s => ({
-    course_id: newCourse.id,
-    title: s.title,
-    content: s.content,
-    order: s.order,
-    type: s.type,
-    published: s.published,
-  }))
-  const { data: newSections, error: sectionsError } = sectionInserts.length
-    ? await service.from('course_sections').insert(sectionInserts).select()
-    : { data: [], error: null }
-  if (sectionsError) return NextResponse.json({ error: sectionsError.message }, { status: 500 })
+    const newQuizzes = await insertAll('quizzes', quizzes.map(q => copyRow(q, {
+      course_id: newCourse.id,
+      due_at: shiftDate(q.due_at),
+      linked_day_id: remapLinkedDay(q.linked_day_id),
+    })))
 
-  // Quizzes
-  const quizInserts = (quizzes ?? []).map(q => ({
-    course_id: newCourse.id,
-    identifier: q.identifier,
-    title: q.title,
-    due_at: shiftDate(q.due_at),
-    module_title: q.module_title,
-    day_title: q.day_title ?? null,
-    published: q.published,
-    questions: q.questions,
-    max_attempts: q.max_attempts ?? null,
-  }))
-  const { data: newQuizzes, error: quizzesError } = quizInserts.length
-    ? await service.from('quizzes').insert(quizInserts).select()
-    : { data: [], error: null }
-  if (quizzesError) return NextResponse.json({ error: quizzesError.message }, { status: 500 })
+    const newWikis = await insertAll('wikis', wikis.map(w => copyRow(w, {
+      module_id: w.module_id ? moduleIdMap.get(w.module_id) ?? null : null,
+      module_day_id: w.module_day_id ? dayIdMap.get(w.module_day_id) ?? null : null,
+    })))
+
+    stats = {
+      modules: newModules.length,
+      days: newDays.length,
+      assignments: newAssignments.length,
+      resources: newResources.length,
+      checklistItems: newChecklists.length,
+      sections: newSections.length,
+      quizzes: newQuizzes.length,
+      wikis: newWikis.length,
+    }
+  } catch (e) {
+    // Don't leave a half-copied course behind; child rows cascade from the course
+    await service.from('courses').delete().eq('id', newCourse.id)
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+  }
 
   // Instructor enrollments — verify each ID is actually an instructor/admin/staff before enrolling
   const candidateIds: string[] = Array.isArray(instructorIds) ? instructorIds.filter(Boolean) : []
@@ -232,15 +243,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     newCourseId: newCourse.id,
-    stats: {
-      modules: newModules?.length ?? 0,
-      days: newDays?.length ?? 0,
-      assignments: newAssignments?.length ?? 0,
-      resources: newResources?.length ?? 0,
-      checklistItems: newChecklists?.length ?? 0,
-      sections: newSections?.length ?? 0,
-      quizzes: newQuizzes?.length ?? 0,
-      datesShifted,
-    },
+    stats: { ...stats, datesShifted },
   })
 }
