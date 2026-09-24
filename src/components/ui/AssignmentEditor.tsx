@@ -53,11 +53,12 @@ interface Props {
     submission_required: boolean
     skill_tags: string[] | null
     is_bonus: boolean
+    is_optional: boolean
   }
   initialChecklist: ChecklistItem[]
   enrolledStudents: { id: string; name: string }[]
   initialOverrides: Override[]
-  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; skill_tags: string[]; answer_key_url: string | null }, updatedChecklist: ChecklistItem[]) => void
+  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; is_optional: boolean; skill_tags: string[]; answer_key_url: string | null }, updatedChecklist: ChecklistItem[]) => void
 }
 
 export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides, onSaved }: Props) {
@@ -71,6 +72,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [published, setPublished] = useState(assignment.published)
   const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
   const [isBonus, setIsBonus] = useState(assignment.is_bonus)
+  const [isOptional, setIsOptional] = useState(assignment.is_optional)
   const [skillTags, setSkillTags] = useState<string[]>(assignment.skill_tags ?? [])
   const [customSkillTags, setCustomSkillTags] = useState<string[]>(
     (assignment.skill_tags ?? []).filter(t => !PRESET_SKILL_TAGS.includes(t))
@@ -233,6 +235,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         published,
         submission_required: submissionRequired,
         is_bonus: isBonus,
+        is_optional: isOptional,
         skill_tags: skillTags,
         answer_key_url: answerKeyUrl.trim() || null,
       })
@@ -244,7 +247,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setIsDirty(false)
     if (onSaved) {
       onSaved(
-        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
+        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, is_optional: isOptional, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
         checklist
       )
     }
@@ -433,6 +436,18 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         </button>
         <button
           type="button"
+          onClick={() => { setIsOptional(o => !o); setIsDirty(true) }}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+            isOptional
+              ? 'bg-teal-light text-teal-primary border-teal-primary/30'
+              : 'bg-background text-muted-text border-border hover:border-muted-text'
+          }`}
+        >
+          {isOptional && <span className="w-2 h-2 rounded-full bg-teal-primary" />}
+          {isOptional ? 'Optional' : 'Optional?'}
+        </button>
+        <button
+          type="button"
           onClick={deleteAssignment}
           className="ml-auto flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:border-red-400 hover:text-red-500 transition-colors"
         >
@@ -493,6 +508,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           <DatePicker value={dueDate} onChange={v => { setDueDate(v); setIsDirty(true) }} />
           <span className="text-sm text-muted-text">11:59pm (student&apos;s timezone)</span>
         </div>
+        {isOptional && (
+          <p className="text-xs text-teal-primary mt-2">
+            {dueDate
+              ? 'Optional — closes at the due date and is never counted as missing if skipped.'
+              : 'Optional — never counted as missing. Set a due date to close submissions.'}
+          </p>
+        )}
       </div>
 
       {/* Answer Key URL */}

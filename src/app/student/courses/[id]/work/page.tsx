@@ -49,7 +49,7 @@ export default async function MyWorkPage({
 
   const { data: rawModulesWork } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, deleted_at, published))')
+    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, is_optional, deleted_at, published))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .order('order', { ascending: true })
@@ -86,7 +86,7 @@ export default async function MyWorkPage({
 
   const assignments: WorkAssignment[] = (modules ?? []).flatMap(module =>
     (module.module_days ?? []).flatMap(
-      (day: { id: string; assignments?: { id: string; title: string; due_date: string | null; is_bonus?: boolean }[] }) =>
+      (day: { id: string; assignments?: { id: string; title: string; due_date: string | null; is_bonus?: boolean; is_optional?: boolean }[] }) =>
         (day.assignments ?? [])
           .map(a => {
           const sub = submissionMap.get(a.id) ?? null
@@ -105,6 +105,7 @@ export default async function MyWorkPage({
             submittedIsLate,
             isExcused,
             isBonus: a.is_bonus ?? false,
+            isOptional: a.is_optional ?? false,
             moduleTitle: module.title,
             weekNumber: module.week_number,
             isCurrentWeek: currentWeek !== null && module.week_number === currentWeek,

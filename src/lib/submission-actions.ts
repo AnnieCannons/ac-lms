@@ -1,6 +1,6 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
-import { isLateInTimezone } from '@/lib/date-utils'
+import { isLateInTimezone, isOptionalClosed } from '@/lib/date-utils'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -23,6 +23,15 @@ export async function saveSubmission(
 
   const admin = createServiceSupabaseClient()
 
+  // Optional assignments stop taking submissions (including drafts) once the due date passes
+  const [{ data: assignmentRow }, { data: overrideRow }] = await Promise.all([
+    admin.from('assignments').select('due_date, is_optional').eq('id', assignmentId).single(),
+    admin.from('assignment_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
+  ])
+  if (assignmentRow?.is_optional && isOptionalClosed((overrideRow?.due_date ?? assignmentRow.due_date) as string | null, studentTimezone)) {
+    return { error: 'This optional assignment is closed — the due date has passed.' }
+  }
+
   // Determine is_late on the first real submission (draft → submitted or brand new)
   let isLatePayload: Record<string, unknown> = {}
   let existingStatus: string | null = null
@@ -42,14 +51,10 @@ export async function saveSubmission(
 
   if (isFirstSubmission && studentTimezone) {
     const now = new Date().toISOString()
-    const [{ data: assignment }, { data: override }] = await Promise.all([
-      admin.from('assignments').select('due_date').eq('id', assignmentId).single(),
-      admin.from('assignment_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
-    ])
-    const effectiveDueDate = (override?.due_date ?? assignment?.due_date) as string | null
+    const effectiveDueDate = (overrideRow?.due_date ?? assignmentRow?.due_date) as string | null
     isLatePayload = {
       student_timezone: studentTimezone,
-      is_late: isLateInTimezone(now, effectiveDueDate, studentTimezone),
+      is_late: assignmentRow?.is_optional ? false : isLateInTimezone(now, effectiveDueDate, studentTimezone),
     }
   }
 

@@ -21,15 +21,26 @@ export type WorkAssignment = {
   submittedIsLate: boolean | null;
   isExcused: boolean;
   isBonus: boolean;
+  isOptional: boolean;
   moduleTitle: string;
   weekNumber: number | null;
   isCurrentWeek: boolean;
   courseId: string;
 };
 
-type WorkAssignmentWithLate = WorkAssignment & { isLate: boolean };
+type WorkAssignmentWithLate = WorkAssignment & { isLate: boolean; isClosed: boolean };
 
-function StatusBadge({ status, grade, isLate }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean }) {
+function StatusBadge({ status, grade, isLate, isOptional }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean; isOptional: boolean }) {
+  // Optional: always an Optional pill, plus the normal status once turned in — never Late or Not started
+  if (isOptional) return (
+    <span className="flex items-center gap-1.5 shrink-0">
+      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary/30">Optional</span>
+      {grade === "complete" ? <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border">Complete ✓</span>
+        : grade === "incomplete" ? <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border">Needs Revision</span>
+        : status === "submitted" || status === "graded" ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned in</span>
+        : null}
+    </span>
+  );
   if (grade === "complete") return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>;
   if (grade === "incomplete") return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>;
   if (status === "submitted") return (
@@ -50,7 +61,7 @@ function getFilterMatch(a: WorkAssignmentWithLate, filter: Filter): boolean {
   if (filter === "complete") return a.grade === "complete";
   if (filter === "needs-revision") return a.grade === "incomplete";
   if (filter === "turned-in") return a.status === "submitted";
-  if (filter === "not-started") return !a.status && !a.grade && !a.isExcused;
+  if (filter === "not-started") return !a.status && !a.grade && !a.isExcused && !a.isClosed;
   return true;
 }
 
@@ -80,7 +91,9 @@ export default function StudentWorkList({
     const today = todayLocal();
     return rawAssignments.map((a) => ({
       ...a,
-      isLate: a.isExcused
+      // A closed optional assignment is simply skipped, not outstanding
+      isClosed: a.isOptional && !!a.due_date && localDate(a.due_date) < today,
+      isLate: a.isExcused || a.isOptional
         ? false
         : a.submittedIsLate !== null
           ? a.submittedIsLate
@@ -117,7 +130,7 @@ export default function StudentWorkList({
           </p>
         )}
       </div>
-      <StatusBadge status={a.status} grade={a.grade} isLate={a.isLate} />
+      <StatusBadge status={a.status} grade={a.grade} isLate={a.isLate} isOptional={a.isOptional} />
     </Link>
   );
 
