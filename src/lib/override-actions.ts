@@ -60,7 +60,9 @@ export async function upsertAssignmentOverride(
       .eq('status', 'submitted')
       .maybeSingle()
     if (submission?.submitted_at) {
-      const isLate = excused ? false : isLateInTimezone(submission.submitted_at, dueDate, submission.student_timezone)
+      const { data: assignment } = await admin.from('assignments').select('is_optional').eq('id', assignmentId).single()
+      // Optional assignments are never late
+      const isLate = excused || assignment?.is_optional ? false : isLateInTimezone(submission.submitted_at, dueDate, submission.student_timezone)
       await admin.from('submissions').update({ is_late: isLate }).eq('id', submission.id)
     }
   }

@@ -69,7 +69,7 @@ export async function getStudentStatsHistory(studentId: string, courseId: string
   }))
 }
 
-type CourseAssignment = Omit<AssignmentStat, 'submission_id' | 'comment_count'> & { submission_required: boolean }
+type CourseAssignment = Omit<AssignmentStat, 'submission_id' | 'comment_count'> & { submission_required: boolean; is_optional: boolean }
 
 // Fetch all published, non-deleted assignments for this course that require submission
 async function fetchCourseAssignments(
@@ -78,12 +78,12 @@ async function fetchCourseAssignments(
 ): Promise<CourseAssignment[]> {
   const { data: modules } = await admin
     .from('modules')
-    .select('title, module_days(assignments!module_day_id(id, title, due_date, submission_required, deleted_at, published))')
+    .select('title, module_days(assignments!module_day_id(id, title, due_date, submission_required, is_optional, deleted_at, published))')
     .eq('course_id', courseId)
     .eq('published', true)
     .is('deleted_at', null)
 
-  type RawAssignment = { id: string; title: string; due_date: string | null; submission_required: boolean; deleted_at: string | null; published: boolean }
+  type RawAssignment = { id: string; title: string; due_date: string | null; submission_required: boolean; is_optional: boolean | null; deleted_at: string | null; published: boolean }
   type RawDay = { assignments: RawAssignment[] }
   type RawModule = { title: string; module_days: RawDay[] }
 
@@ -92,7 +92,7 @@ async function fetchCourseAssignments(
     for (const d of m.module_days ?? []) {
       for (const a of d.assignments ?? []) {
         if (!a.published || a.deleted_at || a.submission_required === false) continue
-        assignments.push({ id: a.id, title: a.title, due_date: a.due_date, module_title: m.title, submission_required: a.submission_required })
+        assignments.push({ id: a.id, title: a.title, due_date: a.due_date, module_title: m.title, submission_required: a.submission_required, is_optional: !!a.is_optional })
       }
     }
   }
@@ -223,8 +223,9 @@ export async function computeStudentAssignmentStats(
     } else {
       // No submission or draft
       const isPastDue = !!effectiveDueDate && new Date(effectiveDueDate) < now
+      // Skipping an optional assignment is fine — it's never missing
       if (isPastDue) {
-        missing.push(stat)
+        if (!a.is_optional) missing.push(stat)
       } else if (isDueThisWeek(effectiveDueDate)) {
         // Only flag as "Due this week" once it's actually due this calendar
         // week — not everything unsubmitted for the rest of the course.

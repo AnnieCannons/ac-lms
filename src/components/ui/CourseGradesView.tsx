@@ -10,6 +10,7 @@ interface Assignment {
   title: string
   due_date: string | null
   submission_required: boolean
+  is_optional?: boolean
   moduleTitle: string
 }
 
@@ -107,6 +108,8 @@ export default function CourseGradesView({
         if (!sub || sub.status === 'draft') {
           // No-submission assignments are never "missing" — instructor marks them complete manually
           if (a.submission_required === false) continue
+          // Optional assignments are never "missing" either
+          if (a.is_optional) continue
           if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) missing.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)

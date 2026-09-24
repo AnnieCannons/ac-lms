@@ -112,6 +112,7 @@ interface Assignment {
   order?: number | null
   skill_tags?: string[] | null
   is_bonus?: boolean
+  is_optional?: boolean
   careerDev?: boolean
 }
 
@@ -151,7 +152,17 @@ interface Module {
 
 type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
 
-function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
+function AssignmentStatusBadge({ info, dueDate, isOptional }: { info: SubmissionInfo | undefined; dueDate?: string | null; isOptional?: boolean }) {
+  // Optional: always an Optional pill, plus the normal status once turned in — never Late or Not Started
+  if (isOptional) return (
+    <span className="flex items-center gap-1.5 shrink-0">
+      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary/30">Optional</span>
+      {info?.grade === 'complete' ? <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border">Complete ✓</span>
+        : info?.grade === 'incomplete' ? <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border">Needs Revision</span>
+        : info?.status === 'submitted' || info?.status === 'graded' ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned In</span>
+        : null}
+    </span>
+  )
   const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
   if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
@@ -296,7 +307,7 @@ function DayContent({
                     </p>
                   )}
                 </div>
-                {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} />}
+                {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} isOptional={a.is_optional} />}
                 <Link
                   href={`/student/courses/${courseId}/assignments/${a.id}`}
                   className="text-sm text-teal-primary font-semibold hover:underline shrink-0"
