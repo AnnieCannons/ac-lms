@@ -3626,7 +3626,11 @@ export default function CourseEditor({
     id: m.id,
     week: m.week_number ?? null,
     title: m.title ?? null,
-    days: m.module_days.map(d => d.day_name),
+    // Sort weekdays Mon→Fri regardless of stored order; non-weekday days keep their relative order after
+    days: m.module_days.map(d => d.day_name).sort((a, b) => {
+      const ia = DAY_OPTIONS.indexOf(a), ib = DAY_OPTIONS.indexOf(b);
+      return (ia === -1 ? DAY_OPTIONS.length : ia) - (ib === -1 ? DAY_OPTIONS.length : ib);
+    }),
   }));
 
   return (
