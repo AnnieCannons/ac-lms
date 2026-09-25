@@ -56,7 +56,7 @@ export default async function StudentDetailPage({
     admin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null }, error: null })),
     admin
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, canvas_assignment_id, deleted_at))')
+      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, is_optional, canvas_assignment_id, deleted_at))')
       .eq('course_id', courseId)
       .eq('published', true)
       .eq('category', 'syllabus')
@@ -69,7 +69,7 @@ export default async function StudentDetailPage({
     (authResult as { data: { user: { last_sign_in_at?: string } | null } }).data?.user?.last_sign_in_at ?? null
 
   // Flatten to all published assignments with module context
-  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; canvas_assignment_id: number | null; deleted_at: string | null }
+  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; is_optional: boolean | null; canvas_assignment_id: number | null; deleted_at: string | null }
   const allAssignments: (Omit<CategorizedAssignment, 'isLate'> & { canvasAssignmentId: number | null })[] = (rawModules ?? []).flatMap(m => {
     const days = (m.module_days ?? []) as { id: string; assignments: RawAssignment[] }[]
     return days.flatMap(d =>
@@ -88,6 +88,11 @@ export default async function StudentDetailPage({
   })
 
   const assignmentIds = allAssignments.map(a => a.id)
+  // Optional assignments are never missing or late
+  const optionalIds = new Set(
+    (rawModules ?? []).flatMap(m => ((m.module_days ?? []) as { assignments: RawAssignment[] }[])
+      .flatMap(d => (d.assignments ?? []).filter(a => a.is_optional).map(a => a.id)))
+  )
 
   const [
     { data: submissions },
@@ -145,7 +150,8 @@ export default async function StudentDetailPage({
     if (override?.excused) continue
     const effectiveDueDate = override?.due_date ?? a.due_date
     const duePassed = effectiveDueDate ? localDate(effectiveDueDate) < todayLocal() : false
-    const isLate = sub?.is_late ?? false
+    const isOptional = optionalIds.has(a.id)
+    const isLate = !isOptional && (sub?.is_late ?? false)
     let lateCurrentStatus: CategorizedAssignment['lateCurrentStatus']
     if (isLate) {
       if (sub?.status === 'submitted') lateCurrentStatus = 'needsGrading'
@@ -154,7 +160,7 @@ export default async function StudentDetailPage({
     const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, type: 'assignment' }
 
     if (!sub || sub.status === 'draft') {
-      if (duePassed) missing.push(entry)
+      if (duePassed && !isOptional) missing.push(entry)
     } else if (sub.status === 'submitted') {
       submitted.push(entry)
       if (isLate) late.push(entry)

@@ -123,3 +123,13 @@ export function isLateInTimezone(
     return false
   }
 }
+
+/**
+ * True once an optional assignment's due date has passed and it should stop
+ * taking submissions. Without the student's timezone we fall back to the
+ * latest timezone on earth (UTC-12), so we never close anything early.
+ */
+export function isOptionalClosed(dueDate: string | null | undefined, tz?: string | null): boolean {
+  if (!dueDate) return false
+  return isLateInTimezone(new Date().toISOString(), dueDate.slice(0, 10), tz || 'Etc/GMT+12')
+}

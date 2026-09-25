@@ -56,7 +56,7 @@ export default async function StudentAssignmentPage({
 
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus')
+    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus, is_optional')
     .eq('id', assignmentId)
     .eq('published', true)
     .single()
@@ -235,10 +235,13 @@ export default async function StudentAssignmentPage({
         <div className="flex items-start justify-between gap-4 mb-1 flex-wrap">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">{assignment.title}</h1>
-            {((assignment.skill_tags ?? []).length > 0 || assignment.is_bonus) && (
+            {((assignment.skill_tags ?? []).length > 0 || assignment.is_bonus || assignment.is_optional) && (
               <div className="flex flex-wrap gap-1.5 mb-1">
                 {assignment.is_bonus && (
                   <span className="text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2.5 py-1">Bonus</span>
+                )}
+                {assignment.is_optional && (
+                  <span className="text-xs font-medium bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2.5 py-1">Optional</span>
                 )}
                 {(assignment.skill_tags ?? []).map((tag: string) => (
                   <span key={tag} className="text-xs font-medium bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2.5 py-1">{tag}</span>
@@ -256,7 +259,7 @@ export default async function StudentAssignmentPage({
               Needs Revision
             </span>
           )}
-          <LateBadge dueDate={effectiveDueDate} isExcused={isExcused} hasSubmission={!!existingSubmission} />
+          <LateBadge dueDate={effectiveDueDate} isExcused={isExcused || !!assignment.is_optional} hasSubmission={!!existingSubmission} />
           {isExcused && (
             <span className="badge-amber shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
               Excused
@@ -270,7 +273,7 @@ export default async function StudentAssignmentPage({
           {effectiveDueDate && (
             <DueDatePill
               dueDate={effectiveDueDate}
-              isExcused={isExcused}
+              isExcused={isExcused || !!assignment.is_optional}
               isResolved={existingSubmission?.grade === 'complete' || existingSubmission?.grade === 'incomplete' || existingSubmission?.status === 'submitted'}
             />
           )}
@@ -336,6 +339,7 @@ export default async function StudentAssignmentPage({
               initialComments={initialComments}
               currentUserName={profile?.name ?? 'Student'}
               currentUserRole={profile?.role ?? 'student'}
+              optionalClosesOn={assignment.is_optional ? effectiveDueDate : null}
             />
           ) : (
             <div className="bg-surface rounded-2xl border border-border p-6">

@@ -55,7 +55,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, is_optional, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .not('title', 'ilike', '%DO NOT PUBLISH%')
@@ -85,7 +85,7 @@ export default async function StudentCourseDetailPage({
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
     admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
     dayIds.length > 0
-      ? supabase.from('assignments').select('id, title, due_date, published, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
+      ? supabase.from('assignments').select('id, title, due_date, published, is_optional, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
     dayIds.length > 0
       ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null).eq('instructor_only', false).eq('published', true)
@@ -102,7 +102,7 @@ export default async function StudentCourseDetailPage({
   const quizzes = (quizData ?? []) as CourseQuiz[]
 
   // Inject cross-posted assignments and resources into the module day structure
-  const crossAssignmentsArr = (crossAssignments ?? []) as Array<{ id: string; title: string; due_date: string | null; published: boolean; module_day_id: string; linked_day_id: string | null }>
+  const crossAssignmentsArr = (crossAssignments ?? []) as Array<{ id: string; title: string; due_date: string | null; published: boolean; is_optional?: boolean; module_day_id: string; linked_day_id: string | null }>
   const crossResourcesArr = (crossResources ?? []) as Array<{ id: string; type: string; title: string; content: string | null; description: string | null; order: number; linked_day_id: string | null }>
 
   type ModuleWikiRow = { id: string; title: string; content: string; module_id: string | null }

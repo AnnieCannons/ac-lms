@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import MarkdownContent, { PlainTextContent } from "@/components/ui/MarkdownContent";
 import FileUpload from "@/components/ui/FileUpload";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
@@ -12,8 +12,11 @@ import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
 import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
 import type { ConfidenceSkill } from "@/lib/skill-actions";
+import { isOptionalClosed } from "@/lib/date-utils";
 
 const MAX_SUBMISSION_FILES = 10;
+
+const noopSubscribe = () => () => {};
 
 
 
@@ -73,6 +76,7 @@ export default function SubmissionForm({
   initialComments = [],
   currentUserName = 'Student',
   currentUserRole = 'student',
+  optionalClosesOn = null,
 }: {
   assignmentId: string;
   studentId: string;
@@ -88,10 +92,18 @@ export default function SubmissionForm({
   initialComments?: CommentEntry[];
   currentUserName?: string;
   currentUserRole?: string;
+  /** Effective due date of an optional assignment; submissions close after it passes. */
+  optionalClosesOn?: string | null;
 }) {
   const [saved, setSaved] = useState<Submission | null>(existingSubmission);
   const [mode, setMode] = useState<Mode>(existingSubmission ? "view" : "edit");
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
+
+  // Browser timezone on the client; null during SSR/hydration, where isOptionalClosed falls back
+  // to the latest timezone on earth so the server never shows it closed early
+  const browserTz = useSyncExternalStore(noopSubscribe, () => Intl.DateTimeFormat().resolvedOptions().timeZone, () => null);
+  const closed = isOptionalClosed(optionalClosesOn, browserTz);
+  const locked = !!isObserver || closed;
 
   const hasChecklist = !!checklistItems && checklistItems.length > 0;
   const [checked, setChecked] = useState<Record<string, boolean>>(initialChecked ?? {});
@@ -287,6 +299,11 @@ export default function SubmissionForm({
         You&apos;re currently on leave. Your submitted work is visible below, but submissions are paused.
       </div>
     )}
+    {closed && !isObserver && (
+      <div className="bg-surface border border-border rounded-xl px-4 py-3 text-sm text-muted-text">
+        This optional assignment is closed — the due date has passed{saved?.status === 'submitted' || saved?.status === 'graded' ? '' : ', so it no longer accepts submissions'}.
+      </div>
+    )}
     {hasChecklist && (
       <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
@@ -313,8 +330,8 @@ export default function SubmissionForm({
                     type="button"
                     role="checkbox"
                     aria-checked={!!checked[item.id]}
-                    onClick={() => !isObserver && toggleCheck(item.id)}
-                    className={`flex items-start gap-3 flex-1 text-left group ${isObserver ? 'pointer-events-none opacity-60' : ''}`}
+                    onClick={() => !locked && toggleCheck(item.id)}
+                    className={`flex items-start gap-3 flex-1 text-left group ${locked ? 'pointer-events-none opacity-60' : ''}`}
                   >
                     <span aria-hidden="true" className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
                       checked[item.id]
@@ -453,7 +470,7 @@ export default function SubmissionForm({
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
             </p>
           )}
-          {!isObserver && canResubmit && (
+          {!locked && canResubmit && (
             <button
               type="button"
               onClick={() => saved?.status === 'draft' || saved?.submission_type !== 'link' ? editDraft() : setMode("confirm-resubmit")}
@@ -527,7 +544,7 @@ export default function SubmissionForm({
       )}
 
       {/* ── CONFIRM RESUBMIT MODE ── */}
-      {!isObserver && mode === "confirm-resubmit" && saved && (
+      {!locked && mode === "confirm-resubmit" && saved && (
         <div className="bg-background rounded-xl border border-border p-4 flex flex-col gap-4">
           <p className="text-sm font-medium text-dark-text">
             Is your {saved.submission_type === "link" ? "link" : saved.submission_type === "file" ? "file" : "response"} the same as before?
@@ -564,7 +581,7 @@ export default function SubmissionForm({
       {/* ── EDIT MODE: submission form ── */}
       {mode === "edit" && (
         <>
-          {!isObserver && (
+          {!locked && (
           <>
           {/* Tab selector */}
           <div role="tablist" aria-label="Submission type" className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">
@@ -683,7 +700,7 @@ export default function SubmissionForm({
             />
           )}
 
-          {!isObserver && (
+          {!locked && (
           <>
           <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
 
