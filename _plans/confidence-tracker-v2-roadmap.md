@@ -16,7 +16,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - No student-facing behavior yet.
 - Spec: [`_specs/assignment-skill-tagging.md`](../_specs/assignment-skill-tagging.md) · Plan: [`_plans/assignment-skill-tagging.md`](./assignment-skill-tagging.md) · Merged via [PR #151](https://github.com/AnnieCannons/ac-lms/pull/151)
 
-## Phase 2 — Basic inline rating capture 🔧 Built, not yet merged
+## Phase 2 — Basic inline rating capture ✅ Done (merged, flag off in production)
 - New table `confidence_tracker_ratings` (fully separate from the old `confidence_skills`/`confidence_entries`) storing one rating per student/skill/assignment, with RLS letting a student read/insert only their own rows and staff/instructor/admin read all (anticipating Phase 4).
 - In `SubmissionForm.tsx`: before the Submit button, a "How confident do you feel on the following skill(s)? (optional)" card lists the assignment's tagged skills (from Phase 1), each with its own 1–10 rating control. Every rating is entirely optional — no explicit skip action, a student can leave any or all blank — and clicking an already-selected number again unselects it.
 - Each of the 10 rating buttons has a hover/focus tooltip with a short description of what that level means, adapted from the original Confidence Tracker's 1–10 scale but reworded to fit any tagged skill (not just coding), since instructors can tag non-technical skills like "Canva" or "Presenting."
@@ -24,7 +24,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - Visible (read-only in effect) in Student Preview and Observer mode, so instructors/staff see the same accurate prompt a student would — but neither can ever trigger a save, since neither has a working Submit action for a never-yet-submitted assignment.
 - If the assignment submission succeeds but the rating save fails, the student sees a separate, non-blocking banner making clear the rating (not the assignment) failed to save.
 - No goal/target-date/study-plan logic yet — every skill just gets a plain rating at this stage.
-- Spec: [`_specs/confidence-skill-rating-capture.md`](../_specs/confidence-skill-rating-capture.md) · Plan: [`_plans/confidence-skill-rating-capture.md`](./confidence-skill-rating-capture.md) · Branch: `claude/feature/confidence-skill-rating-capture`
+- Spec: [`_specs/confidence-skill-rating-capture.md`](../_specs/confidence-skill-rating-capture.md) · Plan: [`_plans/confidence-skill-rating-capture.md`](./confidence-skill-rating-capture.md) · Merged via [PR #153](https://github.com/AnnieCannons/ac-lms/pull/153)
 - **Testable on its own**: submit a tagged assignment, rate or leave blank each skill, confirm saved correctly; confirm a resubmission doesn't re-trigger the prompt. Verified live end-to-end against a real course/assignment (including the multi-skill layout) as of 2026-09-23.
 
 ## Phase 3 — New-skill goal & study plan
@@ -76,7 +76,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
     8. Other (write-in)
 
 ## Suggested next step
-Both option lists are now decided — Phases 3 and 5 are unblocked. Phase 2 is built, verified, and open as [PR #153](https://github.com/AnnieCannons/ac-lms/pull/153) — still needs the feature flag added (see below) before it can safely merge, since merging it as-is would make the rating prompt live for real students on any already-tagged assignment. Once flagged and merged, run `/spec` for Phase 3.
+Both option lists are decided, and Phase 2 is merged into `main` (gated behind the feature flag below, so production still shows only Phase 1). Phases 3 and 5 are unblocked — next: run `/spec` for Phase 3, branching normally off `main` rather than off the old Phase 2 branch, since it's already merged.
 
 ## Rollout strategy: incremental merges behind a feature flag
 Each phase merges into `main` as soon as it's done, rather than holding everything on one branch until the whole feature is finished — this keeps diffs small and reviewable and keeps the branch from drifting out of sync with the rest of the app. To avoid exposing an unfinished experience to students in the meantime, everything **from Phase 2 onward** is gated behind a single feature flag (a server-only env var, checked once where the student assignment page decides whether to fetch/pass real tagged skills — `confidenceSkills.length === 0` already means "show nothing," so most of the UI needs no flag-awareness of its own). Phase 1's instructor-facing tagging field is explicitly **not** gated — it stays live in production throughout, since tagging alone has no student-facing effect. The flag flips on once Phase 6 ships, so students see the complete, coherent experience all at once rather than a partial rollout. Phase 4's trend pages and Phase 6's notifications are new surfaces outside the gated submission-flow code path, so each will need its own explicit check against the same flag when built.
