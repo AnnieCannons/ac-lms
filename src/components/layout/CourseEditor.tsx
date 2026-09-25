@@ -3230,8 +3230,10 @@ export default function CourseEditor({
     }
     const resolvedDay = targetDay;
     const newOrder = (resolvedDay.assignments ?? []).length;
-    const { error } = await supabase.from("assignments").update({ module_day_id: resolvedDay.id, order: newOrder }).eq("id", assignmentId);
-    if (error) { console.error("relocateAssignmentToModule failed:", error.message); return; }
+    const { data: updated, error } = await supabase.from("assignments").update({ module_day_id: resolvedDay.id, order: newOrder }).eq("id", assignmentId).select("id");
+    if (error) { console.error("relocateAssignmentToModule failed:", error.message); alert(`Move failed: ${error.message}`); return; }
+    // RLS denials don't error — they just update zero rows
+    if (!updated?.length) { alert("Move failed: you don't have permission to edit this assignment."); return; }
     setModules((prev) =>
       prev.map((m) => ({
         ...m,
@@ -3288,9 +3290,17 @@ export default function CourseEditor({
       );
     }
     const resolvedResourceDay = targetDay;
-    const { error } = await supabase.from("resources").update({ module_day_id: resolvedResourceDay.id }).eq("id", resourceId);
-    if (error) { console.error("relocateResourceToModule failed:", error.message); return; }
-    setDayRefreshTriggers(prev => ({ ...prev, [resolvedResourceDay.id]: (prev[resolvedResourceDay.id] ?? 0) + 1 }));
+    const { data: before } = await supabase.from("resources").select("module_day_id").eq("id", resourceId).maybeSingle();
+    const sourceDayId = before?.module_day_id as string | undefined;
+    const { data: updated, error } = await supabase.from("resources").update({ module_day_id: resolvedResourceDay.id }).eq("id", resourceId).select("id");
+    if (error) { console.error("relocateResourceToModule failed:", error.message); alert(`Move failed: ${error.message}`); return; }
+    // RLS denials don't error — they just update zero rows
+    if (!updated?.length) { alert("Move failed: you don't have permission to edit this resource."); return; }
+    setDayRefreshTriggers(prev => {
+      const next = { ...prev, [resolvedResourceDay.id]: (prev[resolvedResourceDay.id] ?? 0) + 1 };
+      if (sourceDayId) next[sourceDayId] = (prev[sourceDayId] ?? 0) + 1;
+      return next;
+    });
     onMoved?.();
   };
 
@@ -3594,12 +3604,13 @@ export default function CourseEditor({
       .ilike("title", `%${q}%`)
       .then(({ data }) => {
         if (cancelled || !data) return;
-        const enriched = data.map((r: { id: string; title: string; type: string; url: string | null; module_day_id: string }) => {
+        // The query isn't course-scoped, so drop resources whose day isn't in this course
+        const enriched = data.flatMap((r: { id: string; title: string; type: string; url: string | null; module_day_id: string }) => {
           for (const m of modules) {
             const d = m.module_days.find(d => d.id === r.module_day_id);
-            if (d) return { ...r, moduleTitle: m.title, dayName: d.day_name, moduleId: m.id, weekNumber: m.week_number };
+            if (d) return [{ ...r, moduleTitle: m.title, dayName: d.day_name, moduleId: m.id, weekNumber: m.week_number }];
           }
-          return { ...r, moduleTitle: null, dayName: "", moduleId: "", weekNumber: null };
+          return [];
         });
         setResourceResults(enriched);
       });
@@ -3626,7 +3637,11 @@ export default function CourseEditor({
     id: m.id,
     week: m.week_number ?? null,
     title: m.title ?? null,
-    days: m.module_days.map(d => d.day_name),
+    // Sort weekdays Mon→Fri regardless of stored order; non-weekday days keep their relative order after
+    days: m.module_days.map(d => d.day_name).sort((a, b) => {
+      const ia = DAY_OPTIONS.indexOf(a), ib = DAY_OPTIONS.indexOf(b);
+      return (ia === -1 ? DAY_OPTIONS.length : ia) - (ib === -1 ? DAY_OPTIONS.length : ib);
+    }),
   }));
 
   return (
