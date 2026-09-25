@@ -283,7 +283,7 @@ export function EscalationHistorySection({ events }: { events: EscalationEventRe
 
 export function ReadinessZoneBadge({ zone }: { zone: Zone | null }) {
   if (zone === 'green') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800 whitespace-nowrap">Apprenticeship Ready</span>
-  if (zone === 'yellow') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900 whitespace-nowrap">Needs improvement</span>
+  if (zone === 'yellow') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900 whitespace-nowrap">Needs Improvement</span>
   if (zone === 'red') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900 whitespace-nowrap">Needs Swift Improvement</span>
   return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-border/40 text-muted-text whitespace-nowrap">No data yet</span>
 }
