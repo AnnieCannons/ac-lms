@@ -595,6 +595,22 @@ Unique on `(assignment_id, skill_id)`. Removing a tag deletes only this join row
 
 ---
 
+### confidence_tracker_ratings
+Confidence Tracker v2, Phase 2: a student's self-rating on a tagged skill, captured once per student/assignment on their first-ever submission. Fully separate from `confidence_skills`/`confidence_entries` and from `assignments.skill_tags`/`modules.skill_tags`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `rating` | int | 1–10 self-rating |
+| `created_at` | timestamptz | Default: now() |
+
+Unique on `(student_id, assignment_id, skill_id)`. RLS: a student can read/insert only their own rows; staff/instructor/admin can read all (TAs excluded, matching Phase 1). No UPDATE/DELETE policy — ratings aren't edited or removed in this phase.
+
+---
+
 ### partners
 Partner organizations (employers, funders, advisors, etc.).
 
@@ -678,3 +694,4 @@ RLS: Instructors and admins can read, insert, and delete their own templates.
 | `checklist_responses` | `submission_id` | All responses for a submission |
 | `quizzes` | `course_id`, `(course_id, published)` | Quizzes per course; student list by published |
 | `quiz_submissions` | `quiz_id`, `student_id` | Lookup by quiz or by student |
+| `confidence_tracker_ratings` | `student_id`, `assignment_id` | Per-student and per-assignment lookups for trend pages |
