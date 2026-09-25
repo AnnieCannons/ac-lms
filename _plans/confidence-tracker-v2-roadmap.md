@@ -47,6 +47,13 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - Post-submit banner asks "what helped" — answering it is the intended eventual outcome, but a student can "skip for now."
 - If skipped: surfaced as an actionable follow-up on the trend page (Phase 4), plus a reminder via the existing `notifications`/`NotificationBell` system.
 
+## Phase 7 — Personal pattern insights
+- **Depends on Phase 5/6 having real data** — this phase can't produce anything meaningful until a student has several "what helped" answers logged over time; it can't be built alongside or before Phase 4, since that data doesn't exist yet at that point in the sequence.
+- Adds a new section to Phase 4's student trend page (not a new page) surfacing a student's own patterns: aggregates their "what helped" answers across every skill they've rated, grouped by method (e.g. flashcards, TA help, outside tutorials), showing how often each was cited and the average confidence increase associated with it.
+- Framed descriptively, not as a causal claim (e.g. "Patterns you've noticed," not "proven to work") — consistent with this app's non-prescriptive tone elsewhere (e.g. "Needs Revision is not a failure").
+- Should only appear once a minimum number of "what helped" answers exist, to avoid a misleading pattern drawn from too little data.
+- **Not yet spec'd** — exact minimum-data threshold and the chart/list presentation still to be decided.
+
 ## Open questions blocking future phases
 - **Study-plan options** (blocks Phase 3): fixed list of choices + "Other" write-in — not yet defined.
   - **Answer:** picked once, when rating a new skill for the first time — "How do you plan to work on this?"
@@ -69,4 +76,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
     8. Other (write-in)
 
 ## Suggested next step
-Both option lists are now decided — Phases 3 and 5 are unblocked. Phase 2 is built and verified but not yet in a PR — next: open the PR and get it merged, then run `/spec` for Phase 3.
+Both option lists are now decided — Phases 3 and 5 are unblocked. Phase 2 is built, verified, and open as [PR #153](https://github.com/AnnieCannons/ac-lms/pull/153) — still needs the feature flag added (see below) before it can safely merge, since merging it as-is would make the rating prompt live for real students on any already-tagged assignment. Once flagged and merged, run `/spec` for Phase 3.
+
+## Rollout strategy: incremental merges behind a feature flag
+Each phase merges into `main` as soon as it's done, rather than holding everything on one branch until the whole feature is finished — this keeps diffs small and reviewable and keeps the branch from drifting out of sync with the rest of the app. To avoid exposing an unfinished experience to students in the meantime, everything **from Phase 2 onward** is gated behind a single feature flag (a server-only env var, checked once where the student assignment page decides whether to fetch/pass real tagged skills — `confidenceSkills.length === 0` already means "show nothing," so most of the UI needs no flag-awareness of its own). Phase 1's instructor-facing tagging field is explicitly **not** gated — it stays live in production throughout, since tagging alone has no student-facing effect. The flag flips on once Phase 6 ships, so students see the complete, coherent experience all at once rather than a partial rollout. Phase 4's trend pages and Phase 6's notifications are new surfaces outside the gated submission-flow code path, so each will need its own explicit check against the same flag when built.

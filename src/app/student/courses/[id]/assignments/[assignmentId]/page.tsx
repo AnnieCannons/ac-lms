@@ -14,6 +14,7 @@ import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeH
 import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
 import { getExtensionRequestForStudent } from '@/lib/extension-actions'
 import { listAssignmentSkills } from '@/lib/skill-actions'
+import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 
 export default async function StudentAssignmentPage({
   params,
@@ -117,7 +118,12 @@ export default async function StudentAssignmentPage({
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false })
 
-  const { skills: confidenceSkills } = await listAssignmentSkills(assignmentId)
+  // Confidence Tracker v2, Phase 2+: gated behind a flag until the full feature (through
+  // Phase 6) is ready, so students never see a partial rollout. Phase 1's tagging stays
+  // live regardless — this only controls whether tagged skills are ever surfaced here.
+  const { skills: confidenceSkills } = isConfidenceRatingsEnabled()
+    ? await listAssignmentSkills(assignmentId)
+    : { skills: [] }
 
   const { data: gradeHistory } = (admin && existingSubmission)
     ? await admin
