@@ -320,6 +320,15 @@ html.theme-dark .badge-count {
   color: #d4a017;
 }
 
+/* "New" skill badge — Confidence Tracker Phase 3. Reuses the teal accent vars (already
+   theme/high-contrast-aware, same approach as .status-grading-card below) rather than
+   hardcoded hex + a separate dark-mode override block like the badges above use. */
+.badge-new {
+  background-color: var(--color-teal-light);
+  color: var(--color-teal-primary);
+  border-color: var(--color-teal-primary);
+}
+
 /* Status colors — used in StudentDetailView cards, buttons, badges.
    Always use these classes instead of hardcoded bg-red-50 etc. so dark mode works globally. */
 .status-missing-card  { background-color: #fef2f2; border-color: #fecaca; color: #dc2626; }

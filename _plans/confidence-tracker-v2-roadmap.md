@@ -28,12 +28,15 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - **Testable on its own**: submit a tagged assignment, rate or leave blank each skill, confirm saved correctly; confirm a resubmission doesn't re-trigger the prompt. Verified live end-to-end against a real course/assignment (including the multi-skill layout) as of 2026-09-23.
 
 ## Phase 3 — New-skill goal & study plan
-- Detect new vs. existing skill per student: "new" = no prior rating exists for that skill; "existing" = rated before (possibly via a different assignment tagged with the same skill).
-- New-skill path expands inline to also capture: a goal (auto-suggested at current rating + 2, editable), a target date (auto-suggested 1 week out, editable), and a study-plan pick from a fixed list (see Open Questions below — now decided).
+- Detect new vs. existing skill per student: "new" = no prior rating exists for that skill; "existing" = rated before (possibly via a different assignment tagged with the same skill). A "New" tag/badge marks a skill the student is rating for the first time.
+- New-skill path optionally captures a goal (auto-suggested at current rating + 2, editable, must be at least current + 1) — setting a goal makes a target date (auto-suggested 1 week out, editable, must be a future date up to 2 weeks out) and a study-plan pick (fixed list, see Open Questions below — now decided) required alongside it; leaving the goal blank skips all three.
+- **Mastery & reactivation** (new decision, spec'd during Phase 3): if a skill's rating is already 10 (max), no numeric goal fits — instead the goal section shows "maintaining this rating." The system tracks, per student/skill, how many times a rating of 10 has been recorded; once that happens twice, the skill is "mastered" and stops appearing on any assignment for that student. A mastered skill can only come back via a "reactivate" control on the **Phase 4** trend page (see below) — reactivating resets the count and restarts the same rate/goal flow as if new again. Phase 3 has no reactivation UI of its own; this is an accepted gap until Phase 4 ships.
+- Spec: [`_specs/confidence-new-skill-goal.md`](../_specs/confidence-new-skill-goal.md)
 
 ## Phase 4 — Trend pages (student-facing + instructor/staff-facing)
 - New student-facing page (separate from the old `/student/confidence`) showing this feature's ratings, goals, target dates, and chosen study plans over time.
 - New instructor/staff-facing trend page showing each student's ratings individually as well as overall class ratings.
+- **New scope item (decided during Phase 3):** the student-facing page must include a "reactivate" control for any skill the student has mastered (rated 10 at least twice, per Phase 3), letting them bring a mastered skill back onto future assignments if they feel their confidence on it has dropped. Reactivating resets that skill's mastery count and restarts the rate/goal flow as if it were new again.
 - Doubles as the destination for catching up on anything skipped in later phases (incremental "what helped" or goal-met "what helped").
 - **Idea to revisit, not yet decided**: also surface an assignment's confidence ratings directly on the grading page when an instructor opens that assignment to grade it.
 - **Testable on its own**: once Phases 2–3 have real data, confirm both pages render correctly.

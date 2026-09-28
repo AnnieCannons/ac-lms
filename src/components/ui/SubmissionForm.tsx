@@ -11,7 +11,8 @@ import { saveSubmission } from "@/lib/submission-actions";
 import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
 import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
-import type { ConfidenceSkill } from "@/lib/skill-actions";
+import type { ConfidenceSkillWithStatus } from "@/lib/confidence-tracker-actions";
+import type { GoalState, StudyPlan } from "@/lib/confidence-tracker-validation";
 import { isOptionalClosed } from "@/lib/date-utils";
 
 const MAX_SUBMISSION_FILES = 10;
@@ -83,7 +84,7 @@ export default function SubmissionForm({
   courseId: string;
   existingSubmission: Submission | null;
   initialHistory: HistoryEntry[];
-  confidenceSkills: ConfidenceSkill[];
+  confidenceSkills: ConfidenceSkillWithStatus[];
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
   instructorResponseMap?: Map<string, boolean>;
@@ -131,7 +132,9 @@ export default function SubmissionForm({
 
   const showRatingPrompt = confidenceSkills.length > 0 && initialHistory.length === 0 && (!saved || saved.status === 'draft');
   const ratingStorageKey = `confidence-ratings:${studentId}:${assignmentId}`;
+  const goalStorageKey = `confidence-goals:${studentId}:${assignmentId}`;
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [goals, setGoals] = useState<Record<string, GoalState>>({});
   const [ratingError, setRatingError] = useState<string | null>(null);
 
   // Hydrate from sessionStorage after mount, not during the initial render — reading it
@@ -144,7 +147,9 @@ export default function SubmissionForm({
       const stored = sessionStorage.getItem(ratingStorageKey);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from an external system (sessionStorage) on mount, not deriving state from props
       if (stored) setRatings(JSON.parse(stored));
-    } catch { /* sessionStorage unavailable — ratings just won't survive navigation */ }
+      const storedGoals = sessionStorage.getItem(goalStorageKey);
+      if (storedGoals) setGoals(JSON.parse(storedGoals));
+    } catch { /* sessionStorage unavailable — ratings/goals just won't survive navigation */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally mount-only
   }, []);
 
@@ -161,8 +166,32 @@ export default function SubmissionForm({
     });
   };
 
-  const clearStoredRatings = () => {
-    try { sessionStorage.removeItem(ratingStorageKey); } catch { /* ignore */ }
+  const handleGoalChange = (skillId: string, patch: Partial<GoalState> | null) => {
+    setGoals(prev => {
+      const next = { ...prev };
+      if (patch === null) {
+        delete next[skillId];
+      } else {
+        const defaults: GoalState = { goal: null, targetDate: '', studyPlan: '', studyPlanOther: '' };
+        next[skillId] = { ...(next[skillId] ?? defaults), ...patch };
+      }
+      try { sessionStorage.setItem(goalStorageKey, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  // The one place in this feature where something blocks Submit — every other
+  // confidence-tracker input (Phase 2's ratings, a goal itself) is best-effort/optional,
+  // but once a goal is set, its target date + study plan are required alongside it.
+  const isGoalIncomplete = Object.values(goals).some(g =>
+    g.goal != null && (!g.targetDate || !g.studyPlan || (g.studyPlan === 'other' && !g.studyPlanOther.trim()))
+  );
+
+  const clearStoredConfidenceData = () => {
+    try {
+      sessionStorage.removeItem(ratingStorageKey);
+      sessionStorage.removeItem(goalStorageKey);
+    } catch { /* ignore */ }
   };
 
   const getContent = () => {
@@ -249,14 +278,25 @@ export default function SubmissionForm({
     const newSaved = await doSave("submitted", content, tab);
     if (newSaved) {
       if (showRatingPrompt) {
-        const entries = Object.entries(ratings).map(([skillId, rating]) => ({ skillId, rating }));
+        const entries = Object.entries(ratings).map(([skillId, rating]) => {
+          const g = goals[skillId];
+          const goal = g?.goal != null
+            ? {
+                goal: g.goal,
+                targetDate: g.targetDate,
+                studyPlan: g.studyPlan as StudyPlan,
+                studyPlanOther: g.studyPlan === 'other' ? g.studyPlanOther : undefined,
+              }
+            : undefined;
+          return { skillId, rating, goal };
+        });
         if (entries.length > 0) {
           const { error: ratingSaveError } = await saveConfidenceRatings(assignmentId, entries);
           if (ratingSaveError) {
-            setRatingError("Your assignment was submitted, but we couldn't save your confidence ratings due to an error — please let your instructor know.");
+            setRatingError("Your assignment was submitted, but we couldn't save your confidence rating(s) or goal due to an error — please let your instructor know.");
           }
         }
-        clearStoredRatings();
+        clearStoredConfidenceData();
       }
       clearForm();
       setMode("view");
@@ -696,8 +736,16 @@ export default function SubmissionForm({
               skills={confidenceSkills}
               value={ratings}
               onChange={handleRatingChange}
+              goals={goals}
+              onGoalChange={handleGoalChange}
               disabled={isObserver || isStudentPreview}
             />
+          )}
+
+          {showRatingPrompt && isGoalIncomplete && (
+            <p className="text-xs text-muted-text">
+              Finish setting your skill goal(s) above before submitting.
+            </p>
           )}
 
           {!locked && (
@@ -708,7 +756,7 @@ export default function SubmissionForm({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting || !allChecked || !hasContent || !!isStudentPreview}
+              disabled={submitting || !allChecked || !hasContent || !!isStudentPreview || (showRatingPrompt && isGoalIncomplete)}
               className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {submitting ? "Submitting…" : "Submit"}
