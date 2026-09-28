@@ -13,7 +13,7 @@ import { LateBadge, DueDatePill } from '@/components/ui/AssignmentDueStatus'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
 import { getExtensionRequestForStudent } from '@/lib/extension-actions'
-import { listAssignmentSkills } from '@/lib/skill-actions'
+import { getAssignmentSkillsForStudent } from '@/lib/confidence-tracker-actions'
 import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 
 export default async function StudentAssignmentPage({
@@ -122,7 +122,7 @@ export default async function StudentAssignmentPage({
   // Phase 6) is ready, so students never see a partial rollout. Phase 1's tagging stays
   // live regardless — this only controls whether tagged skills are ever surfaced here.
   const { skills: confidenceSkills } = isConfidenceRatingsEnabled()
-    ? await listAssignmentSkills(assignmentId)
+    ? await getAssignmentSkillsForStudent(assignmentId)
     : { skills: [] }
 
   const { data: gradeHistory } = (admin && existingSubmission)

@@ -11,7 +11,8 @@ import { saveSubmission } from "@/lib/submission-actions";
 import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
 import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
-import type { ConfidenceSkill } from "@/lib/skill-actions";
+import type { ConfidenceSkillWithStatus } from "@/lib/confidence-tracker-actions";
+import type { GoalState, StudyPlan, ConfidenceGoalInput } from "@/lib/confidence-tracker-validation";
 import { isOptionalClosed } from "@/lib/date-utils";
 
 const MAX_SUBMISSION_FILES = 10;
@@ -83,7 +84,7 @@ export default function SubmissionForm({
   courseId: string;
   existingSubmission: Submission | null;
   initialHistory: HistoryEntry[];
-  confidenceSkills: ConfidenceSkill[];
+  confidenceSkills: ConfidenceSkillWithStatus[];
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
   instructorResponseMap?: Map<string, boolean>;
@@ -131,7 +132,9 @@ export default function SubmissionForm({
 
   const showRatingPrompt = confidenceSkills.length > 0 && initialHistory.length === 0 && (!saved || saved.status === 'draft');
   const ratingStorageKey = `confidence-ratings:${studentId}:${assignmentId}`;
+  const goalStorageKey = `confidence-goals:${studentId}:${assignmentId}`;
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [goals, setGoals] = useState<Record<string, GoalState>>({});
   const [ratingError, setRatingError] = useState<string | null>(null);
 
   // Hydrate from sessionStorage after mount, not during the initial render — reading it
@@ -144,7 +147,9 @@ export default function SubmissionForm({
       const stored = sessionStorage.getItem(ratingStorageKey);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from an external system (sessionStorage) on mount, not deriving state from props
       if (stored) setRatings(JSON.parse(stored));
-    } catch { /* sessionStorage unavailable — ratings just won't survive navigation */ }
+      const storedGoals = sessionStorage.getItem(goalStorageKey);
+      if (storedGoals) setGoals(JSON.parse(storedGoals));
+    } catch { /* sessionStorage unavailable — ratings/goals just won't survive navigation */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally mount-only
   }, []);
 
@@ -161,8 +166,35 @@ export default function SubmissionForm({
     });
   };
 
-  const clearStoredRatings = () => {
-    try { sessionStorage.removeItem(ratingStorageKey); } catch { /* ignore */ }
+  const handleGoalChange = (skillId: string, patch: Partial<GoalState> | null) => {
+    setGoals(prev => {
+      const next = { ...prev };
+      if (patch === null) {
+        delete next[skillId];
+      } else {
+        const defaults: GoalState = { goal: null, targetDate: '', studyPlan: [], studyPlanOther: '' };
+        next[skillId] = { ...(next[skillId] ?? defaults), ...patch };
+      }
+      try { sessionStorage.setItem(goalStorageKey, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  // The one place in this feature where something blocks Submit — every other
+  // confidence-tracker input (Phase 2's ratings, a goal itself) is best-effort/optional,
+  // but once a numeric goal is set, its target date + study plan are required alongside
+  // it. "Maintaining" a rating already at 10 isn't working toward anything, so it never
+  // needs either and never blocks Submit.
+  const isGoalIncomplete = Object.values(goals).some(g =>
+    g.goal != null && g.goal !== 'maintain' &&
+    (!g.targetDate || g.studyPlan.length === 0 || (g.studyPlan.includes('other') && !g.studyPlanOther.trim()))
+  );
+
+  const clearStoredConfidenceData = () => {
+    try {
+      sessionStorage.removeItem(ratingStorageKey);
+      sessionStorage.removeItem(goalStorageKey);
+    } catch { /* ignore */ }
   };
 
   const getContent = () => {
@@ -249,14 +281,28 @@ export default function SubmissionForm({
     const newSaved = await doSave("submitted", content, tab);
     if (newSaved) {
       if (showRatingPrompt) {
-        const entries = Object.entries(ratings).map(([skillId, rating]) => ({ skillId, rating }));
+        const entries = Object.entries(ratings).map(([skillId, rating]) => {
+          const g = goals[skillId];
+          const goal: ConfidenceGoalInput | undefined =
+            g?.goal == null
+              ? undefined
+              : g.goal === 'maintain'
+                ? { goal: 'maintain' }
+                : {
+                    goal: g.goal,
+                    targetDate: g.targetDate,
+                    studyPlan: g.studyPlan as StudyPlan[],
+                    studyPlanOther: g.studyPlan.includes('other') ? g.studyPlanOther : undefined,
+                  };
+          return { skillId, rating, goal };
+        });
         if (entries.length > 0) {
           const { error: ratingSaveError } = await saveConfidenceRatings(assignmentId, entries);
           if (ratingSaveError) {
-            setRatingError("Your assignment was submitted, but we couldn't save your confidence ratings due to an error — please let your instructor know.");
+            setRatingError("Your assignment was submitted, but we couldn't save your confidence rating(s) or goal due to an error — please let your instructor know.");
           }
         }
-        clearStoredRatings();
+        clearStoredConfidenceData();
       }
       clearForm();
       setMode("view");
@@ -579,10 +625,8 @@ export default function SubmissionForm({
       )}
 
       {/* ── EDIT MODE: submission form ── */}
-      {mode === "edit" && (
+      {mode === "edit" && !locked && (
         <>
-          {!locked && (
-          <>
           {/* Tab selector */}
           <div role="tablist" aria-label="Submission type" className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">
             {(["link", "text", "file"] as SubmissionType[]).map(t => (
@@ -688,63 +732,73 @@ export default function SubmissionForm({
               )}
             </div>
           )}
-          </>
-          )}
-
-          {showRatingPrompt && (
-            <ConfidenceRatingPrompt
-              skills={confidenceSkills}
-              value={ratings}
-              onChange={handleRatingChange}
-              disabled={isObserver || isStudentPreview}
-            />
-          )}
-
-          {!locked && (
-          <>
-          <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting || !allChecked || !hasContent || !!isStudentPreview}
-              className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-            >
-              {submitting ? "Submitting…" : "Submit"}
-            </button>
-            {(!allChecked || !hasContent) && (
-              <p className="text-xs text-amber-700">
-                {!hasContent && !allChecked
-                  ? "Add your submission and complete all checklist items to submit."
-                  : !hasContent
-                    ? "Add your submission to submit."
-                    : "Complete all checklist items to submit."}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleDraft}
-              disabled={submitting}
-              className="text-sm text-muted-text hover:text-dark-text disabled:opacity-50 transition-colors"
-            >
-              Save draft
-            </button>
-            {saved && (
-              <button
-                type="button"
-                onClick={() => { clearForm(); setMode("view"); }}
-                className="text-sm text-muted-text hover:text-dark-text transition-colors"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-          </>
-          )}
         </>
       )}
     </div>
+
+    {/* Confidence check — its own section, separate from Turn In, still appears
+        before the Submit button below. */}
+    {mode === "edit" && showRatingPrompt && (
+      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-4">
+        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Confidence Check (Optional)</p>
+        <ConfidenceRatingPrompt
+          skills={confidenceSkills}
+          value={ratings}
+          onChange={handleRatingChange}
+          goals={goals}
+          onGoalChange={handleGoalChange}
+          disabled={isObserver || isStudentPreview}
+        />
+        {isGoalIncomplete && (
+          <p className="text-xs text-muted-text">
+            Finish setting your skill goal(s) above before submitting.
+          </p>
+        )}
+      </div>
+    )}
+
+    {mode === "edit" && !locked && (
+      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-3">
+        <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || !allChecked || !hasContent || !!isStudentPreview || (showRatingPrompt && isGoalIncomplete)}
+            className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          >
+            {submitting ? "Submitting…" : "Submit"}
+          </button>
+          {(!allChecked || !hasContent) && (
+            <p className="text-xs text-amber-700">
+              {!hasContent && !allChecked
+                ? "Add your submission and complete all checklist items to submit."
+                : !hasContent
+                  ? "Add your submission to submit."
+                  : "Complete all checklist items to submit."}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleDraft}
+            disabled={submitting}
+            className="text-sm text-muted-text hover:text-dark-text disabled:opacity-50 transition-colors"
+          >
+            Save draft
+          </button>
+          {saved && (
+            <button
+              type="button"
+              onClick={() => { clearForm(); setMode("view"); }}
+              className="text-sm text-muted-text hover:text-dark-text transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    )}
 
     {/* Threaded comments — always visible below the form (student and instructor can message back and forth) */}
     {!isStudentPreview && (

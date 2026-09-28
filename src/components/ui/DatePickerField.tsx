@@ -13,6 +13,9 @@ export default function DatePickerField({
   placeholder = 'Pick a date',
   className,
   dropUp = false,
+  minDate,
+  maxDate,
+  disabled = false,
 }: {
   label?: string
   value: string
@@ -24,6 +27,9 @@ export default function DatePickerField({
   placeholder?: string
   className?: string
   dropUp?: boolean
+  minDate?: Date
+  maxDate?: Date
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -44,6 +50,7 @@ export default function DatePickerField({
   }, [open])
 
   function handleOpen() {
+    if (disabled) return
     if (open) { setOpen(false); return }
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
@@ -87,7 +94,8 @@ export default function DatePickerField({
             ref={btnRef}
             type="button"
             onClick={handleOpen}
-            className="flex-1 w-full flex items-center justify-between border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary hover:border-teal-primary transition-colors"
+            disabled={disabled}
+            className="flex-1 w-full flex items-center justify-between border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary hover:border-teal-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
           >
             <span className={selected ? 'text-dark-text' : 'text-muted-text'}>
               {selected
@@ -122,6 +130,15 @@ export default function DatePickerField({
                 selected={selected}
                 onSelect={handleDateSelect}
                 defaultMonth={selected}
+                disabled={
+                  minDate && maxDate
+                    ? { before: minDate, after: maxDate }
+                    : minDate
+                      ? { before: minDate }
+                      : maxDate
+                        ? { after: maxDate }
+                        : undefined
+                }
                 components={{
                   Chevron: ({ orientation }: { orientation?: string }) => (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'var(--color-dark-text)' }}>

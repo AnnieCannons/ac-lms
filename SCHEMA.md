@@ -611,6 +611,31 @@ Unique on `(student_id, assignment_id, skill_id)`. RLS: a student can read/inser
 
 ---
 
+### confidence_tracker_skill_progress
+Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-date/study-plan for a skill's first-ever ("new") rating, plus a running count of 10-ratings that drives mastery. Deliberately a separate, mutable table from the append-only, immutable `confidence_tracker_ratings` audit trail (which has no UPDATE/DELETE policy) — a later "reactivate" action needs a plain UPDATE to reset mastery state, which an insert-only table can't support.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `is_new_pending` | boolean | Default: true — false once this skill's first rating is captured; a later reactivate action flips it back to true |
+| `goal` | int | Nullable, 2–10 — a numeric goal, only set alongside a "new" rating |
+| `goal_is_maintain` | boolean | Default: false — true when the rating that set the goal was already 10 (no numeric goal possible above the scale max) |
+| `target_date` | date | Nullable — must be strictly future (any date, no upper bound); required whenever `goal` is set, must be null when `goal_is_maintain` is true (maintaining isn't working toward anything) |
+| `study_plan` | text[] | Nullable — one or more of `practice_alone`, `review_lessons`, `ta_help`, `outside_tutorials`, `flashcards`, `review_notes`, `other` (a student may pick more than one); required (non-empty) whenever `goal` is set, must be null when `goal_is_maintain` is true |
+| `study_plan_other` | text | Nullable — free text, required (non-blank) iff `study_plan` includes `'other'`, otherwise must be null |
+| `ten_rating_count` | int | Default: 0 — count of ratings of exactly 10 recorded for this student/skill, across every assignment |
+| `is_mastered` | boolean | Default: false — true once `ten_rating_count` reaches 2; a mastered skill is excluded from future rating prompts |
+| `mastered_at` | timestamptz | Nullable — set when `is_mastered` first becomes true |
+| `reactivated_at` | timestamptz | Nullable — unused until a later reactivate feature exists |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+Unique on `(student_id, skill_id)`. RLS: a student can read/insert/update only their own row; staff/instructor/admin can read all (TAs excluded, matching Phase 1/2). CHECK constraints enforce the "goal set → target date + study plan required" rule, the `study_plan_other` iff `study_plan` includes `'other'` rule, and coarse bounds on `goal`/`target_date` (the relative `goal ≥ rating + 1` rule is enforced in application code, since `rating` lives on a different table).
+
+---
+
 ### partners
 Partner organizations (employers, funders, advisors, etc.).
 
@@ -695,3 +720,4 @@ RLS: Instructors and admins can read, insert, and delete their own templates.
 | `quizzes` | `course_id`, `(course_id, published)` | Quizzes per course; student list by published |
 | `quiz_submissions` | `quiz_id`, `student_id` | Lookup by quiz or by student |
 | `confidence_tracker_ratings` | `student_id`, `assignment_id` | Per-student and per-assignment lookups for trend pages |
+| `confidence_tracker_skill_progress` | `student_id`, `skill_id` | Per-student new/existing/mastery lookups when rendering an assignment's tagged skills |
