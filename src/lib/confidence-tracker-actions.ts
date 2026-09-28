@@ -14,13 +14,20 @@ function isValidRating(value: unknown): value is number {
 export interface ConfidenceRatingInput {
   skillId: string
   rating: number
-  // Only honored server-side if this skill is still "new" (is_new_pending) for the
-  // student — a goal can only be set the moment a skill's first-ever rating happens.
+  // Only honored server-side while this skill still has no goal captured yet (see
+  // canSetGoal below) — once a goal (numeric or "maintaining") is set, it's permanent.
   goal?: ConfidenceGoalInput
 }
 
 export interface ConfidenceSkillWithStatus extends ConfidenceSkill {
+  // True only the very first time this student is rating this skill — drives the "New"
+  // tag. Independent of canSetGoal: a skipped goal on that first rating means the "New"
+  // tag stops showing on later occasions, but goal-setting is still offered.
   isNew: boolean
+  // True as long as no goal (numeric or "maintaining") has been captured for this skill
+  // yet — drives whether the goal-setting section appears. Stays true across many
+  // occasions if the student keeps skipping it, false forever once a goal is set.
+  canSetGoal: boolean
 }
 
 interface SkillProgressRow {
@@ -29,7 +36,7 @@ interface SkillProgressRow {
   goal: number | null
   goal_is_maintain: boolean
   target_date: string | null
-  study_plan: string | null
+  study_plan: string[] | null
   study_plan_other: string | null
   ten_rating_count: number
   is_mastered: boolean
@@ -55,7 +62,7 @@ export async function getAssignmentSkillsForStudent(
 
   const { data: progressRows, error: progressError } = await supabase
     .from('confidence_tracker_skill_progress')
-    .select('skill_id, is_new_pending, is_mastered')
+    .select('skill_id, is_new_pending, goal, goal_is_maintain, is_mastered')
     .eq('student_id', user.id)
     .in('skill_id', tagged.map(s => s.id))
   if (progressError) return { error: progressError.message, skills: [] }
@@ -65,7 +72,14 @@ export async function getAssignmentSkillsForStudent(
     error: null,
     skills: tagged
       .filter(s => !progressBySkill.get(s.id)?.is_mastered)
-      .map(s => ({ ...s, isNew: progressBySkill.get(s.id)?.is_new_pending ?? true })),
+      .map(s => {
+        const progress = progressBySkill.get(s.id)
+        return {
+          ...s,
+          isNew: progress?.is_new_pending ?? true,
+          canSetGoal: !progress || (progress.goal == null && !progress.goal_is_maintain),
+        }
+      }),
   }
 }
 
@@ -131,16 +145,16 @@ export async function saveConfidenceRatings(
 
   const progressUpserts = candidates.map(c => {
     const row = progressBySkill.get(c.skillId)
-    const wasNew = row?.is_new_pending ?? true
     const { tenRatingCount, isMastered, justMastered } = nextMasteryState(
       row?.ten_rating_count ?? 0,
       row?.is_mastered ?? false,
       c.rating
     )
-    // Only a skill's first-ever ("new") rating can set/change a goal — a later plain
-    // rating on an already-rated skill must never overwrite whatever goal was captured
-    // the first time.
-    const validated = wasNew ? validateGoalInput(c.rating, c.goal) : null
+    // A goal can be set on ANY occasion the skill still has none captured yet — not just
+    // its first-ever ("new") rating. Once a goal (numeric or "maintaining") exists, it's
+    // permanent: a later rating must never overwrite it.
+    const canSetGoal = !row || (row.goal == null && !row.goal_is_maintain)
+    const validated = canSetGoal ? validateGoalInput(c.rating, c.goal) : null
 
     return {
       student_id: user.id,

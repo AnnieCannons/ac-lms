@@ -622,9 +622,9 @@ Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-
 | `is_new_pending` | boolean | Default: true — false once this skill's first rating is captured; a later reactivate action flips it back to true |
 | `goal` | int | Nullable, 2–10 — a numeric goal, only set alongside a "new" rating |
 | `goal_is_maintain` | boolean | Default: false — true when the rating that set the goal was already 10 (no numeric goal possible above the scale max) |
-| `target_date` | date | Nullable — must be strictly future and ≤14 days out; required whenever `goal` or `goal_is_maintain` is set |
-| `study_plan` | text | Nullable — one of `practice_alone`, `review_lessons`, `ta_help`, `outside_tutorials`, `flashcards`, `review_notes`, `other`; required whenever `goal` or `goal_is_maintain` is set |
-| `study_plan_other` | text | Nullable — free text, required (non-blank) iff `study_plan = 'other'`, otherwise must be null |
+| `target_date` | date | Nullable — must be strictly future (any date, no upper bound); required whenever `goal` is set, must be null when `goal_is_maintain` is true (maintaining isn't working toward anything) |
+| `study_plan` | text[] | Nullable — one or more of `practice_alone`, `review_lessons`, `ta_help`, `outside_tutorials`, `flashcards`, `review_notes`, `other` (a student may pick more than one); required (non-empty) whenever `goal` is set, must be null when `goal_is_maintain` is true |
+| `study_plan_other` | text | Nullable — free text, required (non-blank) iff `study_plan` includes `'other'`, otherwise must be null |
 | `ten_rating_count` | int | Default: 0 — count of ratings of exactly 10 recorded for this student/skill, across every assignment |
 | `is_mastered` | boolean | Default: false — true once `ten_rating_count` reaches 2; a mastered skill is excluded from future rating prompts |
 | `mastered_at` | timestamptz | Nullable — set when `is_mastered` first becomes true |
@@ -632,7 +632,7 @@ Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-
 | `created_at` | timestamptz | Default: now() |
 | `updated_at` | timestamptz | Auto-updated via trigger |
 
-Unique on `(student_id, skill_id)`. RLS: a student can read/insert/update only their own row; staff/instructor/admin can read all (TAs excluded, matching Phase 1/2). CHECK constraints enforce the "goal set → target date + study plan required" rule, the `study_plan_other` iff `study_plan = 'other'` rule, and coarse bounds on `goal`/`target_date` (the relative `goal ≥ rating + 1` rule is enforced in application code, since `rating` lives on a different table).
+Unique on `(student_id, skill_id)`. RLS: a student can read/insert/update only their own row; staff/instructor/admin can read all (TAs excluded, matching Phase 1/2). CHECK constraints enforce the "goal set → target date + study plan required" rule, the `study_plan_other` iff `study_plan` includes `'other'` rule, and coarse bounds on `goal`/`target_date` (the relative `goal ≥ rating + 1` rule is enforced in application code, since `rating` lives on a different table).
 
 ---
 

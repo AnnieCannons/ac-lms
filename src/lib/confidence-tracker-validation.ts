@@ -5,12 +5,11 @@
 // and are directly unit-tested as pure functions.
 
 const MAX_RATING = 10
-const TARGET_DATE_MAX_DAYS_OUT = 14
 
 export const STUDY_PLAN_OPTIONS = [
-  { value: 'practice_alone', label: 'Practice on my own (exercises, coding challenges, repetition)' },
+  { value: 'practice_alone', label: 'Practice on my own (re-do assignments, bonus work)' },
   { value: 'review_lessons', label: 'Review the lesson materials again' },
-  { value: 'ta_help', label: 'Get help from a TA or instructor' },
+  { value: 'ta_help', label: 'Get help from an Instructor or a TA' },
   { value: 'outside_tutorials', label: 'Watch outside tutorials or videos' },
   { value: 'flashcards', label: 'Study flashcards' },
   { value: 'review_notes', label: 'Review class notes' },
@@ -21,18 +20,16 @@ export type StudyPlan = (typeof STUDY_PLAN_OPTIONS)[number]['value']
 
 const STUDY_PLAN_VALUES = new Set<string>(STUDY_PLAN_OPTIONS.map(o => o.value))
 
-function isStudyPlan(value: unknown): value is StudyPlan {
-  return typeof value === 'string' && STUDY_PLAN_VALUES.has(value)
+function isStudyPlanArray(value: unknown): value is StudyPlan[] {
+  return Array.isArray(value) && value.length > 0 && value.every(v => typeof v === 'string' && STUDY_PLAN_VALUES.has(v))
 }
 
-export interface ConfidenceGoalInput {
-  // 'maintain' is only valid when the paired rating is 10 (the scale max, so no
-  // numeric goal above it is possible).
-  goal: number | 'maintain'
-  targetDate: string // 'YYYY-MM-DD'
-  studyPlan: StudyPlan
-  studyPlanOther?: string
-}
+// A numeric goal always carries a target date + study plan(s); "maintaining" a rating
+// already at the max isn't working toward anything, so it carries neither. A student may
+// select more than one study plan (e.g. flashcards AND TA help), hence the array.
+export type ConfidenceGoalInput =
+  | { goal: number; targetDate: string; studyPlan: StudyPlan[]; studyPlanOther?: string }
+  | { goal: 'maintain' }
 
 // Per-skill in-progress goal state, shared between ConfidenceRatingPrompt and
 // SubmissionForm (and their sessionStorage persistence) — a single source of truth for
@@ -40,15 +37,15 @@ export interface ConfidenceGoalInput {
 export interface GoalState {
   goal: number | 'maintain' | null // null = no goal set / cleared
   targetDate: string // '' = unset, else 'YYYY-MM-DD'
-  studyPlan: string // '' = unset, else a StudyPlan value
+  studyPlan: string[] // [] = unset, else one or more StudyPlan values
   studyPlanOther: string
 }
 
 export interface ValidatedGoal {
   goal: number | null
   goalIsMaintain: boolean
-  targetDate: string
-  studyPlan: StudyPlan
+  targetDate: string | null
+  studyPlan: StudyPlan[] | null
   studyPlanOther: string | null
 }
 
@@ -60,10 +57,7 @@ export function isValidTargetDate(dateStr: unknown, today: Date = new Date()): b
   if (Number.isNaN(parsed.getTime())) return false
 
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const maxDate = new Date(startOfToday)
-  maxDate.setDate(maxDate.getDate() + TARGET_DATE_MAX_DAYS_OUT)
-
-  return parsed.getTime() > startOfToday.getTime() && parsed.getTime() <= maxDate.getTime()
+  return parsed.getTime() > startOfToday.getTime()
 }
 
 export function validateGoalInput(
@@ -72,19 +66,23 @@ export function validateGoalInput(
   today?: Date
 ): ValidatedGoal | null {
   if (!input) return null
-  if (!isValidTargetDate(input.targetDate, today)) return null
-  if (!isStudyPlan(input.studyPlan)) return null
-
-  const studyPlanOther = input.studyPlan === 'other' ? (input.studyPlanOther ?? '').trim() : null
-  if (input.studyPlan === 'other' && studyPlanOther === '') return null
 
   if (rating === MAX_RATING) {
+    // Maintaining a rating already at the max isn't working toward anything, so no
+    // target date/study plan applies (or is accepted) here.
     if (input.goal !== 'maintain') return null
-    return { goal: null, goalIsMaintain: true, targetDate: input.targetDate, studyPlan: input.studyPlan, studyPlanOther }
+    return { goal: null, goalIsMaintain: true, targetDate: null, studyPlan: null, studyPlanOther: null }
   }
 
-  if (typeof input.goal !== 'number' || !Number.isInteger(input.goal)) return null
+  if (input.goal === 'maintain') return null
+  if (!Number.isInteger(input.goal)) return null
   if (input.goal < rating + 1 || input.goal > MAX_RATING) return null
+  if (!isValidTargetDate(input.targetDate, today)) return null
+  if (!isStudyPlanArray(input.studyPlan)) return null
+
+  const includesOther = input.studyPlan.includes('other')
+  const studyPlanOther = includesOther ? (input.studyPlanOther ?? '').trim() : null
+  if (includesOther && studyPlanOther === '') return null
 
   return { goal: input.goal, goalIsMaintain: false, targetDate: input.targetDate, studyPlan: input.studyPlan, studyPlanOther }
 }

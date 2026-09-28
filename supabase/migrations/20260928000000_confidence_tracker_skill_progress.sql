@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS confidence_tracker_skill_progress (
   goal              int,
   goal_is_maintain  boolean NOT NULL DEFAULT false,
   target_date       date,
-  study_plan        text,
+  study_plan        text[], -- one or more study-plan values; a student may pick more than one
   study_plan_other  text,
 
   -- Mastery tracking, across every assignment/occasion this skill is rated for this student.
@@ -38,15 +38,18 @@ CREATE TABLE IF NOT EXISTS confidence_tracker_skill_progress (
   CHECK (
     -- No goal set at all: nothing else may be set either.
     (goal IS NULL AND NOT goal_is_maintain AND target_date IS NULL AND study_plan IS NULL AND study_plan_other IS NULL)
-    -- Goal set (numeric or "maintaining"): target date + study plan are both required.
-    OR ((goal IS NOT NULL OR goal_is_maintain) AND target_date IS NOT NULL AND study_plan IS NOT NULL)
+    -- Numeric goal: target date + study plan are both required.
+    OR (goal IS NOT NULL AND NOT goal_is_maintain AND target_date IS NOT NULL AND study_plan IS NOT NULL)
+    -- Maintaining a rating already at the max isn't working toward anything, so neither applies.
+    OR (goal IS NULL AND goal_is_maintain AND target_date IS NULL AND study_plan IS NULL AND study_plan_other IS NULL)
   ),
-  CHECK (study_plan IS NULL OR study_plan IN (
-    'practice_alone', 'review_lessons', 'ta_help', 'outside_tutorials', 'flashcards', 'review_notes', 'other'
+  CHECK (study_plan IS NULL OR (
+    array_length(study_plan, 1) > 0
+    AND study_plan <@ ARRAY['practice_alone', 'review_lessons', 'ta_help', 'outside_tutorials', 'flashcards', 'review_notes', 'other']::text[]
   )),
-  CHECK (study_plan IS DISTINCT FROM 'other' OR (study_plan_other IS NOT NULL AND length(btrim(study_plan_other)) > 0)),
-  CHECK (study_plan = 'other' OR study_plan_other IS NULL),
-  CHECK (target_date IS NULL OR (target_date > CURRENT_DATE AND target_date <= CURRENT_DATE + 14)),
+  CHECK (NOT ('other' = ANY(COALESCE(study_plan, ARRAY[]::text[]))) OR (study_plan_other IS NOT NULL AND length(btrim(study_plan_other)) > 0)),
+  CHECK ('other' = ANY(COALESCE(study_plan, ARRAY[]::text[])) OR study_plan_other IS NULL),
+  CHECK (target_date IS NULL OR target_date > CURRENT_DATE),
   CHECK (ten_rating_count >= 0),
   CHECK (NOT is_mastered OR mastered_at IS NOT NULL)
 );

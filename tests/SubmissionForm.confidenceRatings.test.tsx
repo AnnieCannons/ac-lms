@@ -27,11 +27,17 @@ vi.mock('@/components/ui/SubmissionComments', () => ({
 }))
 
 const SKILLS: ConfidenceSkillWithStatus[] = [
-  { id: 'skill-a', name: 'React', isNew: false },
-  { id: 'skill-b', name: 'Testing', isNew: false },
+  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: false },
+  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false },
 ]
 
-const NEW_SKILL: ConfidenceSkillWithStatus[] = [{ id: 'skill-a', name: 'React', isNew: true }]
+const NEW_SKILL: ConfidenceSkillWithStatus[] = [{ id: 'skill-a', name: 'React', isNew: true, canSetGoal: true }]
+
+// A skill the student has rated before (no "New" tag) but skipped goal-setting on that
+// occasion — goal-setting must still be offered on a later assignment.
+const SKIPPED_GOAL_SKILL: ConfidenceSkillWithStatus[] = [
+  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: true },
+]
 
 const BASE_PROPS = {
   assignmentId: 'assignment-1',
@@ -179,6 +185,22 @@ describe('SubmissionForm confidence rating prompt', () => {
       expect(await screen.findByText('React')).toHaveTextContent('New')
     })
 
+    it('still offers goal-setting on a later assignment for a skill previously rated but skipped, with no "New" tag', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: SKIPPED_GOAL_SKILL })
+      expect(await screen.findByText('React')).not.toHaveTextContent('New')
+      const reactGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '5' }))
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Study flashcards' }))
+      await submitLink(user)
+      await waitFor(() =>
+        expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
+          expect.objectContaining({ skillId: 'skill-a', rating: 5, goal: expect.objectContaining({ goal: 7 }) }),
+        ])
+      )
+    })
+
     it('disables Submit until a goal in progress has a study plan chosen, then re-enables it', async () => {
       const user = userEvent.setup()
       renderForm({ confidenceSkills: NEW_SKILL })
@@ -190,7 +212,8 @@ describe('SubmissionForm confidence rating prompt', () => {
       expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
       expect(screen.getByText(/Finish setting your skill goal/)).toBeInTheDocument()
 
-      await user.selectOptions(screen.getByLabelText(/How do you plan to work on this/), 'flashcards')
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Study flashcards' }))
       expect(screen.getByRole('button', { name: 'Submit' })).not.toBeDisabled()
     })
 
@@ -199,7 +222,8 @@ describe('SubmissionForm confidence rating prompt', () => {
       renderForm({ confidenceSkills: NEW_SKILL })
       const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '5' }))
-      await user.selectOptions(screen.getByLabelText(/How do you plan to work on this/), 'flashcards')
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Study flashcards' }))
       await submitLink(user)
       await waitFor(() =>
         expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
@@ -209,7 +233,7 @@ describe('SubmissionForm confidence rating prompt', () => {
             goal: {
               goal: 7,
               targetDate: DEFAULT_TARGET_DATE,
-              studyPlan: 'flashcards',
+              studyPlan: ['flashcards'],
               studyPlanOther: undefined,
             },
           },
@@ -217,24 +241,42 @@ describe('SubmissionForm confidence rating prompt', () => {
       )
     })
 
-    it('rating a new skill 10 saves a "maintain" goal once a study plan is chosen', async () => {
+    it('lets a student choose more than one study plan for the same goal', async () => {
       const user = userEvent.setup()
       renderForm({ confidenceSkills: NEW_SKILL })
       const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
-      await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
-      await user.selectOptions(screen.getByLabelText(/How do you plan to work on this/), 'review_notes')
+      await user.click(within(reactGroup).getByRole('radio', { name: '5' }))
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Study flashcards' }))
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Get help from an Instructor or a TA' }))
       await submitLink(user)
+      await waitFor(() =>
+        expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
+          expect.objectContaining({
+            skillId: 'skill-a',
+            rating: 5,
+            goal: expect.objectContaining({ studyPlan: ['flashcards', 'ta_help'] }),
+          }),
+        ])
+      )
+    })
+
+    it('rating a new skill 10 saves a "maintain" goal immediately, with no target date or study plan needed', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: NEW_SKILL })
+      const input = await screen.findByPlaceholderText('https://github.com/your-username/your-repo')
+      await user.type(input, 'https://github.com/example/repo')
+      const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
+      expect(screen.queryByRole('group', { name: /How do you plan to work on this/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Submit' })).not.toBeDisabled()
+      await user.click(screen.getByRole('button', { name: 'Submit' }))
       await waitFor(() =>
         expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
           {
             skillId: 'skill-a',
             rating: 10,
-            goal: {
-              goal: 'maintain',
-              targetDate: DEFAULT_TARGET_DATE,
-              studyPlan: 'review_notes',
-              studyPlanOther: undefined,
-            },
+            goal: { goal: 'maintain' },
           },
         ])
       )
@@ -245,7 +287,7 @@ describe('SubmissionForm confidence rating prompt', () => {
       renderForm({ confidenceSkills: NEW_SKILL })
       const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '5' }))
-      await user.click(screen.getByRole('button', { name: 'Clear goal' }))
+      await user.click(screen.getByRole('button', { name: 'Skip' }))
       await submitLink(user)
       await waitFor(() =>
         expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
@@ -259,7 +301,8 @@ describe('SubmissionForm confidence rating prompt', () => {
       renderForm({ confidenceSkills: NEW_SKILL })
       const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '5' }))
-      await user.selectOptions(screen.getByLabelText(/How do you plan to work on this/), 'other')
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Other' }))
       await user.type(screen.getByPlaceholderText('Describe your plan…'), 'Pairing with a friend')
       await submitLink(user)
       await waitFor(() =>
@@ -267,27 +310,29 @@ describe('SubmissionForm confidence rating prompt', () => {
           expect.objectContaining({
             skillId: 'skill-a',
             rating: 5,
-            goal: expect.objectContaining({ studyPlan: 'other', studyPlanOther: 'Pairing with a friend' }),
+            goal: expect.objectContaining({ studyPlan: ['other'], studyPlanOther: 'Pairing with a friend' }),
           }),
         ])
       )
     })
 
-    it('does not persist abandoned "Other" text after switching to a different study plan', async () => {
+    it('does not persist abandoned "Other" text after deselecting it in favor of a different study plan', async () => {
       const user = userEvent.setup()
       renderForm({ confidenceSkills: NEW_SKILL })
       const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '5' }))
-      await user.selectOptions(screen.getByLabelText(/How do you plan to work on this/), 'other')
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Other' }))
       await user.type(screen.getByPlaceholderText('Describe your plan…'), 'abandoned text')
-      await user.selectOptions(screen.getByLabelText(/How do you plan to work on this/), 'flashcards')
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Other' }))
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Study flashcards' }))
       await submitLink(user)
       await waitFor(() =>
         expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
           expect.objectContaining({
             skillId: 'skill-a',
             rating: 5,
-            goal: expect.objectContaining({ studyPlan: 'flashcards', studyPlanOther: undefined }),
+            goal: expect.objectContaining({ studyPlan: ['flashcards'], studyPlanOther: undefined }),
           }),
         ])
       )
