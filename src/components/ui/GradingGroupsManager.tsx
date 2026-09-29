@@ -39,6 +39,7 @@ export default function GradingGroupsManager({
   const [assignmentGraders, setAssignmentGraders] = useState<Record<string, string | null>>(
     Object.fromEntries(assignments.map(a => [a.id, assignmentGraderMap[a.id] ?? null]))
   )
+  const [overrideErrors, setOverrideErrors] = useState<Record<string, string | null>>({})
   const [distributing, setDistributing] = useState(false)
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null)
 
@@ -142,8 +143,16 @@ export default function GradingGroupsManager({
   }
 
   function handleAssignmentGrader(assignmentId: string, graderId: string | null) {
+    const previous = assignmentGraders[assignmentId] ?? null
     setAssignmentGraders(prev => ({ ...prev, [assignmentId]: graderId }))
-    startTransition(async () => { await setAssignmentGrader(assignmentId, graderId, courseId) })
+    setOverrideErrors(prev => ({ ...prev, [assignmentId]: null }))
+    startTransition(async () => {
+      const result = await setAssignmentGrader(assignmentId, graderId, courseId)
+      if (result.error) {
+        setAssignmentGraders(prev => ({ ...prev, [assignmentId]: previous }))
+        setOverrideErrors(prev => ({ ...prev, [assignmentId]: `Couldn't save: ${result.error}` }))
+      }
+    })
   }
 
   // ── Hide / restore graders ─────────────────────────────────────────────────
@@ -445,7 +454,12 @@ export default function GradingGroupsManager({
           <div className="bg-surface rounded-2xl border border-border divide-y divide-border">
             {assignments.map(assignment => (
               <div key={assignment.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                <p className="text-sm text-dark-text truncate min-w-0">{assignment.title}</p>
+                <div className="min-w-0">
+                  <p className="text-sm text-dark-text truncate">{assignment.title}</p>
+                  {overrideErrors[assignment.id] && (
+                    <p className="text-xs text-red-500 mt-0.5">{overrideErrors[assignment.id]}</p>
+                  )}
+                </div>
                 <select
                   value={assignmentGraders[assignment.id] ?? ''}
                   onChange={e => handleAssignmentGrader(assignment.id, e.target.value || null)}
