@@ -40,7 +40,14 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - New instructor/staff-facing trend page showing each student's ratings individually as well as overall class ratings.
 - **New scope item (decided during Phase 3):** the student-facing page must include a "reactivate" control for any skill the student has mastered (rated 10 at least twice, per Phase 3), letting them bring a mastered skill back onto future assignments if they feel their confidence on it has dropped. Reactivating resets that skill's mastery count and restarts the rate/goal flow as if it were new again.
 - Doubles as the destination for catching up on anything skipped in later phases (incremental "what helped" or goal-met "what helped").
-- **Idea to revisit, not yet decided**: also surface an assignment's confidence ratings directly on the grading page when an instructor opens that assignment to grade it.
+- **Decided while spec'ing Phase 4** (see [`_specs/confidence-trend-pages.md`](../_specs/confidence-trend-pages.md)):
+  - Student page shows all courses together, with a chart breakpoint where each new course's ratings begin; mastery and reactivation are also marked on the chart.
+  - Goals and mastery are kept as history, never overwritten: reactivating keeps the earlier goal and the original mastery date, and the new rating/goal continues the same skill's history.
+  - Setting a *new* goal after meeting the current one belongs to Phase 6; Phase 4 only builds the goal history it will append to.
+  - Instructor page: class overview (average, median, distribution of each student's latest rating, plus "x students rated") for the course's tagged skills and currently active students only, matching the gradebook. Per-student drill-in also shows that student's earlier-course ratings of the same skill as read-only context. TAs excluded; reactivation is student-only.
+  - The old Confidence Tracker pages stay in place; each just gains a link to its new counterpart (old student page → new student page, old instructor page → new instructor trend page). Instructors may see a student's earlier-course ratings of a shared skill even for courses they don't teach.
+- Surfacing an assignment's confidence ratings on the grading page is **out of scope** for Phase 4 (decided).
+- **Follow-up to remember, after Phase 4 ships:** retire the old Confidence Tracker pages (`/student/confidence`, old instructor confidence page) without deleting any data students saved there — decide then whether to archive, export, or keep a read-only view.
 - **Testable on its own**: once Phases 2–3 have real data, confirm both pages render correctly.
 
 ## Phase 5 — Incremental kudos
