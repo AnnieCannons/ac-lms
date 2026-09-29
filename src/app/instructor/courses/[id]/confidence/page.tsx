@@ -4,6 +4,8 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import InstructorConfidenceView from '@/components/ui/InstructorConfidenceView'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
+import Link from 'next/link'
 
 export default async function InstructorConfidencePage({
   params,
@@ -139,6 +141,12 @@ export default async function InstructorConfidencePage({
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-dark-text mb-1">Confidence Tracker</h1>
               <p className="text-sm text-muted-text">{course.name} · student self-reported skill confidence</p>
+              {isConfidenceRatingsEnabled() && !isTa && (
+                <p className="mt-2 text-sm text-dark-text">
+                  Looking for ratings from assignments?{' '}
+                  <Link href={`/instructor/courses/${id}/skill-confidence`} className="font-semibold text-teal-primary hover:underline">See Skill Confidence</Link>
+                </p>
+              )}
             </div>
 
             <InstructorConfidenceView

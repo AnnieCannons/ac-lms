@@ -628,11 +628,45 @@ Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-
 | `ten_rating_count` | int | Default: 0 — count of ratings of exactly 10 recorded for this student/skill, across every assignment |
 | `is_mastered` | boolean | Default: false — true once `ten_rating_count` reaches 2; a mastered skill is excluded from future rating prompts |
 | `mastered_at` | timestamptz | Nullable — set when `is_mastered` first becomes true |
-| `reactivated_at` | timestamptz | Nullable — unused until a later reactivate feature exists |
+| `reactivated_at` | timestamptz | Nullable — set when the student reactivates a mastered skill (latest only; every event is kept in `confidence_tracker_skill_events`) |
 | `created_at` | timestamptz | Default: now() |
 | `updated_at` | timestamptz | Auto-updated via trigger |
 
 Unique on `(student_id, skill_id)`. RLS: a student can read/insert/update only their own row; staff/instructor/admin can read all (TAs excluded, matching Phase 1/2). CHECK constraints enforce the "goal set → target date + study plan required" rule, the `study_plan_other` iff `study_plan` includes `'other'` rule, and coarse bounds on `goal`/`target_date` (the relative `goal ≥ rating + 1` rule is enforced in application code, since `rating` lives on a different table).
+
+---
+
+### confidence_tracker_goal_history
+Confidence Tracker v2, Phase 4: append-only history of every goal a student has captured for a skill, so a later goal (e.g. after a reactivation) never overwrites an earlier one. Written only by the `record_confidence_tracker_history` trigger on `confidence_tracker_skill_progress` (a `SECURITY DEFINER` function) — there are no insert/update/delete policies. The "current" goal is still the one on `confidence_tracker_skill_progress`; this table is the record of all of them.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `goal` | int | Nullable, 2–10 — null when `goal_is_maintain` is true |
+| `goal_is_maintain` | boolean | Default: false — true for a "maintaining this rating" snapshot |
+| `target_date` | date | Nullable — no future-date CHECK here (snapshots are historical; the date is expected to pass) |
+| `study_plan` | text[] | Nullable — same allowed values as `confidence_tracker_skill_progress.study_plan` |
+| `study_plan_other` | text | Nullable — free text for the "other" study-plan choice |
+| `created_at` | timestamptz | Default: now() — when the goal was captured |
+
+RLS: a student can read only their own rows; staff/instructor/admin can read all (TAs excluded, matching Phases 1–3).
+
+---
+
+### confidence_tracker_skill_events
+Confidence Tracker v2, Phase 4: append-only log of each time a student's skill was mastered or reactivated, so a skill that goes through more than one cycle keeps every dated event (`mastered_at`/`reactivated_at` on `confidence_tracker_skill_progress` only hold the latest). Written only by the same trigger as `confidence_tracker_goal_history`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `event_type` | text | `mastered` or `reactivated` |
+| `created_at` | timestamptz | Default: now() — the mastery/reactivation time |
+
+RLS: same read rules as `confidence_tracker_goal_history`; no insert/update/delete policies.
 
 ---
 
@@ -721,3 +755,5 @@ RLS: Instructors and admins can read, insert, and delete their own templates.
 | `quiz_submissions` | `quiz_id`, `student_id` | Lookup by quiz or by student |
 | `confidence_tracker_ratings` | `student_id`, `assignment_id` | Per-student and per-assignment lookups for trend pages |
 | `confidence_tracker_skill_progress` | `student_id`, `skill_id` | Per-student new/existing/mastery lookups when rendering an assignment's tagged skills |
+| `confidence_tracker_goal_history` | `student_id`, `skill_id` | Per-student, per-skill goal history for the trend pages |
+| `confidence_tracker_skill_events` | `student_id`, `skill_id` | Per-student, per-skill mastery/reactivation history for the trend pages |
