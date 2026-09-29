@@ -1,7 +1,7 @@
 'use client'
 import { useState, useTransition } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { setStudentGrader, bulkAssignStudentGraders, setAssignmentGrader, enableWeeklyRotation, disableWeeklyRotation } from '@/lib/grading-groups-actions'
+import { setStudentGrader, bulkAssignStudentGraders, setAssignmentGrader, enableWeeklyRotation, disableWeeklyRotation, setGraderExcluded } from '@/lib/grading-groups-actions'
 import UserAvatar from '@/components/ui/UserAvatar'
 
 interface Student    { id: string; name: string; email: string; avatarUrl?: string | null }
@@ -13,6 +13,7 @@ interface Props {
   courseId: string
   students: Student[]
   graders: Grader[]
+  hiddenGraders: Grader[]
   groupMap: Record<string, string | null>
   assignments: Assignment[]
   assignmentGraderMap: Record<string, string | null>
@@ -24,9 +25,13 @@ interface Props {
 }
 
 export default function GradingGroupsManager({
-  courseId, students, graders, groupMap, assignments, assignmentGraderMap, graderUngradedCount,
+  courseId, students, graders: initialGraders, hiddenGraders: initialHiddenGraders, groupMap, assignments, assignmentGraderMap, graderUngradedCount,
   modules, weeklyGroupMap, weeklyRotationEnabled, weeklyUngradedCount,
 }: Props) {
+  // Graders shown on the page vs. hidden via "Remove" (hidden ones keep course access)
+  const [graders, setGraders] = useState<Grader[]>(initialGraders)
+  const [hiddenGraders, setHiddenGraders] = useState<Grader[]>(initialHiddenGraders)
+
   // Course-level (flat) state
   const [studentAssignments, setStudentAssignments] = useState<Record<string, string | null>>(
     Object.fromEntries(students.map(s => [s.id, groupMap[s.id] ?? null]))
@@ -56,6 +61,30 @@ export default function GradingGroupsManager({
 
   // ── Course-level (flat) handlers ──────────────────────────────────────────
 
+  // Mirror of the server's syncStudentsWeeklyGroups: when rotation is on, moving a
+  // student into/out of Unassigned in the base groups carries through every week.
+  function applyBaseChangeToWeeks(prev: Record<string, string | null>, next: Record<string, string | null>) {
+    if (!rotationEnabled || graders.length === 0) return
+    const added: string[] = []
+    const removed: string[] = []
+    for (const s of students) {
+      const was = !!prev[s.id]
+      const is = !!next[s.id]
+      if (!was && is) added.push(s.id)
+      if (was && !is) removed.push(s.id)
+    }
+    if (added.length === 0 && removed.length === 0) return
+    setWeeklyAssignments(weeks => Object.fromEntries(modules.map((m, i) => {
+      const week = { ...(weeks[m.id] ?? {}) }
+      for (const id of removed) week[id] = null
+      for (const id of added) {
+        const anchorIdx = graders.findIndex(g => g.id === next[id])
+        week[id] = anchorIdx === -1 ? null : graders[(anchorIdx + i) % graders.length].id
+      }
+      return [m.id, week]
+    })))
+  }
+
   function handleDragStart(event: DragStartEvent) {
     setActiveStudentId(event.active.id as string)
   }
@@ -67,7 +96,9 @@ export default function GradingGroupsManager({
     const studentId = active.id as string
     const newGraderId = over.id === 'unassigned' ? null : over.id as string
     if (studentAssignments[studentId] === newGraderId) return
-    setStudentAssignments(prev => ({ ...prev, [studentId]: newGraderId }))
+    const next = { ...studentAssignments, [studentId]: newGraderId }
+    applyBaseChangeToWeeks(studentAssignments, next)
+    setStudentAssignments(next)
     startTransition(async () => {
       await setStudentGrader(courseId, studentId, newGraderId)
     })
@@ -101,6 +132,7 @@ export default function GradingGroupsManager({
     const newAssignments = Object.fromEntries(
       students.map((s, i) => [s.id, graders[i % graders.length].id])
     )
+    applyBaseChangeToWeeks(studentAssignments, newAssignments)
     setStudentAssignments(newAssignments)
     await bulkAssignStudentGraders(
       courseId,
@@ -112,6 +144,38 @@ export default function GradingGroupsManager({
   function handleAssignmentGrader(assignmentId: string, graderId: string | null) {
     setAssignmentGraders(prev => ({ ...prev, [assignmentId]: graderId }))
     startTransition(async () => { await setAssignmentGrader(assignmentId, graderId, courseId) })
+  }
+
+  // ── Hide / restore graders ─────────────────────────────────────────────────
+
+  function handleRemoveGrader(grader: Grader) {
+    const baseCount = students.filter(s => studentAssignments[s.id] === grader.id).length
+    const hasWeekly = rotationEnabled && Object.values(weeklyAssignments).some(week => Object.values(week).includes(grader.id))
+    const hasOverrides = Object.values(assignmentGraders).includes(grader.id)
+    const consequences = [
+      baseCount > 0 && `${baseCount} student${baseCount === 1 ? '' : 's'} will move to Unassigned`,
+      hasWeekly && 'their weekly rotation groups will be cleared',
+      hasOverrides && 'their assignment overrides will be reset',
+    ].filter(Boolean)
+    const message = `Remove ${grader.name} from grading groups?` +
+      (consequences.length ? `\n\n${consequences.join('; ')}.` : '') +
+      `\n\nThey'll stay enrolled in the course, and you can add them back anytime.`
+    if (!confirm(message)) return
+
+    const clear = (map: Record<string, string | null>) =>
+      Object.fromEntries(Object.entries(map).map(([k, v]) => [k, v === grader.id ? null : v]))
+    setStudentAssignments(prev => clear(prev))
+    setWeeklyAssignments(prev => Object.fromEntries(Object.entries(prev).map(([m, week]) => [m, clear(week)])))
+    setAssignmentGraders(prev => clear(prev))
+    setGraders(prev => prev.filter(g => g.id !== grader.id))
+    setHiddenGraders(prev => [...prev, grader].sort((a, b) => a.name.localeCompare(b.name)))
+    startTransition(async () => { await setGraderExcluded(courseId, grader.id, true) })
+  }
+
+  function handleRestoreGrader(grader: Grader) {
+    setHiddenGraders(prev => prev.filter(g => g.id !== grader.id))
+    setGraders(prev => [...prev, grader].sort((a, b) => a.name.localeCompare(b.name)))
+    startTransition(async () => { await setGraderExcluded(courseId, grader.id, false) })
   }
 
   // ── Weekly rotation handlers ───────────────────────────────────────────────
@@ -182,17 +246,15 @@ export default function GradingGroupsManager({
   }
 
   function handleAutoDistributeWeek(moduleId: string) {
-    if (graders.length === 0 || students.length === 0) return
-    const newMap = Object.fromEntries(
-      students.map((s, i) => [s.id, graders[i % graders.length].id])
-    )
+    // Students unassigned in the base groups stay out of every week
+    const inRotation = students.filter(s => studentAssignments[s.id])
+    if (graders.length === 0 || inRotation.length === 0) return
+    const distributed = inRotation.map((s, i) => ({ studentId: s.id, graderId: graders[i % graders.length].id }))
+    const newMap: Record<string, string | null> = Object.fromEntries(students.map(s => [s.id, null]))
+    for (const d of distributed) newMap[d.studentId] = d.graderId
     setWeeklyAssignments(prev => ({ ...prev, [moduleId]: newMap }))
     startTransition(async () => {
-      await bulkAssignStudentGraders(
-        courseId,
-        students.map((s, i) => ({ studentId: s.id, graderId: graders[i % graders.length].id })),
-        moduleId
-      )
+      await bulkAssignStudentGraders(courseId, distributed, moduleId)
     })
   }
 
@@ -266,9 +328,93 @@ export default function GradingGroupsManager({
         </div>
       )}
 
-      {rotationEnabled ? (
-        /* ── Weekly sections ── */
-        <div className="space-y-3">
+      {hiddenGraders.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap text-sm">
+          <span className="text-muted-text">Removed from grading:</span>
+          {hiddenGraders.map(g => (
+            <span key={g.id} className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full border border-border bg-surface">
+              <UserAvatar name={g.name} avatarUrl={g.avatarUrl} size="sm" />
+              <span className="text-dark-text">{g.name}</span>
+              <button
+                type="button"
+                onClick={() => handleRestoreGrader(g)}
+                className="text-xs text-teal-primary hover:underline ml-1"
+              >
+                Add back
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* ── Base (course-level) groups — the anchor weekly rotation rotates from ── */}
+      <section className="space-y-4">
+        {rotationEnabled && (
+          <div>
+            <h2 className="text-base font-semibold text-dark-text">Base Groups</h2>
+            <p className="text-xs text-muted-text mt-0.5">
+              Each week rotates from these groups automatically, including new weeks as they&apos;re published.
+              Students in Unassigned stay out of every week until you move them into a group here.
+            </p>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <p className="text-sm text-muted-text">
+            {assignedCount} of {students.length} students assigned · {graders.length} grader{graders.length !== 1 ? 's' : ''}
+          </p>
+          <div className="flex items-center gap-2">
+            {graders.length >= 2 && (
+              <button
+                onClick={handleRotate}
+                disabled={distributing}
+                className="border border-border text-dark-text px-4 py-2 rounded-lg text-sm font-medium hover:border-teal-primary hover:text-teal-primary disabled:opacity-50 transition-colors"
+                title={graders.length === 2 ? 'Swap the two groups' : 'Shift each grader to the next group in order'}
+              >
+                {graders.length === 2 ? 'Swap Groups ⇄' : 'Rotate Groups →'}
+              </button>
+            )}
+            <button
+              onClick={handleAutoDistribute}
+              disabled={distributing || students.length === 0}
+              className="bg-teal-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {distributing ? 'Distributing…' : 'Auto-distribute evenly'}
+            </button>
+          </div>
+        </div>
+
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className={`grid gap-4 ${graders.length === 1 ? 'grid-cols-1 max-w-sm' : graders.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+            {graders.map(grader => (
+              <GraderCard
+                key={grader.id}
+                grader={grader}
+                students={studentsForGrader(grader.id)}
+                ungradedCount={graderUngradedCount[grader.id] ?? 0}
+                onRemove={() => handleRemoveGrader(grader)}
+              />
+            ))}
+            <UnassignedCard students={unassigned} />
+          </div>
+          <DragOverlay>
+            {activeStudent ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
+                <UserAvatar name={activeStudent.name} avatarUrl={activeStudent.avatarUrl} size="sm" />
+                {activeStudent.name}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </section>
+
+      {rotationEnabled && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-semibold text-dark-text">Weekly Groups</h2>
+            <p className="text-xs text-muted-text mt-0.5">
+              Filled in automatically. Open a week only if you need to tweak it — changes there affect just that week.
+            </p>
+          </div>
           {modules.map(module => (
             <WeekSection
               key={module.id}
@@ -282,59 +428,10 @@ export default function GradingGroupsManager({
               onStudentMove={(studentId, graderId) => handleStudentMoveWeek(module.id, studentId, graderId)}
               onRotate={() => handleRotateWeek(module.id)}
               onAutoDistribute={() => handleAutoDistributeWeek(module.id)}
+              onRemoveGrader={handleRemoveGrader}
             />
           ))}
-        </div>
-      ) : (
-        /* ── Flat (course-level) layout ── */
-        <>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm text-muted-text">
-              {assignedCount} of {students.length} students assigned · {graders.length} grader{graders.length !== 1 ? 's' : ''}
-            </p>
-            <div className="flex items-center gap-2">
-              {graders.length >= 2 && (
-                <button
-                  onClick={handleRotate}
-                  disabled={distributing}
-                  className="border border-border text-dark-text px-4 py-2 rounded-lg text-sm font-medium hover:border-teal-primary hover:text-teal-primary disabled:opacity-50 transition-colors"
-                  title={graders.length === 2 ? 'Swap the two groups' : 'Shift each grader to the next group in order'}
-                >
-                  {graders.length === 2 ? 'Swap Groups ⇄' : 'Rotate Groups →'}
-                </button>
-              )}
-              <button
-                onClick={handleAutoDistribute}
-                disabled={distributing || students.length === 0}
-                className="bg-teal-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-              >
-                {distributing ? 'Distributing…' : 'Auto-distribute evenly'}
-              </button>
-            </div>
-          </div>
-
-          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className={`grid gap-4 ${graders.length === 1 ? 'grid-cols-1 max-w-sm' : graders.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
-              {graders.map(grader => (
-                <GraderCard
-                  key={grader.id}
-                  grader={grader}
-                  students={studentsForGrader(grader.id)}
-                  ungradedCount={graderUngradedCount[grader.id] ?? 0}
-                />
-              ))}
-              <UnassignedCard students={unassigned} />
-            </div>
-            <DragOverlay>
-              {activeStudent ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface border border-teal-primary text-sm text-dark-text shadow-lg cursor-grabbing">
-                  <UserAvatar name={activeStudent.name} avatarUrl={activeStudent.avatarUrl} size="sm" />
-                  {activeStudent.name}
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        </>
+        </section>
       )}
 
       {/* Assignment overrides — always shown */}
@@ -383,11 +480,12 @@ interface WeekSectionProps {
   onStudentMove: (studentId: string, graderId: string | null) => void
   onRotate: () => void
   onAutoDistribute: () => void
+  onRemoveGrader: (grader: Grader) => void
 }
 
 function WeekSection({
   module, students, graders, weekAssignments, weekUngradedCount,
-  expanded, onToggle, onStudentMove, onRotate, onAutoDistribute,
+  expanded, onToggle, onStudentMove, onRotate, onAutoDistribute, onRemoveGrader,
 }: WeekSectionProps) {
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
@@ -459,6 +557,7 @@ function WeekSection({
                   grader={grader}
                   students={studentsForGrader(grader.id)}
                   ungradedCount={weekUngradedCount[grader.id] ?? 0}
+                  onRemove={() => onRemoveGrader(grader)}
                 />
               ))}
               <UnassignedCard students={unassigned} />
@@ -480,27 +579,40 @@ function WeekSection({
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
-function GraderCard({ grader, students, ungradedCount }: { grader: Grader; students: Student[]; ungradedCount: number }) {
+function GraderCard({ grader, students, ungradedCount, onRemove }: { grader: Grader; students: Student[]; ungradedCount: number; onRemove: () => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: grader.id })
   return (
     <div
       ref={setNodeRef}
       className={`rounded-2xl border-2 transition-colors ${isOver ? 'border-teal-primary bg-teal-light/10' : 'border-border bg-surface'}`}
     >
-      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-border flex items-start gap-2">
         <UserAvatar name={grader.name} avatarUrl={grader.avatarUrl} size="sm" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-dark-text text-sm truncate">{grader.name}</p>
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${grader.type === 'ta' ? 'badge-ta' : 'bg-purple-light text-purple-primary'}`}>
+              {grader.type === 'ta' ? 'TA' : 'Staff'}
+            </span>
+            {ungradedCount > 0 && (
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full badge-count">
+                {ungradedCount} ungraded
+              </span>
+            )}
+          </div>
         </div>
-        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${grader.type === 'ta' ? 'badge-ta' : 'bg-purple-light text-purple-primary'}`}>
-          {grader.type === 'ta' ? 'TA' : 'Staff'}
+        <span className="text-xs text-muted-text shrink-0 leading-6" title={`${students.length} student${students.length === 1 ? '' : 's'}`}>
+          {students.length}
         </span>
-        {ungradedCount > 0 && (
-          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full badge-count shrink-0">
-            {ungradedCount} ungraded
-          </span>
-        )}
-        <span className="text-xs text-muted-text shrink-0 w-5 text-right">{students.length}</span>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${grader.name} from grading groups`}
+          title="Remove from grading groups"
+          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-text hover:text-red-500 hover:bg-red-50 transition-colors"
+        >
+          ×
+        </button>
       </div>
       <div className="p-2 min-h-[72px] flex flex-col gap-1">
         {students.map(s => <DraggableStudent key={s.id} student={s} />)}
@@ -513,8 +625,8 @@ function GraderCard({ grader, students, ungradedCount }: { grader: Grader; stude
 }
 
 function UnassignedCard({ students }: { students: Student[] }) {
+  // Always rendered so there's somewhere to drop a student even when it's empty
   const { setNodeRef, isOver } = useDroppable({ id: 'unassigned' })
-  if (students.length === 0 && !isOver) return null
   return (
     <div
       ref={setNodeRef}

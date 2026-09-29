@@ -1,6 +1,7 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { generateAllWeeklyGroups, syncStudentsWeeklyGroups } from '@/lib/weekly-rotation'
 
 async function getAuthedInstructor() {
   const supabase = await createServerSupabaseClient()
@@ -41,6 +42,13 @@ export async function setStudentGrader(
 
   const admin = createServiceSupabaseClient()
 
+  let wasAssigned = false
+  if (!moduleId) {
+    const { data: existing } = await admin.from('grading_groups')
+      .select('grader_id').eq('course_id', courseId).eq('student_id', studentId).is('module_id', null).maybeSingle()
+    wasAssigned = !!existing?.grader_id
+  }
+
   // Delete existing row for this scope (course-level or specific module)
   let deleteQuery = admin
     .from('grading_groups')
@@ -63,6 +71,15 @@ export async function setStudentGrader(
     })
   }
 
+  // Base-group moves into/out of Unassigned carry through to every rotation week
+  if (!moduleId) {
+    const isAssigned = !!graderId
+    await syncStudentsWeeklyGroups(admin, courseId, {
+      added: !wasAssigned && isAssigned ? [studentId] : [],
+      removed: wasAssigned && !isAssigned ? [studentId] : [],
+    })
+  }
+
   revalidatePath(`/instructor/courses/${courseId}/grading-groups`)
   return { success: true }
 }
@@ -78,6 +95,11 @@ export async function bulkAssignStudentGraders(
   if (!await verifyInstructorCourseAccess(supabase, user.id, role, courseId)) return { error: 'Not authorized' }
 
   const admin = createServiceSupabaseClient()
+
+  const { data: previousRows } = moduleId
+    ? { data: [] }
+    : await admin.from('grading_groups').select('student_id, grader_id').eq('course_id', courseId).is('module_id', null)
+  const previouslyAssigned = new Set((previousRows ?? []).filter(r => r.grader_id).map(r => r.student_id))
 
   // Delete only rows in this scope (course-level or specific module)
   let deleteQuery = admin.from('grading_groups').delete().eq('course_id', courseId)
@@ -100,6 +122,14 @@ export async function bulkAssignStudentGraders(
     if (error) return { error: error.message }
   }
 
+  if (!moduleId) {
+    const nowAssigned = new Set(assignments.map(a => a.studentId))
+    await syncStudentsWeeklyGroups(admin, courseId, {
+      added: [...nowAssigned].filter(id => !previouslyAssigned.has(id)),
+      removed: [...previouslyAssigned].filter(id => !nowAssigned.has(id)),
+    })
+  }
+
   revalidatePath(`/instructor/courses/${courseId}/grading-groups`)
   return { success: true }
 }
@@ -113,105 +143,11 @@ export async function enableWeeklyRotation(
   if (!await verifyInstructorCourseAccess(supabase, user.id, role, courseId)) return { error: 'Not authorized' }
 
   const admin = createServiceSupabaseClient()
-
-  // Fetch course-level anchor groups
-  const { data: anchorGroups } = await admin
-    .from('grading_groups')
-    .select('student_id, grader_id')
-    .eq('course_id', courseId)
-    .is('module_id', null)
-
-  if (!anchorGroups || anchorGroups.length === 0) {
-    return { error: 'Set up base groups first before enabling weekly rotation.' }
-  }
-
-  // Fetch graders ordered by name (stable sort)
-  const { data: graderEnrollments } = await admin
-    .from('course_enrollments')
-    .select('user_id')
-    .eq('course_id', courseId)
-    .in('role', ['instructor', 'ta', 'staff'])
-  const graderIds = graderEnrollments?.map(e => e.user_id) ?? []
-  const { data: graderUsers } = graderIds.length
-    ? await admin.from('users').select('id').in('id', graderIds).order('name')
-    : { data: [] }
-  const graders = graderUsers ?? []
-  if (graders.length === 0) return { error: 'No graders found.' }
-
-  // Fetch modules ordered — published only, exclude career/level_up
-  const { data: allModules } = await admin
-    .from('modules')
-    .select('id, order, category')
-    .eq('course_id', courseId)
-    .eq('published', true)
-    .is('deleted_at', null)
-    .order('order')
-  if (!allModules || allModules.length === 0) return { error: 'No modules found.' }
-
-  // Find which modules have at least one non-deleted assignment
-  const allModuleIds = allModules.map(m => m.id)
-  const { data: moduleDays } = await admin
-    .from('module_days')
-    .select('id, module_id')
-    .in('module_id', allModuleIds)
-    .is('deleted_at', null)
-  const moduleDayIds = (moduleDays ?? []).map(d => d.id)
-  const dayModuleMap = new Map((moduleDays ?? []).map(d => [d.id, d.module_id]))
-  const moduleIdsWithAssignments = new Set<string>()
-  if (moduleDayIds.length > 0) {
-    const { data: assignmentDays } = await admin
-      .from('assignments')
-      .select('module_day_id')
-      .in('module_day_id', moduleDayIds)
-      .is('deleted_at', null)
-      .eq('published', true)
-    for (const a of assignmentDays ?? []) {
-      const mid = dayModuleMap.get(a.module_day_id)
-      if (mid) moduleIdsWithAssignments.add(mid)
-    }
-  }
-  // Exclude career/level_up modules and those without published assignments
-  const modules = (allModules as Array<{ id: string; order: number; category: string | null }>)
-    .filter(m => m.category !== 'career' && m.category !== 'level_up' && moduleIdsWithAssignments.has(m.id))
-  if (modules.length === 0) return { error: 'No modules with assignments found.' }
-
-  // Build anchor map: studentId → grader index in sorted graders array
-  const anchorMap = new Map<string, number>()
-  for (const row of anchorGroups) {
-    if (row.grader_id) {
-      const idx = graders.findIndex(g => g.id === row.grader_id)
-      if (idx !== -1) anchorMap.set(row.student_id, idx)
-    }
-  }
-
-  // Delete any existing week-specific rows
-  await admin.from('grading_groups')
-    .delete()
-    .eq('course_id', courseId)
-    .not('module_id', 'is', null)
-
-  // Generate week-specific rows for each module (rotating from anchor)
-  const rowsToInsert: Array<{ course_id: string; module_id: string; student_id: string; grader_id: string }> = []
-  const weeklyGroups: Record<string, Record<string, string | null>> = {}
-
-  for (let i = 0; i < modules.length; i++) {
-    const module = modules[i]
-    weeklyGroups[module.id] = {}
-    for (const [studentId, anchorIdx] of anchorMap) {
-      const rotatedIdx = (anchorIdx + i) % graders.length
-      const graderId = graders[rotatedIdx].id
-      rowsToInsert.push({ course_id: courseId, module_id: module.id, student_id: studentId, grader_id: graderId })
-      weeklyGroups[module.id][studentId] = graderId
-    }
-  }
-
-  if (rowsToInsert.length > 0) {
-    const { error } = await admin.from('grading_groups').insert(rowsToInsert)
-    if (error) return { error: error.message }
-  }
+  const result = await generateAllWeeklyGroups(admin, courseId)
+  if (result.error) return { error: result.error }
 
   revalidatePath(`/instructor/courses/${courseId}/grading-groups`)
-  return { weeklyGroups }
+  return { weeklyGroups: result.weeklyGroups }
 }
 
 export async function disableWeeklyRotation(
@@ -265,5 +201,52 @@ export async function setAssignmentGrader(
     .eq('id', assignmentId)
 
   if (error) return { error: error.message }
+  return { success: true }
+}
+
+// Hide (or un-hide) a staff member/TA from this course's grading groups. Hiding
+// also unassigns their students (base + weekly groups) and clears any
+// assignment overrides pointing at them, so nothing is left routed to them.
+export async function setGraderExcluded(
+  courseId: string,
+  graderId: string,
+  excluded: boolean
+): Promise<{ error?: string; success?: boolean }> {
+  const auth = await getAuthedInstructor()
+  if ('error' in auth) return { error: auth.error }
+  const { user, supabase, role } = auth
+  if (!await verifyInstructorCourseAccess(supabase, user.id, role, courseId)) return { error: 'Not authorized' }
+
+  const admin = createServiceSupabaseClient()
+
+  const { error } = await admin
+    .from('course_enrollments')
+    .update({ excluded_from_grading: excluded })
+    .eq('course_id', courseId)
+    .eq('user_id', graderId)
+    .in('role', ['instructor', 'ta', 'staff'])
+  if (error) return { error: error.message }
+
+  if (excluded) {
+    await admin.from('grading_groups')
+      .delete()
+      .eq('course_id', courseId)
+      .eq('grader_id', graderId)
+
+    const { data: modules } = await admin.from('modules').select('id').eq('course_id', courseId)
+    const moduleIds = (modules ?? []).map(m => m.id)
+    const { data: days } = moduleIds.length
+      ? await admin.from('module_days').select('id').in('module_id', moduleIds)
+      : { data: [] }
+    const dayIds = (days ?? []).map(d => d.id)
+    if (dayIds.length > 0) {
+      await admin.from('assignments')
+        .update({ grader_id: null })
+        .in('module_day_id', dayIds)
+        .eq('grader_id', graderId)
+    }
+  }
+
+  revalidatePath(`/instructor/courses/${courseId}/grading-groups`)
   return { success: true }
 }
