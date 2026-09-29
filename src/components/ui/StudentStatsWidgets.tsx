@@ -179,7 +179,7 @@ export function StatCard({
   )
 }
 
-function CommentsPreview({ submissionId, courseId }: { submissionId: string; courseId: string }) {
+export function CommentsPreview({ submissionId, courseId }: { submissionId: string; courseId: string }) {
   const [comments, setComments] = useState<SubmissionCommentPreview[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
