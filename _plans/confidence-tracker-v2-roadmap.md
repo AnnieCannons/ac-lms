@@ -46,6 +46,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
   - Setting a *new* goal after meeting the current one belongs to Phase 6; Phase 4 only builds the goal history it will append to.
   - Instructor page: class overview (average, median, distribution of each student's latest rating, plus "x students rated") for the course's tagged skills and currently active students only, matching the gradebook. Per-student drill-in also shows that student's earlier-course ratings of the same skill as read-only context. TAs excluded; reactivation is student-only.
   - The old Confidence Tracker pages stay in place; each just gains a link to its new counterpart (old student page → new student page, old instructor page → new instructor trend page). Instructors may see a student's earlier-course ratings of a shared skill even for courses they don't teach.
+- Spec: [`_specs/confidence-trend-pages.md`](../_specs/confidence-trend-pages.md) · Plan: [`_plans/confidence-trend-pages.md`](./confidence-trend-pages.md) (planned, not yet implemented)
 - Surfacing an assignment's confidence ratings on the grading page is **out of scope** for Phase 4 (decided).
 - **Follow-up to remember, after Phase 4 ships:** retire the old Confidence Tracker pages (`/student/confidence`, old instructor confidence page) without deleting any data students saved there — decide then whether to archive, export, or keep a read-only view.
 - **Testable on its own**: once Phases 2–3 have real data, confirm both pages render correctly.
