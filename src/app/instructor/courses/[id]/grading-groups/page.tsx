@@ -6,6 +6,7 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import GradingGroupsManager from '@/components/ui/GradingGroupsManager'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { fillMissingWeeklyGroups } from '@/lib/weekly-rotation'
 
 export default async function GradingGroupsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -29,17 +30,23 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
 
   // Graders: instructors + staff + TAs assigned to this course
   const { data: graderEnrollments } = await admin
-    .from('course_enrollments').select('user_id, role').eq('course_id', id).in('role', ['instructor', 'ta', 'staff'])
+    .from('course_enrollments').select('user_id, role, excluded_from_grading').eq('course_id', id).in('role', ['instructor', 'ta', 'staff'])
   const graderIds = graderEnrollments?.map(e => e.user_id) ?? []
   const { data: graderUsers } = graderIds.length
     ? await admin.from('users').select('id, name, avatar_url').in('id', graderIds).order('name')
     : { data: [] }
-  const graders = (graderUsers ?? []).map(u => ({
-    id: u.id,
-    name: u.name,
-    avatarUrl: u.avatar_url,
-    type: (graderEnrollments?.find(e => e.user_id === u.id)?.role ?? 'ta') as 'instructor' | 'ta',
-  }))
+  const allGraders = (graderUsers ?? []).map(u => {
+    const enrollment = graderEnrollments?.find(e => e.user_id === u.id)
+    return {
+      id: u.id,
+      name: u.name,
+      avatarUrl: u.avatar_url,
+      type: (enrollment?.role ?? 'ta') as 'instructor' | 'ta',
+      excluded: enrollment?.excluded_from_grading ?? false,
+    }
+  })
+  const graders = allGraders.filter(g => !g.excluded)
+  const hiddenGraders = allGraders.filter(g => g.excluded)
 
   // Modules (ordered): published only, no career/level_up category
   const { data: modulesWithDays } = await admin
@@ -98,6 +105,9 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
     .eq('course_id', id)
     .is('module_id', null)
   const groupMap = Object.fromEntries((courseGroups ?? []).map(g => [g.student_id, g.grader_id]))
+
+  // Weekly rotation: generate groups for any newly published week before reading them
+  await fillMissingWeeklyGroups(admin, id)
 
   // Week-specific groups (module_id IS NOT NULL)
   const { data: weeklyGroupRows } = await admin
@@ -165,7 +175,7 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
               </p>
             </div>
 
-            {graders.length === 0 ? (
+            {allGraders.length === 0 ? (
               <div className="bg-surface rounded-2xl border border-border p-8 text-center">
                 <p className="text-muted-text font-medium mb-1">No graders assigned to this course yet.</p>
                 <p className="text-sm text-muted-text">
@@ -182,6 +192,7 @@ export default async function GradingGroupsPage({ params }: { params: Promise<{ 
                 courseId={id}
                 students={students ?? []}
                 graders={graders}
+                hiddenGraders={hiddenGraders}
                 groupMap={groupMap}
                 assignments={assignments}
                 assignmentGraderMap={assignmentGraderMap}

@@ -134,6 +134,19 @@ export default async function StudentDetailPage({
     getEscalationHistory(userId, courseId),
   ])
 
+  // Comment counts per submission, for the expandable comments toggle
+  const submissionIds = (submissions ?? []).map(s => s.id)
+  const commentCountMap = new Map<string, number>()
+  if (submissionIds.length > 0) {
+    const { data: commentRows } = await admin
+      .from('submission_comments')
+      .select('submission_id')
+      .in('submission_id', submissionIds)
+    for (const c of (commentRows as { submission_id: string }[] ?? [])) {
+      commentCountMap.set(c.submission_id, (commentCountMap.get(c.submission_id) ?? 0) + 1)
+    }
+  }
+
   // Categorize assignments
   const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null; is_late: boolean }]))
   const overrideMap = new Map((overrideRows ?? []).map(o => [o.assignment_id, o as { assignment_id: string; due_date: string | null; excused: boolean }]))
@@ -157,7 +170,7 @@ export default async function StudentDetailPage({
       if (sub?.status === 'submitted') lateCurrentStatus = 'needsGrading'
       else if (sub?.status === 'graded') lateCurrentStatus = sub.grade === 'complete' ? 'complete' : 'needsRevision'
     }
-    const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, type: 'assignment' }
+    const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, commentCount: sub ? (commentCountMap.get(sub.id) ?? 0) : 0, type: 'assignment' }
 
     if (!sub || sub.status === 'draft') {
       if (duePassed && !isOptional) missing.push(entry)
