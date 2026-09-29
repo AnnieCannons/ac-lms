@@ -31,6 +31,9 @@ Course JSON fixtures live in `src/data/<program>/` (`backend/`, `frontend/`, `it
 ### Environment
 Local dev needs `.env.local` with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Without the service role key, any page/action that does a cross-user query (grading, admin views, most of `instructor/`) will throw at runtime rather than degrade gracefully.
 
+### Database migrations
+SQL migrations live in `supabase/migrations/` (named `YYYYMMDDHHMMSS_description.sql`) and are committed to the repo, but there's no Supabase CLI hookup and no automated runner — a new migration is applied by hand-pasting it into the Supabase Dashboard's SQL editor against whichever project you're targeting. Keep migrations idempotent (`IF NOT EXISTS` / `CREATE OR REPLACE`) since there's no tracking of what's already been applied where. A new table typically follows the shape already used throughout: `CREATE TABLE` → indexes → `ENABLE ROW LEVEL SECURITY` → per-operation `CREATE POLICY` → `GRANT ALL ... TO anon/authenticated/service_role`.
+
 ## Architecture
 
 Next.js App Router + TypeScript + Supabase (Postgres/auth/RLS), no separate backend. Business logic lives in `'use server'` action modules under `src/lib/` (one file per domain: `grade-actions.ts`, `quiz-actions.ts`, `partner-actions.ts`, `readiness-actions.ts`, etc.) rather than in `src/app/api/` route handlers — route handlers are reserved for cron jobs, webhooks, and file upload.
@@ -69,5 +72,6 @@ The app has grown well past its original course-management scope; these are real
 - **Flashcards** (`src/app/flashcards/`, `src/lib/flashcards/`) — spaced-repetition decks, sharing via `share_token`, admin activity views.
 - **Partnerships CRM** (`src/app/instructor/partnerships/`, `src/lib/partner*-actions.ts`) — employer/funder tracking, contacts, interaction logs, ratings, Airtable-backed forms (`supabase/functions/airtable-form-webhook`).
 - **Readiness / accountability** (`src/lib/readiness.ts`, `weekly-report.ts`) — a weekly 0–5 score from attendance + assignment data, feeding a red/yellow/green escalation flow that posts to Slack (`src/lib/slack.ts`) and email.
+- **Confidence Tracker v2** (`src/lib/skill-actions.ts`, `confidence-tracker-actions.ts`, `confidence-tracker-validation.ts`) — a phased, feature-flagged rollout (see `_plans/confidence-tracker-v2-roadmap.md`) letting instructors tag assignments with a shared skill taxonomy and students rate their confidence per skill after submitting, with goal-setting and mastery tracking, plus student (`/student/skill-confidence`) and instructor (`/instructor/courses/[id]/skill-confidence`) trend pages and a student-only "reactivate" for mastered skills (`src/lib/confidence-trend*.ts`). `confidence_tracker_skill_progress` is the *current* state; goal and mastery/reactivation *history* live in `confidence_tracker_goal_history`/`confidence_tracker_skill_events`, filled by a DB trigger. Deliberately separate from the older, unrelated `confidence_skills`/`confidence_entries` tracker and from `assignments.skill_tags` ("Level Up Your Skills").
 
 `SCHEMA.md` has full table definitions if you need to check a column or relationship rather than guessing from usage.

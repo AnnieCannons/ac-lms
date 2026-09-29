@@ -1,7 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
+import Link from 'next/link'
 import ConfidenceTracker from '@/components/ui/ConfidenceTracker'
+import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +23,12 @@ export default async function StudentConfidencePage() {
       <StudentTopNav name={profile?.name} role={profile?.role} />
 
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 sm:py-10 focus:outline-none">
+        {isConfidenceRatingsEnabled() && (
+          <p className="mb-6 text-sm text-dark-text">
+            Looking for the skills from your assignments?{' '}
+            <Link href="/student/skill-confidence" className="font-semibold text-teal-primary hover:underline">See My Skill Confidence</Link>
+          </p>
+        )}
         <ConfidenceTracker userName={profile?.name ?? 'Student'} />
       </main>
     </div>

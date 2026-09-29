@@ -18,9 +18,10 @@ interface Props {
   isTa?: boolean
   otherCurrentCourses?: { id: string; name: string }[]
   pendingExtensions?: number
+  showSkillConfidence?: boolean
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence', 'skill-confidence']
 
 function useNavSection(key: string, defaultOpen = true): [boolean, () => void] {
   const [open, setOpen] = useState(() => {
@@ -71,6 +72,7 @@ export default function InstructorCourseNav({
   isTa = false,
   otherCurrentCourses = [],
   pendingExtensions = 0,
+  showSkillConfidence = false,
 }: Props) {
   const pathname = usePathname()
   const router = useRouter()
@@ -209,6 +211,8 @@ export default function InstructorCourseNav({
             {navLink('Gradebook', 'gradebook')}
             {navLink('Quiz Submissions', 'quiz-submissions')}
             {navLink('Confidence Tracker', 'confidence')}
+            {/* Staff only: TAs are excluded from Confidence Tracker v2 data. */}
+            {showSkillConfidence && !isTa && navLink('Skill Confidence', 'skill-confidence')}
             <button
               onClick={() => setGraderOpen(true)}
               className="pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors text-left text-muted-text hover:text-dark-text hover:bg-border/20 flex items-center justify-between gap-2"
