@@ -44,8 +44,9 @@ export default async function InstructorSkillConfidencePage({ params }: { params
           <main id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-8 py-10 focus:outline-none">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-dark-text mb-1">Skill Confidence</h1>
-              <p className="text-sm text-muted-text">
-                {course.name} · how the class rates the skills tagged on this course&apos;s assignments. Class figures use each student&apos;s most recent rating from this course.
+              <p className="text-sm text-muted-text">{course.name}</p>
+              <p className="mt-1 text-sm text-muted-text">
+                How the class rates the skills tagged on this course&apos;s assignments. Class figures use each student&apos;s most recent rating from this course.
               </p>
             </div>
             <SkillConfidenceInstructorView students={data.students} skills={data.skills} />

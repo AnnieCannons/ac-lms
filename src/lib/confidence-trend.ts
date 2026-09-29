@@ -266,3 +266,15 @@ export function formatDateOnly(value: string): string {
 export function formatTimestamp(value: string): string {
   return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+// A student's overall standing for sorting: the mean of their latest rating per skill, counting
+// only ratings from the course being viewed (earlier-course ratings are context, not standing).
+// null when they have no rating from this course.
+export function currentCourseScore(trends: SkillTrend[]): number | null {
+  const latest: number[] = []
+  for (const t of trends) {
+    const current = t.ratings.filter(r => r.isCurrentCourse)
+    if (current.length > 0) latest.push(current[current.length - 1].value)
+  }
+  return latest.length === 0 ? null : latest.reduce((sum, v) => sum + v, 0) / latest.length
+}

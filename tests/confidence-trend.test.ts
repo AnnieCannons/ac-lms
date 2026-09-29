@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildSkillTrends,
+  currentCourseScore,
   computeClassStats,
   latestRatingsBySkill,
   type AssignmentInfo,
@@ -250,5 +251,19 @@ describe('class statistics', () => {
 
   it('returns empty stats for no ratings', () => {
     expect(computeClassStats([])).toMatchObject({ n: 0, average: null, median: null })
+  })
+})
+
+describe('currentCourseScore', () => {
+  const t = (ratings: { value: number; cur: boolean }[]) =>
+    ({ ratings: ratings.map(r => ({ value: r.value, date: '2026-01-01T00:00:00Z', assignmentTitle: null, courseId: null, courseName: null, isCurrentCourse: r.cur })) }) as never
+
+  it('averages each skill\'s latest rating from this course, ignoring earlier courses', () => {
+    expect(currentCourseScore([t([{ value: 2, cur: true }, { value: 6, cur: true }, { value: 10, cur: false }]), t([{ value: 4, cur: true }])])).toBe(5)
+  })
+
+  it('is null when nothing was rated in this course', () => {
+    expect(currentCourseScore([t([{ value: 9, cur: false }])])).toBeNull()
+    expect(currentCourseScore([])).toBeNull()
   })
 })
