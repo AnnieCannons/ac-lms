@@ -55,7 +55,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - **Testable on its own**: once Phases 2–3 have real data, confirm both pages render correctly. Verified live as of 2026-09-29 against real course data: student page (charts, course dividers, goal history, mastered/reactivate flow, phone width), instructor page (class overview stats, per-student drill-in with earlier-course context, filters, sorting, no reactivate control), and flag-off behavior (both pages 404, no links). Not verified with a real TA or student login on the instructor page — the TA redirect is covered by code and follows the Readiness page pattern.
 
 ## Phase 5 — Incremental kudos
-- Spec: [`_specs/confidence-incremental-kudos.md`](../_specs/confidence-incremental-kudos.md) (branch `claude/feature/confidence-incremental-kudos`)
+- Spec: [`_specs/confidence-incremental-kudos.md`](../_specs/confidence-incremental-kudos.md) (branch `claude/feature/confidence-incremental-kudos`) · Plan: [`_plans/confidence-incremental-kudos.md`](./confidence-incremental-kudos.md)
 - Compare a new rating to the student's most recent prior rating for that skill; on any increase (even +1), show a mini kudos.
 - Kudos only, with the change shown (e.g. "from 4 to 6"); it asks nothing and stores nothing. No kudos on a skill's first rating, including the first rating after a reactivation.
 - **Changed while spec'ing:** the optional "what helped" prompt was moved out of this phase to Phase 6 — it is asked only when a goal is met, not on every increase.
