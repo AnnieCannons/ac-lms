@@ -337,6 +337,14 @@ html.theme-dark .badge-count {
   color: var(--color-teal-primary);
 }
 
+/* Confidence Tracker Phase 6 goal-met / mastery celebration card. Same theme-aware teal
+   approach as .kudos-card, slightly stronger border so it reads as a bigger moment. */
+.celebration-card {
+  background-color: var(--color-teal-light);
+  border-color: color-mix(in srgb, var(--color-teal-primary) 60%, transparent);
+  color: var(--color-teal-primary);
+}
+
 /* Status colors — used in StudentDetailView cards, buttons, badges.
    Always use these classes instead of hardcoded bg-red-50 etc. so dark mode works globally. */
 .status-missing-card  { background-color: #fef2f2; border-color: #fecaca; color: #dc2626; }

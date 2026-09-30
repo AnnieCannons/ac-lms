@@ -23,7 +23,7 @@ const trend = (count: number, over: Partial<SkillTrend> = {}): SkillTrend => ({
   })),
   startCourseName: 'Frontend', courseBreakpoints: [], events: [], currentGoal: null, previousGoals: [],
   isMastered: false, previouslyMastered: false, masteredDates: [], reactivatedDates: [], pendingNew: false,
-  latestRating: 5, ...over,
+  latestRating: 5, goalStatus: 'none', canSetGoal: false, ...over,
 })
 
 describe('SkillTrendChart', () => {

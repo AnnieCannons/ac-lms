@@ -6,12 +6,14 @@ import Modal from '@/components/ui/Modal'
 import SkillTrendCard from '@/components/ui/SkillTrendCard'
 import EmptySkillChart from '@/components/ui/EmptySkillChart'
 import SkillMultiSelect from '@/components/ui/SkillMultiSelect'
+import SetGoalForm from '@/components/ui/SetGoalForm'
+import WhatHelpedForm from '@/components/ui/WhatHelpedForm'
 import { reactivateConfidenceSkill } from '@/lib/confidence-trend-actions'
-import type { SkillTrend } from '@/lib/confidence-trend'
+import { formatTimestamp, unansweredMetGoals, type SkillTrend, type UnansweredGoal } from '@/lib/confidence-trend'
 
 // One titled section: a searchable multi-select over its skills and, beneath it, an empty
 // chart until the student picks something, then a card (chart, goals, ratings) per pick.
-function SkillSection({ id, title, description, selectLabel, placeholder, emptyChartMessage, noSkillsMessage, trends, selectedIds, onChange, renderFooter }: {
+function SkillSection({ id, title, description, selectLabel, placeholder, emptyChartMessage, noSkillsMessage, trends, selectedIds, onChange, renderFooter, renderGoalAction }: {
   id: string
   title: string
   description: string
@@ -23,6 +25,7 @@ function SkillSection({ id, title, description, selectLabel, placeholder, emptyC
   selectedIds: string[]
   onChange: (ids: string[]) => void
   renderFooter?: (trend: SkillTrend) => React.ReactNode
+  renderGoalAction?: (trend: SkillTrend) => React.ReactNode
 }) {
   const shown = trends.filter(t => selectedIds.includes(t.skillId))
   return (
@@ -47,15 +50,20 @@ function SkillSection({ id, title, description, selectLabel, placeholder, emptyC
           />
           {shown.length === 0
             ? <EmptySkillChart message={emptyChartMessage} />
-            : <div className="space-y-5">{shown.map(t => <SkillTrendCard key={t.skillId} trend={t}>{renderFooter?.(t)}</SkillTrendCard>)}</div>}
+            : <div className="space-y-5">{shown.map(t => <SkillTrendCard key={t.skillId} trend={t} goalAction={renderGoalAction?.(t)}>{renderFooter?.(t)}</SkillTrendCard>)}</div>}
         </>
       )}
     </section>
   )
 }
 
+// `canReactivate` covers every student-only action on this page (reactivate, answer "what
+// helped", set a goal): it is false for staff previewing the page, and the actions themselves
+// also re-check on the server.
 export default function SkillConfidenceView({ trends, canReactivate }: { trends: SkillTrend[]; canReactivate: boolean }) {
   const router = useRouter()
+  const [answering, setAnswering] = useState<UnansweredGoal | null>(null)
+  const [settingGoal, setSettingGoal] = useState<SkillTrend | null>(null)
   const [activeSel, setActiveSel] = useState<string[]>([])
   const [masteredSel, setMasteredSel] = useState<string[]>([])
   const [confirming, setConfirming] = useState<SkillTrend | null>(null)
@@ -64,6 +72,49 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
 
   const active = trends.filter(t => !t.isMastered)
   const mastered = trends.filter(t => t.isMastered)
+  const unanswered = unansweredMetGoals(trends)
+
+  // Student-only follow-ups for one skill, shown in the card footer: an unanswered "what helped"
+  // for a reached goal.
+  const skillActions = (t: SkillTrend) => {
+    const pendingAnswers = unanswered.filter(u => u.skillId === t.skillId)
+    if (pendingAnswers.length === 0) return null
+    return (
+      <div className="mt-4 flex flex-col gap-2">
+        {pendingAnswers.map(u => (
+          <div key={u.outcomeId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-background px-3 py-2">
+            <p className="text-sm text-dark-text">You reached your goal of {u.target} in {t.name}. What helped?</p>
+            <button
+              type="button"
+              disabled={!canReactivate}
+              onClick={() => setAnswering(u)}
+              className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Answer
+            </button>
+          </div>
+        ))}
+        {!canReactivate && <p className="text-xs text-muted-text">Only the student can do this.</p>}
+      </div>
+    )
+  }
+
+  // "Set a goal" sits inside the goal panel, beside the goal status, when a goal can be set: none
+  // yet, or the current one was reached.
+  const goalAction = (t: SkillTrend) =>
+    t.canSetGoal ? (
+      <span className="inline-flex flex-col gap-1">
+        <button
+          type="button"
+          disabled={!canReactivate}
+          onClick={() => setSettingGoal(t)}
+          className="px-4 py-1.5 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Set a goal
+        </button>
+        {!canReactivate && <span className="text-xs text-muted-text">Only the student can do this.</span>}
+      </span>
+    ) : null
 
   const closeModal = () => { setConfirming(null); setError(null) }
 
@@ -97,7 +148,34 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
   }
 
   return (
+    <>
     <div className="space-y-12">
+      {unanswered.length > 0 && (
+        <section id="what-helped" aria-labelledby="what-helped-heading" className="space-y-3 scroll-mt-6">
+          <h2 id="what-helped-heading" className="text-lg font-bold text-dark-text">What helped?</h2>
+          <p className="text-sm text-muted-text">
+            You reached {unanswered.length === 1 ? 'a goal' : 'some goals'}! Tell us what helped whenever you like — it&apos;s optional.
+          </p>
+          <ul className="space-y-2">
+            {unanswered.map(u => (
+              <li key={u.outcomeId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3">
+                <p className="text-sm text-dark-text">
+                  {u.skillName}: you reached your goal of {u.target} on {formatTimestamp(u.metAt)}.
+                </p>
+                <button
+                  type="button"
+                  disabled={!canReactivate}
+                  onClick={() => setAnswering(u)}
+                  className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Answer
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <SkillSection
         id="skills-working-on"
         title="Skills you're working on"
@@ -109,6 +187,8 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
         trends={active}
         selectedIds={activeSel}
         onChange={setActiveSel}
+        renderFooter={skillActions}
+        renderGoalAction={goalAction}
       />
 
       <SkillSection
@@ -122,20 +202,50 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
         trends={mastered}
         selectedIds={masteredSel}
         onChange={setMasteredSel}
-        renderFooter={t => (
-          <div className="mt-4">
+        renderFooter={skillActions}
+        renderGoalAction={t => (
+          <span className="inline-flex flex-col gap-1">
             <button
               type="button"
               onClick={() => setConfirming(t)}
               disabled={!canReactivate}
-              className="px-4 py-2 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reactivate
             </button>
-            {!canReactivate && <p className="mt-1 text-xs text-muted-text">Only the student can reactivate a skill.</p>}
-          </div>
+            {!canReactivate && <span className="text-xs text-muted-text">Only the student can reactivate a skill.</span>}
+          </span>
         )}
       />
+
+    </div>
+
+    {/* Dialogs sit outside the spaced container: its vertical-spacing margins would otherwise shrink the
+        full-screen backdrop and leave a strip at the bottom of the page un-blurred. */}
+      {answering && (
+        <Modal title={answering.skillName} onClose={() => setAnswering(null)} maxWidth="max-w-md">
+          <WhatHelpedForm
+            outcomeId={answering.outcomeId}
+            skillName={answering.skillName}
+            ownPlanText={answering.ownPlanText}
+            onAnswered={() => { setAnswering(null); router.refresh() }}
+            onSkip={() => setAnswering(null)}
+          />
+        </Modal>
+      )}
+
+      {settingGoal && settingGoal.latestRating != null && (
+        <Modal title={`Set a goal for ${settingGoal.name}`} onClose={() => setSettingGoal(null)} maxWidth="max-w-md">
+          <SetGoalForm
+            skillId={settingGoal.skillId}
+            skillName={settingGoal.name}
+            rating={settingGoal.latestRating}
+            cancelLabel="Cancel"
+            onSaved={() => { setSettingGoal(null); router.refresh() }}
+            onCancel={() => setSettingGoal(null)}
+          />
+        </Modal>
+      )}
 
       {confirming && (
         <Modal title={`Reactivate ${confirming.name}?`} onClose={closeModal} maxWidth="max-w-md">
@@ -158,6 +268,6 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

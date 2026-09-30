@@ -4,10 +4,12 @@ import {
   currentCourseScore,
   computeClassStats,
   latestRatingsBySkill,
+  unansweredMetGoals,
   type AssignmentInfo,
   type EventRow,
   type GoalRow,
   type ProgressRow,
+  type OutcomeRow,
   type RatingRow,
 } from '@/lib/confidence-trend'
 
@@ -24,7 +26,7 @@ const rating = (id: string, assignmentId: string, value: number, createdAt: stri
   ({ id, skillId, rating: value, createdAt, assignmentId })
 
 const goal = (createdAt: string, g: Partial<GoalRow> = {}): GoalRow => ({
-  skillId: 's1', goal: 7, goalIsMaintain: false, targetDate: '2026-11-01', studyPlan: ['flashcards'],
+  id: `g-${createdAt}`, skillId: 's1', goal: 7, goalIsMaintain: false, targetDate: '2026-11-01', studyPlan: ['flashcards'],
   studyPlanOther: null, createdAt, ...g,
 })
 
@@ -265,5 +267,75 @@ describe('currentCourseScore', () => {
   it('is null when nothing was rated in this course', () => {
     expect(currentCourseScore([t([{ value: 9, cur: false }])])).toBeNull()
     expect(currentCourseScore([])).toBeNull()
+  })
+})
+
+describe('met goals (Phase 6)', () => {
+  const outcome = (goalHistoryId: string, over: Partial<OutcomeRow> = {}): OutcomeRow => ({
+    id: `o-${goalHistoryId}`, goalHistoryId, skillId: 's1', metAt: '2026-03-01T10:00:00Z', metRating: 8,
+    whatHelped: null, whatHelpedOther: null, answeredAt: null, ...over,
+  })
+  const ratings = [rating('r1', 'a1', 4, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 8, '2026-03-01T10:00:00Z')]
+  const baseGoal = goal('2026-02-01T10:00:00Z')
+
+  it('marks an open goal as open, with no set-a-goal offer', () => {
+    const [t] = build({ ratings, goals: [baseGoal] })
+    expect(t.goalStatus).toBe('open')
+    expect(t.currentGoal?.met).toBeNull()
+    expect(t.canSetGoal).toBe(false)
+  })
+
+  it('moves a reached goal into the history, leaves no current goal, and allows a new one', () => {
+    const [t] = build({ ratings, goals: [baseGoal], outcomes: [outcome(baseGoal.id)] })
+    expect(t.goalStatus).toBe('met')
+    expect(t.currentGoal).toBeNull()
+    expect(t.previousGoals).toHaveLength(1)
+    expect(t.previousGoals[0].met).toMatchObject({ outcomeId: `o-${baseGoal.id}`, rating: 8, answered: false, answerLabels: [] })
+    expect(t.canSetGoal).toBe(true)
+  })
+
+  it('words a saved answer as it was chosen, including the write-in and the student\'s own plan', () => {
+    const own = goal('2026-02-01T10:00:00Z', { studyPlan: ['other'], studyPlanOther: 'Pair with a friend' })
+    const [t] = build({
+      ratings, goals: [own],
+      outcomes: [outcome(own.id, { whatHelped: ['flashcards', 'own_plan', 'other'], whatHelpedOther: 'A study group', answeredAt: '2026-03-02T10:00:00Z' })],
+    })
+    expect(t.currentGoal).toBeNull()
+    expect(t.previousGoals[0].met?.answered).toBe(true)
+    expect(t.previousGoals[0].met?.answerLabels).toEqual(['Studying flashcards', 'Pair with a friend', 'Other: A study group'])
+  })
+
+  it('offers "set a goal" for a skill with no goal, but not above a rating of 10, for maintaining, mastered or reactivated skills', () => {
+    expect(build({ ratings })[0]).toMatchObject({ goalStatus: 'none', canSetGoal: true })
+    expect(build({ ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z')] })[0].canSetGoal).toBe(false)
+    expect(build({ ratings, goals: [goal('2026-02-01T10:00:00Z', { goal: null, goalIsMaintain: true })] })[0]).toMatchObject({ goalStatus: 'maintain', canSetGoal: false })
+    expect(build({ ratings, progress: [{ skillId: 's1', isMastered: true, isNewPending: false }] })[0].canSetGoal).toBe(false)
+    const events: EventRow[] = [{ skillId: 's1', eventType: 'reactivated', createdAt: '2026-04-01T10:00:00Z' }]
+    expect(build({ ratings, events, progress: [{ skillId: 's1', isMastered: false, isNewPending: true }] })[0].canSetGoal).toBe(false)
+  })
+
+  it('keeps an earlier met goal\'s answer in the history after a newer goal is set', () => {
+    const first = goal('2026-02-01T10:00:00Z', { goal: 7 })
+    const second = goal('2026-03-05T10:00:00Z', { goal: 10 })
+    const [t] = build({ ratings, goals: [first, second], outcomes: [outcome(first.id)] })
+    expect(t.goalStatus).toBe('open')
+    expect(t.previousGoals).toHaveLength(1)
+    expect(t.previousGoals[0].met?.answered).toBe(false)
+  })
+
+  it('lists every unanswered reached goal, newest first, and drops answered ones', () => {
+    const first = goal('2026-02-01T10:00:00Z', { goal: 7 })
+    const second = goal('2026-03-05T10:00:00Z', { goal: 9 })
+    const trends = build({
+      ratings, goals: [first, second],
+      outcomes: [
+        outcome(first.id, { metAt: '2026-03-01T10:00:00Z' }),
+        outcome(second.id, { metAt: '2026-03-20T10:00:00Z', answeredAt: '2026-03-21T10:00:00Z', whatHelped: ['flashcards'] }),
+      ],
+    })
+    expect(unansweredMetGoals(trends)).toEqual([
+      expect.objectContaining({ skillId: 's1', skillName: 'React', outcomeId: `o-${first.id}`, target: 7 }),
+    ])
+    expect(unansweredMetGoals(build({ ratings, goals: [first] }))).toEqual([])
   })
 })

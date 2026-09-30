@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { getMyNotifications, markNotificationRead, markAllNotificationsRead } from '@/lib/notification-actions'
+import { getMyNotifications, markNotificationRead, markAllNotificationsRead, clearNotification } from '@/lib/notification-actions'
 import type { Notification } from '@/lib/notification-actions'
+import { GOAL_MET_REMINDER_TYPE } from '@/lib/goal-met-notification'
 
 function BellIcon({ unread }: { unread: boolean }) {
   return (
@@ -28,6 +29,9 @@ function relativeTime(dateStr: string): string {
 }
 
 function notificationHref(n: Notification): string | null {
+  if (n.type === 'confidence_goal_what_helped') {
+    return '/student/skill-confidence#what-helped'
+  }
   if (n.type === 'deck_updated' && n.deck_id) {
     return `/flashcards/decks/${n.deck_id}?notification=${n.id}`
   }
@@ -88,7 +92,24 @@ export default function NotificationBell() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   }
 
+  // Hides the notification from the bell only; whatever it points at (for example a "what helped"
+  // follow-up on My Skill Confidence) is untouched.
+  async function handleClear(n: Notification) {
+    setNotifications(prev => prev.filter(x => x.id !== n.id))
+    await clearNotification(n.id)
+  }
+
   async function handleClickNotification(n: Notification) {
+    // The "log what helped" reminder is done with once the student follows it to My Skill Confidence:
+    // clicking it clears it (the follow-up there stays until they answer).
+    if (n.type === GOAL_MET_REMINDER_TYPE) {
+      setNotifications(prev => prev.filter(x => x.id !== n.id))
+      await clearNotification(n.id)
+      const href = notificationHref(n)
+      setOpen(false)
+      if (href) router.push(href)
+      return
+    }
     if (!n.read) {
       await markNotificationRead(n.id)
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))
@@ -138,11 +159,11 @@ export default function NotificationBell() {
           ) : (
             <ul className="max-h-72 overflow-y-auto divide-y divide-border">
               {notifications.map(n => (
-                <li key={n.id}>
+                <li key={n.id} className={`flex items-start hover:bg-background transition-colors ${!n.read ? 'bg-teal-light/30' : ''}`}>
                   <button
                     type="button"
                     onClick={() => handleClickNotification(n)}
-                    className={`w-full text-left px-4 py-3 hover:bg-background transition-colors ${!n.read ? 'bg-teal-light/30' : ''}`}
+                    className="flex-1 min-w-0 text-left pl-4 pr-2 py-3"
                   >
                     <div className="flex items-start gap-2">
                       {!n.read && (
@@ -153,6 +174,14 @@ export default function NotificationBell() {
                         <p className="text-xs text-muted-text mt-0.5">{relativeTime(n.created_at)}</p>
                       </div>
                     </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleClear(n)}
+                    aria-label={`Clear notification: ${n.message}`}
+                    className="shrink-0 px-3 py-3 text-xs text-muted-text hover:text-red-500 transition-colors"
+                  >
+                    Clear
                   </button>
                 </li>
               ))}

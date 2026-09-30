@@ -25,7 +25,7 @@ const trend = (skillId: string, name: string, over: Partial<SkillTrend> = {}): S
   courseBreakpoints: [{ x: 1.5, label: 'Frontend' }],
   events: [], currentGoal: null, previousGoals: [],
   isMastered: false, previouslyMastered: false, masteredDates: [], reactivatedDates: [], pendingNew: false,
-  latestRating: 6, ...over,
+  latestRating: 6, goalStatus: 'none', canSetGoal: false, ...over,
 })
 
 const skills: CourseTrendSkill[] = [
@@ -274,5 +274,26 @@ describe('SkillConfidenceInstructorView', () => {
   it('explains when nobody is enrolled', () => {
     render(<SkillConfidenceInstructorView students={[]} skills={[]} />)
     expect(screen.getByText(/No students are currently enrolled/)).toBeInTheDocument()
+  })
+})
+
+describe('SkillConfidenceInstructorView goal outcomes', () => {
+  it('shows a reached goal and its answer read-only, or "Not answered yet", with no controls', async () => {
+    const user = userEvent.setup()
+    const goalWith = (answered: boolean) => ({
+      id: 'g1', goal: 7, isMaintain: false, targetDate: '2026-03-01', studyPlanLabels: [], ownPlanText: null, setAt: '2026-02-01T10:00:00Z',
+      met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 8, answered, answerLabels: answered ? ['Studying flashcards'] : [] },
+    })
+    const cohort: CourseTrendStudent[] = [
+      { id: 'u1', name: 'Ada', trends: [trend('s1', 'React', { currentGoal: goalWith(true), goalStatus: 'met', canSetGoal: true })] },
+      { id: 'u2', name: 'Grace', trends: [trend('s1', 'React', { currentGoal: goalWith(false), goalStatus: 'met', canSetGoal: true })] },
+    ]
+    render(<SkillConfidenceInstructorView students={cohort} skills={skills} />)
+    await openStudentsTab(user)
+    await user.click(screen.getByText('Ada'))
+    await user.click(screen.getByText('Grace'))
+    expect(screen.getByText('Studying flashcards')).toBeInTheDocument()
+    expect(screen.getByText(/What helped: Not answered yet/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /answer|set a goal|reactivate/i })).not.toBeInTheDocument()
   })
 })

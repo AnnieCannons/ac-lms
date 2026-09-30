@@ -6,6 +6,10 @@
 
 const MAX_RATING = 10
 
+// Longest "Other" write-in accepted, shared by the study plan and the goal-met "what
+// helped" answer so the two stay in step (also enforced by a CHECK on the outcomes table).
+export const OTHER_TEXT_MAX_LENGTH = 200
+
 export const STUDY_PLAN_OPTIONS = [
   { value: 'practice_alone', label: 'Practice on my own (re-do assignments, bonus work)' },
   { value: 'review_lessons', label: 'Review the lesson materials again' },
@@ -83,6 +87,7 @@ export function validateGoalInput(
   const includesOther = input.studyPlan.includes('other')
   const studyPlanOther = includesOther ? (input.studyPlanOther ?? '').trim() : null
   if (includesOther && studyPlanOther === '') return null
+  if (studyPlanOther !== null && studyPlanOther.length > OTHER_TEXT_MAX_LENGTH) return null
 
   return { goal: input.goal, goalIsMaintain: false, targetDate: input.targetDate, studyPlan: input.studyPlan, studyPlanOther }
 }
@@ -98,4 +103,52 @@ export function nextMasteryState(
   const tenRatingCount = priorCount + 1
   const isMastered = tenRatingCount >= 2
   return { tenRatingCount, isMastered, justMastered: isMastered }
+}
+
+// What helped a student reach a goal (Phase 6). Deliberately mirrors the study-plan values
+// (same categories, past tense) so a later phase can line up "planned" with "helped".
+export const WHAT_HELPED_OPTIONS = [
+  { value: 'practice_alone', label: 'Practicing on my own' },
+  { value: 'review_lessons', label: 'Reviewing the lesson materials' },
+  { value: 'ta_help', label: 'Getting help from an Instructor or a TA' },
+  { value: 'outside_tutorials', label: 'Outside tutorials or videos' },
+  { value: 'flashcards', label: 'Studying flashcards' },
+  { value: 'review_notes', label: 'Reviewing class notes' },
+  { value: 'other', label: 'Other' },
+] as const
+
+// The student's own study-plan "Other" text for that goal, offered as one more choice.
+export const OWN_PLAN_VALUE = 'own_plan'
+
+const WHAT_HELPED_VALUES = new Set<string>(WHAT_HELPED_OPTIONS.map(o => o.value))
+
+export interface ValidatedWhatHelped {
+  whatHelped: string[]
+  other: string | null
+}
+
+// Returns null for anything invalid: nothing chosen, an unknown value, "own plan" when the
+// goal had no write-in, or a blank / too-long "Other".
+export function validateWhatHelped(
+  selections: unknown,
+  otherText: unknown,
+  ownPlanText: string | null
+): ValidatedWhatHelped | null {
+  if (!Array.isArray(selections) || selections.length === 0) return null
+  const unique = [...new Set(selections)]
+  for (const value of unique) {
+    if (typeof value !== 'string') return null
+    if (value === OWN_PLAN_VALUE) {
+      if (!ownPlanText || ownPlanText.trim() === '') return null
+    } else if (!WHAT_HELPED_VALUES.has(value)) {
+      return null
+    }
+  }
+
+  let other: string | null = null
+  if (unique.includes('other')) {
+    other = typeof otherText === 'string' ? otherText.trim() : ''
+    if (other === '' || other.length > OTHER_TEXT_MAX_LENGTH) return null
+  }
+  return { whatHelped: unique as string[], other }
 }

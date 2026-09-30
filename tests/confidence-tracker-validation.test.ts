@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { isValidTargetDate, validateGoalInput, nextMasteryState, type StudyPlan } from '@/lib/confidence-tracker-validation'
+import {
+  isValidTargetDate,
+  validateGoalInput,
+  validateWhatHelped,
+  nextMasteryState,
+  OTHER_TEXT_MAX_LENGTH,
+  OWN_PLAN_VALUE,
+  type StudyPlan,
+} from '@/lib/confidence-tracker-validation'
 
 const TODAY = new Date('2026-09-28T12:00:00')
 
@@ -152,5 +160,39 @@ describe('nextMasteryState', () => {
 
   it('leaves an already-mastered skill\'s count untouched even for a non-10 rating', () => {
     expect(nextMasteryState(2, true, 5)).toEqual({ tenRatingCount: 2, isMastered: true, justMastered: false })
+  })
+})
+
+describe('"Other" write-in length', () => {
+  const base = { goal: 7, targetDate: '2026-10-05', studyPlan: ['other' as StudyPlan] }
+  it('accepts up to the shared limit and rejects longer text', () => {
+    expect(validateGoalInput(5, { ...base, studyPlanOther: 'x'.repeat(OTHER_TEXT_MAX_LENGTH) }, TODAY)).not.toBeNull()
+    expect(validateGoalInput(5, { ...base, studyPlanOther: 'x'.repeat(OTHER_TEXT_MAX_LENGTH + 1) }, TODAY)).toBeNull()
+  })
+})
+
+describe('validateWhatHelped', () => {
+  it('accepts one or more known options and drops duplicates', () => {
+    expect(validateWhatHelped(['flashcards', 'ta_help', 'flashcards'], undefined, null)).toEqual({
+      whatHelped: ['flashcards', 'ta_help'],
+      other: null,
+    })
+  })
+  it('rejects nothing chosen, unknown values and non-arrays', () => {
+    expect(validateWhatHelped([], undefined, null)).toBeNull()
+    expect(validateWhatHelped(['nope'], undefined, null)).toBeNull()
+    expect(validateWhatHelped('flashcards', undefined, null)).toBeNull()
+  })
+  it('requires a non-blank, length-limited write-in when "Other" is chosen, and ignores it otherwise', () => {
+    expect(validateWhatHelped(['other'], '  ', null)).toBeNull()
+    expect(validateWhatHelped(['other'], undefined, null)).toBeNull()
+    expect(validateWhatHelped(['other'], 'x'.repeat(OTHER_TEXT_MAX_LENGTH + 1), null)).toBeNull()
+    expect(validateWhatHelped(['other'], '  A study group  ', null)).toEqual({ whatHelped: ['other'], other: 'A study group' })
+    expect(validateWhatHelped(['flashcards'], 'abandoned text', null)?.other).toBeNull()
+  })
+  it('offers the student\'s own study-plan text only when that goal had one', () => {
+    expect(validateWhatHelped([OWN_PLAN_VALUE], undefined, null)).toBeNull()
+    expect(validateWhatHelped([OWN_PLAN_VALUE], undefined, '   ')).toBeNull()
+    expect(validateWhatHelped([OWN_PLAN_VALUE], undefined, 'Pair with a friend')).toEqual({ whatHelped: [OWN_PLAN_VALUE], other: null })
   })
 })
