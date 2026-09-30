@@ -30,9 +30,12 @@ export interface ConfidenceRatingInput {
 }
 
 export interface ConfidenceSkillWithStatus extends ConfidenceSkill {
-  // True only the very first time this student is rating this skill — drives the "New"
-  // tag. Independent of canSetGoal: a skipped goal on that first rating means the "New"
-  // tag stops showing on later occasions, but goal-setting is still offered.
+  // True only when this student has NEVER rated this skill before (no earlier rating on any
+  // assignment) — drives the "New" badge. A reactivated skill is not new: it has earlier ratings, so
+  // no badge, even though reactivation (is_new_pending on the progress row) still restarts goal-setting,
+  // skips kudos on its next rating, and shows "You'll set a new goal…" on My Skill Confidence.
+  // Independent of canSetGoal: a skipped goal on that first rating means the badge stops showing on
+  // later occasions, but goal-setting is still offered.
   isNew: boolean
   // True as long as no goal (numeric or "maintaining") has been captured for this skill
   // yet — drives whether the goal-setting section appears. Stays true across many
@@ -77,6 +80,16 @@ export async function getAssignmentSkillsForStudent(
     .in('skill_id', tagged.map(s => s.id))
   if (progressError) return { error: progressError.message, skills: [] }
 
+  // "New" badge = no earlier rating of this skill at all. Read from the ratings themselves rather than the
+  // progress row, because a reactivated skill has a progress row flagged new-pending but real earlier ratings.
+  const { data: ratedRows, error: ratedError } = await supabase
+    .from('confidence_tracker_ratings')
+    .select('skill_id')
+    .eq('student_id', user.id)
+    .in('skill_id', tagged.map(s => s.id))
+  if (ratedError) return { error: ratedError.message, skills: [] }
+  const everRated = new Set((ratedRows ?? []).map(r => r.skill_id))
+
   const progressBySkill = new Map((progressRows ?? []).map(p => [p.skill_id, p]))
   return {
     error: null,
@@ -86,7 +99,7 @@ export async function getAssignmentSkillsForStudent(
         const progress = progressBySkill.get(s.id)
         return {
           ...s,
-          isNew: progress?.is_new_pending ?? true,
+          isNew: !everRated.has(s.id),
           canSetGoal: !progress || (progress.goal == null && !progress.goal_is_maintain),
         }
       }),

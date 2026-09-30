@@ -59,7 +59,7 @@ Update `SCHEMA.md` and the Confidence Tracker paragraph in `CLAUDE.md` as part o
 ## Verification
 1. `npm test`, `npm run lint`, `npm run build`.
 2. Apply the migration in the Supabase Dashboard; with the flag on in `.env.local`, run `npm run dev` and use the app in the browser preview:
-   - Student: rate a tagged skill 10 on two assignments across two courses → chart shows a course breakpoint and a "mastered" marker; skill sits in the Mastered section; Reactivate → confirm → skill returns with the previously-mastered note; next tagged assignment shows the "New" tag, allows a new goal, and the old goal stays in history; two more 10s re-master it and the page lists both cycles.
+   - Student: rate a tagged skill 10 on two assignments across two courses → chart shows a course breakpoint and a "mastered" marker; skill sits in the Mastered section; Reactivate → confirm → skill returns with the previously-mastered note; next tagged assignment shows no "New" badge (it has earlier ratings) but allows a new goal, and the old goal stays in history; two more 10s re-master it and the page lists both cycles.
    - Check the SQL side: rows appear in `confidence_tracker_goal_history` / `confidence_tracker_skill_events`, and a re-run of the backfill adds no duplicates.
    - Instructor/staff: class overview numbers match hand-computed values; a student's drill-in shows the earlier-course ratings; a TA and a student cannot open the page; students who left the course are absent.
    - Flag off: neither page loads, no nav or old-page links appear, reactivate is rejected. Verify light/dark/high-contrast and mobile width.
