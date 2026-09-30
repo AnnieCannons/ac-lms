@@ -3,6 +3,8 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { listAssignmentSkills, type ConfidenceSkill } from '@/lib/skill-actions'
 import { validateGoalInput, nextMasteryState, type ConfidenceGoalInput } from '@/lib/confidence-tracker-validation'
+import { computeKudos, latestPriorRatingBySkill, type KudosItem } from '@/lib/confidence-kudos'
+import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 
 const MIN_RATING = 1
 const MAX_RATING = 10
@@ -86,7 +88,7 @@ export async function getAssignmentSkillsForStudent(
 export async function saveConfidenceRatings(
   assignmentId: string,
   ratings: ConfidenceRatingInput[]
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; kudos?: KudosItem[] }> {
   const valid = ratings.filter(r => isValidRating(r.rating))
   if (valid.length === 0) return { error: null }
 
@@ -134,6 +136,16 @@ export async function saveConfidenceRatings(
   candidates = candidates.filter(c => !progressBySkill.get(c.skillId)?.is_mastered)
   if (candidates.length === 0) return { error: null }
 
+  // Phase 5 kudos: read the student's earlier ratings BEFORE inserting this submission's.
+  // Best-effort — if this read fails we just skip kudos rather than fail a good save.
+  const { data: priorRows, error: priorError } = await supabase
+    .from('confidence_tracker_ratings')
+    .select('id, skill_id, rating, created_at')
+    .eq('student_id', user.id)
+    .in('skill_id', candidates.map(c => c.skillId))
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+
   const rows = candidates.map(c => ({
     student_id: user.id,
     assignment_id: assignmentId,
@@ -176,5 +188,11 @@ export async function saveConfidenceRatings(
     .upsert(progressUpserts, { onConflict: 'student_id,skill_id' })
   if (progressUpsertError) return { error: progressUpsertError.message }
 
-  return { error: null }
+  // Kudos are computed here but stored nowhere; the flag only withholds them (ratings above
+  // are saved either way).
+  const kudos =
+    isConfidenceRatingsEnabled() && !priorError
+      ? computeKudos(candidates, latestPriorRatingBySkill(priorRows ?? []), progressBySkill)
+      : []
+  return { error: null, kudos }
 }
