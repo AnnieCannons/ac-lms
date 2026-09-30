@@ -11,6 +11,7 @@ import { saveSubmission } from "@/lib/submission-actions";
 import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
 import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
+import ConfidenceKudos, { type KudosDisplayItem } from "@/components/ui/ConfidenceKudos";
 import type { ConfidenceSkillWithStatus } from "@/lib/confidence-tracker-actions";
 import type { GoalState, StudyPlan, ConfidenceGoalInput } from "@/lib/confidence-tracker-validation";
 import { isOptionalClosed } from "@/lib/date-utils";
@@ -136,6 +137,8 @@ export default function SubmissionForm({
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [goals, setGoals] = useState<Record<string, GoalState>>({});
   const [ratingError, setRatingError] = useState<string | null>(null);
+  // One-time Phase 5 kudos for this submission; component-local on purpose (never persisted).
+  const [kudos, setKudos] = useState<KudosDisplayItem[]>([]);
 
   // Hydrate from sessionStorage after mount, not during the initial render — reading it
   // in a lazy useState initializer would make the client's first render diverge from the
@@ -297,9 +300,16 @@ export default function SubmissionForm({
           return { skillId, rating, goal };
         });
         if (entries.length > 0) {
-          const { error: ratingSaveError } = await saveConfidenceRatings(assignmentId, entries);
+          const { error: ratingSaveError, kudos: kudosItems } = await saveConfidenceRatings(assignmentId, entries);
           if (ratingSaveError) {
             setRatingError("Your assignment was submitted, but we couldn't save your confidence rating(s) or goal due to an error — please let your instructor know.");
+          } else if (kudosItems && kudosItems.length > 0) {
+            setKudos(
+              kudosItems.flatMap(k => {
+                const skill = confidenceSkills.find(s => s.id === k.skillId);
+                return skill ? [{ skillName: skill.name, from: k.from, to: k.to }] : [];
+              })
+            );
           }
         }
         clearStoredConfidenceData();
@@ -458,6 +468,8 @@ export default function SubmissionForm({
           {ratingError}
         </p>
       )}
+
+      <ConfidenceKudos items={kudos} onDismiss={() => setKudos([])} />
 
       {/* ── VIEW MODE: show submitted content ── */}
       {mode === "view" && saved && (

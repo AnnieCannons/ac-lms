@@ -179,6 +179,52 @@ describe('SubmissionForm confidence rating prompt', () => {
     expect(await screen.findByText('Turned in')).toBeInTheDocument()
   })
 
+  describe('incremental kudos', () => {
+    async function rateReactAndSubmit() {
+      const user = userEvent.setup()
+      renderForm()
+      const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '6' }))
+      await submitLink(user)
+      return user
+    }
+
+    it('shows the change beside "Turned in" when the action reports an increase, and it can be dismissed', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: null,
+        kudos: [{ skillId: 'skill-a', from: 4, to: 6 }],
+      })
+      const user = await rateReactAndSubmit()
+      expect(await screen.findByText(/Your confidence in React went up from 4 to 6/)).toBeInTheDocument()
+      expect(await screen.findByText('Turned in')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: /dismiss progress message/i }))
+      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+    })
+
+    it('shows nothing when no kudos are returned', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [] })
+      await rateReactAndSubmit()
+      expect(await screen.findByText('Turned in')).toBeInTheDocument()
+      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+    })
+
+    it('shows the rating error and no kudos when the rating save fails', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: 'network error',
+        kudos: [{ skillId: 'skill-a', from: 4, to: 6 }],
+      })
+      await rateReactAndSubmit()
+      expect(await screen.findByText(/couldn't save your confidence rating/i)).toBeInTheDocument()
+      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+    })
+
+    it('never shows kudos in Student Preview', async () => {
+      renderForm({ isStudentPreview: true })
+      await screen.findByText('React')
+      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+    })
+  })
+
   describe('new-skill goal capture', () => {
     it('shows a "New" tag for a skill the student has never rated before', async () => {
       renderForm({ confidenceSkills: NEW_SKILL })
