@@ -13,9 +13,11 @@ vi.mock('recharts', () => {
 const refresh = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
 vi.mock('@/lib/confidence-trend-actions', () => ({ reactivateConfidenceSkill: vi.fn() }))
+vi.mock('@/lib/goal-met-actions', () => ({ answerWhatHelped: vi.fn(), setSkillGoal: vi.fn() }))
 
 import SkillConfidenceView from '@/components/ui/SkillConfidenceView'
 import { reactivateConfidenceSkill } from '@/lib/confidence-trend-actions'
+import { answerWhatHelped, setSkillGoal } from '@/lib/goal-met-actions'
 
 const trend = (over: Partial<SkillTrend> = {}): SkillTrend => ({
   skillId: 's1',
@@ -35,6 +37,8 @@ const trend = (over: Partial<SkillTrend> = {}): SkillTrend => ({
   reactivatedDates: [],
   pendingNew: false,
   latestRating: 6,
+  goalStatus: 'none',
+  canSetGoal: false,
   ...over,
 })
 
@@ -54,6 +58,8 @@ const pick = async (user: ReturnType<typeof userEvent.setup>, combo: RegExp, ...
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(reactivateConfidenceSkill).mockResolvedValue({ error: null })
+  vi.mocked(answerWhatHelped).mockResolvedValue({ error: null })
+  vi.mocked(setSkillGoal).mockResolvedValue({ error: null })
 })
 
 describe('SkillConfidenceView', () => {
@@ -148,7 +154,7 @@ describe('SkillConfidenceView', () => {
   it('shows the current goal with its plan and target date, plainly, even when the date has passed', async () => {
     const user = userEvent.setup()
     render(<SkillConfidenceView canReactivate trends={[trend({
-      currentGoal: { goal: 8, isMaintain: false, targetDate: '2020-01-05', studyPlanLabels: ['Study flashcards'], setAt: '2026-02-01T10:00:00Z' },
+      currentGoal: { id: 'g1', met: null, ownPlanText: null, goal: 8, isMaintain: false, targetDate: '2020-01-05', studyPlanLabels: ['Study flashcards'], setAt: '2026-02-01T10:00:00Z' },
     })]} />)
     await pick(user, ACTIVE, 'React')
     expect(screen.getByText('Current goal')).toBeInTheDocument()
@@ -163,15 +169,22 @@ describe('SkillConfidenceView', () => {
     expect(document.body.textContent).not.toMatch(/overdue|congrat|goal met|great job/i)
   })
 
-  it('shows a maintaining goal without a date or plan', async () => {
+  it('shows a skill that is maintaining (one 10, not mastered) as maintained, with no goal panel, goal or date set', async () => {
     const user = userEvent.setup()
     render(<SkillConfidenceView canReactivate trends={[trend({
-      currentGoal: { goal: null, isMaintain: true, targetDate: null, studyPlanLabels: [], setAt: '2026-02-01T10:00:00Z' },
+      currentGoal: { id: 'g1', met: null, ownPlanText: null, goal: null, isMaintain: true, targetDate: null, studyPlanLabels: [], setAt: '2026-02-01T10:00:00Z' },
+      goalStatus: 'maintain',
+      latestRating: 10,
     })]} />)
     await pick(user, ACTIVE, 'React')
-    expect(screen.getByText(/Maintaining this rating/)).toBeInTheDocument()
+    expect(screen.getByText("You're now maintaining this rating.")).toBeInTheDocument()
+    expect(screen.queryByText('Current goal')).not.toBeInTheDocument()
+    expect(screen.queryByText('Date set')).not.toBeInTheDocument()
     expect(screen.queryByText('Target date')).not.toBeInTheDocument()
     expect(screen.queryByText('Planned study methods')).not.toBeInTheDocument()
+    // not mastered, so there is nothing to reactivate and no goal to set
+    expect(screen.queryByRole('button', { name: 'Reactivate' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Set a goal' })).not.toBeInTheDocument()
   })
 
   it('shows the goal panel for a skill without a goal, saying none is set', async () => {
@@ -191,17 +204,63 @@ describe('SkillConfidenceView', () => {
     expect(screen.getByText("You'll set a new goal the next time you rate this skill.")).toBeInTheDocument()
   })
 
-  it('shows the goal panel on mastered skills too', async () => {
+  it('shows mastered skills as maintained, with no goal panel, goal or date set', async () => {
     const user = userEvent.setup()
-    render(<SkillConfidenceView trends={[mastered()]} canReactivate />)
+    render(<SkillConfidenceView canReactivate trends={[mastered({
+      currentGoal: { id: 'g1', met: null, ownPlanText: null, goal: null, isMaintain: true, targetDate: null, studyPlanLabels: [], setAt: '2026-02-01T10:00:00Z' },
+    })]} />)
     await pick(user, MASTERED, 'Git')
-    expect(screen.getByText('Current goal')).toBeInTheDocument()
+    expect(screen.getByText("You're now maintaining this rating.")).toBeInTheDocument()
+    expect(screen.queryByText('Current goal')).not.toBeInTheDocument()
+    expect(screen.queryByText('Date set')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Goal$/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Earlier goals/)).not.toBeInTheDocument()
+  })
+
+  it('puts Reactivate beside "You\'re now maintaining this rating." on a mastered skill', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[mastered()]} />)
+    await pick(user, MASTERED, 'Git')
+    const row = screen.getByText("You're now maintaining this rating.").parentElement!
+    expect(within(row).getByRole('button', { name: 'Reactivate' })).toBeInTheDocument()
+  })
+
+  it('keeps a mastered skill\'s numeric goal, and its answer, viewable in the goal history', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[mastered({
+      currentGoal: {
+        id: 'g1', goal: 10, isMaintain: false, targetDate: '2026-03-01', studyPlanLabels: [], ownPlanText: null, setAt: '2026-02-01T10:00:00Z',
+        met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 10, answered: true, answerLabels: ['Studying flashcards'] },
+      },
+    })]} />)
+    await pick(user, MASTERED, 'Git')
+    expect(screen.getByText("You're now maintaining this rating.")).toBeInTheDocument()
+    expect(screen.queryByText('Current goal')).not.toBeInTheDocument()
+    expect(screen.getByText('Earlier goals (1)')).toBeInTheDocument()
+  })
+
+  it('labels the planned study methods in an earlier goal, separately from the "what helped" answer', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({
+      previousGoals: [
+        { ...metGoal(), studyPlanLabels: ['Watch outside tutorials or videos'], met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 8, answered: true, answerLabels: ['Studying flashcards'] } },
+        { id: 'g0', met: null, ownPlanText: null, goal: 8, isMaintain: false, targetDate: '2026-03-03', studyPlanLabels: ['Study flashcards', 'Other: Pair programming'], setAt: '2026-01-01T10:00:00Z' },
+      ],
+    })]} />)
+    await pick(user, ACTIVE, 'React')
+    const history = within(screen.getByText('Earlier goals (2)').closest('details')!)
+    expect(history.getAllByText('Planned study methods:')).toHaveLength(2)
+    expect(history.getAllByText('What helped:')).toHaveLength(1) // only the reached goal has an answer
+    // the study method is listed under its own label, before (and apart from) the answer
+    const studyMethod = history.getByText('Watch outside tutorials or videos')
+    expect(studyMethod.closest('div')!.textContent).toMatch(/^Planned study methods:/)
+    expect(history.getByText('Studying flashcards').closest('div')!.textContent).toMatch(/^What helped:/)
   })
 
   it('keeps earlier goals viewable as history', async () => {
     const user = userEvent.setup()
     render(<SkillConfidenceView canReactivate trends={[trend({
-      previousGoals: [{ goal: 4, isMaintain: false, targetDate: '2026-03-03', studyPlanLabels: [], setAt: '2026-02-01T10:00:00Z' }],
+      previousGoals: [{ id: 'g1', met: null, ownPlanText: null, goal: 4, isMaintain: false, targetDate: '2026-03-03', studyPlanLabels: [], setAt: '2026-02-01T10:00:00Z' }],
     })]} />)
     await pick(user, ACTIVE, 'React')
     expect(screen.getByText('Earlier goals (1)')).toBeInTheDocument()
@@ -268,5 +327,120 @@ describe('SkillConfidenceView', () => {
     await user.click(button)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(reactivateConfidenceSkill).not.toHaveBeenCalled()
+  })
+})
+
+const metGoal = (over: Record<string, unknown> = {}) => ({
+  id: 'g1', goal: 7, isMaintain: false, targetDate: '2026-03-01', studyPlanLabels: [], ownPlanText: null, setAt: '2026-02-01T10:00:00Z',
+  met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 8, answered: false, answerLabels: [] as string[] },
+  ...over,
+})
+
+describe('SkillConfidenceView goal follow-ups', () => {
+  it('shows an actionable "What helped?" summary at the top and beside the skill for a reached, unanswered goal', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ currentGoal: null, previousGoals: [metGoal()], goalStatus: 'met' })]} />)
+    const summary = screen.getByRole('heading', { name: 'What helped?' }).closest('section')!
+    expect(summary).toHaveAttribute('id', 'what-helped')
+    expect(within(summary).getByText(/React: you reached your goal of 7 on Mar 2, 2026\./)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/Invalid Date/)
+
+    await pick(user, ACTIVE, 'React')
+    expect(screen.getByText('You reached your goal of 7 in React. What helped?')).toBeInTheDocument()
+  })
+
+  it('has no summary when nothing is waiting for an answer', () => {
+    render(<SkillConfidenceView canReactivate trends={[trend()]} />)
+    expect(screen.queryByRole('heading', { name: 'What helped?' })).not.toBeInTheDocument()
+  })
+
+  it('answers from the summary, saving the options, then refreshes', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ currentGoal: null, previousGoals: [metGoal()], goalStatus: 'met' })]} />)
+    await user.click(within(screen.getByRole('heading', { name: 'What helped?' }).closest('section')!).getByRole('button', { name: 'Answer' }))
+    const dialog = screen.getByRole('dialog', { name: 'React' })
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Reviewing class notes' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(answerWhatHelped).toHaveBeenCalledWith('o1', ['review_notes'], undefined))
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('moves a reached goal out of "Current goal" into "Earlier goals", with "No goal set yet" and a Set a goal button beside it', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ currentGoal: null, previousGoals: [metGoal()], goalStatus: 'met', canSetGoal: true })]} />)
+    await pick(user, ACTIVE, 'React')
+    const panel = within(screen.getByText('Current goal').parentElement!)
+    expect(panel.getByText('No goal set for this skill yet.')).toBeInTheDocument()
+    expect(panel.getByRole('button', { name: 'Set a goal' })).toBeInTheDocument()
+    expect(panel.queryByText('Reached')).not.toBeInTheDocument()
+    expect(screen.getByText('Earlier goals (1)')).toBeInTheDocument()
+  })
+
+  it('renders its dialog outside the vertically spaced page container, so the backdrop covers the whole screen', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ currentGoal: null, previousGoals: [metGoal()], goalStatus: 'met' })]} />)
+    await user.click(within(screen.getByRole('heading', { name: 'What helped?' }).closest('section')!).getByRole('button', { name: 'Answer' }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.closest('.space-y-12')).toBeNull()
+  })
+
+  it('shows the answer read-only in the goal history once answered, and no follow-up', async () => {
+    const user = userEvent.setup()
+    const answered = metGoal({ met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 8, answered: true, answerLabels: ['Studying flashcards', 'Other: A study group'] } })
+    render(<SkillConfidenceView canReactivate trends={[trend({ currentGoal: null, previousGoals: [answered], goalStatus: 'met' })]} />)
+    expect(screen.queryByRole('heading', { name: 'What helped?' })).not.toBeInTheDocument()
+    await pick(user, ACTIVE, 'React')
+    expect(screen.getByText('Studying flashcards')).toBeInTheDocument()
+    expect(screen.getByText('Other: A study group')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Answer' })).not.toBeInTheDocument()
+  })
+
+  it('offers "Set a goal" only when allowed, and saves it following the submission rules', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ canSetGoal: true })]} />)
+    await pick(user, ACTIVE, 'React')
+    await user.click(screen.getByRole('button', { name: 'Set a goal' }))
+    const dialog = screen.getByRole('dialog', { name: 'Set a goal for React' })
+    // latest rating is 6: suggested 8, nothing at or below 6 offered
+    expect(within(dialog).getByRole('radio', { name: 'Goal 8' })).toHaveAttribute('aria-checked', 'true')
+    expect(within(dialog).queryByRole('radio', { name: 'Goal 6' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Study flashcards' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Set goal' }))
+    await waitFor(() => expect(setSkillGoal).toHaveBeenCalledWith('s1', expect.objectContaining({ goal: 8, studyPlan: ['flashcards'] })))
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
+  })
+
+  it('puts "Set a goal" inside the goal panel, beside "No goal set for this skill yet."', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ canSetGoal: true })]} />)
+    await pick(user, ACTIVE, 'React')
+    const panel = within(screen.getByText('Current goal').parentElement!)
+    expect(panel.getByText('No goal set for this skill yet.')).toBeInTheDocument()
+    expect(panel.getByRole('button', { name: 'Set a goal' })).toBeInTheDocument()
+  })
+
+  it('does not offer "Set a goal" on a skill that cannot take one', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[trend({ canSetGoal: false })]} />)
+    await pick(user, ACTIVE, 'React')
+    expect(screen.queryByRole('button', { name: 'Set a goal' })).not.toBeInTheDocument()
+  })
+
+  it('disables answering and goal-setting for staff previewing the page', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate={false} trends={[trend({ currentGoal: null, previousGoals: [metGoal()], goalStatus: 'met', canSetGoal: true })]} />)
+    expect(within(screen.getByRole('heading', { name: 'What helped?' }).closest('section')!).getByRole('button', { name: 'Answer' })).toBeDisabled()
+    await pick(user, ACTIVE, 'React')
+    expect(screen.getByRole('button', { name: 'Set a goal' })).toBeDisabled()
+  })
+
+  it('still lists an unanswered reached goal for a mastered skill, without a next goal', async () => {
+    const user = userEvent.setup()
+    render(<SkillConfidenceView canReactivate trends={[mastered({ currentGoal: null, previousGoals: [metGoal({ goal: 10 })], goalStatus: 'met' })]} />)
+    expect(screen.getByRole('heading', { name: 'What helped?' })).toBeInTheDocument()
+    await pick(user, MASTERED, 'Git')
+    expect(screen.queryByRole('button', { name: 'Set a goal' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument()
   })
 })

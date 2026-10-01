@@ -6,6 +6,7 @@ import SubmissionForm from '@/components/ui/SubmissionForm'
 import type { ConfidenceSkillWithStatus } from '@/lib/confidence-tracker-actions'
 import * as submissionActions from '@/lib/submission-actions'
 import * as confidenceTrackerActions from '@/lib/confidence-tracker-actions'
+import * as goalMetActions from '@/lib/goal-met-actions'
 
 vi.mock('@/lib/submission-actions', () => ({
   saveSubmission: vi.fn(),
@@ -20,6 +21,9 @@ vi.mock('@/lib/confidence-tracker-actions', async () => {
   )
   return { ...actual, saveConfidenceRatings: vi.fn() }
 })
+
+// The celebration's "what helped" and next-goal steps call these; observe them, don't hit a database.
+vi.mock('@/lib/goal-met-actions', () => ({ answerWhatHelped: vi.fn(), setSkillGoal: vi.fn() }))
 
 // Unrelated to this feature — stub it out so these tests stay focused.
 vi.mock('@/components/ui/SubmissionComments', () => ({
@@ -152,11 +156,35 @@ describe('SubmissionForm confidence rating prompt', () => {
     expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
   })
 
-  it('renders the rating prompt in Student Preview mode but never saves a rating from it', async () => {
+  it('lets Student Preview rate skills and set goals like a student, but Submit stays disabled and nothing is ever saved', async () => {
+    const user = userEvent.setup()
+    renderForm({ confidenceSkills: NEW_SKILL, isStudentPreview: true })
+    const group = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+    // the rating buttons are interactive...
+    within(group).getAllByRole('radio').forEach(r => expect(r).toBeEnabled())
+    await user.click(within(group).getByRole('radio', { name: '6' }))
+    expect(within(group).getByRole('radio', { name: '6' })).toHaveAttribute('aria-checked', 'true')
+    // ...and so is goal setting (suggested goal 8, with its target date and study plan)
+    const goalGroup = screen.getByRole('radiogroup', { name: 'Goal for React' })
+    expect(within(goalGroup).getByRole('radio', { name: 'Goal 8' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('checkbox', { name: 'Study flashcards' }))
+
+    // ...but the banner says so, Submit is disabled, and nothing reaches the server
+    expect(screen.getByText('Assignment submission is disabled in Student View.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(submissionActions.saveSubmission).not.toHaveBeenCalled()
+    expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
+  })
+
+  it('does not save anything from Student Preview even if a save is forced through', async () => {
+    const user = userEvent.setup()
     renderForm({ isStudentPreview: true })
-    expect(await screen.findByText('React')).toBeInTheDocument()
-    const submitButton = screen.getByRole('button', { name: 'Submit' })
-    expect(submitButton).toBeDisabled()
+    await user.type(await screen.findByPlaceholderText('https://github.com/your-username/your-repo'), 'https://github.com/example/repo')
+    const group = screen.getByRole('radiogroup', { name: 'Confidence rating for React' })
+    await user.click(within(group).getByRole('radio', { name: '9' }))
+    // Save draft is not disabled in preview, so this exercises the same guard a forced Submit would hit.
+    await user.click(screen.getByRole('button', { name: /save draft/i }))
+    expect(submissionActions.saveSubmission).not.toHaveBeenCalled()
     expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
   })
 
@@ -222,6 +250,147 @@ describe('SubmissionForm confidence rating prompt', () => {
       renderForm({ isStudentPreview: true })
       await screen.findByText('React')
       expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('goal-met and mastery celebration', () => {
+    const GOAL_MET = {
+      skillId: 'skill-a',
+      rating: 7,
+      mastered: false,
+      goal: { outcomeId: 'outcome-1', target: 7, ownPlanText: null, nextGoalAllowed: false },
+    }
+
+    async function rateReactAndSubmit() {
+      const user = userEvent.setup()
+      renderForm()
+      const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '7' }))
+      await submitLink(user)
+      return user
+    }
+
+    it('shows the celebration and the "what helped" question beside "Turned in", in place of a kudos line for that skill', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [GOAL_MET] })
+      await rateReactAndSubmit()
+      expect(await screen.findByText(/You reached your goal of 7 in React!/)).toBeInTheDocument()
+      expect(screen.getByRole('group', { name: /What helped you reach your goal\?.*for React/ })).toBeInTheDocument()
+      expect(await screen.findByText('Turned in')).toBeInTheDocument()
+      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+    })
+
+    it('can be dismissed', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [GOAL_MET] })
+      const user = await rateReactAndSubmit()
+      await user.click(await screen.findByRole('button', { name: /dismiss celebration/i }))
+      expect(screen.queryByText(/You reached your goal/)).not.toBeInTheDocument()
+    })
+
+    it('celebrates mastery without asking what helped', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: null, kudos: [], celebrations: [{ skillId: 'skill-a', rating: 10, mastered: true }],
+      })
+      await rateReactAndSubmit()
+      expect(await screen.findByText(/You've mastered React!/)).toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: /What helped/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    })
+
+    it('saves the chosen options, scoped to the met goal, and thanks the student', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [GOAL_MET] })
+      vi.mocked(goalMetActions.answerWhatHelped).mockResolvedValue({ error: null })
+      const user = await rateReactAndSubmit()
+      await user.click(await screen.findByRole('checkbox', { name: 'Studying flashcards' }))
+      await user.click(screen.getByRole('checkbox', { name: 'Reviewing class notes' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(goalMetActions.answerWhatHelped).toHaveBeenCalledWith('outcome-1', ['flashcards', 'review_notes'], undefined))
+      expect(await screen.findByText(/your answer is saved/)).toBeInTheDocument()
+    })
+
+    it('treats "Skip for now" like walking away: nothing saved, and it points to My Skill Confidence', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [GOAL_MET] })
+      const user = await rateReactAndSubmit()
+      await user.click(await screen.findByRole('button', { name: 'Skip for now' }))
+      expect(goalMetActions.answerWhatHelped).not.toHaveBeenCalled()
+      expect(await screen.findByText(/any time from My Skill Confidence/)).toBeInTheDocument()
+    })
+
+    it('shows neither celebration nor kudos when the rating save failed', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: 'network error', celebrations: [GOAL_MET] })
+      await rateReactAndSubmit()
+      expect(await screen.findByText(/couldn't save your confidence rating/i)).toBeInTheDocument()
+      expect(screen.queryByText(/You reached your goal/)).not.toBeInTheDocument()
+    })
+
+    it('never shows a celebration in Student Preview', async () => {
+      renderForm({ isStudentPreview: true })
+      await screen.findByText('React')
+      expect(screen.queryByText(/You reached your goal/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('maintaining message for a rating of 10', () => {
+    async function rateTenBeforeSubmit() {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: NEW_SKILL })
+      const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
+      return user
+    }
+
+    it('does not show it while rating, only after the submission succeeds', async () => {
+      const user = await rateTenBeforeSubmit()
+      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
+      await submitLink(user)
+      expect(await screen.findByText(/You're at the top of the scale in React! You're now maintaining this rating\./)).toBeInTheDocument()
+      expect(await screen.findByText('Turned in')).toBeInTheDocument()
+    })
+
+    it('can be dismissed', async () => {
+      const user = await rateTenBeforeSubmit()
+      await submitLink(user)
+      await user.click(await screen.findByRole('button', { name: /dismiss maintaining message/i }))
+      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
+    })
+
+    it('is not shown when the rating save failed', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: 'network error' })
+      const user = await rateTenBeforeSubmit()
+      await submitLink(user)
+      expect(await screen.findByText(/couldn't save your confidence rating/i)).toBeInTheDocument()
+      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
+    })
+
+    it('combines with the "Nice progress" kudos into one card when the skill also went up, without the "went up from" numbers', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: null, kudos: [{ skillId: 'skill-a', from: 6, to: 10 }], celebrations: [],
+      })
+      const user = await rateTenBeforeSubmit()
+      await submitLink(user)
+      const card = (await screen.findByText(/Nice progress!/)).closest('[role="status"]') as HTMLElement
+      expect(within(card).getByText(/You're at the top of the scale in React! You're now maintaining this rating\./)).toBeInTheDocument()
+      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
+      // one card, not a maintaining card plus a separate kudos card
+      expect(screen.getAllByRole('status')).toHaveLength(1)
+      expect(screen.getAllByText(/now maintaining this rating/)).toHaveLength(1)
+    })
+
+    it('keeps the plain maintaining card when the 10 is not an improvement', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [] })
+      const user = await rateTenBeforeSubmit()
+      await submitLink(user)
+      expect(await screen.findByText(/You're at the top of the scale in React!/)).toBeInTheDocument()
+      expect(screen.queryByText(/Nice progress!/)).not.toBeInTheDocument()
+    })
+
+    it('gives way to the mastery celebration when the same 10 masters the skill', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: null, kudos: [], celebrations: [{ skillId: 'skill-a', rating: 10, mastered: true }],
+      })
+      const user = await rateTenBeforeSubmit()
+      await submitLink(user)
+      expect(await screen.findByText(/You've mastered React!/)).toBeInTheDocument()
+      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
     })
   })
 
@@ -396,11 +565,17 @@ describe('SubmissionForm confidence rating prompt', () => {
       expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
     })
 
-    it('Student Preview shows the "New" tag but cannot save a rating or goal from it', async () => {
+    it('Student Preview shows the "New" tag and lets you set a goal, but cannot save a rating or goal', async () => {
       renderForm({ confidenceSkills: NEW_SKILL, isStudentPreview: true })
       expect(await screen.findByText('React')).toHaveTextContent('New')
       expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
       expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
+    })
+
+    it('Observer cannot change ratings or goals at all', async () => {
+      renderForm({ confidenceSkills: NEW_SKILL, isObserver: true })
+      const group = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      within(group).getAllByRole('radio').forEach(r => expect(r).toBeDisabled())
     })
 
     it('Observer sees the "New" tag with no Submit control available to save it', async () => {

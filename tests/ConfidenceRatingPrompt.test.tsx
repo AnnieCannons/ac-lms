@@ -171,7 +171,7 @@ describe('ConfidenceRatingPrompt', () => {
       expect(onGoalChange).toHaveBeenCalledWith('skill-a', expect.objectContaining({ goal: 10 }))
     })
 
-    it('shows "maintaining this rating" messaging instead of a numeric goal when the rating is 10', async () => {
+    it('switches to the "maintain" goal state instead of a numeric goal when the rating is 10', async () => {
       const user = userEvent.setup()
       const onGoalChange = vi.fn()
       const goals: Record<string, GoalState> = {}
@@ -268,7 +268,7 @@ describe('ConfidenceRatingPrompt', () => {
       expect(onGoalChange).toHaveBeenCalledWith('skill-a', { goal: 8, targetDate: '2026-10-05' })
     })
 
-    it('renders "maintaining" copy and no numeric goal radiogroup when goal state is "maintain"', () => {
+    it('shows no "maintaining" message while rating (it appears after submission) and no numeric goal radiogroup when goal state is "maintain"', () => {
       render(
         <ConfidenceRatingPrompt
           skills={NEW_SKILLS}
@@ -278,7 +278,8 @@ describe('ConfidenceRatingPrompt', () => {
           onGoalChange={vi.fn()}
         />
       )
-      expect(screen.getByText(/maintaining this rating/)).toBeInTheDocument()
+      expect(screen.queryByText(/maintaining this rating/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/top of the scale/)).not.toBeInTheDocument()
       expect(screen.queryByRole('radiogroup', { name: 'Goal for React' })).not.toBeInTheDocument()
     })
 

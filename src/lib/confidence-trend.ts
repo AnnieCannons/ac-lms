@@ -2,7 +2,7 @@
 // React in here so it stays directly unit-testable; the loaders in
 // confidence-trend-data.ts fetch the rows and hand them to these functions.
 
-import { STUDY_PLAN_OPTIONS } from '@/lib/confidence-tracker-validation'
+import { STUDY_PLAN_OPTIONS, WHAT_HELPED_OPTIONS, OWN_PLAN_VALUE } from '@/lib/confidence-tracker-validation'
 
 export interface RatingRow {
   id: string
@@ -19,6 +19,7 @@ export interface AssignmentInfo {
 }
 
 export interface GoalRow {
+  id: string
   skillId: string
   goal: number | null
   goalIsMaintain: boolean
@@ -26,6 +27,18 @@ export interface GoalRow {
   studyPlan: string[] | null
   studyPlanOther: string | null
   createdAt: string
+}
+
+// One met goal (Phase 6), with the student's optional "what helped" answer.
+export interface OutcomeRow {
+  id: string
+  goalHistoryId: string
+  skillId: string
+  metAt: string
+  metRating: number
+  whatHelped: string[] | null
+  whatHelpedOther: string | null
+  answeredAt: string | null
 }
 
 export interface EventRow {
@@ -66,13 +79,32 @@ export interface TrendEvent extends TrendMarker {
   date: string
 }
 
+export interface TrendGoalMet {
+  outcomeId: string
+  metAt: string
+  rating: number
+  answered: boolean
+  // The chosen options as worded to the student, including any write-in.
+  answerLabels: string[]
+}
+
 export interface TrendGoal {
+  id: string
+  // Set once the student has reached this goal (Phase 6); null while it is still open.
+  met: TrendGoalMet | null
   goal: number | null
   isMaintain: boolean
   targetDate: string | null
   studyPlanLabels: string[]
+  // The student's own study-plan "Other" write-in, offered as a "what helped" choice.
+  ownPlanText: string | null
   setAt: string
 }
+
+// none = no goal captured; open = numeric goal not reached yet; met = the latest goal was reached
+// (it now sits in the goal history, so there is no current goal); maintain = "maintaining this
+// rating" (a skill first rated 10).
+export type GoalStatus = 'none' | 'open' | 'met' | 'maintain'
 
 export interface SkillTrend {
   skillId: string
@@ -93,6 +125,10 @@ export interface SkillTrend {
   // Reactivated and not yet rated again: it will come back as a "new" skill.
   pendingNew: boolean
   latestRating: number | null
+  goalStatus: GoalStatus
+  // A student can set a goal now: no goal yet, or the current one was met, and there is room above
+  // the latest rating. Never for a mastered or reactivated-and-not-yet-rated skill.
+  canSetGoal: boolean
 }
 
 const byTimeThenId = <T extends { createdAt: string; id?: string }>(a: T, b: T) =>
@@ -109,12 +145,36 @@ export function studyPlanLabels(plan: string[] | null, other: string | null): st
   })
 }
 
-function toTrendGoal(g: GoalRow): TrendGoal {
+const WHAT_HELPED_LABELS: Record<string, string> = Object.fromEntries(
+  WHAT_HELPED_OPTIONS.map(o => [o.value, o.label])
+)
+
+export function whatHelpedLabels(values: string[] | null, other: string | null, ownPlanText: string | null): string[] {
+  return (values ?? []).map(value => {
+    if (value === 'other') return other ? `Other: ${other}` : 'Other'
+    if (value === OWN_PLAN_VALUE) return ownPlanText ?? 'My own plan'
+    return WHAT_HELPED_LABELS[value] ?? value
+  })
+}
+
+function toTrendGoal(g: GoalRow, outcome?: OutcomeRow): TrendGoal {
+  const ownPlanText = g.studyPlan?.includes('other') ? g.studyPlanOther : null
   return {
+    id: g.id,
+    met: outcome
+      ? {
+          outcomeId: outcome.id,
+          metAt: outcome.metAt,
+          rating: outcome.metRating,
+          answered: outcome.answeredAt !== null,
+          answerLabels: whatHelpedLabels(outcome.whatHelped, outcome.whatHelpedOther, ownPlanText),
+        }
+      : null,
     goal: g.goal,
     isMaintain: g.goalIsMaintain,
     targetDate: g.targetDate,
     studyPlanLabels: studyPlanLabels(g.studyPlan, g.studyPlanOther),
+    ownPlanText,
     setAt: g.createdAt,
   }
 }
@@ -126,13 +186,14 @@ export interface BuildSkillTrendsInput {
   goals: GoalRow[]
   events: EventRow[]
   progress: ProgressRow[]
+  outcomes?: OutcomeRow[]
   // When set, ratings from this course are flagged isCurrentCourse (instructor page).
   currentCourseId?: string
 }
 
 // One student's trends, one entry per skill they have rated at least once.
 export function buildSkillTrends(input: BuildSkillTrendsInput): SkillTrend[] {
-  const { skills, ratings, assignments, goals, events, progress, currentCourseId } = input
+  const { skills, ratings, assignments, goals, events, progress, outcomes = [], currentCourseId } = input
   const trends: SkillTrend[] = []
 
   for (const skill of skills) {
@@ -190,11 +251,29 @@ export function buildSkillTrends(input: BuildSkillTrendsInput): SkillTrend[] {
     // A goal captured before the latest reactivation is history; only a goal set after it is current.
     const head = skillGoals[0]
     const headIsCurrent = !!head && (!lastReactivation || head.createdAt > lastReactivation)
-    const currentGoal = headIsCurrent ? toTrendGoal(head) : null
-    const previousGoals = (headIsCurrent ? skillGoals.slice(1) : skillGoals).map(toTrendGoal)
+    const outcomeByGoal = new Map(outcomes.filter(o => o.skillId === skill.id).map(o => [o.goalHistoryId, o]))
+    const withOutcome = (g: GoalRow) => toTrendGoal(g, outcomeByGoal.get(g.id))
+    const headGoal = headIsCurrent ? withOutcome(head) : null
+    const headMet = !!headGoal?.met
+    // A goal that has been reached is finished: it moves to the goal history, and the skill shows "no
+    // goal set yet" (with the option to set a new one) rather than still presenting it as current.
+    const currentGoal = headGoal && !headMet ? headGoal : null
+    const previousGoals = [
+      ...(headGoal && headMet ? [headGoal] : []),
+      ...(headIsCurrent ? skillGoals.slice(1) : skillGoals).map(withOutcome),
+    ]
 
     const prog = progress.find(p => p.skillId === skill.id)
     const isMastered = prog?.isMastered ?? false
+    const pendingNew = !isMastered && (prog?.isNewPending ?? false) && reactivatedDates.length > 0
+    const latestRating = trendRatings[trendRatings.length - 1].value
+    const goalStatus: GoalStatus = !headGoal
+      ? 'none'
+      : headGoal.isMaintain
+        ? 'maintain'
+        : headMet
+          ? 'met'
+          : 'open'
 
     trends.push({
       skillId: skill.id,
@@ -209,8 +288,10 @@ export function buildSkillTrends(input: BuildSkillTrendsInput): SkillTrend[] {
       previouslyMastered: !isMastered && masteredDates.length > 0,
       masteredDates,
       reactivatedDates,
-      pendingNew: !isMastered && (prog?.isNewPending ?? false) && reactivatedDates.length > 0,
-      latestRating: trendRatings[trendRatings.length - 1].value,
+      pendingNew,
+      latestRating,
+      goalStatus,
+      canSetGoal: !isMastered && !pendingNew && latestRating < 10 && (goalStatus === 'none' || goalStatus === 'met'),
     })
   }
 
@@ -277,4 +358,27 @@ export function currentCourseScore(trends: SkillTrend[]): number | null {
     if (current.length > 0) latest.push(current[current.length - 1].value)
   }
   return latest.length === 0 ? null : latest.reduce((sum, v) => sum + v, 0) / latest.length
+}
+
+export interface UnansweredGoal {
+  skillId: string
+  skillName: string
+  outcomeId: string
+  target: number
+  metAt: string
+  ownPlanText: string | null
+}
+
+// Every met goal the student hasn't answered "what helped" for yet, newest first — the
+// follow-up list shown at the top of My Skill Confidence.
+export function unansweredMetGoals(trends: SkillTrend[]): UnansweredGoal[] {
+  const out: UnansweredGoal[] = []
+  for (const t of trends) {
+    for (const g of [t.currentGoal, ...t.previousGoals]) {
+      if (g?.met && !g.met.answered && g.goal != null) {
+        out.push({ skillId: t.skillId, skillName: t.name, outcomeId: g.met.outcomeId, target: g.goal, metAt: g.met.metAt, ownPlanText: g.ownPlanText })
+      }
+    }
+  }
+  return out.sort((a, b) => (a.metAt < b.metAt ? 1 : a.metAt > b.metAt ? -1 : 0))
 }

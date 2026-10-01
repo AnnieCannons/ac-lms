@@ -4,6 +4,22 @@ import userEvent from '@testing-library/user-event'
 import ConfidenceKudos from '@/components/ui/ConfidenceKudos'
 
 describe('ConfidenceKudos', () => {
+  it('says "maintaining this rating" instead of the numbers for a skill that also reached 10, alongside other skills', () => {
+    render(
+      <ConfidenceKudos
+        items={[
+          { skillName: 'Git', from: 6, to: 10, maintaining: true },
+          { skillName: 'React', from: 4, to: 6 },
+        ]}
+        onDismiss={vi.fn()}
+      />
+    )
+    expect(screen.getByText(/Nice progress!/)).toBeInTheDocument()
+    expect(screen.getByText("You're at the top of the scale in Git! You're now maintaining this rating.")).toBeInTheDocument()
+    expect(screen.queryByText(/Git went up from/)).not.toBeInTheDocument()
+    expect(screen.getByText('Your confidence in React went up from 4 to 6.')).toBeInTheDocument()
+  })
+
   it('renders nothing when there are no items', () => {
     const { container } = render(<ConfidenceKudos items={[]} onDismiss={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()

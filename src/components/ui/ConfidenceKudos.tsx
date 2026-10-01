@@ -4,6 +4,8 @@ export interface KudosDisplayItem {
   skillName: string;
   from: number;
   to: number;
+  // The skill also reached 10 (the top of the scale): say so instead of the "went up" numbers.
+  maintaining?: boolean;
 }
 
 interface Props {
@@ -29,7 +31,9 @@ export default function ConfidenceKudos({ items, onDismiss }: Props) {
         <ul className="mt-1 space-y-0.5">
           {items.map(item => (
             <li key={item.skillName}>
-              Your confidence in {item.skillName} went up from {item.from} to {item.to}.
+              {item.maintaining
+                ? <>You&apos;re at the top of the scale in {item.skillName}! You&apos;re now maintaining this rating.</>
+                : <>Your confidence in {item.skillName} went up from {item.from} to {item.to}.</>}
             </li>
           ))}
         </ul>

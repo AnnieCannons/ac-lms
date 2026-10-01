@@ -12,6 +12,8 @@ import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
 import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
 import ConfidenceKudos, { type KudosDisplayItem } from "@/components/ui/ConfidenceKudos";
+import GoalMetCelebration, { type CelebrationDisplayItem } from "@/components/ui/GoalMetCelebration";
+import ConfidenceMaintaining, { type MaintainingDisplayItem } from "@/components/ui/ConfidenceMaintaining";
 import type { ConfidenceSkillWithStatus } from "@/lib/confidence-tracker-actions";
 import type { GoalState, StudyPlan, ConfidenceGoalInput } from "@/lib/confidence-tracker-validation";
 import { isOptionalClosed } from "@/lib/date-utils";
@@ -139,6 +141,10 @@ export default function SubmissionForm({
   const [ratingError, setRatingError] = useState<string | null>(null);
   // One-time Phase 5 kudos for this submission; component-local on purpose (never persisted).
   const [kudos, setKudos] = useState<KudosDisplayItem[]>([]);
+  // One-time Phase 6 goal-met / mastery celebration; likewise component-local and never replayed.
+  const [celebrations, setCelebrations] = useState<CelebrationDisplayItem[]>([]);
+  // "You're now maintaining this rating" for a skill rated 10; shown after submitting, not while rating.
+  const [maintaining, setMaintaining] = useState<MaintainingDisplayItem[]>([]);
 
   // Hydrate from sessionStorage after mount, not during the initial render — reading it
   // in a lazy useState initializer would make the client's first render diverge from the
@@ -300,14 +306,37 @@ export default function SubmissionForm({
           return { skillId, rating, goal };
         });
         if (entries.length > 0) {
-          const { error: ratingSaveError, kudos: kudosItems } = await saveConfidenceRatings(assignmentId, entries);
+          const { error: ratingSaveError, kudos: kudosItems, celebrations: celebrationItems } = await saveConfidenceRatings(assignmentId, entries);
           if (ratingSaveError) {
             setRatingError("Your assignment was submitted, but we couldn't save your confidence rating(s) or goal due to an error — please let your instructor know.");
-          } else if (kudosItems && kudosItems.length > 0) {
-            setKudos(
-              kudosItems.flatMap(k => {
-                const skill = confidenceSkills.find(s => s.id === k.skillId);
-                return skill ? [{ skillName: skill.name, from: k.from, to: k.to }] : [];
+          } else {
+            // A 10 on a skill with no goal yet starts "maintaining"; a celebration (mastery) says its own thing.
+            const celebrated = new Set((celebrationItems ?? []).map(c => c.skillId));
+            const maintainingIds = new Set(
+              entries
+                .filter(e => e.goal && "goal" in e.goal && e.goal.goal === "maintain" && !celebrated.has(e.skillId))
+                .map(e => e.skillId)
+            );
+            // A skill that both went up and reached 10 gets ONE "Nice progress!" card with the maintaining
+            // message, rather than a maintaining card plus a separate "went up from X to Y" line.
+            const kudosDisplay = (kudosItems ?? []).flatMap(k => {
+              const skill = confidenceSkills.find(s => s.id === k.skillId);
+              return skill ? [{ skillName: skill.name, from: k.from, to: k.to, maintaining: maintainingIds.has(k.skillId) }] : [];
+            });
+            setKudos(kudosDisplay);
+            const mergedIntoKudos = new Set((kudosItems ?? []).map(k => k.skillId));
+            setMaintaining(
+              entries.flatMap(e => {
+                const skill = confidenceSkills.find(s => s.id === e.skillId);
+                return skill && maintainingIds.has(e.skillId) && !mergedIntoKudos.has(e.skillId) ? [{ skillName: skill.name }] : [];
+              })
+            );
+          }
+          if (!ratingSaveError && celebrationItems && celebrationItems.length > 0) {
+            setCelebrations(
+              celebrationItems.flatMap(c => {
+                const skill = confidenceSkills.find(s => s.id === c.skillId);
+                return skill ? [{ ...c, skillName: skill.name }] : [];
               })
             );
           }
@@ -468,6 +497,10 @@ export default function SubmissionForm({
           {ratingError}
         </p>
       )}
+
+      <GoalMetCelebration items={celebrations} onDismiss={() => setCelebrations([])} />
+
+      <ConfidenceMaintaining items={maintaining} onDismiss={() => setMaintaining([])} />
 
       <ConfidenceKudos items={kudos} onDismiss={() => setKudos([])} />
 
@@ -759,7 +792,9 @@ export default function SubmissionForm({
           onChange={handleRatingChange}
           goals={goals}
           onGoalChange={handleGoalChange}
-          disabled={isObserver || isStudentPreview}
+          // Student View can rate and set goals to see the real experience; it still can't submit or save
+          // (Submit is disabled and doSave returns early in preview). Observers stay read-only.
+          disabled={isObserver}
         />
         {isGoalIncomplete && (
           <p className="text-xs text-muted-text">
