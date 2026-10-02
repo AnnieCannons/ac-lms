@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeWhatHelpedPatterns } from '@/lib/confidence-patterns'
+import { computeWhatHelpedPatterns, computeClassPatterns } from '@/lib/confidence-patterns'
 import type { SkillTrend, TrendGoal } from '@/lib/confidence-trend'
 
 let n = 0
@@ -76,5 +76,40 @@ describe('computeWhatHelpedPatterns', () => {
   it('counts goals from every cycle of a mastered and reactivated skill', () => {
     const t = skill('s1', 'Git', { previouslyMastered: true, currentGoal: metGoal(['flashcards']), previousGoals: [metGoal(['flashcards'])] })
     expect(computeWhatHelpedPatterns([t]).answeredGoals).toBe(2)
+  })
+})
+
+describe('computeClassPatterns', () => {
+  it('sums methods and skills across students and counts the students it rests on', () => {
+    const ada = [skill('s1', 'React', { previousGoals: [metGoal(['flashcards', 'ta_help'])] })]
+    const grace = [skill('s1', 'React', { previousGoals: [metGoal(['flashcards'])] }), skill('s2', 'CSS', { previousGoals: [metGoal(['flashcards'])] })]
+    const linus = [skill('s1', 'React', { currentGoal: openGoal(), previousGoals: [metGoal(null)] })]
+    const p = computeClassPatterns([ada, grace, linus])
+    expect(p.answeredGoals).toBe(3)
+    expect(p.answeredStudents).toBe(2)
+    expect(p.methods.map(m => [m.value, m.count])).toEqual([['flashcards', 3], ['ta_help', 1]])
+    expect(p.methods[0].skills).toEqual([
+      { skillId: 's1', name: 'React', count: 2 },
+      { skillId: 's2', name: 'CSS', count: 1 },
+    ])
+  })
+
+  it('folds own write-ins and Other into one Other, counted once per goal', () => {
+    const t = [skill('s1', 'React', { previousGoals: [metGoal(['own_plan', 'other']), metGoal(['other'])] })]
+    const p = computeClassPatterns([t])
+    expect(p.methods).toEqual([{ value: 'other', label: 'Other', count: 2, skills: [{ skillId: 's1', name: 'React', count: 2 }] }])
+  })
+
+  it('returns nothing for an empty class or one with no answers, and carries no student identity', () => {
+    expect(computeClassPatterns([])).toEqual({ answeredGoals: 0, methods: [], answeredStudents: 0 })
+    expect(computeClassPatterns([[skill('s1', 'React', { currentGoal: openGoal() })], []])).toEqual({ answeredGoals: 0, methods: [], answeredStudents: 0 })
+    const p = computeClassPatterns([[skill('s1', 'React', { previousGoals: [metGoal(['flashcards'])] })]])
+    expect(Object.keys(p).sort()).toEqual(['answeredGoals', 'answeredStudents', 'methods'])
+  })
+
+  it('narrows to a skill when given skill-filtered trends', () => {
+    const all = [skill('s1', 'React', { previousGoals: [metGoal(['flashcards'])] }), skill('s2', 'CSS', { previousGoals: [metGoal(['ta_help'])] })]
+    const p = computeClassPatterns([all.filter(t => t.skillId === 's2')])
+    expect(p.methods.map(m => m.value)).toEqual(['ta_help'])
   })
 })

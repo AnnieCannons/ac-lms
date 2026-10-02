@@ -147,3 +147,49 @@ describe('WhatHelpedPatterns', () => {
     expect(screen.queryByText(/pair programming/)).not.toBeInTheDocument()
   })
 })
+
+describe('WhatHelpedPatterns for staff', () => {
+  it('uses student wording, a neutral empty note and the reading guide', () => {
+    render(<WhatHelpedPatterns trends={[]} audience="student" />)
+    expect(screen.getByRole('heading', { name: 'What tends to help this student' })).toBeInTheDocument()
+    expect(screen.getByText(/Nothing logged yet/)).toBeInTheDocument()
+    expect(screen.getByText(/not proof that a method caused it/)).toBeInTheDocument()
+    expect(screen.queryByText(/\byou\b|\byour\b/i)).not.toBeInTheDocument()
+  })
+
+  it('shows class counts with how many answered goals and students it is based on, in neutral words', () => {
+    const patterns = {
+      answeredGoals: 4, answeredStudents: 3,
+      methods: [{ value: 'flashcards', label: 'Studying flashcards', count: 4, skills: [{ skillId: 's1', name: 'React', count: 4 }] }],
+    }
+    render(<WhatHelpedPatterns patterns={patterns} audience="class" />)
+    expect(screen.getByRole('heading', { name: 'What tends to help students' })).toBeInTheDocument()
+    expect(screen.getByText('Helped 4 times')).toBeInTheDocument()
+    expect(screen.getByText(/based on 4 times where students logged what helped, from 3 students/)).toBeInTheDocument()
+    expect(screen.getByText(/not proof that a method caused it/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/best|most effective|worst|top method/i)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('shows the neutral note for a class with no answers', () => {
+    render(<WhatHelpedPatterns patterns={{ answeredGoals: 0, answeredStudents: 0, methods: [] }} audience="class" />)
+    expect(screen.getByText(/Nothing logged yet/)).toBeInTheDocument()
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  })
+
+  it('gives several sections on one page distinct heading ids', () => {
+    render(<>
+      <WhatHelpedPatterns trends={[]} audience="student" />
+      <WhatHelpedPatterns trends={[]} audience="student" />
+    </>)
+    const ids = screen.getAllByRole('heading').map(h => h.id)
+    expect(new Set(ids).size).toBe(2)
+  })
+
+  it('compact leaves out its own heading (the caller supplies the title) but stays a named region', () => {
+    render(<WhatHelpedPatterns trends={[]} audience="student" compact />)
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'What tends to help this student' })).toBeInTheDocument()
+    expect(screen.getByText(/not proof that a method caused it/)).toBeInTheDocument()
+  })
+})
