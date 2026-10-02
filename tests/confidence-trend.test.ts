@@ -290,7 +290,7 @@ describe('met goals (Phase 6)', () => {
     expect(t.goalStatus).toBe('met')
     expect(t.currentGoal).toBeNull()
     expect(t.previousGoals).toHaveLength(1)
-    expect(t.previousGoals[0].met).toMatchObject({ outcomeId: `o-${baseGoal.id}`, rating: 8, answered: false, answerLabels: [] })
+    expect(t.previousGoals[0].met).toMatchObject({ outcomeId: `o-${baseGoal.id}`, rating: 8, answered: false, answerLabels: [], answerValues: [] })
     expect(t.canSetGoal).toBe(true)
   })
 
@@ -303,6 +303,7 @@ describe('met goals (Phase 6)', () => {
     expect(t.currentGoal).toBeNull()
     expect(t.previousGoals[0].met?.answered).toBe(true)
     expect(t.previousGoals[0].met?.answerLabels).toEqual(['Studying flashcards', 'Pair with a friend', 'Other: A study group'])
+    expect(t.previousGoals[0].met?.answerValues).toEqual(['flashcards', 'own_plan', 'other'])
   })
 
   it('offers "set a goal" for a skill with no goal, but not above a rating of 10, for maintaining, mastered or reactivated skills', () => {

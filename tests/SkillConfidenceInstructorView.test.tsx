@@ -282,7 +282,7 @@ describe('SkillConfidenceInstructorView goal outcomes', () => {
     const user = userEvent.setup()
     const goalWith = (answered: boolean) => ({
       id: 'g1', goal: 7, isMaintain: false, targetDate: '2026-03-01', studyPlanLabels: [], ownPlanText: null, setAt: '2026-02-01T10:00:00Z',
-      met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 8, answered, answerLabels: answered ? ['Studying flashcards'] : [] },
+      met: { outcomeId: 'o1', metAt: '2026-03-02T10:00:00Z', rating: 8, answered, answerLabels: answered ? ['Studying flashcards'] : [], answerValues: answered ? ['flashcards'] : [] },
     })
     const cohort: CourseTrendStudent[] = [
       { id: 'u1', name: 'Ada', trends: [trend('s1', 'React', { currentGoal: goalWith(true), goalStatus: 'met', canSetGoal: true })] },
