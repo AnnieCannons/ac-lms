@@ -83,6 +83,25 @@ export function isCurrentCourse(startDate: string | null | undefined, endDate?: 
   return now >= start && now <= end
 }
 
+/**
+ * Whether a course was in session for any part of the given Mon–Thu week. The
+ * readiness job uses this instead of isCurrentCourse so a course's final week
+ * still gets scored on the Monday after it ends (e.g. TCF ending on a
+ * Saturday), and a course isn't scored for the week before it starts.
+ */
+export function courseRanDuringWeek(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  week: WeekRange,
+): boolean {
+  if (!startDate) return false
+  const start = startDate.slice(0, 10)
+  const end = endDate
+    ? endDate.slice(0, 10)
+    : formatDateStr(new Date(new Date(`${start}T00:00:00`).getTime() + 105 * 24 * 60 * 60 * 1000))
+  return start <= week.end && end >= week.start
+}
+
 /** Gets the current hour (0–23) in America/New_York, DST-safe. */
 export function getCurrentEtHour(now: Date): number {
   const parts = new Intl.DateTimeFormat('en-US', {

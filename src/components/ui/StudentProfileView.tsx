@@ -11,10 +11,12 @@ import { StatCard, TrendChart, AssignmentList, AttendanceTrendChart, type Attend
 import {
   getReadinessHistory,
   getEscalationHistory,
+  getPriorCourseMissing,
   type ReadinessHistoryPoint,
   type EscalationEventRecord,
+  type PriorCourseMissing,
 } from '@/lib/readiness-actions'
-import { HowThisWorksSection, ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
+import { HowThisWorksSection, ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, PriorCourseMissingNote, READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
 
 export type ProfileCourse = {
   id: string
@@ -68,6 +70,7 @@ export default function StudentProfileView({
   const [attendance, setAttendance] = useState<AttendanceStats | null>(null)
   const [readinessHistory, setReadinessHistory] = useState<ReadinessHistoryPoint[]>([])
   const [escalationHistory, setEscalationHistory] = useState<EscalationEventRecord[]>([])
+  const [priorMissing, setPriorMissing] = useState<PriorCourseMissing | null>(null)
   const [loading, setLoading] = useState(!!currentCourse)
   const [error, setError] = useState<string | null>(null)
   const [activeBucket, setActiveBucket] = useState<Bucket>(null)
@@ -91,14 +94,16 @@ export default function StudentProfileView({
       getStudentStatsHistory(student.id, currentCourse.id).catch(() => []),
       getReadinessHistory(student.id, currentCourse.id).catch(() => []),
       getEscalationHistory(student.id, currentCourse.id).catch(() => []),
+      getPriorCourseMissing(student.id, currentCourse.id).catch(() => null),
     ])
-      .then(([a, attendanceRes, h, readiness, escalation]) => {
+      .then(([a, attendanceRes, h, readiness, escalation, prior]) => {
         if (cancelled) return
         setAssignments(a)
         setAttendance(attendanceRes.error ? null : attendanceRes)
         setHistory(h)
         setReadinessHistory(readiness)
         setEscalationHistory(escalation)
+        setPriorMissing(prior)
       })
       .catch(() => { if (!cancelled) setError('Failed to load data.') })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -207,6 +212,7 @@ export default function StudentProfileView({
                     ) : null
                   })()}
                 </div>
+                <PriorCourseMissingNote prior={priorMissing} href={`/instructor/courses/${priorMissing?.courseId}/roster/${student.id}`} />
                 <ReadinessTrendChart history={readinessHistory} />
                 {escalationHistory.length > 0 && (
                   <div className="mt-2">

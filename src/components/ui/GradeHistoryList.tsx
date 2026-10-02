@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import LocalDateTime from './LocalDateTime'
 import { deleteGradeHistoryEntry } from '@/lib/grade-actions'
+import { collapseDoubleClicks } from '@/lib/grade-history'
 
 export type GradeHistoryEntry = {
   id: string
@@ -29,16 +30,19 @@ export default function GradeHistoryList({
   const visible = entries.filter(e => !removedIds.has(e.id))
   if (visible.length === 0) return null
 
-  // De-duplicate consecutive same-grade entries (e.g. double-click producing two incompletes)
-  const deduped = visible.filter((entry, i) => i === visible.length - 1 || entry.grade !== visible[i + 1].grade)
+  // Hide double-clicks only -- a second return after a resubmission is shown,
+  // since it counts toward the readiness score (same rule, see grade-history.ts).
+  const deduped = collapseDoubleClicks(visible)
 
   const incompleteCount = deduped.filter(e => e.grade === 'incomplete').length
 
-  const handleDelete = async (entryId: string) => {
+  const handleDelete = async (entry: GradeHistoryEntry) => {
     if (deletingId) return
-    if (!confirm(
-      'Remove this entry? It will no longer count toward the weekly readiness score.'
+    if (!confirm(entry.grade === 'incomplete'
+      ? 'Remove this entry? It will no longer count toward the weekly readiness score.'
+      : 'Remove this Complete entry? If it is the current grade, the submission goes back to its previous grade (or ungraded).'
     )) return
+    const entryId = entry.id
     setDeletingId(entryId)
     const result = await deleteGradeHistoryEntry(entryId, courseId)
     if (result.error) {
@@ -73,12 +77,12 @@ export default function GradeHistoryList({
               <span className="text-xs text-muted-text">
                 <LocalDateTime iso={entry.graded_at} />
               </span>
-              {canManage && entry.grade === 'incomplete' && (
+              {canManage && (
                 <button
                   type="button"
-                  onClick={() => handleDelete(entry.id)}
+                  onClick={() => handleDelete(entry)}
                   disabled={deletingId === entry.id}
-                  title="Remove this entry from the weekly readiness count"
+                  title={entry.grade === 'incomplete' ? 'Remove this entry from the weekly readiness count' : 'Remove this entry (recorded by mistake)'}
                   className="text-xs font-medium text-muted-text hover:text-red-600 hover:underline disabled:opacity-50 transition-colors"
                 >
                   {deletingId === entry.id ? 'Removing…' : 'Remove'}

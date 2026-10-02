@@ -6,8 +6,8 @@ import HtmlContent from '@/components/ui/HtmlContent'
 import { CommentsPreview } from '@/components/ui/StudentStatsWidgets'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection } from '@/components/ui/ReadinessWidgets'
-import type { ReadinessHistoryPoint, EscalationEventRecord } from '@/lib/readiness-actions'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
+import type { ReadinessHistoryPoint, EscalationEventRecord, PriorCourseMissing } from '@/lib/readiness-actions'
 
 export type CategorizedAssignment = {
   id: string
@@ -38,6 +38,7 @@ interface Props {
   totalPublished: number
   readinessHistory?: ReadinessHistoryPoint[]
   escalationHistory?: EscalationEventRecord[]
+  priorCourseMissing?: PriorCourseMissing | null
 }
 
 const STAT_CONFIG: Record<StatCategory, {
@@ -109,6 +110,7 @@ export default function StudentDetailView({
   totalPublished,
   readinessHistory = [],
   escalationHistory = [],
+  priorCourseMissing = null,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null)
   const [lateOpen, setLateOpen] = useState(false)
@@ -248,6 +250,7 @@ export default function StudentDetailView({
               ) : null
             })()}
           </div>
+          <PriorCourseMissingNote prior={priorCourseMissing} href={`/instructor/courses/${priorCourseMissing?.courseId}/roster/${student.id}`} />
           <ReadinessTrendChart history={readinessHistory} />
 
           {escalationHistory.length > 0 && (

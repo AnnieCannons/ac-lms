@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection } from '@/components/ui/ReadinessWidgets'
-import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord } from '@/lib/readiness-actions'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
+import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, getMyPriorCourseMissing, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord, type PriorCourseMissing } from '@/lib/readiness-actions'
 import type { EscalationStatus } from '@/lib/readiness'
 
 function BreakdownStat({ label, value }: { label: string; value: string }) {
@@ -181,18 +181,21 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
   const [history, setHistory] = useState<ReadinessHistoryPoint[]>([])
   const [status, setStatus] = useState<EscalationStatus | null>(null)
   const [escalationHistory, setEscalationHistory] = useState<EscalationEventRecord[]>([])
+  const [priorMissing, setPriorMissing] = useState<PriorCourseMissing | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [h, s, eh] = await Promise.all([
+    const [h, s, eh, pm] = await Promise.all([
       getMyReadinessHistory(courseId),
       getMyEscalationStatus(courseId),
       getMyEscalationHistory(courseId),
+      getMyPriorCourseMissing(courseId),
     ])
     setHistory(h)
     setStatus(s?.status ?? 'none')
     setEscalationHistory(eh)
+    setPriorMissing(pm)
     setLoading(false)
   }, [courseId])
 
@@ -247,6 +250,8 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
         ) : (
           <p className="text-sm text-muted-text mb-4">No score yet — check back after your first full week.</p>
         )}
+
+        <PriorCourseMissingNote prior={priorMissing} href={`/student/courses/${priorMissing?.courseId}/assignments`} />
 
         <ReadinessTrendChart history={history} />
 

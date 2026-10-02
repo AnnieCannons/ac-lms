@@ -39,3 +39,14 @@ export const EXCLUDED_STUDENT_USER_IDS = new Set([
   'f3d70cec-d6fd-4f5f-837d-2073040632f7', // Jenny (jencvon@gmail.com) — graduated
   'cccce8d6-0cc0-4650-bd62-fb6db5def278', // Tessa (tessa@edifyanother.com)
 ])
+
+/** The one excluded account the readiness job still scores -- it's the
+ * dedicated test student for walking the escalation flow end to end. */
+const READINESS_TEST_STUDENT_IDS = new Set([
+  '2f2323bd-d0b4-4da8-8a8d-225064a851c4', // Readiness Test Student
+])
+
+/** Whether the readiness job (scoring, escalation, reminders) should skip this account. */
+export function isExcludedFromReadiness(userId: string): boolean {
+  return EXCLUDED_STUDENT_USER_IDS.has(userId) && !READINESS_TEST_STUDENT_IDS.has(userId)
+}

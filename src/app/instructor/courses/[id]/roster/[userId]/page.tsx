@@ -7,7 +7,7 @@ import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import StudentDetailView, { type CategorizedAssignment } from '@/components/ui/StudentDetailView'
 import ViewAsStudentButton from '@/components/ui/ViewAsStudentButton'
 import { localDate, todayLocal } from '@/lib/date-utils'
-import { getReadinessHistory, getEscalationHistory } from '@/lib/readiness-actions'
+import { getReadinessHistory, getEscalationHistory, getPriorCourseMissing } from '@/lib/readiness-actions'
 
 export default async function StudentDetailPage({
   params,
@@ -122,7 +122,7 @@ export default async function StudentDetailPage({
   ])
 
   const quizIds = (quizzes ?? []).map(q => q.id)
-  const [{ data: quizSubmissions }, readinessHistory, escalationHistory] = await Promise.all([
+  const [{ data: quizSubmissions }, readinessHistory, escalationHistory, priorCourseMissing] = await Promise.all([
     quizIds.length > 0
       ? admin
           .from('quiz_submissions')
@@ -132,6 +132,7 @@ export default async function StudentDetailPage({
       : Promise.resolve({ data: [] }),
     getReadinessHistory(userId, courseId),
     getEscalationHistory(userId, courseId),
+    getPriorCourseMissing(userId, courseId),
   ])
 
   // Comment counts per submission, for the expandable comments toggle
@@ -266,6 +267,7 @@ export default async function StudentDetailPage({
               totalPublished={missing.length + submitted.length + complete.length + incomplete.length}
               readinessHistory={readinessHistory}
               escalationHistory={escalationHistory}
+              priorCourseMissing={priorCourseMissing}
             />
           </main>
         </div>

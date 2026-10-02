@@ -7,6 +7,8 @@ import { zoneForScore, notifyStaffOfCheckinCompletion, type Zone, type Escalatio
 import { computeClassAverages, isTesterEmail, normalizeEmail, type ClassAverages } from '@/lib/readiness-summary'
 import { EXCLUDED_STUDENT_USER_IDS } from '@/lib/excluded-students'
 import { fetchAllRows } from '@/lib/supabase/paginate'
+import { getPredecessorCourse, getReadinessChain, isEnrolledStudent } from '@/lib/readiness-chain'
+import { computeStudentAssignmentStats } from '@/lib/student-stats-actions'
 
 export type ReadinessHistoryPoint = {
   weekStart: string
@@ -62,9 +64,27 @@ function toHistoryPoint(r: SnapshotRow, courseWeek1Monday: string): ReadinessHis
   }
 }
 
-async function getCourseWeek1Monday(admin: ReturnType<typeof createServiceSupabaseClient>, courseId: string): Promise<string> {
-  const { data: course } = await admin.from('courses').select('start_date').eq('id', courseId).single()
+/** Week 1 is the first course in the readiness chain, so an ITP course's
+ * first week reads as week 5 after its 4-week TCF phase. */
+async function getCourseWeek1Monday(admin: ReturnType<typeof createServiceSupabaseClient>, chain: string[]): Promise<string> {
+  const { data: course } = await admin.from('courses').select('start_date').eq('id', chain[0]).single()
   return mondayOf(course?.start_date ?? new Date().toISOString().slice(0, 10))
+}
+
+async function fetchReadinessHistory(studentId: string, courseId: string): Promise<ReadinessHistoryPoint[]> {
+  const admin = createServiceSupabaseClient()
+  const chain = await getReadinessChain(admin, courseId)
+  const [{ data }, week1Monday] = await Promise.all([
+    admin
+      .from('student_stats_snapshots')
+      .select(SNAPSHOT_COLUMNS)
+      .eq('student_id', studentId)
+      .in('course_id', chain)
+      .order('week_start', { ascending: true }),
+    getCourseWeek1Monday(admin, chain),
+  ])
+
+  return ((data as SnapshotRow[]) ?? []).map(r => toHistoryPoint(r, week1Monday))
 }
 
 /** A student's own weekly readiness history for a course. */
@@ -73,18 +93,7 @@ export async function getMyReadinessHistory(courseId: string): Promise<Readiness
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const admin = createServiceSupabaseClient()
-  const [{ data }, week1Monday] = await Promise.all([
-    admin
-      .from('student_stats_snapshots')
-      .select(SNAPSHOT_COLUMNS)
-      .eq('student_id', user.id)
-      .eq('course_id', courseId)
-      .order('week_start', { ascending: true }),
-    getCourseWeek1Monday(admin, courseId),
-  ])
-
-  return ((data as SnapshotRow[]) ?? []).map(r => toHistoryPoint(r, week1Monday))
+  return fetchReadinessHistory(user.id, courseId)
 }
 
 /** Staff/instructor/admin view of any student's weekly readiness history. */
@@ -98,18 +107,42 @@ export async function getReadinessHistory(studentId: string, courseId: string): 
     throw new Error('Forbidden')
   }
 
-  const admin = createServiceSupabaseClient()
-  const [{ data }, week1Monday] = await Promise.all([
-    admin
-      .from('student_stats_snapshots')
-      .select(SNAPSHOT_COLUMNS)
-      .eq('student_id', studentId)
-      .eq('course_id', courseId)
-      .order('week_start', { ascending: true }),
-    getCourseWeek1Monday(admin, courseId),
-  ])
+  return fetchReadinessHistory(studentId, courseId)
+}
 
-  return ((data as SnapshotRow[]) ?? []).map(r => toHistoryPoint(r, week1Monday))
+export type PriorCourseMissing = { courseId: string; courseName: string; count: number }
+
+async function fetchPriorCourseMissing(studentId: string, courseId: string): Promise<PriorCourseMissing | null> {
+  const admin = createServiceSupabaseClient()
+  const predecessor = await getPredecessorCourse(admin, courseId)
+  if (!predecessor || !(await isEnrolledStudent(admin, studentId, predecessor.id))) return null
+
+  const stats = await computeStudentAssignmentStats(admin, studentId, predecessor.id)
+  if (stats.missing.length === 0) return null
+  return { courseId: predecessor.id, courseName: predecessor.name, count: stats.missing.length }
+}
+
+/** Unfinished TCF assignments still counting toward the student's own ITP score (live count). */
+export async function getMyPriorCourseMissing(courseId: string): Promise<PriorCourseMissing | null> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  return fetchPriorCourseMissing(user.id, courseId)
+}
+
+/** Staff view of getMyPriorCourseMissing for any student. */
+export async function getPriorCourseMissing(studentId: string, courseId: string): Promise<PriorCourseMissing | null> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    throw new Error('Forbidden')
+  }
+
+  return fetchPriorCourseMissing(studentId, courseId)
 }
 
 export type CourseReadinessRow = {
@@ -156,6 +189,7 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
   }
 
   const admin = createServiceSupabaseClient()
+  const chain = await getReadinessChain(admin, courseId)
 
   const [{ data: enrollments }, { data: staffUsers }, week1Monday, weekRows] = await Promise.all([
     admin
@@ -164,9 +198,10 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
       .eq('course_id', courseId)
       .eq('role', 'student'),
     admin.from('users').select('email').in('role', ['staff', 'instructor', 'admin']),
-    getCourseWeek1Monday(admin, courseId),
+    getCourseWeek1Monday(admin, chain),
+    // TCF weeks included for an ITP course, so its history is browsable here.
     fetchAllRows<{ week_start: string }>((from, to) =>
-      admin.from('student_stats_snapshots').select('week_start').eq('course_id', courseId).range(from, to),
+      admin.from('student_stats_snapshots').select('week_start').in('course_id', chain).range(from, to),
     ),
   ])
 
@@ -199,7 +234,7 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
   const { data: snapshots } = await admin
     .from('student_stats_snapshots')
     .select(`${SNAPSHOT_COLUMNS}, student_id`)
-    .eq('course_id', courseId)
+    .in('course_id', chain)
     .in('student_id', students.map(s => s.studentId))
     .in('week_start', previousWeek ? [weekStart, previousWeek] : [weekStart])
 
@@ -270,18 +305,19 @@ type CheckinRow = {
 
 async function fetchEscalationHistory(studentId: string, courseId: string): Promise<EscalationEventRecord[]> {
   const admin = createServiceSupabaseClient()
+  const chain = await getReadinessChain(admin, courseId)
   const [{ data }, { data: checkinRows }] = await Promise.all([
     admin
       .from('escalation_events')
       .select('id, week_start, event_type, score, note, created_at')
       .eq('student_id', studentId)
-      .eq('course_id', courseId)
+      .in('course_id', chain)
       .order('created_at', { ascending: true }),
     admin
       .from('accountability_checkins')
       .select('escalation_event_id, form_type, note, goals, reflection, obstacles, target_green_date, questions_for_instructor')
       .eq('student_id', studentId)
-      .eq('course_id', courseId),
+      .in('course_id', chain),
   ])
 
   // Checkins are stored against the stepN_started event that opened them (see
@@ -351,14 +387,31 @@ export async function getMyEscalationStatus(courseId: string): Promise<{ status:
   if (!user) redirect('/login')
 
   const admin = createServiceSupabaseClient()
+  const state = await findChainEscalationState(admin, user.id, courseId)
+  return state ? { status: state.status } : null
+}
+
+/**
+ * The student's escalation state for this course, falling back to the TCF
+ * course's state for an ITP course whose first week hasn't been scored yet
+ * (the job moves the row onto ITP then -- see loadEscalationStateCarryingOver
+ * in readiness.ts). Lets an ITP student see and submit a check-in opened in TCF.
+ */
+async function findChainEscalationState(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  studentId: string,
+  courseId: string,
+): Promise<{ courseId: string; status: EscalationStatus } | null> {
+  const chain = await getReadinessChain(admin, courseId)
   const { data } = await admin
     .from('escalation_states')
-    .select('status')
-    .eq('student_id', user.id)
-    .eq('course_id', courseId)
-    .maybeSingle()
+    .select('course_id, status')
+    .eq('student_id', studentId)
+    .in('course_id', chain)
 
-  return data ? { status: (data as { status: EscalationStatus }).status } : null
+  const rows = (data as { course_id: string; status: EscalationStatus }[] | null) ?? []
+  const row = rows.find(r => r.course_id === courseId) ?? rows[0]
+  return row ? { courseId: row.course_id, status: row.status } : null
 }
 
 export type CheckinFormType = 'acknowledgment' | 'reflection'
@@ -380,23 +433,21 @@ export async function submitCheckinForm(input: {
 
   const admin = createServiceSupabaseClient()
 
-  const { data: stateRow } = await admin
-    .from('escalation_states')
-    .select('status')
-    .eq('student_id', user.id)
-    .eq('course_id', input.courseId)
-    .maybeSingle()
-
+  const state = await findChainEscalationState(admin, user.id, input.courseId)
   const expectedStatus = input.formType === 'acknowledgment' ? 'step1' : 'step2'
-  if (!stateRow || (stateRow as { status: string }).status !== expectedStatus) {
+  if (!state || state.status !== expectedStatus) {
     return { error: 'No matching check-in is currently open.' }
   }
+  // Recorded against whichever course currently owns the escalation state
+  // (TCF until ITP's first scored week), so the reminder cron sees it.
+  const stateCourseId = state.courseId
+  const chain = await getReadinessChain(admin, input.courseId)
 
   const { data: eventRow } = await admin
     .from('escalation_events')
     .select('id')
     .eq('student_id', user.id)
-    .eq('course_id', input.courseId)
+    .in('course_id', chain)
     .eq('event_type', input.formType === 'acknowledgment' ? 'step1_started' : 'step2_started')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -404,7 +455,7 @@ export async function submitCheckinForm(input: {
 
   const { error } = await admin.from('accountability_checkins').insert({
     student_id: user.id,
-    course_id: input.courseId,
+    course_id: stateCourseId,
     escalation_event_id: eventRow ? (eventRow as { id: string }).id : null,
     form_type: input.formType,
     note: input.note ?? null,
@@ -418,7 +469,7 @@ export async function submitCheckinForm(input: {
 
   await admin.from('escalation_events').insert({
     student_id: user.id,
-    course_id: input.courseId,
+    course_id: stateCourseId,
     event_type: input.formType === 'acknowledgment' ? 'step1_completed' : 'step2_completed',
   })
 

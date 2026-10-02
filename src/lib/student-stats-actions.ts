@@ -4,6 +4,8 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { redirect } from 'next/navigation'
 import { isDueThisWeek } from '@/lib/date-utils'
 import { toEtDateStr } from '@/lib/weekly-report'
+import { getReadinessChain } from '@/lib/readiness-chain'
+import { collapseDoubleClicks } from '@/lib/grade-history'
 
 export type AssignmentBucket = 'complete' | 'waiting-to-be-graded' | 'needs-revision' | 'missing' | 'due-this-week' | 'excused'
 
@@ -54,11 +56,12 @@ export async function getStudentStatsHistory(studentId: string, courseId: string
   }
 
   const admin = createServiceSupabaseClient()
+  const chain = await getReadinessChain(admin, courseId)
   const { data } = await admin
     .from('student_stats_snapshots')
     .select('week_start, missing_count, needs_revision_count')
     .eq('student_id', studentId)
-    .eq('course_id', courseId)
+    .in('course_id', chain)
     .order('week_start', { ascending: true })
 
   type Row = { week_start: string; missing_count: number; needs_revision_count: number }
@@ -126,13 +129,22 @@ export async function countNeedsRevisionEvents(
   const submissionIds = (submissions as { id: string }[] ?? []).map(s => s.id)
   if (submissionIds.length === 0) return 0
 
+  // All grades (not just incomplete) so a double-click can be told apart from
+  // a real second return -- the same rule the Grade History panel shows.
   const { data: historyRows } = await admin
     .from('grade_history')
-    .select('graded_at')
+    .select('submission_id, grade, graded_at')
     .in('submission_id', submissionIds)
-    .eq('grade', 'incomplete')
 
-  return ((historyRows as { graded_at: string }[]) ?? []).filter(r => {
+  type HistoryRow = { submission_id: string; grade: string; graded_at: string }
+  const bySubmission = new Map<string, HistoryRow[]>()
+  for (const r of (historyRows as HistoryRow[]) ?? []) {
+    if (!bySubmission.has(r.submission_id)) bySubmission.set(r.submission_id, [])
+    bySubmission.get(r.submission_id)!.push(r)
+  }
+
+  return [...bySubmission.values()].flatMap(collapseDoubleClicks).filter(r => {
+    if (r.grade !== 'incomplete') return false
     const etDate = toEtDateStr(new Date(r.graded_at))
     return etDate >= weekStart && etDate <= weekEnd
   }).length
