@@ -7,14 +7,15 @@ figma-component (if used): N/A
 ## Summary
 This is Phase 7 of the larger confidence-tracking initiative (confidence-tracker-v2; see [`_plans/confidence-tracker-v2-roadmap.md`](../_plans/confidence-tracker-v2-roadmap.md)). Phase 6 ([PR #162](https://github.com/AnnieCannons/ac-lms/pull/162)) made students reaching a goal answer, optionally, "What helped you reach your goal?" and stores each answer against the one met goal and skill it belongs to. Phase 4 built the "My Skill Confidence" page showing a student's ratings, goals and history. Today those answers are only displayed one goal at a time; nobody can see the bigger picture of what tends to help a student.
 
-This phase adds a new section to the existing "My Skill Confidence" page (not a new page) that gathers the student's own "what helped" answers across every skill and shows, by method (for example flashcards, TA or instructor help, outside tutorials), how many times each was named as helping, and for which skills. Each answered goal is a goal the student reached, so each time a method is named it is a time that method went along with the student's confidence reaching the goal they set. The section always shows what exists, even a single answer ("Flashcards helped 1 time"), and updates on its own as the student rates, reaches goals and answers more, so over time it shows which methods help most for which skills. It is for the student's own reflection: it is framed descriptively ("Patterns you've noticed"), never as proof that a method works, matching the app's non-prescriptive tone elsewhere.
+This phase adds a new section to the existing "My Skill Confidence" page (not a new page) that gathers the student's own "what helped" answers across every skill and shows, by method (for example flashcards, TA or instructor help, outside tutorials), how many times each was named as helping, and for which skills. Each answered goal is a goal the student reached, so each time a method is named it is a time that method went along with the student's confidence reaching the goal they set. The section always shows what exists, even a single answer ("Flashcards helped 1 time"), and updates on its own as the student rates, reaches goals and answers more, so over time it shows which methods help most for which skills. It is for the student's own reflection: it is framed descriptively ("What tends to help you"), never as proof that a method works, matching the app's non-prescriptive tone elsewhere.
 
 This phase is student-facing only and adds no new data capture. It does not change when anything is asked, stored, celebrated or reminded. Showing these patterns to instructors and staff is a separate later phase (Phase 8 in the roadmap). Everything is behind the existing `CONFIDENCE_TRACKER_V2_RATINGS_ENABLED` flag, which is still off in production, stays off until every phase of the initiative is complete, and is not turned on without asking first.
 
 ## Functional Requirements
 
 ### Where it appears and when
-- A new section on the student's "My Skill Confidence" page, titled in the spirit of "Patterns you've noticed". It is not a new page and not a new navigation item.
+- A new section on the student's "My Skill Confidence" page, titled in the spirit of "What tends to help you". It is not a new page and not a new navigation item.
+- The page gains two tabs: "Skills" (the existing working-on and mastered sections, shown by default) and "Patterns" (this section). The "What helped?" follow-up for unanswered goals stays above the tabs so it is visible on either tab, since the bell reminder links to it. Above the tabs it is a single compact line (for example "3 reached goals are waiting for you to log what helped.") with a "Log what helped" button that opens a dialog listing each waiting goal with its own "Answer" button; it appears only while something is waiting. This changes how Phase 6's summary is shown, not what it does. The tabs are keyboard accessible (arrow keys), and they also appear in the "No skill ratings yet" state, where the Patterns tab shows the gentle note.
 - There is no minimum. As soon as the student has one answered "what helped" goal, the section shows results from it.
 - A student with no answered "what helped" yet (including one who has never reached a goal) still sees the section, with a short, friendly note that patterns will show up here as they reach goals and log what helped. The note never implies the student has fallen short.
 - Only the owning student sees the section. It is gated behind `CONFIDENCE_TRACKER_V2_RATINGS_ENABLED`: with the flag off the page is unreachable, as today, so nothing new appears.
@@ -31,13 +32,14 @@ This phase is student-facing only and adds no new data capture. It does not chan
 ### What it shows
 - For each method that has at least one answer: how many times it was named as helping ("helped 4 times"), counting one per answered goal. No average rating change or other calculation is shown; the count is the measure.
 - Under each method, which skills those times were on, with how many for each (for example "React 3, CSS 1"), so the student can see which methods help most for which skills. Skills are shown by their current name. Skills with no answered goal for that method are not listed.
+- The skills appear as small tags, each with its name and its count. Collapsed, each method's tags fill exactly one line: as many skills as fit in the available width, with a "+N more" tag as the last item on that line, where N is how many did not fit (so the number changes with the screen width). Selecting it shows every skill, wrapping onto more lines, and the tag then reads "Show fewer". If every skill fits on the line, there is no "+N more" tag. At least one skill is always shown.
 - Methods are ordered by how many times they were named, most first, with a consistent, predictable order for ties. Methods never named are not shown, so the section is not a list of empty rows. "Other" appears only if it was used.
 - The section shows how many answered goals it is based on, so the student can see how much evidence is behind it.
 - Numbers are shown plainly with no rankings such as "best," "most effective," or "worst," no colors or icons implying good or bad, and no comparison to other students. A single answer is shown the same way as many, with no extra caution or warning.
 - A short, always-visible line explains how to read it, in plain words: these are patterns from the student's own answers, they show what tends to go along with progress, not proof that a method caused it, and every student is different.
 
 ### Presentation
-- A list of methods, each with its count as text and a simple bar beside it showing its count relative to the others, followed by its per-skill counts as text. The numbers are always shown as text, so the bar is never the only way to get the information.
+- A list of methods, each with a number tile showing its count, its name, "Helped N times" as text, and its per-skill counts as tags. There is no bar or progress-style line. The tile is decoration; the numbers are always shown as text.
 - It does not rely on color alone, works at desktop and mobile widths, is keyboard and screen-reader accessible, and respects the app's existing light/dark and high-contrast theming.
 - No celebration, kudos or animation is added. Any motion respects the reduced-motion preference.
 - Method names use the same wording students saw when they chose them. For known methods the section shows the current wording.
@@ -72,14 +74,15 @@ This phase is student-facing only and adds no new data capture. It does not chan
 - A student with many skills across several courses: all are combined into one view, and the figures are not scoped per course.
 
 ## Acceptance Criteria
-- [ ] A new "Patterns you've noticed" section appears on the student's My Skill Confidence page (not a new page).
+- [ ] A new "What tends to help you" section appears on the student's My Skill Confidence page (not a new page).
 - [ ] With one or more answered "what helped" goals, results show immediately, with no minimum; with none, only a gentle note is shown, which never implies the student has fallen short.
 - [ ] Answers are grouped by the seven fixed "what helped" methods; a goal naming several methods counts once toward each; the student's own write-ins and "Other" text are grouped under a single "Other" and never listed individually or reinterpreted.
-- [ ] For each method that was named, the student sees how many times it was named (one per answered goal), a bar showing that count relative to the others, and the skills those times were on with a count per skill, alongside the total number of answered goals the section is based on.
+- [ ] For each method that was named, the student sees how many times it was named (one per answered goal), a number tile with that count, and the skills those times were on with a count per skill (as many as fit on one line, with any others behind a closed "+N more" tag), alongside the total number of answered goals the section is based on.
 - [ ] No average rating change or other calculated measure is shown.
 - [ ] Unanswered met goals, mastery celebrations, goals met before Phase 6, and methods never named contribute nothing and are not shown.
 - [ ] The section updates on its own as the student reaches and answers more goals, on the next page load.
 - [ ] Wording is descriptive and non-causal, includes an always-visible explanation of how to read it, and uses no "best," "most effective," ranking, good-or-bad colors, or comparison to other students.
+- [ ] Collapsed, a method's skills fill exactly one line, as many as fit with a "+N more" tag as the last item (N = the skills that did not fit); the tag reads "Show fewer" once opened, and there is no tag when everything fits.
 - [ ] The numbers are available as text, the presentation does not rely on color alone, and it works at desktop and mobile widths, with keyboard and screen-reader access and light/dark/high-contrast theming.
 - [ ] The section shows only the owning student's own data, and is not visible to instructors or staff on their per-student view, which keeps showing answers read-only as in Phase 6.
 - [ ] Student Preview and Observer show the accurate section read-only and cannot change any data.
@@ -100,6 +103,7 @@ This preserves a visible record of what was asked and decided, for anyone readin
   - **Answer:** no minimum. The section always shows results, even if a method was selected only once ("helped 1 time"), and as the student rates and answers more, the figures update and show which methods help most for which skills.
 - Chart or list? A plain list of methods with counts and average rises is simplest and most accessible; a small bar chart shows relative frequency at a glance but adds a second thing to read. Recommendation: a list with a simple bar beside each count, with the numbers always shown as text.
   - **Answer:** recommendation accepted — a list with a simple bar beside each count, numbers always shown as text.
+  - **Revised answer:** the bar was dropped after seeing it built; each method shows a count tile instead (no progress-style line). Skills appear as tags: as many as fit on one line show, the rest sit behind a closed "+N more" tag.
 - How should "confidence increase associated with a method" be measured? The roadmap says "the average confidence increase associated with it." This spec assumes the change from the student's rating of the skill when the goal was set to the rating that met it. Confirm, or choose a simpler measure (for example the rating that met the goal minus the rating before it).
   - **Answer:** no rating change is calculated. Just show how many times each method increased confidence, based on how many times it was selected in the "what helped" question (each answered goal is one reached goal).
 - Goals set later from My Skill Confidence (not at submission) have no rating given at that moment; which rating counts as the starting point: the student's latest rating of that skill at the time the goal was set? Recommendation: yes, the latest earlier rating of that skill at that time.
@@ -125,7 +129,8 @@ Create a test file(s) in the ./tests folder for the new feature, and create mean
 - Methods are ordered by how many times they were named, with a stable order for ties, and a single named method displays without ranking language.
 - No average rating change or other calculated measure is shown.
 - Wording is neutral: no "best," "most effective," ranking, or comparison, and the how-to-read-it explanation is always visible.
-- The numbers are present as text (not only in a bar), and the section is accessible.
+- Collapsed, a method shows only the skills that fit on one line plus a "+N more" tag with the right N, shows all skills with no tag when they fit, always shows at least one skill, and shows everything once the tag is opened (the tag then reads "Show fewer").
+- The numbers are present as text (not only in the count tile), and the section is accessible.
 - The section is shown to the owning student, is accurate and read-only in Student Preview and Observer, is not shown on the instructor per-student view, and is not shown or reachable with the flag off.
 - Nothing is written when the section is displayed, and a newly answered goal is included the next time the data is loaded.
 - A renamed skill shows its new name, and a deleted skill and a soft-deleted assignment do not cause errors.
