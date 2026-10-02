@@ -86,6 +86,8 @@ export interface TrendGoalMet {
   answered: boolean
   // The chosen options as worded to the student, including any write-in.
   answerLabels: string[]
+  // The raw stored option values (including 'other' / 'own_plan'), for grouping by method.
+  answerValues: string[]
 }
 
 export interface TrendGoal {
@@ -168,6 +170,7 @@ function toTrendGoal(g: GoalRow, outcome?: OutcomeRow): TrendGoal {
           rating: outcome.metRating,
           answered: outcome.answeredAt !== null,
           answerLabels: whatHelpedLabels(outcome.whatHelped, outcome.whatHelpedOther, ownPlanText),
+          answerValues: outcome.whatHelped ?? [],
         }
       : null,
     goal: g.goal,

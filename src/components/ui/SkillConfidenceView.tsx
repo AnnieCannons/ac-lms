@@ -8,6 +8,7 @@ import EmptySkillChart from '@/components/ui/EmptySkillChart'
 import SkillMultiSelect from '@/components/ui/SkillMultiSelect'
 import SetGoalForm from '@/components/ui/SetGoalForm'
 import WhatHelpedForm from '@/components/ui/WhatHelpedForm'
+import WhatHelpedPatterns from '@/components/ui/WhatHelpedPatterns'
 import { reactivateConfidenceSkill } from '@/lib/confidence-trend-actions'
 import { formatTimestamp, unansweredMetGoals, type SkillTrend, type UnansweredGoal } from '@/lib/confidence-trend'
 
@@ -57,22 +58,33 @@ function SkillSection({ id, title, description, selectLabel, placeholder, emptyC
   )
 }
 
+type Tab = 'skills' | 'patterns'
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'skills', label: 'Skills' },
+  { id: 'patterns', label: 'Patterns' },
+]
+
 // `canReactivate` covers every student-only action on this page (reactivate, answer "what
 // helped", set a goal): it is false for staff previewing the page, and the actions themselves
 // also re-check on the server.
 export default function SkillConfidenceView({ trends, canReactivate }: { trends: SkillTrend[]; canReactivate: boolean }) {
   const router = useRouter()
   const [answering, setAnswering] = useState<UnansweredGoal | null>(null)
+  const [listing, setListing] = useState(false)
+  // Goals answered from the list this visit, hidden at once instead of waiting for the refresh.
+  const [answeredHere, setAnsweredHere] = useState<Set<string>>(new Set())
   const [settingGoal, setSettingGoal] = useState<SkillTrend | null>(null)
   const [activeSel, setActiveSel] = useState<string[]>([])
   const [masteredSel, setMasteredSel] = useState<string[]>([])
   const [confirming, setConfirming] = useState<SkillTrend | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [tab, setTab] = useState<Tab>('skills')
 
   const active = trends.filter(t => !t.isMastered)
   const mastered = trends.filter(t => t.isMastered)
   const unanswered = unansweredMetGoals(trends)
+  const waiting = unanswered.filter(u => !answeredHere.has(u.outcomeId))
 
   // Student-only follow-ups for one skill, shown in the card footer: an unanswered "what helped"
   // for a reached goal.
@@ -83,14 +95,14 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
       <div className="mt-4 flex flex-col gap-2">
         {pendingAnswers.map(u => (
           <div key={u.outcomeId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-background px-3 py-2">
-            <p className="text-sm text-dark-text">You reached your goal of {u.target} in {t.name}. What helped?</p>
+            <p className="text-sm text-dark-text">You reached your goal of {u.target} in {t.name}.</p>
             <button
               type="button"
               disabled={!canReactivate}
               onClick={() => setAnswering(u)}
               className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Answer
+              Log what helped
             </button>
           </div>
         ))}
@@ -136,13 +148,59 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
     })
   }
 
+  const onTabKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    e.preventDefault()
+    const next: Tab = tab === 'skills' ? 'patterns' : 'skills'
+    setTab(next)
+    document.getElementById(`my-skill-tab-${next}`)?.focus()
+  }
+
+  const tablist = (
+    <div role="tablist" aria-label="My Skill Confidence views" className="flex gap-1 border-b border-border" onKeyDown={onTabKeyDown}>
+      {TABS.map(t => {
+        const selected = tab === t.id
+        return (
+          <button
+            key={t.id}
+            id={`my-skill-tab-${t.id}`}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            aria-controls={`my-skill-panel-${t.id}`}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => setTab(t.id)}
+            className={`-mb-px px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              selected ? 'border-teal-primary text-teal-primary' : 'border-transparent text-muted-text hover:text-dark-text'
+            }`}
+          >
+            {t.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const patternsPanel = (
+    <div role="tabpanel" id="my-skill-panel-patterns" aria-labelledby="my-skill-tab-patterns" className="pt-6">
+      <WhatHelpedPatterns trends={trends} />
+    </div>
+  )
+
   if (trends.length === 0) {
     return (
-      <div className="bg-surface border-2 border-border rounded-2xl p-8 text-center">
-        <p className="text-dark-text font-medium">No skill ratings yet</p>
-        <p className="mt-1 text-sm text-muted-text">
-          When you submit an assignment that has skills to rate, your ratings show up here so you can see how your confidence changes over time.
-        </p>
+      <div>
+        {tablist}
+        {tab === 'skills' ? (
+          <div role="tabpanel" id="my-skill-panel-skills" aria-labelledby="my-skill-tab-skills" className="pt-6">
+            <div className="bg-surface border-2 border-border rounded-2xl p-8 text-center">
+              <p className="text-dark-text font-medium">No skill ratings yet</p>
+              <p className="mt-1 text-sm text-muted-text">
+                When you submit an assignment that has skills to rate, your ratings show up here so you can see how your confidence changes over time.
+              </p>
+            </div>
+          </div>
+        ) : patternsPanel}
       </div>
     )
   }
@@ -151,31 +209,26 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
     <>
     <div className="space-y-12">
       {unanswered.length > 0 && (
-        <section id="what-helped" aria-labelledby="what-helped-heading" className="space-y-3 scroll-mt-6">
-          <h2 id="what-helped-heading" className="text-lg font-bold text-dark-text">What helped?</h2>
-          <p className="text-sm text-muted-text">
-            You reached {unanswered.length === 1 ? 'a goal' : 'some goals'}! Tell us what helped whenever you like — it&apos;s optional.
-          </p>
-          <ul className="space-y-2">
-            {unanswered.map(u => (
-              <li key={u.outcomeId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3">
-                <p className="text-sm text-dark-text">
-                  {u.skillName}: you reached your goal of {u.target} on {formatTimestamp(u.metAt)}.
-                </p>
-                <button
-                  type="button"
-                  disabled={!canReactivate}
-                  onClick={() => setAnswering(u)}
-                  className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Answer
-                </button>
-              </li>
-            ))}
-          </ul>
+        <section id="what-helped" aria-label="Goals waiting for a What helped answer" className="scroll-mt-6">
+          <div className="flex w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-surface px-4 py-3">
+            <p className="text-sm text-dark-text">
+              {unanswered.length === 1 ? '1 reached goal is' : `${unanswered.length} reached goals are`} waiting for you to log what helped.
+            </p>
+            <button
+              type="button"
+              onClick={() => setListing(true)}
+              className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light transition-colors"
+            >
+              Log what helped
+            </button>
+          </div>
         </section>
       )}
 
+      <div>
+      {tablist}
+      {tab === 'patterns' ? patternsPanel : (
+      <div role="tabpanel" id="my-skill-panel-skills" aria-labelledby="my-skill-tab-skills" className="pt-6 space-y-12">
       <SkillSection
         id="skills-working-on"
         title="Skills you're working on"
@@ -217,18 +270,52 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
           </span>
         )}
       />
+      </div>
+      )}
+      </div>
 
     </div>
 
     {/* Dialogs sit outside the spaced container: its vertical-spacing margins would otherwise shrink the
         full-screen backdrop and leave a strip at the bottom of the page un-blurred. */}
+      {listing && !answering && waiting.length > 0 && (
+        <Modal title="Log what helped" onClose={() => setListing(false)} maxWidth="max-w-lg">
+          <p className="text-sm text-muted-text">
+            You reached {waiting.length === 1 ? 'a goal' : 'some goals'}! Log what helped to see your patterns build over time.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {waiting.map(u => (
+              <li key={u.outcomeId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3">
+                <p className="text-sm text-dark-text">
+                  {u.skillName}: you reached your goal of {u.target} on {formatTimestamp(u.metAt)}.
+                </p>
+                <button
+                  type="button"
+                  disabled={!canReactivate}
+                  onClick={() => setAnswering(u)}
+                  className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Log what helped
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
       {answering && (
         <Modal title={answering.skillName} onClose={() => setAnswering(null)} maxWidth="max-w-md">
           <WhatHelpedForm
             outcomeId={answering.outcomeId}
             skillName={answering.skillName}
             ownPlanText={answering.ownPlanText}
-            onAnswered={() => { setAnswering(null); router.refresh() }}
+            onAnswered={() => {
+              const answeredId = answering.outcomeId
+              setAnsweredHere(prev => new Set(prev).add(answeredId))
+              // Back to the list for any goals still waiting; close it if that was the last one.
+              if (waiting.every(u => u.outcomeId === answeredId)) setListing(false)
+              setAnswering(null)
+              router.refresh()
+            }}
             onSkip={() => setAnswering(null)}
           />
         </Modal>
