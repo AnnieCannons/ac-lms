@@ -10,8 +10,10 @@ export interface SkillOption {
 // Searchable dropdown that lets a student tick several skills. Selected skills show as
 // removable chips inside the field; the list stays open while picking so several can be
 // chosen in a row.
-export default function SkillMultiSelect({ label, placeholder, options, selectedIds, onChange }: {
+export default function SkillMultiSelect({ label, placeholder, options, selectedIds, onChange, inlineLabel = false }: {
   label: string
+  // Put the label to the left of the field (as the other filters do) instead of above it.
+  inlineLabel?: boolean
   placeholder: string
   options: SkillOption[]
   selectedIds: string[]
@@ -72,75 +74,82 @@ export default function SkillMultiSelect({ label, placeholder, options, selected
   const byId = new Map(options.map(o => [o.id, o]))
 
   return (
-    <div ref={containerRef} className="relative">
-      <label htmlFor={inputId} className="block text-sm font-medium text-dark-text mb-1.5">{label}</label>
-      <div
-        className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 focus-within:border-teal-primary"
-        onClick={() => { inputRef.current?.focus(); setOpen(true) }}
+    <div className={inlineLabel ? 'flex items-start gap-2' : undefined}>
+      <label
+        htmlFor={inputId}
+        className={inlineLabel ? 'shrink-0 pt-2 text-sm text-muted-text' : 'block text-sm font-medium text-dark-text mb-1.5'}
       >
-        {selectedIds.map(id => byId.get(id)).filter((o): o is SkillOption => !!o).map(o => (
-          <span key={o.id} className="inline-flex items-center gap-1 rounded-full bg-teal-light px-2.5 py-0.5 text-sm text-dark-text">
-            {o.name}
+        {label}
+      </label>
+      <div ref={containerRef} className={inlineLabel ? 'relative min-w-0 flex-1' : 'relative'}>
+        <div
+          className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 focus-within:border-teal-primary"
+          onClick={() => { inputRef.current?.focus(); setOpen(true) }}
+        >
+          {selectedIds.map(id => byId.get(id)).filter((o): o is SkillOption => !!o).map(o => (
+            // The whole chip is the remove button, so clicking the skill's name takes it out too, not just the ✕.
             <button
+              key={o.id}
               type="button"
               aria-label={`Remove ${o.name}`}
               onClick={e => { e.stopPropagation(); toggle(o.id) }}
-              className="text-muted-text hover:text-dark-text"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-teal-light px-2.5 py-0.5 text-sm text-dark-text hover:opacity-80"
             >
-              ✕
+              {o.name}
+              <span aria-hidden="true" className="text-muted-text">✕</span>
             </button>
-          </span>
-        ))}
-        <input
-          ref={inputRef}
-          id={inputId}
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={open && filtered[active] ? `${uid}-opt-${filtered[active].id}` : undefined}
-          autoComplete="off"
-          value={query}
-          placeholder={selectedIds.length === 0 ? placeholder : 'Search skills…'}
-          onChange={e => { setQuery(e.target.value); setActive(0); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          className="min-w-[8rem] flex-1 bg-transparent px-1 py-1 text-sm text-dark-text placeholder:text-placeholder-text focus:outline-none"
-        />
-      </div>
+          ))}
+          <input
+            ref={inputRef}
+            id={inputId}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={open && filtered[active] ? `${uid}-opt-${filtered[active].id}` : undefined}
+            autoComplete="off"
+            value={query}
+            placeholder={selectedIds.length === 0 ? placeholder : 'Search skills…'}
+            onChange={e => { setQuery(e.target.value); setActive(0); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            className="min-w-[8rem] flex-1 bg-transparent px-1 py-1 text-sm text-dark-text placeholder:text-placeholder-text focus:outline-none"
+          />
+        </div>
 
-      {open && (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-multiselectable="true"
-          aria-label={label}
-          className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
-        >
-          {filtered.length === 0 ? (
-            <li role="presentation" className="px-3 py-2 text-sm text-muted-text">No skills match &ldquo;{query}&rdquo;</li>
-          ) : filtered.map((o, i) => {
-            const on = selected.has(o.id)
-            return (
-              <li
-                key={o.id}
-                id={`${uid}-opt-${o.id}`}
-                role="option"
-                aria-selected={on}
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => toggle(o.id)}
-                onMouseEnter={() => setActive(i)}
-                className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-dark-text ${i === active ? 'bg-background' : ''}`}
-              >
-                <span aria-hidden="true" className={`flex h-4 w-4 items-center justify-center rounded border text-[10px] ${on ? 'bg-teal-primary border-teal-primary text-white' : 'border-border'}`}>
-                  {on ? '✓' : ''}
-                </span>
-                {o.name}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+        {open && (
+          <ul
+            id={listId}
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label={label}
+            className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+          >
+            {filtered.length === 0 ? (
+              <li role="presentation" className="px-3 py-2 text-sm text-muted-text">No skills match &ldquo;{query}&rdquo;</li>
+            ) : filtered.map((o, i) => {
+              const on = selected.has(o.id)
+              return (
+                <li
+                  key={o.id}
+                  id={`${uid}-opt-${o.id}`}
+                  role="option"
+                  aria-selected={on}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => toggle(o.id)}
+                  onMouseEnter={() => setActive(i)}
+                  className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-dark-text ${i === active ? 'bg-background' : ''}`}
+                >
+                  <span aria-hidden="true" className={`flex h-4 w-4 items-center justify-center rounded border text-[10px] ${on ? 'bg-teal-primary border-teal-primary text-white' : 'border-border'}`}>
+                    {on ? '✓' : ''}
+                  </span>
+                  {o.name}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
