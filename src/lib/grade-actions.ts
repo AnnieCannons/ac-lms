@@ -294,8 +294,9 @@ export async function undoNeedsRevision(
 // from a misclick that has since been corrected). This is independent of the
 // submission's current grade — it only affects what counts toward the weekly
 // readiness score. If the deleted entry was the most recent event and the
-// submission's current grade still reflects it, the submission is flipped to
-// complete as well.
+// submission's current grade still reflects it, the grade follows: a removed
+// "Needs Revision" flips it to complete, a removed "Complete" reverts it to
+// the previous grade (or ungraded).
 export async function deleteGradeHistoryEntry(
   historyId: string,
   courseId?: string,
@@ -351,6 +352,24 @@ export async function deleteGradeHistoryEntry(
       .update({ grade: 'complete', status: 'graded', graded_at: now, graded_by: user.id })
       .eq('id', entry.submission_id)
     await admin.from('grade_history').insert({ submission_id: entry.submission_id, grade: 'complete', graded_at: now })
+  }
+
+  // An accidental "Complete" that's still the current grade: fall back to the
+  // grade before it, or back to ungraded if it was the only grade.
+  if (wasMostRecent && entry.grade === 'complete' && submission.grade === 'complete') {
+    const { data: previous } = await admin
+      .from('grade_history')
+      .select('grade, graded_at')
+      .eq('submission_id', entry.submission_id)
+      .order('graded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    await admin
+      .from('submissions')
+      .update(previous
+        ? { grade: previous.grade, status: 'graded', graded_at: previous.graded_at }
+        : { grade: null, status: 'submitted', graded_at: null, graded_by: null })
+      .eq('id', entry.submission_id)
   }
 
   if (courseId) {

@@ -6,15 +6,17 @@ import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchClassAttendanceWeekly, type ClassStudentWeekly } from '@/lib/airtable'
 import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats-actions'
 import {
+  courseRanDuringWeek,
   detectTrack,
   getCourseStudents,
   getWeekRanges,
-  isCurrentCourse,
   resolveAirtableCourseName,
   TRACK_CHANNELS,
   type CourseRow,
 } from '@/lib/weekly-report'
 import { notifyByEmail, openGroupDM, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { findPredecessorCourse, getReadinessChain } from '@/lib/readiness-chain'
+import { isExcludedFromReadiness } from '@/lib/excluded-students'
 
 type AdminClient = ReturnType<typeof createServiceSupabaseClient>
 
@@ -24,7 +26,7 @@ export type Zone = 'red' | 'yellow' | 'green'
  * score = 5, minus 1 whole point per every full 2 blocks missed that week,
  * minus 1 whole point per every full 3 missing assignments, minus 1 whole
  * point per every full 2 times a submission was returned as Needs Revision
- * *during* that week -- every return counts (from grade_history), not just
+ * *during* that week (Mon-Sun, so weekend grading counts) -- every return counts (from grade_history), not just
  * whatever is still sitting in that state when this runs, so resubmitting
  * unfinished work just to clear the current-state count no longer helps.
  * Stepped, not continuous -- e.g. 1 needs-revision return costs nothing, 2
@@ -214,14 +216,16 @@ export async function notifyStaffOfCheckinCompletion(
 async function countYellowWeeksInWindow(
   admin: AdminClient,
   studentId: string,
-  courseId: string,
+  chain: string[],
   uptoWeekStart: string,
 ): Promise<number> {
+  // Across the whole readiness chain, so TCF weeks count toward an ITP
+  // student's 4-week window.
   const { data } = await admin
     .from('student_stats_snapshots')
     .select('readiness_score')
     .eq('student_id', studentId)
-    .eq('course_id', courseId)
+    .in('course_id', chain)
     .lte('week_start', uptoWeekStart)
     .order('week_start', { ascending: false })
     .limit(4)
@@ -234,6 +238,53 @@ async function countYellowWeeksInWindow(
 
 type WeeklyResult = { score: number; zone: Zone }
 
+const STATE_COLUMNS = 'id, status, zone_at_step_start, consecutive_good_weeks, grace_week_used'
+
+/**
+ * This course's escalation state for the student. On an ITP student's first
+ * scored week, there's no ITP row yet -- their TCF row (if any) is moved onto
+ * the ITP course so the process continues exactly where it left off (step,
+ * grace week, good-week streak, step start, reminder). Moved rather than
+ * copied so the reminder cron never sees two live rows for one student.
+ * Safe to do here: ITP is only scored once TCF's final week is behind it
+ * (see courseRanDuringWeek).
+ */
+async function loadEscalationStateCarryingOver(
+  admin: AdminClient,
+  studentId: string,
+  courseId: string,
+  chain: string[],
+): Promise<EscalationStateRow | null> {
+  const { data: existing } = await admin
+    .from('escalation_states')
+    .select(STATE_COLUMNS)
+    .eq('student_id', studentId)
+    .eq('course_id', courseId)
+    .maybeSingle()
+  if (existing) return existing as EscalationStateRow
+
+  const earlierCourseIds = chain.filter(id => id !== courseId)
+  if (earlierCourseIds.length === 0) return null
+
+  const { data: earlier } = await admin
+    .from('escalation_states')
+    .select(STATE_COLUMNS)
+    .eq('student_id', studentId)
+    .in('course_id', earlierCourseIds)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!earlier) return null
+
+  const row = earlier as EscalationStateRow
+  const { error } = await admin.from('escalation_states').update({ course_id: courseId }).eq('id', row.id)
+  if (error) {
+    console.warn(`readiness: could not carry escalation state over to course ${courseId} for student ${studentId}:`, error)
+    return null
+  }
+  return row
+}
+
 /**
  * Runs the escalation trigger/advance/reset rules for one student for the week
  * that was just scored. See the "Escalation State Machine" section of the
@@ -244,6 +295,7 @@ async function evaluateEscalationForStudent(
   admin: AdminClient,
   studentId: string,
   courseId: string,
+  chain: string[],
   weekStart: string,
   result: WeeklyResult,
 ): Promise<void> {
@@ -260,14 +312,7 @@ async function evaluateEscalationForStudent(
     .limit(1)
   if (alreadyProcessed && alreadyProcessed.length > 0) return
 
-  const { data: existing } = await admin
-    .from('escalation_states')
-    .select('id, status, zone_at_step_start, consecutive_good_weeks, grace_week_used')
-    .eq('student_id', studentId)
-    .eq('course_id', courseId)
-    .maybeSingle()
-
-  const state = existing as EscalationStateRow | null
+  const state = await loadEscalationStateCarryingOver(admin, studentId, courseId, chain)
   const nowIso = new Date().toISOString()
 
   const logEvent = async (event_type: EscalationEventType, note?: string) => {
@@ -301,7 +346,7 @@ async function evaluateEscalationForStudent(
     }
 
     if (result.zone === 'yellow') {
-      const yellowWeeks = await countYellowWeeksInWindow(admin, studentId, courseId, weekStart)
+      const yellowWeeks = await countYellowWeeksInWindow(admin, studentId, chain, weekStart)
       if (yellowWeeks >= 2) {
         await admin.from('escalation_states').upsert({
           student_id: studentId,
@@ -386,6 +431,13 @@ async function evaluateEscalationForStudent(
   // step3: no further automated advancement -- stays until a staff member resolves it.
 }
 
+/** The Sunday ending the week that starts on this Monday ('YYYY-MM-DD'). */
+export function sundayAfter(mondayStr: string): string {
+  const d = new Date(`${mondayStr}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 6)
+  return d.toISOString().slice(0, 10)
+}
+
 export type ReadinessJobResult = { courses: string[]; skippedBreak?: string }
 
 /**
@@ -421,6 +473,10 @@ async function isWeekOnFullBreak(admin: AdminClient, weekStart: string, weekEnd:
  */
 export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseId?: string): Promise<ReadinessJobResult> {
   const weekRanges = getWeekRanges(now)
+  // Returns are counted Mon-Sun, not Mon-Thu like attendance: there's no class
+  // on Fridays but a lot of grading happens Fri-Sun, and those returns belong
+  // to the week just scored.
+  const returnsWindowEnd = sundayAfter(weekRanges.lastWeek.start)
   if (await isWeekOnFullBreak(admin, weekRanges.lastWeek.start, weekRanges.lastWeek.end)) {
     return { courses: [], skippedBreak: weekRanges.lastWeek.start }
   }
@@ -437,14 +493,25 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
   for (const course of allCourses) {
     if (onlyCourseId && (course as unknown as { id: string }).id !== onlyCourseId) continue
     if (course.is_template || course.archived) continue
-    if (!isCurrentCourse(course.start_date, course.end_date)) continue
+    if (!courseRanDuringWeek(course.start_date, course.end_date, weekRanges.lastWeek)) continue
     if (!course.readiness_enabled) continue
 
     const airtableCourseName = resolveAirtableCourseName(course, allCourses)
-    const students = await getCourseStudents(admin, (course as unknown as { id: string }).id, { excludeTestAccounts: false })
+    // Instructors' fake student accounts never enter the process (see isExcludedFromReadiness).
+    const students = (await getCourseStudents(admin, (course as unknown as { id: string }).id, { excludeTestAccounts: false }))
+      .filter(s => !isExcludedFromReadiness(s.id))
     if (students.length === 0) continue
 
     const courseId = (course as unknown as { id: string }).id
+
+    // ITP continues from its cohort's TCF course: the escalation process and
+    // history carry over, and TCF assignments still unfinished keep counting
+    // as missing (until turned in) for students who were in TCF.
+    const predecessor = findPredecessorCourse(course, allCourses)
+    const chain = predecessor ? [predecessor.id, courseId] : [courseId]
+    const predecessorStudentIds = new Set(
+      predecessor ? (await getCourseStudents(admin, predecessor.id, { excludeTestAccounts: false })).map(s => s.id) : [],
+    )
 
     // Keyed by airtable_student_id when known (safe even if two students share a
     // display name); also indexed by normalized name as a fallback for
@@ -472,10 +539,17 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
         ? (attendance.absencesLastWeek / attendance.blocksLastWeek) * 100
         : 0
 
-      const missingCount = stats.missing.length
-      const needsRevisionCount = await countNeedsRevisionEvents(
-        admin, student.id, courseId, weekRanges.lastWeek.start, weekRanges.lastWeek.end,
+      let missingCount = stats.missing.length
+      let needsRevisionCount = await countNeedsRevisionEvents(
+        admin, student.id, courseId, weekRanges.lastWeek.start, returnsWindowEnd,
       )
+      if (predecessor && predecessorStudentIds.has(student.id)) {
+        const priorStats = await computeStudentAssignmentStats(admin, student.id, predecessor.id)
+        missingCount += priorStats.missing.length
+        needsRevisionCount += await countNeedsRevisionEvents(
+          admin, student.id, predecessor.id, weekRanges.lastWeek.start, returnsWindowEnd,
+        )
+      }
       const blocksMissed = attendance?.absencesLastWeek ?? 0
       const score = computeReadinessScore(missingCount, needsRevisionCount, blocksMissed)
       const zone = zoneForScore(score)
@@ -492,7 +566,7 @@ export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseI
         readiness_score: score,
       }, { onConflict: 'student_id,course_id,week_start' })
 
-      await evaluateEscalationForStudent(admin, student.id, courseId, weekRanges.lastWeek.start, { score, zone })
+      await evaluateEscalationForStudent(admin, student.id, courseId, chain, weekRanges.lastWeek.start, { score, zone })
     }
 
     scoredCourses.push(course.name)
@@ -509,11 +583,13 @@ async function hasCompletedCheckin(
   sinceIso: string,
 ): Promise<boolean> {
   const formType = status === 'step1' ? 'acknowledgment' : 'reflection'
+  // A check-in submitted under TCF still counts once the state has moved to ITP.
+  const chain = await getReadinessChain(admin, courseId)
   const { data } = await admin
     .from('accountability_checkins')
     .select('id')
     .eq('student_id', studentId)
-    .eq('course_id', courseId)
+    .in('course_id', chain)
     .eq('form_type', formType)
     .gte('created_at', sinceIso)
     .limit(1)
@@ -546,6 +622,7 @@ export async function runEscalationReminders(admin: AdminClient, cutoffHours = 4
   let reminded = 0
 
   for (const row of (data as Row[]) ?? []) {
+    if (isExcludedFromReadiness(row.student_id)) continue
     const completed = await hasCompletedCheckin(admin, row.student_id, row.course_id, row.status, row.step_started_at)
     if (completed) continue
 

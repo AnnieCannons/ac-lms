@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceArea } from 'recharts'
 import { Send, Bell, CheckCircle2, ArrowUpCircle, PartyPopper, MessageSquare, CalendarX, FileX, RotateCcw, type LucideIcon } from 'lucide-react'
 import { MISSING_COLOR, NEEDS_REVISION_COLOR, ABSENCE_COLOR } from '@/components/ui/StudentStatsWidgets'
-import type { ReadinessHistoryPoint, EscalationEventRecord } from '@/lib/readiness-actions'
+import Link from 'next/link'
+import type { ReadinessHistoryPoint, EscalationEventRecord, PriorCourseMissing } from '@/lib/readiness-actions'
 import type { Zone } from '@/lib/readiness'
 
 export const READINESS_COLOR = '#6D2B5E' // --color-teal-primary (plum)
@@ -334,6 +335,21 @@ function ReadinessTooltip({ active, payload }: { active?: boolean; payload?: { p
 const MIN_WEEK_SLOTS = 6
 
 /** Curvy weekly readiness-score trend, 1-5, with the red/yellow/green bands shaded behind it. */
+/** Shown on an ITP readiness view when unfinished TCF assignments are still
+ * counting as missing in the score -- otherwise the missing count wouldn't
+ * match the ITP assignment list. Live count, not the snapshot's. */
+export function PriorCourseMissingNote({ prior, href }: { prior: PriorCourseMissing | null; href: string }) {
+  if (!prior || prior.count === 0) return null
+  const noun = prior.count === 1 ? 'assignment' : 'assignments'
+  return (
+    <p className="text-xs text-muted-text mb-3">
+      Includes {prior.count} missing {noun} from{' '}
+      <Link href={href} className="text-teal-primary font-medium hover:underline">{prior.courseName}</Link>
+      {' '}— {prior.count === 1 ? 'it counts' : 'they count'} toward the score until turned in.
+    </p>
+  )
+}
+
 export function ReadinessTrendChart({ history }: { history: ReadinessHistoryPoint[] }) {
   const scored = history.filter(h => h.score != null)
   if (scored.length < 1) {
