@@ -183,7 +183,8 @@ describe('SkillConfidenceInstructorView', () => {
     const user = userEvent.setup()
     render(<SkillConfidenceInstructorView students={students} skills={skills} />)
     const order = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)
-    expect(order()).toEqual(['CSS', 'React']) // Name A–Z is the default
+    await user.selectOptions(screen.getByLabelText(/Sort/), 'name-asc')
+    expect(order()).toEqual(['CSS', 'React'])
     await user.selectOptions(screen.getByLabelText(/Sort/), 'name-desc')
     expect(order()).toEqual(['React', 'CSS'])
     // React averages 5, CSS 7.
@@ -210,6 +211,7 @@ describe('SkillConfidenceInstructorView', () => {
     render(<SkillConfidenceInstructorView students={roster} skills={skills} />)
     await openStudentsTab(user)
     const names = () => within(screen.getByRole('list')).getAllByRole('listitem').map(li => li.querySelector('span')?.textContent)
+    await user.selectOptions(screen.getByLabelText(/Sort/), 'name-asc')
     expect(names()).toEqual(['Ada', 'Bo', 'Cy', 'Di'])
     await user.selectOptions(screen.getByLabelText(/Sort/), 'name-desc')
     expect(names()).toEqual(['Di', 'Cy', 'Bo', 'Ada'])
@@ -218,6 +220,60 @@ describe('SkillConfidenceInstructorView', () => {
     expect(names()).toEqual(['Bo', 'Di', 'Ada', 'Cy'])
     await user.selectOptions(screen.getByLabelText(/Sort/), 'rating-desc')
     expect(names()).toEqual(['Ada', 'Di', 'Bo', 'Cy'])
+  })
+
+  it('defaults to most recent first, with most and least recent in the Sort options', () => {
+    render(<SkillConfidenceInstructorView students={students} skills={skills} />)
+    const sort = screen.getByLabelText(/Sort/) as HTMLSelectElement
+    expect(sort).toHaveValue('recent-desc')
+    expect(Array.from(sort.options).map(o => o.text).slice(0, 2)).toEqual(['Most recent first', 'Least recent first'])
+  })
+
+  it('sorts everything by when it was last rated: overview cards, students and a student\'s skill cards', async () => {
+    const user = userEvent.setup()
+    // Ratings from this course only count towards "recent"; the earlier-course rating is far more recent here
+    // for Git, to show it is ignored for the overview and the student order.
+    const rated = (skillId: string, name: string, date: string, extra: Partial<SkillTrend> = {}) =>
+      trend(skillId, name, {
+        ratings: [{ value: 6, date, assignmentTitle: 'Work', courseId: 'c1', courseName: 'Frontend', isCurrentCourse: true }],
+        latestRating: 6, ...extra,
+      })
+    const threeSkills: CourseTrendSkill[] = [
+      { id: 's1', name: 'React', stats: computeClassStats([6]) },
+      { id: 's2', name: 'CSS', stats: computeClassStats([6]) },
+      { id: 's3', name: 'Git', stats: computeClassStats([6]) },
+    ]
+    const roster: CourseTrendStudent[] = [
+      // Ada last rated Mar 1 (React) and May 1 (CSS); Bo last rated Jun 1 (Git); Cy has no ratings.
+      { id: 'a', name: 'Ada', trends: [rated('s1', 'React', '2026-03-01T10:00:00Z'), rated('s2', 'CSS', '2026-05-01T10:00:00Z')] },
+      { id: 'b', name: 'Bo', trends: [rated('s3', 'Git', '2026-06-01T10:00:00Z')] },
+      { id: 'c', name: 'Cy', trends: [] },
+    ]
+    render(<SkillConfidenceInstructorView students={roster} skills={threeSkills} />)
+    const cards = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)
+
+    // Overview, most recent first (the default): Git (Jun 1), CSS (May 1), React (Mar 1).
+    expect(cards()).toEqual(['Git', 'CSS', 'React'])
+    await user.selectOptions(screen.getByLabelText(/Sort/), 'recent-asc')
+    expect(cards()).toEqual(['React', 'CSS', 'Git'])
+
+    // Students: Bo (Jun 1) then Ada (May 1); Cy has nothing rated and is last either way.
+    await openStudentsTab(user)
+    const rosterList = screen.getByRole('list') // taken once: an expanded row adds more lists to the page
+    const names = () => within(rosterList).getAllByRole('listitem').map(li => li.querySelector('span')?.textContent)
+    await user.selectOptions(screen.getByLabelText(/Sort/), 'recent-desc')
+    expect(names()).toEqual(['Bo', 'Ada', 'Cy'])
+    await user.selectOptions(screen.getByLabelText(/Sort/), 'recent-asc')
+    expect(names()).toEqual(['Ada', 'Bo', 'Cy'])
+
+    // Inside Ada's row, her skill cards follow the same order: CSS (May 1) before React (Mar 1), and back.
+    await user.click(within(rosterList).getByText('Ada'))
+    const adaRow = within(rosterList).getByText('Ada').closest('li')!
+    await user.click(within(adaRow).getByText('Skills'))
+    const adaCards = () => within(adaRow).getAllByRole('heading', { level: 3 }).map(h => h.textContent)
+    expect(adaCards()).toEqual(['React', 'CSS'])
+    await user.selectOptions(screen.getByLabelText(/Sort/), 'recent-desc')
+    expect(adaCards()).toEqual(['CSS', 'React'])
   })
 
   it('keeps the chosen sort when switching tabs', async () => {

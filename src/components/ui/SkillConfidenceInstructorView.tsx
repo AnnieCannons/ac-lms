@@ -88,7 +88,7 @@ function StudentRow({ student, skillIds, sort, open, onToggle }: {
 }) {
   const trends = skillIds.length === 0 ? student.trends : student.trends.filter(t => skillIds.includes(t.skillId))
   // The skill cards follow the page's Sort too: by name, or by the latest rating each card shows.
-  const orderedTrends = [...trends].sort(compareBy<SkillTrend>(sort, t => t.name, t => t.latestRating))
+  const orderedTrends = [...trends].sort(compareBy<SkillTrend>(sort, t => t.name, { rating: t => t.latestRating, recent: t => lastRatedAt(t, false) }))
 
   if (trends.length === 0) {
     return (
@@ -123,25 +123,41 @@ function StudentRow({ student, skillIds, sort, open, onToggle }: {
   )
 }
 
-type SortKey = 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
+type SortKey = 'recent-desc' | 'recent-asc' | 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'recent-desc', label: 'Most recent first' },
+  { value: 'recent-asc', label: 'Least recent first' },
   { value: 'name-asc', label: 'Name A–Z' },
   { value: 'name-desc', label: 'Name Z–A' },
   { value: 'rating-asc', label: 'Rating low to high' },
   { value: 'rating-desc', label: 'Rating high to low' },
 ]
 
-// Ascending or descending by a score; anything without a score goes last either way, then by name.
-function compareBy<T>(sort: SortKey, name: (x: T) => string, score: (x: T) => number | null) {
+// When a skill was last rated, as a timestamp (ratings are in date order), or null if it has none.
+// `currentCourseOnly` leaves out ratings from earlier courses, which are context here, not activity.
+function lastRatedAt(trend: SkillTrend, currentCourseOnly: boolean): number | null {
+  const ratings = currentCourseOnly ? trend.ratings.filter(r => r.isCurrentCourse) : trend.ratings
+  return ratings.length === 0 ? null : Date.parse(ratings[ratings.length - 1].date)
+}
+
+const latestOf = (values: (number | null)[]): number | null => {
+  const present = values.filter((v): v is number => v !== null)
+  return present.length === 0 ? null : Math.max(...present)
+}
+
+// Order by name, by the rating, or by when it was last rated; "-asc" is low to high or least recent
+// first. Anything without a score goes last either way, then by name.
+function compareBy<T>(sort: SortKey, name: (x: T) => string, scores: { rating: (x: T) => number | null; recent: (x: T) => number | null }) {
   return (a: T, b: T) => {
     if (sort === 'name-asc') return name(a).localeCompare(name(b))
     if (sort === 'name-desc') return name(b).localeCompare(name(a))
+    const score = sort.startsWith('recent') ? scores.recent : scores.rating
     const sa = score(a)
     const sb = score(b)
     if (sa === null && sb === null) return name(a).localeCompare(name(b))
     if (sa === null) return 1
     if (sb === null) return -1
-    return (sort === 'rating-asc' ? sa - sb : sb - sa) || name(a).localeCompare(name(b))
+    return (sort.endsWith('-asc') ? sa - sb : sb - sa) || name(a).localeCompare(name(b))
   }
 }
 
@@ -157,7 +173,7 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
   // Skills picked in the filter; empty means all skills.
   const [skillIds, setSkillIds] = useState<string[]>([])
   const [studentFilter, setStudentFilter] = useState('all')
-  const [sort, setSort] = useState<SortKey>('name-asc')
+  const [sort, setSort] = useState<SortKey>('recent-desc')
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
 
   // Only skills with a rating from this course (the ones the class overview has a card for), so the
@@ -167,11 +183,22 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
   const studentOptions = students.map(s => ({ value: s.id, label: s.name }))
 
   const trendsInView = (s: CourseTrendStudent) => (skillIds.length === 0 ? s.trends : s.trends.filter(t => skillIds.includes(t.skillId)))
+  // When each skill was last rated by anyone in the class (this course only), for "most recent" order.
+  const skillLastRated = new Map<string, number>()
+  for (const student of students) {
+    for (const t of student.trends) {
+      const at = lastRatedAt(t, true)
+      if (at !== null && at > (skillLastRated.get(t.skillId) ?? -Infinity)) skillLastRated.set(t.skillId, at)
+    }
+  }
   // Skill cards rank by the class average; students rank by the mean of their latest ratings in view.
   const visibleSkills = [...(skillIds.length === 0 ? skills : skills.filter(s => skillIds.includes(s.id)))]
-    .sort(compareBy<CourseTrendSkill>(sort, s => s.name, s => s.stats.average))
+    .sort(compareBy<CourseTrendSkill>(sort, s => s.name, { rating: s => s.stats.average, recent: s => skillLastRated.get(s.id) ?? null }))
   const visibleStudents = [...(studentFilter === 'all' ? students : students.filter(s => s.id === studentFilter))]
-    .sort(compareBy<CourseTrendStudent>(sort, s => s.name, s => currentCourseScore(trendsInView(s))))
+    .sort(compareBy<CourseTrendStudent>(sort, s => s.name, {
+      rating: s => currentCourseScore(trendsInView(s)),
+      recent: s => latestOf(trendsInView(s).map(t => lastRatedAt(t, true))),
+    }))
   const expandable = visibleStudents.filter(s => trendsInView(s).length > 0)
 
   // Class-level patterns: every student's skills in view (the skill filter applies, the student filter
