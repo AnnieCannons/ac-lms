@@ -4,7 +4,10 @@ import { useState } from 'react'
 import SkillTrendCard from '@/components/ui/SkillTrendCard'
 import { ChevronDown } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
-import { currentCourseScore } from '@/lib/confidence-trend'
+import SkillMultiSelect from '@/components/ui/SkillMultiSelect'
+import WhatHelpedPatterns from '@/components/ui/WhatHelpedPatterns'
+import { computeClassPatterns } from '@/lib/confidence-patterns'
+import { currentCourseScore, type SkillTrend } from '@/lib/confidence-trend'
 import type { CourseTrendSkill, CourseTrendStudent } from '@/lib/confidence-trend-data'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -24,10 +27,10 @@ function SkillOverviewCard({ skill }: { skill: CourseTrendSkill }) {
   return (
     <div className="bg-surface border-2 border-border rounded-2xl p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-bold text-dark-text">{skill.name}</h3>
-        <span className="text-sm text-muted-text">{plural(stats.n, 'student')} rated</span>
+        <h3 className="text-sm font-bold text-dark-text">{skill.name}</h3>
+        <span className="text-xs text-muted-text">{plural(stats.n, 'student')} rated</span>
       </div>
-      <p className="mt-1 text-sm text-dark-text">
+      <p className="mt-1 text-xs text-dark-text">
         Average <strong>{formatStat(stats.average)}</strong> · Median <strong>{formatStat(stats.median)}</strong>
       </p>
       <div role="group" aria-label={label} className="mt-3 flex items-end gap-1 h-16">
@@ -60,19 +63,38 @@ function SkillOverviewCard({ skill }: { skill: CourseTrendSkill }) {
   )
 }
 
-function StudentRow({ student, skillFilter, open, onToggle }: {
+// One of the two parts inside an expanded student row. A native details element, so it is keyboard and
+// screen-reader accessible, and closed to begin with so a student's row opens to a short list.
+function CollapsiblePart({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-lg border border-border">
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-bold text-dark-text">
+        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-text transition-transform group-not-open:-rotate-90" />
+        <span>{title}</span>
+        {count !== undefined && <span className="font-light text-muted-text">{count}</span>}
+      </summary>
+      <div className="px-3 pb-3 pt-1">{children}</div>
+    </details>
+  )
+}
+
+function StudentRow({ student, skillIds, sort, open, onToggle }: {
   student: CourseTrendStudent
-  skillFilter: string
+  // Skills picked in the filter; empty means all skills.
+  skillIds: string[]
+  sort: SortKey
   open: boolean
   onToggle: (open: boolean) => void
 }) {
-  const trends = skillFilter === 'all' ? student.trends : student.trends.filter(t => t.skillId === skillFilter)
+  const trends = skillIds.length === 0 ? student.trends : student.trends.filter(t => skillIds.includes(t.skillId))
+  // The skill cards follow the page's Sort too: by name, or by the latest rating each card shows.
+  const orderedTrends = [...trends].sort(compareBy<SkillTrend>(sort, t => t.name, { rating: t => t.latestRating, recent: t => lastRatedAt(t, false) }))
 
   if (trends.length === 0) {
     return (
       <li className="bg-surface border border-border rounded-xl px-4 py-3 flex flex-wrap justify-between gap-2">
         <span className="font-medium text-dark-text">{student.name}</span>
-        <span className="text-sm text-muted-text">{skillFilter === 'all' ? 'No ratings yet' : 'No ratings for this skill'}</span>
+        <span className="text-sm text-muted-text">{skillIds.length === 0 ? 'No ratings yet' : skillIds.length === 1 ? 'No ratings for this skill' : 'No ratings for these skills'}</span>
       </li>
     )
   }
@@ -85,8 +107,15 @@ function StudentRow({ student, skillFilter, open, onToggle }: {
           <span className="text-sm text-muted-text">{plural(trends.length, 'skill')} rated</span>
         </summary>
         {open && (
-          <div className="px-4 pb-4 space-y-4">
-            {trends.map(t => <SkillTrendCard key={t.skillId} trend={t} showCourseContext />)}
+          <div className="px-4 pb-4 space-y-3">
+            <CollapsiblePart title="What tends to help this student">
+              <WhatHelpedPatterns trends={trends} audience="student" compact />
+            </CollapsiblePart>
+            <CollapsiblePart title="Skills" count={trends.length}>
+              <div className="space-y-4">
+                {orderedTrends.map(t => <SkillTrendCard key={t.skillId} trend={t} showCourseContext collapsible />)}
+              </div>
+            </CollapsiblePart>
           </div>
         )}
       </details>
@@ -94,54 +123,87 @@ function StudentRow({ student, skillFilter, open, onToggle }: {
   )
 }
 
-type SortKey = 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
+type SortKey = 'recent-desc' | 'recent-asc' | 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'recent-desc', label: 'Most recent first' },
+  { value: 'recent-asc', label: 'Least recent first' },
   { value: 'name-asc', label: 'Name A–Z' },
   { value: 'name-desc', label: 'Name Z–A' },
   { value: 'rating-asc', label: 'Rating low to high' },
   { value: 'rating-desc', label: 'Rating high to low' },
 ]
 
-// Ascending or descending by a score; anything without a score goes last either way, then by name.
-function compareBy<T>(sort: SortKey, name: (x: T) => string, score: (x: T) => number | null) {
+// When a skill was last rated, as a timestamp (ratings are in date order), or null if it has none.
+// `currentCourseOnly` leaves out ratings from earlier courses, which are context here, not activity.
+function lastRatedAt(trend: SkillTrend, currentCourseOnly: boolean): number | null {
+  const ratings = currentCourseOnly ? trend.ratings.filter(r => r.isCurrentCourse) : trend.ratings
+  return ratings.length === 0 ? null : Date.parse(ratings[ratings.length - 1].date)
+}
+
+const latestOf = (values: (number | null)[]): number | null => {
+  const present = values.filter((v): v is number => v !== null)
+  return present.length === 0 ? null : Math.max(...present)
+}
+
+// Order by name, by the rating, or by when it was last rated; "-asc" is low to high or least recent
+// first. Anything without a score goes last either way, then by name.
+function compareBy<T>(sort: SortKey, name: (x: T) => string, scores: { rating: (x: T) => number | null; recent: (x: T) => number | null }) {
   return (a: T, b: T) => {
     if (sort === 'name-asc') return name(a).localeCompare(name(b))
     if (sort === 'name-desc') return name(b).localeCompare(name(a))
+    const score = sort.startsWith('recent') ? scores.recent : scores.rating
     const sa = score(a)
     const sb = score(b)
     if (sa === null && sb === null) return name(a).localeCompare(name(b))
     if (sa === null) return 1
     if (sb === null) return -1
-    return (sort === 'rating-asc' ? sa - sb : sb - sa) || name(a).localeCompare(name(b))
+    return (sort.endsWith('-asc') ? sa - sb : sb - sa) || name(a).localeCompare(name(b))
   }
 }
 
-type Tab = 'overview' | 'students'
+type Tab = 'overview' | 'students' | 'patterns'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Class overview' },
   { id: 'students', label: 'By student' },
+  { id: 'patterns', label: 'Patterns' },
 ]
 
 export default function SkillConfidenceInstructorView({ students, skills }: { students: CourseTrendStudent[]; skills: CourseTrendSkill[] }) {
   const [tab, setTab] = useState<Tab>('overview')
-  const [skillFilter, setSkillFilter] = useState('all')
+  // Skills picked in the filter; empty means all skills.
+  const [skillIds, setSkillIds] = useState<string[]>([])
   const [studentFilter, setStudentFilter] = useState('all')
-  const [sort, setSort] = useState<SortKey>('name-asc')
+  const [sort, setSort] = useState<SortKey>('recent-desc')
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
 
   // Only skills with a rating from this course (the ones the class overview has a card for), so the
   // filter never offers a skill that would just say "no ratings". A skill a student rated only in an
   // earlier course still shows in their expanded row under "All skills".
-  const skillOptions = skills.map(s => ({ value: s.id, label: s.name }))
+  const skillOptions = skills.map(s => ({ id: s.id, name: s.name }))
   const studentOptions = students.map(s => ({ value: s.id, label: s.name }))
 
-  const trendsInView = (s: CourseTrendStudent) => (skillFilter === 'all' ? s.trends : s.trends.filter(t => t.skillId === skillFilter))
+  const trendsInView = (s: CourseTrendStudent) => (skillIds.length === 0 ? s.trends : s.trends.filter(t => skillIds.includes(t.skillId)))
+  // When each skill was last rated by anyone in the class (this course only), for "most recent" order.
+  const skillLastRated = new Map<string, number>()
+  for (const student of students) {
+    for (const t of student.trends) {
+      const at = lastRatedAt(t, true)
+      if (at !== null && at > (skillLastRated.get(t.skillId) ?? -Infinity)) skillLastRated.set(t.skillId, at)
+    }
+  }
   // Skill cards rank by the class average; students rank by the mean of their latest ratings in view.
-  const visibleSkills = [...(skillFilter === 'all' ? skills : skills.filter(s => s.id === skillFilter))]
-    .sort(compareBy<CourseTrendSkill>(sort, s => s.name, s => s.stats.average))
+  const visibleSkills = [...(skillIds.length === 0 ? skills : skills.filter(s => skillIds.includes(s.id)))]
+    .sort(compareBy<CourseTrendSkill>(sort, s => s.name, { rating: s => s.stats.average, recent: s => skillLastRated.get(s.id) ?? null }))
   const visibleStudents = [...(studentFilter === 'all' ? students : students.filter(s => s.id === studentFilter))]
-    .sort(compareBy<CourseTrendStudent>(sort, s => s.name, s => currentCourseScore(trendsInView(s))))
-  const expandable = visibleStudents.filter(s => (skillFilter === 'all' ? s.trends : s.trends.filter(t => t.skillId === skillFilter)).length > 0)
+    .sort(compareBy<CourseTrendStudent>(sort, s => s.name, {
+      rating: s => currentCourseScore(trendsInView(s)),
+      recent: s => latestOf(trendsInView(s).map(t => lastRatedAt(t, true))),
+    }))
+  const expandable = visibleStudents.filter(s => trendsInView(s).length > 0)
+
+  // Class-level patterns: every student's skills in view (the skill filter applies, the student filter
+  // does not), so the counts always cover the whole class.
+  const classPatterns = computeClassPatterns(students.map(trendsInView))
 
   if (students.length === 0) {
     return <p className="text-sm text-muted-text">No students are currently enrolled in this course.</p>
@@ -158,9 +220,11 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
     })
 
   const onTabKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
     e.preventDefault()
-    const next: Tab = tab === 'overview' ? 'students' : 'overview'
+    const at = TABS.findIndex(t => t.id === tab)
+    const to = e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : (at + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length
+    const next = TABS[to].id
     setTab(next)
     document.getElementById(`skill-tab-${next}`)?.focus()
   }
@@ -179,12 +243,14 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
   )
 
   const skillFilterField = (
-    <SearchableSelect label="Skill" allLabel="All skills" options={skillOptions} value={skillFilter} onChange={setSkillFilter} widthClass="w-48" />
+    <div className="w-full sm:w-96">
+      <SkillMultiSelect label="Skills" inlineLabel placeholder="All skills" options={skillOptions} selectedIds={skillIds} onChange={setSkillIds} />
+    </div>
   )
 
   return (
     <div>
-      <div role="tablist" aria-label="Confidence views" className="flex gap-1 border-b border-border" onKeyDown={onTabKeyDown}>
+      <div role="tablist" aria-label="Confidence views" className="flex gap-0 sm:gap-1 overflow-x-auto pb-px sm:overflow-visible sm:pb-0 border-b border-border" onKeyDown={onTabKeyDown}>
         {TABS.map(t => {
           const selected = tab === t.id
           return (
@@ -197,7 +263,7 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
               aria-controls={`skill-panel-${t.id}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setTab(t.id)}
-              className={`-mb-px px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              className={`-mb-px px-1.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
                 selected ? 'border-teal-primary text-teal-primary' : 'border-transparent text-muted-text hover:text-dark-text'
               }`}
             >
@@ -210,12 +276,16 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
 
       {tab === 'overview' && (
         <div role="tabpanel" id="skill-panel-overview" aria-labelledby="skill-tab-overview" className="pt-6 space-y-6">
-          <div className="flex flex-wrap gap-4">{skillFilterField}{sortField}</div>
+          <div className="flex flex-wrap items-start gap-4">{skillFilterField}{sortField}</div>
           {visibleSkills.length === 0 ? (
-            <p className="text-sm text-muted-text">No students have rated {skillFilter === 'all' ? 'a skill' : 'this skill'} on this course yet.</p>
+            <p className="text-sm text-muted-text">No students have rated {skillIds.length === 0 ? 'a skill' : skillIds.length === 1 ? 'this skill' : 'these skills'} on this course yet.</p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {visibleSkills.map(s => <SkillOverviewCard key={s.id} skill={s} />)}
+            // Columns follow the width the cards actually have (the sidebar takes a share of the screen):
+            // one when narrow, two from 28rem, three from 42rem.
+            <div className="@container">
+              <div className="grid grid-cols-1 gap-4 @md:grid-cols-2 @2xl:grid-cols-3">
+                {visibleSkills.map(s => <SkillOverviewCard key={s.id} skill={s} />)}
+              </div>
             </div>
           )}
         </div>
@@ -223,7 +293,7 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
 
       {tab === 'students' && (
         <div role="tabpanel" id="skill-panel-students" aria-labelledby="skill-tab-students" className="pt-6 space-y-6">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-start gap-4">
             {skillFilterField}
             <SearchableSelect label="Student" allLabel="All students" options={studentOptions} value={studentFilter} onChange={setStudentFilter} widthClass="w-44" />
             {sortField}
@@ -236,9 +306,16 @@ export default function SkillConfidenceInstructorView({ students, skills }: { st
           )}
           <ul className="space-y-2">
             {visibleStudents.map(s => (
-              <StudentRow key={s.id} student={s} skillFilter={skillFilter} open={openIds.has(s.id)} onToggle={o => setRowOpen(s.id, o)} />
+              <StudentRow key={s.id} student={s} skillIds={skillIds} sort={sort} open={openIds.has(s.id)} onToggle={o => setRowOpen(s.id, o)} />
             ))}
           </ul>
+        </div>
+      )}
+
+      {tab === 'patterns' && (
+        <div role="tabpanel" id="skill-panel-patterns" aria-labelledby="skill-tab-patterns" className="pt-6 space-y-6">
+          <div className="flex flex-wrap gap-4">{skillFilterField}</div>
+          <WhatHelpedPatterns patterns={classPatterns} audience="class" />
         </div>
       )}
     </div>

@@ -67,3 +67,16 @@ export function computeWhatHelpedPatterns(trends: SkillTrend[]): WhatHelpedPatte
 
   return { answeredGoals, methods }
 }
+
+export interface ClassPatterns extends WhatHelpedPatterns {
+  // Students with at least one answered goal in the counts. Only a number, never who.
+  answeredStudents: number
+}
+
+// Phase 8: the same grouping across a class, one trend list per student. Skills sum by skill id; the
+// result carries no student identity, so the class view can't point at a person.
+export function computeClassPatterns(studentsTrends: SkillTrend[][]): ClassPatterns {
+  const combined = computeWhatHelpedPatterns(studentsTrends.flat())
+  const answeredStudents = studentsTrends.filter(trends => computeWhatHelpedPatterns(trends).answeredGoals > 0).length
+  return { ...combined, answeredStudents }
+}
