@@ -83,7 +83,7 @@ export default function SkillMultiSelect({ label, placeholder, options, selected
       </label>
       <div ref={containerRef} className={inlineLabel ? 'relative min-w-0 flex-1' : 'relative'}>
         <div
-          className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 focus-within:border-teal-primary"
+          className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 focus-within:border-teal-primary focus-within:ring-2 focus-within:ring-teal-primary"
           onClick={() => { inputRef.current?.focus(); setOpen(true) }}
         >
           {selectedIds.map(id => byId.get(id)).filter((o): o is SkillOption => !!o).map(o => (

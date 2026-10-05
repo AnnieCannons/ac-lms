@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { moveRovingFocus } from '@/lib/roving-focus'
 import GoalFields, { MAX_RATING, RATING_LABELS, SCALE, defaultTargetDate, suggestedGoal } from '@/components/ui/GoalFields'
 import type { ConfidenceSkillWithStatus } from '@/lib/confidence-tracker-actions'
 import type { GoalState } from '@/lib/confidence-tracker-validation'
@@ -77,8 +78,15 @@ export default function ConfidenceRatingPrompt({ skills, value, onChange, goals,
             <span className="badge-new text-xs font-semibold px-2 py-0.5 rounded-full border">New</span>
           )}
         </p>
-        <div role="radiogroup" aria-label={`Confidence rating for ${skill.name}`} className="flex flex-wrap gap-1.5">
+        <div
+          role="radiogroup"
+          aria-label={`Confidence rating for ${skill.name}`}
+          className="flex flex-wrap gap-1.5"
+          onKeyDown={e => moveRovingFocus(e, '[role="radio"]')}
+        >
           {SCALE.map(n => {
+            // One Tab stop per skill: the chosen rating, else the shown current 10, else the first.
+            const tabStop = n === (rating ?? (untouchedMaintained ? MAX_RATING : SCALE[0]))
             const selected = rating === n
             const current = untouchedMaintained && n === MAX_RATING
             return (
@@ -88,13 +96,14 @@ export default function ConfidenceRatingPrompt({ skills, value, onChange, goals,
                   role="radio"
                   aria-checked={selected || current}
                   aria-label={current ? `${n}, current rating` : `${n}`}
+                  tabIndex={tabStop ? 0 : -1}
                   disabled={disabled}
                   onClick={e => {
                     handleRatingClick(skill, n, selected)
                     // Clicking focuses the button, which keeps the tooltip visible via
-                    // group-focus-within even after the mouse moves away — blur it so
-                    // the tooltip only lingers for genuine hover/keyboard focus, not a click.
-                    e.currentTarget.blur()
+                    // group-focus-within even after the mouse moves away — blur it after a mouse
+                    // click (detail > 0) so the tooltip doesn't linger. A keyboard user keeps their place.
+                    if (e.detail > 0) e.currentTarget.blur()
                   }}
                   className={`w-8 h-8 rounded-full border text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     selected

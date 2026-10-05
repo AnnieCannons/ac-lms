@@ -69,7 +69,7 @@ export default function WhatHelpedForm({ outcomeId, skillName, ownPlanText, onAn
               aria-checked={checked}
               disabled={pending}
               onClick={() => toggle(opt.value)}
-              className="flex items-start gap-3 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-start gap-3 py-1 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span
                 aria-hidden="true"

@@ -98,7 +98,7 @@ export default function SearchableSelect({ label, allLabel, allValue = 'all', op
             }}
             onClick={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            className={`${widthClass} rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-dark-text placeholder:text-muted-text focus:border-teal-primary focus:outline-none`}
+            className={`${widthClass} rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-dark-text placeholder:text-muted-text focus:border-teal-primary focus:outline-none focus:ring-2 focus:ring-teal-primary`}
           />
           <ChevronDown
             aria-hidden="true"

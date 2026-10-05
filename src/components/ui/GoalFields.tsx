@@ -2,6 +2,7 @@
 
 import { addDays, format } from 'date-fns'
 import DatePickerField from '@/components/ui/DatePickerField'
+import { moveRovingFocus } from '@/lib/roving-focus'
 import { OTHER_TEXT_MAX_LENGTH, STUDY_PLAN_OPTIONS, type GoalState } from '@/lib/confidence-tracker-validation'
 
 export const SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -49,12 +50,21 @@ interface Props {
 // Never rendered for a rating of 10 — there is no numeric goal above the top of the scale.
 export default function GoalFields({ skillId, skillName, rating, goalState, onGoalChange, disabled }: Props) {
   const numericGoal = goalState?.goal ?? null
+  const goalChoices = SCALE.filter(n => n >= rating + 1)
+  const selectedIndex = goalChoices.indexOf(numericGoal as number)
 
   return (
     <>
-      <div role="radiogroup" aria-label={`Goal for ${skillName}`} className="flex flex-wrap gap-1.5">
-        {SCALE.filter(n => n >= rating + 1).map(n => {
+      <div
+        role="radiogroup"
+        aria-label={`Goal for ${skillName}`}
+        className="flex flex-wrap gap-1.5"
+        onKeyDown={e => moveRovingFocus(e, '[role="radio"]')}
+      >
+        {goalChoices.map((n, i) => {
           const selected = numericGoal === n
+          // One Tab stop for the whole group: the chosen goal, or the first choice when none is chosen.
+          const tabStop = i === (selectedIndex === -1 ? 0 : selectedIndex)
           return (
             <div key={n} className="relative group">
               <button
@@ -62,6 +72,7 @@ export default function GoalFields({ skillId, skillName, rating, goalState, onGo
                 role="radio"
                 aria-checked={selected}
                 aria-label={`Goal ${n}`}
+                tabIndex={tabStop ? 0 : -1}
                 disabled={disabled}
                 onClick={e => {
                   onGoalChange(
@@ -73,7 +84,8 @@ export default function GoalFields({ skillId, skillName, rating, goalState, onGo
                       // reset the whole state).
                       : { goal: n, targetDate: goalState?.targetDate || defaultTargetDate() }
                   )
-                  e.currentTarget.blur()
+                  // Only after a mouse click (detail > 0): a keyboard user must keep their place.
+                  if (e.detail > 0) e.currentTarget.blur()
                 }}
                 className={`w-8 h-8 rounded-full border text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   selected
@@ -131,7 +143,7 @@ export default function GoalFields({ skillId, skillName, rating, goalState, onGo
                           opt.value === 'other' && checked ? '' : goalState.studyPlanOther,
                       })
                     }
-                    className="flex items-start gap-3 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-start gap-3 py-1 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span
                       aria-hidden="true"

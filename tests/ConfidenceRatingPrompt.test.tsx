@@ -617,3 +617,43 @@ describe('ConfidenceRatingPrompt', () => {
     })
   })
 })
+
+describe('ConfidenceRatingPrompt keyboard order', () => {
+  const group = (name: string) => screen.getByRole('radiogroup', { name })
+
+  it('each skill is one Tab stop: the chosen rating, or the first when none is chosen', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <button>before</button>
+        <ConfidenceRatingPrompt skills={SKILLS} value={{ 'skill-b': 4 }} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} />
+        <button>after</button>
+      </>
+    )
+    await user.click(screen.getByRole('button', { name: 'before' }))
+    await user.tab()
+    expect(within(group('Confidence rating for React')).getByRole('radio', { name: '1' })).toHaveFocus()
+    await user.tab()
+    expect(within(group('Confidence rating for Testing')).getByRole('radio', { name: '4' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'after' })).toHaveFocus()
+  })
+
+  it('arrow keys move focus without choosing a rating, and Space chooses and keeps focus', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<ConfidenceRatingPrompt skills={SKILLS} value={{}} onChange={onChange} goals={{}} onGoalChange={vi.fn()} />)
+    const react = group('Confidence rating for React')
+    within(react).getByRole('radio', { name: '1' }).focus()
+    await user.keyboard('{ArrowRight}{ArrowRight}')
+    expect(within(react).getByRole('radio', { name: '3' })).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
+    await user.keyboard('{End}')
+    expect(within(react).getByRole('radio', { name: '10' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(within(react).getByRole('radio', { name: '1' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}{ }')
+    expect(onChange).toHaveBeenCalledWith('skill-a', 2)
+    expect(within(react).getByRole('radio', { name: '2' })).toHaveFocus()
+  })
+})

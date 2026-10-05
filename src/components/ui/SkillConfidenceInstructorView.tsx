@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { moveRovingFocus } from '@/lib/roving-focus'
 import SkillTrendCard from '@/components/ui/SkillTrendCard'
 import { ChevronDown } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
@@ -20,6 +21,9 @@ function formatStat(v: number | null): string {
 function SkillOverviewCard({ skill }: { skill: CourseTrendSkill }) {
   const { stats } = skill
   const max = Math.max(...stats.distribution, 1)
+  // The ten bars are one Tab stop (arrow keys move between them), not ten: with many skills
+  // the overview would otherwise have hundreds of stops.
+  const [activeBar, setActiveBar] = useState(0)
   const label = `Distribution of latest ratings: ${stats.distribution
     .map((count, i) => (count > 0 ? `${i + 1} (${plural(count, 'student')})` : ''))
     .filter(Boolean)
@@ -33,14 +37,21 @@ function SkillOverviewCard({ skill }: { skill: CourseTrendSkill }) {
       <p className="mt-1 text-xs text-dark-text">
         Average <strong>{formatStat(stats.average)}</strong> · Median <strong>{formatStat(stats.median)}</strong>
       </p>
-      <div role="group" aria-label={label} className="mt-3 flex items-end gap-1 h-16">
+      <div
+        role="group"
+        aria-label={label}
+        className="mt-3 flex items-end gap-1 h-16"
+        onKeyDown={e => { const next = moveRovingFocus(e, '[data-bar]'); if (next !== null) setActiveBar(next) }}
+      >
         {stats.distribution.map((count, i) => {
           // Keep the pop-up inside the card at the two ends of the scale.
           const align = i < 3 ? 'left-0' : i > 6 ? 'right-0' : 'left-1/2 -translate-x-1/2'
           return (
             <div
               key={i}
-              tabIndex={0}
+              data-bar
+              tabIndex={i === activeBar ? 0 : -1}
+              onFocus={() => setActiveBar(i)}
               aria-label={`${plural(count, 'student')} rated ${i + 1}`}
               className="group relative flex-1 flex flex-col items-center justify-end h-full outline-none"
             >

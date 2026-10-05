@@ -20,9 +20,9 @@ export default function ConfidenceKudos({ items, onDismiss }: Props) {
     <div
       role="status"
       aria-live="polite"
-      className="kudos-card flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+      className="kudos-card flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3 rounded-lg border px-3 py-2 text-sm"
     >
-      <div>
+      <div className="min-w-0">
         <p className="font-semibold">
           Nice progress! <span aria-hidden="true">🎉</span>
         </p>
@@ -37,7 +37,9 @@ export default function ConfidenceKudos({ items, onDismiss }: Props) {
       <button
         type="button"
         onClick={onDismiss}
-        className="text-xs font-medium underline shrink-0"
+        // On a phone the button sits above the content (right-aligned) so the text gets the full width;
+        // from `sm` up it goes back beside it. min-h-8 keeps the touch target above 24px.
+        className="order-first inline-flex min-h-8 items-center self-end px-2 text-xs font-medium underline shrink-0 sm:order-none sm:self-start"
         aria-label="Dismiss progress message"
       >
         Dismiss
