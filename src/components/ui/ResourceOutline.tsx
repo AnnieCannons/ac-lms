@@ -377,7 +377,7 @@ function LinkResource({
   )
 }
 
-type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete' | 'level-up'
+type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete' | 'optional' | 'level-up'
 
 const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -386,6 +386,7 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'late', label: 'Late' },
   { key: 'turned-in', label: 'Turned In' },
   { key: 'complete', label: 'Complete ✓' },
+  { key: 'optional', label: 'Optional' },
   { key: 'level-up', label: 'Level Up' },
 ]
 
@@ -396,6 +397,7 @@ const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string
   'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
   'needs-revision': { inactive: 'bg-red-500/20 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
   'complete':       { inactive: 'bg-green-600/20 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
+  'optional':       { inactive: 'bg-teal-light text-teal-primary border border-teal-primary/40 hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
   'level-up':       { inactive: 'bg-purple-light text-purple-primary border border-purple-primary hover:opacity-80', active: 'bg-purple-primary text-white border border-purple-primary' },
 }
 
@@ -407,15 +409,15 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   // All other filters: exclude level up assignments
   if (levelUp) return false
   if (filter === 'all') return true
+  if (filter === 'optional') return !!isOptional
   if (filter === 'complete') return info?.grade === 'complete'
   if (filter === 'turned-in') return (info?.status === 'submitted' || info?.status === 'graded') && !info?.grade
   const isLate = !!dueDate && localDate(dueDate) < todayLocal()
   const notStarted = !info || (info.status === 'draft' && !info.grade)
   if (filter === 'needs-revision') return info?.grade === 'incomplete'
   if (submissionRequired === false && filter === 'late') return false
-  // Optional: never late; only "not started" while it's still open
-  if (isOptional && filter === 'late') return false
-  if (isOptional && filter === 'not-started') return notStarted && !info?.excused && !isLate
+  // Optional: never late or "not started" — they live under the Optional filter
+  if (isOptional && (filter === 'late' || filter === 'not-started')) return false
   if (filter === 'late') return isLate && notStarted && !info?.excused
   if (filter === 'not-started') return notStarted && !info?.excused
   return true
@@ -602,16 +604,14 @@ export default function ResourceOutline({
   const notStartedFlat = (!instructorView && filter === 'not-started' && submissionMap)
     ? (() => {
         const base = allPublishedAssignments.filter(a => {
-          if (a.isLevelUp) return false
+          if (a.isLevelUp || a.is_optional) return false
           const info = submissionMap[a.id]
           const notStarted = !info || (info.status === 'draft' && !info.grade)
           return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
         })
         const isPastDue = (a: typeof base[number]) => !!a.due_date && localDate(a.due_date) < todayLocal()
-        // Closed optional assignments drop out entirely — skipping them is fine
-        const open = base.filter(a => !(a.is_optional && isPastDue(a)))
-        const pastDue = sortByDue(open.filter(a => a.submission_required !== false && !a.is_optional && isPastDue(a)))
-        const upcoming = sortByDue(open.filter(a => a.submission_required === false || a.is_optional || !isPastDue(a)))
+        const pastDue = sortByDue(base.filter(a => a.submission_required !== false && isPastDue(a)))
+        const upcoming = sortByDue(base.filter(a => a.submission_required === false || !isPastDue(a)))
         return { pastDue, upcoming }
       })()
     : null
