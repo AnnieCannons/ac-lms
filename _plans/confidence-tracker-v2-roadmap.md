@@ -9,6 +9,75 @@ It's deliberately kept separate from two unrelated, pre-existing systems that al
 
 New tables/UI use the `confidence_tracker_*` naming to avoid colliding with either.
 
+## Open items at a glance
+One place for everything still open: what is unfinished, what is waiting to be checked by hand, ideas for later, and follow-ups. It only points to the phases below; the full detail and decisions stay in each phase section, and nothing there was removed.
+
+### Where each phase stands
+| Phase | What it is | Status | Still open |
+|---|---|---|---|
+| [1](#phase-1--skill-tagging-foundation--done-merged) | Skill tagging | Done, merged ([#151](https://github.com/AnnieCannons/ac-lms/pull/151)); live (not behind the flag) | nothing |
+| [2](#phase-2--basic-inline-rating-capture--done-merged-flag-off-in-production) | Inline rating capture | Done, merged ([#153](https://github.com/AnnieCannons/ac-lms/pull/153)) | nothing |
+| [3](#phase-3--new-skill-goal--study-plan--done-merged) | New-skill goal and study plan | Done, merged ([#157](https://github.com/AnnieCannons/ac-lms/pull/157)) | nothing |
+| [4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged) | Trend pages and reactivate | Done, merged ([#158](https://github.com/AnnieCannons/ac-lms/pull/158)) | one hand check |
+| [5](#phase-5--incremental-kudos--done-merged-flag-off-in-production) | Incremental kudos | Done, merged ([#161](https://github.com/AnnieCannons/ac-lms/pull/161)) | hand checks |
+| [6](#phase-6--goal-met-celebration--reminder--done-merged-flag-off-in-production) | Goal-met celebration and reminder | Done, merged ([#162](https://github.com/AnnieCannons/ac-lms/pull/162)) | hand checks |
+| [7](#phase-7--personal-pattern-insights--done-merged-flag-off-in-production) | Personal pattern insights | Done, merged ([#164](https://github.com/AnnieCannons/ac-lms/pull/164)) | hand checks |
+| [8](#phase-8--instructor-and-staff-view-of-patterns--done-merged-flag-off-in-production) | Instructor and staff view of patterns | Done, merged ([#165](https://github.com/AnnieCannons/ac-lms/pull/165)); flag off in production | hand checks |
+
+Everything from Phase 2 on is behind `CONFIDENCE_TRACKER_V2_RATINGS_ENABLED`, which is **off in production** and stays off until every phase is complete. Never turn it on without asking first.
+
+### Next up
+- [ ] **Phase 8:** do the hand checks listed under [Not yet checked by hand](#not-yet-checked-by-hand) (flag-off, a TA and a student being blocked, high contrast, screen-reader use, and the student's own Patterns tab).
+- [ ] Tick each check off here and in its phase section as it is done, and refresh [Suggested next step](#suggested-next-step).
+
+### Not yet checked by hand
+Code and unit tests cover most of these; they have just not been looked at live.
+- **Phase 4:** the instructor page with a real TA login and a real student login (the TA redirect is covered by code and follows the Readiness page pattern).
+- **Phase 5:** dark mode, high contrast, mobile width, screen-reader announcement, flag-off and Student Preview (unit tests cover flag-off and Student Preview).
+- **Phase 6:** flag-off behavior, dark and high-contrast visuals, keyboard and screen-reader use, the "New" badge fix on a real reactivated skill, and the bell's limit of the latest 30 notifications.
+- **Phase 7:** `npm run build`, high-contrast mode, screen-reader and keyboard use, flag-off and the instructor view, saving an answer from the dialog live, and the zero-answer and 50-skill cases.
+- **Phase 8:** flag-off (the page 404s); a TA and a student being blocked from the page (needs those logins); high contrast; screen-reader use; the student's own Patterns tab after the shared component changed (the skill tags now run at full card width on phones, and ids are unique); the "Nothing logged yet" note on a student with ratings but no answers (unit-tested only); and the Patterns tab and per-student patterns at tablet width.
+
+### Before the flag goes on (pre-launch)
+Full detail, with the exact SQL, is in [the checklist](#before-flipping-the-flag-on-in-production--checklist) at the end of this file. In short:
+- [ ] Delete the Phase 4 demo skills (`ZZ P4 Browser …`) and the Phase 6 test skills (`ZZ P6 …`). Deleting a skill cascades to its ratings, progress, history and tags.
+- [ ] Remove or review the test rows the skill delete does not reach: test submissions and their history entries, checklist ticks, the test student's goal outcomes and bell notifications, and the goal and mastery changes made to the demo skills.
+- [ ] Apply every confidence-tracker migration by hand in the target Supabase project (the three named in the checklist; the last one must be in place before the bell is used anywhere).
+- [ ] Confirm the flag is unset or not `true` in the production environment until all of the above is done, then ask before turning it on.
+- [ ] Do the "Not yet checked by hand" items above.
+
+### Ideas for later and decided out of scope for MVP
+- **Remove the visible "All ratings (N)" row** from the skill cards while keeping the ratings accessible. A screen-reader-only list plus a richer chart label was tried and reverted; the trade-offs are written down. → [Phase 8](#phase-8--instructor-and-staff-view-of-patterns--done-merged-flag-off-in-production)
+  - Related, and part of the same decision: keyboard users can already step through the chart's points (tab onto the chart, then the arrow keys show each rating's assignment and value in the tooltip; checked live). But the chart sits inside a wrapper marked as an image, so a screen reader most likely does not announce what the arrows land on (not tested with a screen reader). Making that work (so the chart itself is the accessible route) is one way the list could become less essential.
+- **Limit how many skills can be tagged to one assignment?** Open question; today there is no limit, and each tagged skill adds a rating box to the submission form. → [Phase 1](#phase-1--skill-tagging-foundation--done-merged)
+- **Add a third section to the student trend page** for skills that are growing, skills that have reached 10, and mastered skills (for example, got a 10 maybe three times in a row). Today the page has two sections, working on and mastered, and a skill is mastered after two ratings of 10 (Phase 3). → [Phase 4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged)
+- **Patterns tab: how to display "Other" methods.** Today the student's own write-ins and "Other" text all fold into a single "Other" and the text is never shown. Decide whether and how to show more than that. → [Phase 7](#phase-7--personal-pattern-insights--done-merged-flag-off-in-production)
+- **Bring existing data from the old Confidence Tracker into the new one, and decide how to display it.** Related to retiring the old pages under Follow-ups below. → [Phase 4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged)
+- **Improve the overall UX and design** of the feature, across the student and instructor pages and the submission flow.
+
+**Decided out of scope for MVP** (not planned):
+- **"Needs attention" count** on the instructor Class overview cards, for example "4 students rated 4 or below", since a central number can hide a few students who are struggling. The cutoff (4 or below?) is undecided. Kept separate from Phase 8. → [Phase 4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged), [Phase 8](#phase-8--instructor-and-staff-view-of-patterns--done-merged-flag-off-in-production)
+- **Rethink the instructor By-student layout** around what instructors actually scan for (who is struggling, who is stuck, who moved recently, who has no data); talk to instructors first. Phase 8 already added sorting by recency or rating, collapsible parts and skill cards, and a multi-select skill filter to that tab, so check what is still missing before starting. → [Phase 4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged)
+- **Showing instructors the rated skills for each assignment when they grade.** Out of scope for the MVP (decided in Phase 4). It remains an open question whether to add it later:
+  - Good: an early check on the learning gaps the ratings might reveal, before grading is finished.
+  - Bad: students might feel a certain way knowing their confidence level will be seen when the instructor grades.
+  → [Phase 4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged)
+- Letting students export or print their history (Phase 4 spec).
+- TAs seeing any of this feature's data: they are excluded throughout.
+
+### Follow-ups to remember
+- **Retire the old Confidence Tracker pages** (`/student/confidence` and the old instructor confidence page) without deleting any data students saved there. Decide then whether to archive, export, or keep a read-only view. → [Phase 4](#phase-4--trend-pages-student-facing--instructorstaff-facing--done-merged)
+
+### Already done (kept for reference)
+- **Let a student set a goal from the "My Skill Confidence" page** if they skipped it at submission was an idea in Phase 4. It was built in Phase 6 as the "Set a goal" control.
+
+### Standing notes
+- **The flag stays off** until all phases are done, and it is never turned on without asking.
+- **Local development and production share one Supabase database.** Anything created while testing is visible to production, so test data is tracked and cleaned up deliberately. Ask before writing or deleting shared data.
+- **Phase 1 tagging is not behind the flag:** instructors see skill tags in the Assignment Editor today. Students see nothing while the flag is off.
+- **Migrations are applied by hand** in the Supabase Dashboard; keep them idempotent.
+- **Separate from the old systems:** the original Confidence Tracker (`confidence_skills` / `confidence_entries`) and "Level Up Your Skills" (`skill_tags`) are untouched by this initiative.
+
 ## Phase 1 — Skill tagging foundation ✅ Done (merged)
 - New canonical, shared skill taxonomy: `confidence_tracker_skills` + `confidence_tracker_assignment_skills` (join table), with case/whitespace/punctuation-insensitive dedup.
 - Instructor-facing "Confidence Skills" field in the Assignment Editor — creatable multi-select combobox (type to filter, click/Enter to select, Enter on no match to create), with inline rename support (a rename applies globally since the skill is shared).
@@ -82,15 +151,17 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
 - Decided: no drill-down (per-skill counts instead); a bar line was tried and replaced by count tiles; student-only (staff view is Phase 8).
 - **Not verified by hand yet:** `npm run build`, high-contrast mode, screen-reader and keyboard use, flag-off and the instructor view, saving an answer from the dialog live, and the zero-answer and 50-skill cases.
 
-## Phase 8 — Instructor and staff view of patterns
-- **Depends on Phase 7.** Lets admins, instructors and staff see "what helped" patterns, which Phase 7 deliberately shows only to the student. Spec: [`_specs/confidence-instructor-patterns.md`](../_specs/confidence-instructor-patterns.md) (branch `claude/feature/confidence-instructor-patterns`) — Plan: [`_plans/confidence-instructor-patterns.md`](./confidence-instructor-patterns.md) — all open questions answered; built on the branch, not yet verified live or merged.
+## Phase 8 — Instructor and staff view of patterns ✅ Done (merged, flag off in production)
+- **Depends on Phase 7.** Lets admins, instructors and staff see "what helped" patterns, which Phase 7 deliberately shows only to the student. Spec: [`_specs/confidence-instructor-patterns.md`](../_specs/confidence-instructor-patterns.md) (branch `claude/feature/confidence-instructor-patterns`) — Plan: [`_plans/confidence-instructor-patterns.md`](./confidence-instructor-patterns.md) — all open questions answered; merged via [PR #165](https://github.com/AnnieCannons/ac-lms/pull/165), not yet verified by hand (see below).
 - **Decided while spec'ing:**
   - Both views are included: per-student patterns in a student's expanded By student view, and a class-level view on a new third tab of the instructor Skill Confidence page (the Class overview stays focused on ratings).
   - Both are limited to skills tagged on this course; the class-level view counts only currently active students (matching the gradebook), never names or links individual students, never shows free text, and ignores the student filter (narrowed only by skill).
   - No minimum number of answers, and no small-group protection; it shows how many students and answered goals it is based on, but not a "not yet logged" count. No drill-down.
   - Same access rules as the rest of this feature (admin, instructor and staff; TAs excluded), same descriptive, non-causal framing, same flag; read-only, nothing stored.
   - The "needs attention" count stays a separate later idea.
-- **Idea for later (not in Phase 8):** consider removing the visible "All ratings (N)" row from the skill cards (the instructor By-student cards, and possibly the student's own cards) while keeping the ratings accessible, since the chart already shows the same ratings. The row is the non-visual equivalent of the chart that the Phase 4 spec requires, so it can only go if that is replaced. Tried and reverted during Phase 8 (kept the visible row for now): on the instructor cards, make the list screen-reader-only (`sr-only`) and add each rating's assignment, course and an "earlier course" marker to the chart's `aria-label`. It worked: the hidden list and label showed up in the accessibility tree for all 18 skills in the test course. Trade-offs to weigh before doing it: a sighted instructor then can't read each rating's assignment name, full date and course in plain text without hovering dots (the chart tooltip shows only the assignment name and value), and the label gets very long for skills with many ratings (31 in the test data). Other options noted: keyboard-focusable chart points (recharts 3 supports an accessibility layer, untested here). Not recommended to remove it outright, since screen-reader users would lose the individual ratings.
+- As built: a third **Patterns** tab on the instructor Skill Confidence page (class-level counts, narrowed only by the skill filter, never naming a student) and, inside each expanded student row, two collapsible parts, "What tends to help this student" and "Skills", both closed to begin with; each skill card is closed too, showing only its name and latest rating. The page's Sort gained "Most recent first" (the default) and "Least recent first" and now also orders the skill cards inside a student's row; the Skills filter takes several skills (clicking a chip removes it); the overview shows three cards per row when there is room; and the tab row, tags and card text are fitted to phone widths. No migration, no new query, nothing stored. The logic is `computeClassPatterns` in `src/lib/confidence-patterns.ts`.
+- **Not verified by hand yet:** see "Phase 8" under [Not yet checked by hand](#not-yet-checked-by-hand).
+- **Idea for later (not in Phase 8):** consider removing the visible "All ratings (N)" row from the skill cards (the instructor By-student cards, and possibly the student's own cards) while keeping the ratings accessible, since the chart already shows the same ratings. The row is the non-visual equivalent of the chart that the Phase 4 spec requires, so it can only go if that is replaced. Tried and reverted during Phase 8 (kept the visible row for now): on the instructor cards, make the list screen-reader-only (`sr-only`) and add each rating's assignment, course and an "earlier course" marker to the chart's `aria-label`. It worked: the hidden list and label showed up in the accessibility tree for all 18 skills in the test course. Trade-offs to weigh before doing it: a sighted instructor then can't read each rating's assignment name, full date and course in plain text without hovering dots (the chart tooltip shows only the assignment name and value), and the label gets very long for skills with many ratings (31 in the test data). Also noted: the chart is already keyboard-steppable (arrow keys move through the points), but its image wrapper probably hides that from screen readers. Not recommended to remove it outright, since screen-reader users would lose the individual ratings.
 
 ## Open questions blocking future phases
 - **Study-plan options** (blocks Phase 3): fixed list of choices + "Other" write-in — not yet defined.
@@ -113,7 +184,7 @@ New tables/UI use the `confidence_tracker_*` naming to avoid colliding with eith
     7. Other (write-in)
 
 ## Suggested next step
-Phases 1–7 are merged into `main` (Phase 7 via [PR #164](https://github.com/AnnieCannons/ac-lms/pull/164)), and everything from Phase 2 onward stays behind `CONFIDENCE_TRACKER_V2_RATINGS_ENABLED`, which is still off in production. Next: Phase 8 (instructor and staff view of patterns) is spec'd on branch `claude/feature/confidence-instructor-patterns` with all open questions answered; it needs a plan, then implementation. Later ideas still open: a "needs attention" count on the class overview, a rethink of the By-student layout, and retiring the old Confidence Tracker pages. Don't forget the pre-launch checklist at the end of this file (especially deleting the demo and test data, and the hand checks Phases 6 and 7 left unverified) before the flag is turned on.
+Phases 1–8 are merged into `main` (Phase 8 via [PR #165](https://github.com/AnnieCannons/ac-lms/pull/165)), and everything from Phase 2 onward stays behind `CONFIDENCE_TRACKER_V2_RATINGS_ENABLED`, which is still off in production. Next are the hand checks that Phases 4 to 8 left open, then the pre-launch cleanup. A "needs attention" count on the class overview and a rethink of the By-student layout are out of scope for the MVP. Still open for later: retiring the old Confidence Tracker pages, and the other ideas listed under [Open items at a glance](#open-items-at-a-glance). Don't forget the pre-launch checklist at the end of this file (especially deleting the demo and test data, and the hand checks Phases 6, 7 and 8 left unverified) before the flag is turned on. The full list of open items is in [Open items at a glance](#open-items-at-a-glance) at the top.
 
 ## Rollout strategy: incremental merges behind a feature flag
 Each phase merges into `main` as soon as it's done, rather than holding everything on one branch until the whole feature is finished — this keeps diffs small and reviewable and keeps the branch from drifting out of sync with the rest of the app. To avoid exposing an unfinished experience to students in the meantime, everything **from Phase 2 onward** is gated behind a single feature flag (a server-only env var, checked once where the student assignment page decides whether to fetch/pass real tagged skills — `confidenceSkills.length === 0` already means "show nothing," so most of the UI needs no flag-awareness of its own). Phase 1's instructor-facing tagging field is explicitly **not** gated — it stays live in production throughout, since tagging alone has no student-facing effect. The flag flips on only once every phase is complete (there may be phases beyond Phase 7), and only after asking, so students see the complete, coherent experience all at once rather than a partial rollout. Phase 4's trend pages and Phase 6's notifications are new surfaces outside the gated submission-flow code path, so each will need its own explicit check against the same flag when built.
