@@ -7,19 +7,19 @@ import type { ConfidenceSkillWithStatus } from '@/lib/confidence-tracker-actions
 import type { GoalState } from '@/lib/confidence-tracker-validation'
 
 const SKILLS: ConfidenceSkillWithStatus[] = [
-  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: false },
-  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false },
+  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: false, isMaintaining: false },
+  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false, isMaintaining: false },
 ]
 
 const NEW_SKILLS: ConfidenceSkillWithStatus[] = [
-  { id: 'skill-a', name: 'React', isNew: true, canSetGoal: true },
-  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false },
+  { id: 'skill-a', name: 'React', isNew: true, canSetGoal: true, isMaintaining: false },
+  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false, isMaintaining: false },
 ]
 
 // A skill the student has rated before (no "New" tag) but skipped goal-setting on that
 // occasion — goal-setting must still be offered, independent of the "New" tag.
 const SKIPPED_GOAL_SKILLS: ConfidenceSkillWithStatus[] = [
-  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: true },
+  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: true, isMaintaining: false },
 ]
 
 describe('ConfidenceRatingPrompt', () => {
@@ -127,7 +127,7 @@ describe('ConfidenceRatingPrompt', () => {
     it('does not offer goal-setting again once a goal has already been captured for a skill', () => {
       render(
         <ConfidenceRatingPrompt
-          skills={[{ id: 'skill-a', name: 'React', isNew: false, canSetGoal: false }]}
+          skills={[{ id: 'skill-a', name: 'React', isNew: false, canSetGoal: false, isMaintaining: false }]}
           value={{ 'skill-a': 5 }}
           onChange={vi.fn()}
           goals={{}}
@@ -171,27 +171,18 @@ describe('ConfidenceRatingPrompt', () => {
       expect(onGoalChange).toHaveBeenCalledWith('skill-a', expect.objectContaining({ goal: 10 }))
     })
 
-    it('switches to the "maintain" goal state instead of a numeric goal when the rating is 10', async () => {
+    it('rating a new skill 10 clears any goal instead of suggesting one, and shows no goal fields', async () => {
       const user = userEvent.setup()
+      const onChange = vi.fn()
       const onGoalChange = vi.fn()
-      const goals: Record<string, GoalState> = {}
       render(
-        <ConfidenceRatingPrompt
-          skills={NEW_SKILLS}
-          value={{}}
-          onChange={vi.fn()}
-          goals={goals}
-          onGoalChange={onGoalChange}
-        />
+        <ConfidenceRatingPrompt skills={NEW_SKILLS} value={{}} onChange={onChange} goals={{}} onGoalChange={onGoalChange} />
       )
       const reactGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
-      expect(onGoalChange).toHaveBeenCalledWith('skill-a', {
-        goal: 'maintain',
-        targetDate: '',
-        studyPlan: [],
-        studyPlanOther: '',
-      })
+      expect(onChange).toHaveBeenCalledWith('skill-a', 10)
+      expect(onGoalChange).toHaveBeenCalledWith('skill-a', null)
+      expect(onGoalChange).not.toHaveBeenCalledWith('skill-a', expect.objectContaining({ goal: 'maintain' }))
     })
 
     it('re-suggests the goal to match a new rating when the rating is changed while a goal is already set', async () => {
@@ -214,7 +205,7 @@ describe('ConfidenceRatingPrompt', () => {
       expect(onGoalChange).toHaveBeenCalledWith('skill-a', { goal: 8, targetDate: '2026-10-05' })
     })
 
-    it('switches an in-progress goal to "maintain" if the rating is changed up to 10', async () => {
+    it('clears an in-progress goal if the rating is changed up to 10', async () => {
       const user = userEvent.setup()
       const onGoalChange = vi.fn()
       render(
@@ -228,10 +219,10 @@ describe('ConfidenceRatingPrompt', () => {
       )
       const reactGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
-      expect(onGoalChange).toHaveBeenCalledWith('skill-a', { goal: 'maintain' })
+      expect(onGoalChange).toHaveBeenCalledWith('skill-a', null)
     })
 
-    it('restores a target date when the rating is changed down from 10 (maintaining) to a numeric goal', async () => {
+    it('suggests a fresh goal with a target date when the rating is changed down from 10', async () => {
       const user = userEvent.setup()
       const onGoalChange = vi.fn()
       render(
@@ -239,7 +230,7 @@ describe('ConfidenceRatingPrompt', () => {
           skills={NEW_SKILLS}
           value={{ 'skill-a': 10 }}
           onChange={vi.fn()}
-          goals={{ 'skill-a': { goal: 'maintain', targetDate: '', studyPlan: [], studyPlanOther: '' } }}
+          goals={{}}
           onGoalChange={onGoalChange}
         />
       )
@@ -248,6 +239,8 @@ describe('ConfidenceRatingPrompt', () => {
       expect(onGoalChange).toHaveBeenCalledWith('skill-a', {
         goal: 9,
         targetDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+        studyPlan: [],
+        studyPlanOther: '',
       })
     })
 
@@ -268,33 +261,18 @@ describe('ConfidenceRatingPrompt', () => {
       expect(onGoalChange).toHaveBeenCalledWith('skill-a', { goal: 8, targetDate: '2026-10-05' })
     })
 
-    it('shows no "maintaining" message while rating (it appears after submission) and no numeric goal radiogroup when goal state is "maintain"', () => {
+    it('shows no goal fields at all for a rating of 10', () => {
       render(
         <ConfidenceRatingPrompt
           skills={NEW_SKILLS}
           value={{ 'skill-a': 10 }}
           onChange={vi.fn()}
-          goals={{ 'skill-a': { goal: 'maintain', targetDate: '2026-10-05', studyPlan: [], studyPlanOther: '' } }}
+          goals={{}}
           onGoalChange={vi.fn()}
         />
       )
-      expect(screen.queryByText(/maintaining this rating/)).not.toBeInTheDocument()
-      expect(screen.queryByText(/top of the scale/)).not.toBeInTheDocument()
       expect(screen.queryByRole('radiogroup', { name: 'Goal for React' })).not.toBeInTheDocument()
-    })
-
-    it('renders no target date, study plan, "Set a goal" prompt, or "Skip" control while maintaining — it is purely informational', () => {
-      render(
-        <ConfidenceRatingPrompt
-          skills={NEW_SKILLS}
-          value={{ 'skill-a': 10 }}
-          onChange={vi.fn()}
-          goals={{ 'skill-a': { goal: 'maintain', targetDate: '', studyPlan: [], studyPlanOther: '' } }}
-          onGoalChange={vi.fn()}
-        />
-      )
       expect(screen.queryByText('Target date')).not.toBeInTheDocument()
-      expect(screen.queryByLabelText(/How do you plan to work on this/)).not.toBeInTheDocument()
       expect(screen.queryByText(/Set a goal for this skill/)).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
     })
@@ -485,6 +463,157 @@ describe('ConfidenceRatingPrompt', () => {
       expect(screen.getByRole('button', { name: 'Skip' })).toBeDisabled()
       const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
       within(planGroup).getAllByRole('checkbox').forEach(btn => expect(btn).toBeDisabled())
+    })
+  })
+
+  describe('maintained skills (latest rating 10)', () => {
+    const MAINTAINED: ConfidenceSkillWithStatus[] = [
+      { id: 'skill-g', name: 'Git', isNew: false, canSetGoal: true, isMaintaining: true },
+      { id: 'skill-h', name: 'HTML', isNew: false, canSetGoal: false, isMaintaining: true },
+      { id: 'skill-a', name: 'React', isNew: false, canSetGoal: true, isMaintaining: false },
+    ]
+    const disclosure = () => screen.getByRole('button', { name: /Still feeling confident on/ })
+    const NO_GOAL = { goal: null, targetDate: '', studyPlan: [], studyPlanOther: '' }
+
+    it('groups maintained skills into one collapsed row and keeps Growing skills as normal boxes', () => {
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} />)
+      expect(disclosure()).toHaveTextContent('Still feeling confident on your maintaining skills?')
+      expect(disclosure()).toHaveAttribute('aria-expanded', 'false')
+      expect(disclosure()).toHaveTextContent('Change a rating')
+      expect(screen.getByRole('radiogroup', { name: 'Confidence rating for React' })).toBeInTheDocument()
+      expect(screen.queryByRole('radiogroup', { name: 'Confidence rating for Git' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('radiogroup', { name: 'Confidence rating for HTML' })).not.toBeInTheDocument()
+    })
+
+    it('keeps the maintaining line visible while the row is collapsed', () => {
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} />)
+      expect(disclosure()).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.getByText(/You're maintaining these skills at 10/)).toBeVisible()
+    })
+
+    it('expands on click, and collapses again on a second click', async () => {
+      const user = userEvent.setup()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} />)
+      await user.click(disclosure())
+      expect(disclosure()).toHaveAttribute('aria-expanded', 'true')
+      expect(disclosure()).not.toHaveTextContent('Change a rating')
+      expect(screen.getByRole('radiogroup', { name: 'Confidence rating for Git' })).toBeInTheDocument()
+      expect(screen.getByRole('radiogroup', { name: 'Confidence rating for HTML' })).toBeInTheDocument()
+      await user.click(disclosure())
+      expect(screen.queryByRole('radiogroup', { name: 'Confidence rating for Git' })).not.toBeInTheDocument()
+    })
+
+    it('shows 10 as the current rating, not as a selected rating, and no rating is in value', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={onChange} goals={{}} onGoalChange={vi.fn()} />)
+      await user.click(disclosure())
+      const gitGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for Git' })
+      const current = within(gitGroup).getByRole('radio', { name: '10, current rating' })
+      expect(current).toHaveAttribute('aria-checked', 'true')
+      expect(within(gitGroup).getByRole('radio', { name: '9' })).toHaveAttribute('aria-checked', 'false')
+      // Said once for the whole row, not once per skill.
+      expect(screen.getAllByText(/You're maintaining these skills at 10/)).toHaveLength(1)
+      expect(onChange).not.toHaveBeenCalled()
+    })
+
+    it('picking a lower number calls onChange and suggests a goal for a skill that can set one', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const onGoalChange = vi.fn()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={onChange} goals={{}} onGoalChange={onGoalChange} />)
+      await user.click(disclosure())
+      const gitGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '7' }))
+      expect(onChange).toHaveBeenCalledWith('skill-g', 7)
+      expect(onGoalChange).toHaveBeenCalledWith('skill-g', expect.objectContaining({ goal: 9 }))
+      expect(onGoalChange).not.toHaveBeenCalledWith('skill-g', expect.objectContaining({ goal: 'maintain' }))
+    })
+
+    it('picking a lower number for a maintained skill that cannot set a goal sets no goal', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const onGoalChange = vi.fn()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={onChange} goals={{}} onGoalChange={onGoalChange} />)
+      await user.click(disclosure())
+      const htmlGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for HTML' })
+      await user.click(within(htmlGroup).getByRole('radio', { name: '6' }))
+      expect(onChange).toHaveBeenCalledWith('skill-h', 6)
+      expect(onGoalChange).not.toHaveBeenCalled()
+    })
+
+    it('shows goal fields right in the box once a lower rating is in value', () => {
+      render(
+        <ConfidenceRatingPrompt
+          skills={MAINTAINED}
+          value={{ 'skill-g': 7 }}
+          onChange={vi.fn()}
+          goals={{ 'skill-g': { goal: 9, targetDate: '2026-10-05', studyPlan: [], studyPlanOther: '' } }}
+          onGoalChange={vi.fn()}
+        />
+      )
+      expect(screen.getByRole('radiogroup', { name: 'Goal for Git' })).toBeInTheDocument()
+      expect(screen.getByText(/Set a goal for this skill/)).toBeInTheDocument()
+    })
+
+    it('picking 10 explicitly on a maintained skill is an explicit rating with no goal fields', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const onGoalChange = vi.fn()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={onChange} goals={{}} onGoalChange={onGoalChange} />)
+      await user.click(disclosure())
+      const gitGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '10, current rating' }))
+      expect(onChange).toHaveBeenCalledWith('skill-g', 10)
+      expect(onGoalChange).toHaveBeenCalledWith('skill-g', null)
+    })
+
+    it('a 10 in value shows as a selected rating (not the muted current one) with no goal fields', async () => {
+      const user = userEvent.setup()
+      render(
+        <ConfidenceRatingPrompt skills={MAINTAINED} value={{ 'skill-g': 10 }} onChange={vi.fn()} goals={{ 'skill-g': NO_GOAL }} onGoalChange={vi.fn()} />
+      )
+      const gitGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for Git' })
+      expect(within(gitGroup).getByRole('radio', { name: '10' })).toHaveAttribute('aria-checked', 'true')
+      expect(within(gitGroup).queryByRole('radio', { name: '10, current rating' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('radiogroup', { name: 'Goal for Git' })).not.toBeInTheDocument()
+      await user.click(within(gitGroup).getByRole('radio', { name: '10' }))
+    })
+
+    it('picking 10 on a Growing skill shows no goal fields and clears its goal', async () => {
+      const user = userEvent.setup()
+      const onGoalChange = vi.fn()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={vi.fn()} goals={{}} onGoalChange={onGoalChange} />)
+      const reactGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
+      expect(onGoalChange).toHaveBeenCalledWith('skill-a', null)
+      expect(screen.queryByRole('radiogroup', { name: 'Goal for React' })).not.toBeInTheDocument()
+    })
+
+    it('opens by itself when a maintained skill already has a rating in value, and can still be collapsed', async () => {
+      const user = userEvent.setup()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{ 'skill-g': 7 }} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} />)
+      expect(disclosure()).toHaveAttribute('aria-expanded', 'true')
+      expect(disclosure()).toBeEnabled()
+      await user.click(disclosure())
+      expect(disclosure()).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByRole('radiogroup', { name: 'Confidence rating for Git' })).not.toBeInTheDocument()
+    })
+
+    it('says how many ratings were changed when the row is collapsed over a changed rating', async () => {
+      const user = userEvent.setup()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{ 'skill-g': 7, 'skill-h': 9 }} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} />)
+      await user.click(disclosure())
+      expect(disclosure()).toHaveTextContent('2 ratings changed')
+      expect(disclosure()).not.toHaveTextContent('Change a rating')
+    })
+
+    it('disables the disclosure-opened rating controls for observers', async () => {
+      const user = userEvent.setup()
+      render(<ConfidenceRatingPrompt skills={MAINTAINED} value={{}} onChange={vi.fn()} goals={{}} onGoalChange={vi.fn()} disabled />)
+      await user.click(disclosure())
+      const gitGroup = screen.getByRole('radiogroup', { name: 'Confidence rating for Git' })
+      within(gitGroup).getAllByRole('radio').forEach(radio => expect(radio).toBeDisabled())
     })
   })
 })

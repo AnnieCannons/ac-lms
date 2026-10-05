@@ -6,9 +6,7 @@ import {
   latestRatingsBySkill,
   unansweredMetGoals,
   type AssignmentInfo,
-  type EventRow,
   type GoalRow,
-  type ProgressRow,
   type OutcomeRow,
   type RatingRow,
 } from '@/lib/confidence-trend'
@@ -31,7 +29,7 @@ const goal = (createdAt: string, g: Partial<GoalRow> = {}): GoalRow => ({
 })
 
 const build = (over: Partial<Parameters<typeof buildSkillTrends>[0]> = {}) =>
-  buildSkillTrends({ skills: SKILLS, ratings: [], assignments: ASSIGNMENTS, goals: [], events: [], progress: [], ...over })
+  buildSkillTrends({ skills: SKILLS, ratings: [], assignments: ASSIGNMENTS, goals: [], ...over })
 
 describe('buildSkillTrends', () => {
   it('lists only skills the student has rated, with ratings in chronological order', () => {
@@ -89,129 +87,59 @@ describe('buildSkillTrends', () => {
     expect(t.ratings.map(r => r.isCurrentCourse)).toEqual([false, true])
   })
 
-  it('treats a plain mastered skill as mastered with its date', () => {
-    const events: EventRow[] = [{ skillId: 's1', eventType: 'mastered', createdAt: '2026-03-01T10:00:01Z' }]
-    const progress: ProgressRow[] = [{ skillId: 's1', isMastered: true, isNewPending: false }]
+  it('treats a skill whose latest rating is below 10 as growing, even after an earlier 10', () => {
     const [t] = build({
-      ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 10, '2026-03-01T10:00:00Z')],
-      events, progress,
+      ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 7, '2026-03-01T10:00:00Z')],
     })
-    expect(t.isMastered).toBe(true)
-    expect(t.previouslyMastered).toBe(false)
-    expect(t.masteredDates).toEqual(['2026-03-01T10:00:01Z'])
-    // The mastery marker sits on the second 10, the rating that reached mastery.
-    expect(t.events[0]).toMatchObject({ type: 'mastered', x: 2 })
+    expect(t.isMaintaining).toBe(false)
+    expect(t.latestRating).toBe(7)
   })
 
-  it('puts the mastery marker on the latest 10 even when later ratings exist (e.g. backfilled data)', () => {
+  it('treats 10, 7, 10 as maintaining again', () => {
     const [t] = build({
       ratings: [
         rating('r1', 'a1', 10, '2026-02-01T10:00:00Z'),
-        rating('r2', 'a2', 10, '2026-03-01T10:00:00Z'),
-        rating('r3', 'a4', 6, '2026-03-05T10:00:00Z'),
+        rating('r2', 'a2', 7, '2026-03-01T10:00:00Z'),
+        rating('r3', 'a4', 10, '2026-04-01T10:00:00Z'),
       ],
-      events: [{ skillId: 's1', eventType: 'mastered', createdAt: '2026-03-10T10:00:00Z' }],
-      progress: [{ skillId: 's1', isMastered: true, isNewPending: false }],
     })
-    expect(t.events[0].x).toBe(2)
+    expect(t.isMaintaining).toBe(true)
   })
 
-  it('finds the second 10 from the ratings even if the mastery timestamp sits just before it (clock skew)', () => {
-    const [t] = build({
-      ratings: [
-        rating('r1', 'a1', 6, '2026-02-01T10:00:00Z'),
-        rating('r2', 'a2', 10, '2026-03-01T10:00:00Z'),
-        rating('r3', 'a4', 10, '2026-03-05T10:00:00.500Z'),
-      ],
-      events: [{ skillId: 's1', eventType: 'mastered', createdAt: '2026-03-05T10:00:00.100Z' }],
-      progress: [{ skillId: 's1', isMastered: true, isNewPending: false }],
-    })
-    expect(t.events[0].x).toBe(3)
+  it('treats a legacy mastered-style skill (two 10s, latest 10) as maintaining, with no mastery fields', () => {
+    const [t] = build({ ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 10, '2026-03-01T10:00:00Z')] })
+    expect(t.isMaintaining).toBe(true)
+    expect(t).not.toHaveProperty('isMastered')
+    expect(t).not.toHaveProperty('events')
+    expect(t).not.toHaveProperty('pendingNew')
   })
 
-  it('counts only the 10s since the last reactivation when placing a later mastery marker', () => {
+  it('keeps every goal visible as history and makes the newest one current', () => {
     const [t] = build({
-      ratings: [
-        rating('r1', 'a1', 10, '2026-01-01T10:00:00Z'),
-        rating('r2', 'a2', 10, '2026-01-10T10:00:00Z'),
-        rating('r3', 'a3', 4, '2026-03-01T10:00:00Z'),
-        rating('r4', 'a4', 10, '2026-04-01T10:00:00Z'),
-        rating('r5', 'a1b', 10, '2026-05-01T10:00:00Z'),
-      ],
-      events: [
-        { skillId: 's1', eventType: 'mastered', createdAt: '2026-01-10T10:00:01Z' },
-        { skillId: 's1', eventType: 'reactivated', createdAt: '2026-02-01T10:00:00Z' },
-        { skillId: 's1', eventType: 'mastered', createdAt: '2026-05-01T10:00:01Z' },
-      ],
-      progress: [{ skillId: 's1', isMastered: true, isNewPending: false }],
-    })
-    expect(t.events.map(e => [e.type, e.x])).toEqual([['mastered', 2], ['reactivated', 2.5], ['mastered', 5]])
-  })
-
-  it('falls back to the last rating when no 10 exists before the mastery event', () => {
-    const [t] = build({
-      ratings: [rating('r1', 'a1', 6, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 7, '2026-03-01T10:00:00Z')],
-      events: [{ skillId: 's1', eventType: 'mastered', createdAt: '2026-03-10T10:00:00Z' }],
-    })
-    expect(t.events[0].x).toBe(2)
-  })
-
-  it('keeps the earlier goal and mastery visible after reactivation, and shows every cycle', () => {
-    const events: EventRow[] = [
-      { skillId: 's1', eventType: 'mastered', createdAt: '2026-03-01T10:00:01Z' },
-      { skillId: 's1', eventType: 'reactivated', createdAt: '2026-04-01T10:00:00Z' },
-      { skillId: 's1', eventType: 'mastered', createdAt: '2026-06-01T10:00:01Z' },
-      { skillId: 's1', eventType: 'reactivated', createdAt: '2026-07-01T10:00:00Z' },
-    ]
-    const [t] = build({
-      ratings: [
-        rating('r1', 'a1', 5, '2026-02-01T10:00:00Z'),
-        rating('r2', 'a2', 10, '2026-03-01T10:00:00Z'),
-        rating('r3', 'a3', 4, '2026-05-01T10:00:00Z'),
-        rating('r4', 'a4', 10, '2026-06-01T10:00:00Z'),
-      ],
-      events,
+      ratings: [rating('r1', 'a1', 5, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 4, '2026-05-01T10:00:00Z')],
       goals: [goal('2026-02-01T10:00:00Z', { goal: 8 }), goal('2026-05-01T10:00:00Z', { goal: 6 })],
-      progress: [{ skillId: 's1', isMastered: false, isNewPending: true }],
     })
-    expect(t.isMastered).toBe(false)
-    expect(t.previouslyMastered).toBe(true)
-    expect(t.masteredDates).toHaveLength(2)
-    expect(t.reactivatedDates).toHaveLength(2)
-    expect(t.pendingNew).toBe(true)
-    expect(t.events.map(e => e.label)).toEqual(['Mastered', 'Reactivated', 'Mastered', 'Reactivated'])
-    // Both goals survive; the one set before the latest reactivation is history, not current.
-    expect(t.currentGoal).toBeNull()
-    expect(t.previousGoals.map(g => g.goal)).toEqual([6, 8])
-  })
-
-  it('makes a goal captured after the latest reactivation the current goal, keeping the old one as history', () => {
-    const [t] = build({
-      ratings: [rating('r1', 'a1', 10, '2026-03-01T10:00:00Z'), rating('r2', 'a2', 3, '2026-05-01T10:00:00Z')],
-      events: [
-        { skillId: 's1', eventType: 'mastered', createdAt: '2026-03-01T10:00:01Z' },
-        { skillId: 's1', eventType: 'reactivated', createdAt: '2026-04-01T10:00:00Z' },
-      ],
-      goals: [goal('2026-02-01T10:00:00Z', { goal: 8 }), goal('2026-05-01T10:00:00Z', { goal: 5 })],
-      progress: [{ skillId: 's1', isMastered: false, isNewPending: false }],
-    })
-    expect(t.currentGoal?.goal).toBe(5)
+    expect(t.currentGoal?.goal).toBe(6)
     expect(t.previousGoals.map(g => g.goal)).toEqual([8])
-    expect(t.pendingNew).toBe(false)
   })
 
-  it('describes a maintaining goal and study plan labels including "Other" text', () => {
-    const [t] = build({
-      ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z')],
-      goals: [goal('2026-02-01T10:00:00Z', { goal: null, goalIsMaintain: true, targetDate: null, studyPlan: null })],
-    })
-    expect(t.currentGoal).toMatchObject({ isMaintain: true, goal: null, targetDate: null, studyPlanLabels: [] })
-
+  it('describes study plan labels including "Other" text', () => {
     const [t2] = build({
       ratings: [rating('r1', 'a1', 4, '2026-02-01T10:00:00Z')],
       goals: [goal('2026-02-01T10:00:00Z', { studyPlan: ['flashcards', 'other'], studyPlanOther: 'Pair programming' })],
     })
     expect(t2.currentGoal?.studyPlanLabels).toEqual(['Study flashcards', 'Other: Pair programming'])
+  })
+
+  it('never treats an old maintain goal row as the current goal; it sits in the history', () => {
+    const [t] = build({
+      ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z')],
+      goals: [goal('2026-02-01T10:00:00Z', { goal: null, goalIsMaintain: true, targetDate: null, studyPlan: null })],
+    })
+    expect(t.currentGoal).toBeNull()
+    expect(t.goalStatus).toBe('none')
+    expect(t.previousGoals).toHaveLength(1)
+    expect(t.previousGoals[0].isMaintain).toBe(true)
   })
 
   it('shows a skill with no goal without a goal block', () => {
@@ -271,7 +199,7 @@ describe('currentCourseScore', () => {
 })
 
 describe('met goals (Phase 6)', () => {
-  const outcome = (goalHistoryId: string, over: Partial<OutcomeRow> = {}): OutcomeRow => ({
+  const outcome = (goalHistoryId: string | null, over: Partial<OutcomeRow> = {}): OutcomeRow => ({
     id: `o-${goalHistoryId}`, goalHistoryId, skillId: 's1', metAt: '2026-03-01T10:00:00Z', metRating: 8,
     whatHelped: null, whatHelpedOther: null, answeredAt: null, ...over,
   })
@@ -306,13 +234,33 @@ describe('met goals (Phase 6)', () => {
     expect(t.previousGoals[0].met?.answerValues).toEqual(['flashcards', 'own_plan', 'other'])
   })
 
-  it('offers "set a goal" for a skill with no goal, but not above a rating of 10, for maintaining, mastered or reactivated skills', () => {
+  it('offers "set a goal" for a growing skill with no goal, never at 10', () => {
     expect(build({ ratings })[0]).toMatchObject({ goalStatus: 'none', canSetGoal: true })
     expect(build({ ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z')] })[0].canSetGoal).toBe(false)
-    expect(build({ ratings, goals: [goal('2026-02-01T10:00:00Z', { goal: null, goalIsMaintain: true })] })[0]).toMatchObject({ goalStatus: 'maintain', canSetGoal: false })
-    expect(build({ ratings, progress: [{ skillId: 's1', isMastered: true, isNewPending: false }] })[0].canSetGoal).toBe(false)
-    const events: EventRow[] = [{ skillId: 's1', eventType: 'reactivated', createdAt: '2026-04-01T10:00:00Z' }]
-    expect(build({ ratings, events, progress: [{ skillId: 's1', isMastered: false, isNewPending: true }] })[0].canSetGoal).toBe(false)
+  })
+
+  it('lets a student set a goal after a dip below 10 even with an old maintain goal row', () => {
+    const maintain = goal('2026-02-01T10:00:00Z', { goal: null, goalIsMaintain: true })
+    const [t] = build({
+      ratings: [rating('r1', 'a1', 10, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 7, '2026-03-01T10:00:00Z')],
+      goals: [maintain],
+    })
+    expect(t).toMatchObject({ goalStatus: 'none', canSetGoal: true, isMaintaining: false })
+    expect(t.currentGoal).toBeNull()
+  })
+
+  it('turns standalone outcomes (no goal) into reachedTens, newest first', () => {
+    const [t] = build({
+      ratings: [rating('r1', 'a1', 6, '2026-02-01T10:00:00Z'), rating('r2', 'a2', 10, '2026-03-01T10:00:00Z')],
+      outcomes: [
+        outcome(null, { id: 'o1', metAt: '2026-03-01T10:00:00Z', metRating: 10 }),
+        outcome(null, { id: 'o2', metAt: '2026-04-01T10:00:00Z', metRating: 10, whatHelped: ['flashcards'], answeredAt: '2026-04-02T10:00:00Z' }),
+      ],
+    })
+    expect(t.reachedTens.map(r => r.outcomeId)).toEqual(['o2', 'o1'])
+    expect(t.reachedTens[0]).toMatchObject({ answered: true, answerValues: ['flashcards'], rating: 10 })
+    expect(t.reachedTens[1]).toMatchObject({ answered: false, answerLabels: [] })
+    expect(t.previousGoals).toEqual([])
   })
 
   it('keeps an earlier met goal\'s answer in the history after a newer goal is set', () => {
@@ -338,5 +286,19 @@ describe('met goals (Phase 6)', () => {
       expect.objectContaining({ skillId: 's1', skillName: 'React', outcomeId: `o-${first.id}`, target: 7 }),
     ])
     expect(unansweredMetGoals(build({ ratings, goals: [first] }))).toEqual([])
+  })
+
+  it('lists an unanswered return to 10 with a null target alongside reached goals', () => {
+    const first = goal('2026-02-01T10:00:00Z', { goal: 7 })
+    const trends = build({
+      ratings, goals: [first],
+      outcomes: [
+        outcome(first.id, { metAt: '2026-03-01T10:00:00Z' }),
+        outcome(null, { id: 'ten1', metAt: '2026-04-01T10:00:00Z', metRating: 10 }),
+        outcome(null, { id: 'ten2', metAt: '2026-05-01T10:00:00Z', metRating: 10, answeredAt: '2026-05-02T10:00:00Z', whatHelped: ['flashcards'] }),
+      ],
+    })
+    const list = unansweredMetGoals(trends)
+    expect(list.map(u => [u.outcomeId, u.target])).toEqual([['ten1', null], [`o-${first.id}`, 7]])
   })
 })

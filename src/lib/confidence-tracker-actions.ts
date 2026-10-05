@@ -2,17 +2,20 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { listAssignmentSkills, type ConfidenceSkill } from '@/lib/skill-actions'
-import { validateGoalInput, nextMasteryState, type ConfidenceGoalInput } from '@/lib/confidence-tracker-validation'
+import { validateGoalInput, type ConfidenceGoalInput } from '@/lib/confidence-tracker-validation'
 import { computeKudos, latestPriorRatingBySkill, type KudosItem } from '@/lib/confidence-kudos'
 import {
   buildCelebrations,
+  findFirstTens,
   findMetGoals,
+  findReturnsToTen,
   withoutCelebrated,
   type CelebrationItem,
   type HeadGoal,
 } from '@/lib/confidence-celebrations'
 import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 import { GOAL_MET_REMINDER_TYPE, goalMetReminderMessage } from '@/lib/goal-met-notification'
+import { findSkillsWithOpenGoal } from '@/lib/confidence-open-goal'
 
 const MIN_RATING = 1
 const MAX_RATING = 10
@@ -24,42 +27,37 @@ function isValidRating(value: unknown): value is number {
 export interface ConfidenceRatingInput {
   skillId: string
   rating: number
-  // Only honored server-side while this skill still has no goal captured yet (see
-  // canSetGoal below) — once a goal (numeric or "maintaining") is set, it's permanent.
+  // Only honored server-side while this skill has no open goal (see findSkillsWithOpenGoal): a goal
+  // already in progress is never overwritten by a later rating.
   goal?: ConfidenceGoalInput
 }
 
 export interface ConfidenceSkillWithStatus extends ConfidenceSkill {
   // True only when this student has NEVER rated this skill before (no earlier rating on any
-  // assignment) — drives the "New" badge. A reactivated skill is not new: it has earlier ratings, so
-  // no badge, even though reactivation (is_new_pending on the progress row) still restarts goal-setting,
-  // skips kudos on its next rating, and shows "You'll set a new goal…" on My Skill Confidence.
-  // Independent of canSetGoal: a skipped goal on that first rating means the badge stops showing on
-  // later occasions, but goal-setting is still offered.
+  // assignment) — drives the "New" badge. Independent of canSetGoal: a skipped goal on that first
+  // rating means the badge stops showing on later occasions, but goal-setting is still offered.
   isNew: boolean
-  // True as long as no goal (numeric or "maintaining") has been captured for this skill
-  // yet — drives whether the goal-setting section appears. Stays true across many
-  // occasions if the student keeps skipping it, false forever once a goal is set.
+  // The student's latest rating of this skill is 10, so it is "maintaining": the form shows it in a
+  // collapsed row, already at 10, and saves nothing for it unless the student changes the rating.
+  isMaintaining: boolean
+  // True while this skill has no open goal — never had one, or the last one was reached — so the
+  // goal-setting section appears once a rating below 10 is picked. Stays true across many occasions
+  // if the student keeps skipping it.
   canSetGoal: boolean
 }
 
 interface SkillProgressRow {
   skill_id: string
-  is_new_pending: boolean
   goal: number | null
   goal_is_maintain: boolean
   target_date: string | null
   study_plan: string[] | null
   study_plan_other: string | null
-  ten_rating_count: number
-  is_mastered: boolean
-  mastered_at: string | null
 }
 
-// Server-side "new vs. existing vs. mastered" resolution for a student's view of an
-// assignment's tagged skills. Mastered skills are excluded here, not just hidden in the
-// UI — mirrors the "resources.instructor_only filtered server-side" invariant elsewhere
-// in this app; never rely on the client to hide a mastered skill.
+// Server-side resolution for a student's view of an assignment's tagged skills: every tagged skill
+// is returned (a skill at 10 is shown as maintaining, never hidden), with whether it is new to the
+// student, whether it is maintaining, and whether a goal can be set on it.
 export async function getAssignmentSkillsForStudent(
   assignmentId: string
 ): Promise<{ error: string | null; skills: ConfidenceSkillWithStatus[] }> {
@@ -75,53 +73,57 @@ export async function getAssignmentSkillsForStudent(
 
   const { data: progressRows, error: progressError } = await supabase
     .from('confidence_tracker_skill_progress')
-    .select('skill_id, is_new_pending, goal, goal_is_maintain, is_mastered')
+    .select('skill_id, goal')
     .eq('student_id', user.id)
     .in('skill_id', tagged.map(s => s.id))
   if (progressError) return { error: progressError.message, skills: [] }
 
-  // "New" badge = no earlier rating of this skill at all. Read from the ratings themselves rather than the
-  // progress row, because a reactivated skill has a progress row flagged new-pending but real earlier ratings.
+  const { error: openGoalError, skillIds: openGoalSkillIds } = await findSkillsWithOpenGoal(supabase, user.id, progressRows ?? [])
+  if (openGoalError) return { error: openGoalError, skills: [] }
+
+  // "New" badge = no earlier rating of this skill at all; "maintaining" = the latest rating is 10.
+  // Both come from the ratings themselves, newest first.
   const { data: ratedRows, error: ratedError } = await supabase
     .from('confidence_tracker_ratings')
-    .select('skill_id')
+    .select('skill_id, rating')
     .eq('student_id', user.id)
     .in('skill_id', tagged.map(s => s.id))
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
   if (ratedError) return { error: ratedError.message, skills: [] }
-  const everRated = new Set((ratedRows ?? []).map(r => r.skill_id))
+  const latestRating = new Map<string, number>()
+  for (const r of ratedRows ?? []) if (!latestRating.has(r.skill_id)) latestRating.set(r.skill_id, r.rating)
 
-  const progressBySkill = new Map((progressRows ?? []).map(p => [p.skill_id, p]))
   return {
     error: null,
-    skills: tagged
-      .filter(s => !progressBySkill.get(s.id)?.is_mastered)
-      .map(s => {
-        const progress = progressBySkill.get(s.id)
-        return {
-          ...s,
-          isNew: !everRated.has(s.id),
-          canSetGoal: !progress || (progress.goal == null && !progress.goal_is_maintain),
-        }
-      }),
+    skills: tagged.map(s => ({
+      ...s,
+      isNew: !latestRating.has(s.id),
+      isMaintaining: latestRating.get(s.id) === MAX_RATING,
+      canSetGoal: !openGoalSkillIds.has(s.id),
+    })),
   }
 }
 
-// Phase 6: decides which rated skills earn a goal-met and/or mastery celebration, and records
-// each newly met goal (one outcome row per goal, guaranteed once by a unique key) so it can be
-// asked about and reminded of later. Best-effort like kudos — the caller never fails a good
-// save because of this. Reads use the student's own client (RLS); the outcome insert uses the
-// service client because the table deliberately has no write policies.
+// Phase 6: decides which rated skills earn a celebration, and records each one that asks "what
+// helped" (one outcome row per met goal, guaranteed once by a unique key; one per return to 10 with
+// no goal) so it can be asked about and reminded of later. Best-effort like kudos — the caller never
+// fails a good save because of this. Reads use the student's own client (RLS); the outcome inserts
+// use the service client because the table deliberately has no write policies.
 async function recordCelebrations(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   assignmentId: string,
   candidates: { skillId: string; rating: number }[],
   progressBySkill: Map<string, SkillProgressRow>,
-  masteredSkillIds: Set<string>
+  priorBySkill: Map<string, number> | null
 ): Promise<CelebrationItem[]> {
   const skillIds = candidates.map(c => c.skillId)
   const outcomeIdByHistoryId = new Map<string, string>()
+  const returnOutcomeIdBySkill = new Map<string, string>()
   let metGoals: ReturnType<typeof findMetGoals> = []
+  // Without the earlier ratings (their read failed) a first 10 can't be told from a return to 10.
+  const firstTenSkillIds = new Set(priorBySkill ? findFirstTens(candidates, priorBySkill) : [])
 
   try {
     // The newest goal_history row per skill is the student's current goal (the progress row
@@ -153,44 +155,71 @@ async function recordCelebrations(
     }
 
     metGoals = findMetGoals(candidates, progressBySkill, headGoalBySkill, alreadyMet)
+    const returnSkillIds = priorBySkill ? findReturnsToTen(candidates, priorBySkill, new Set(metGoals.map(m => m.skillId))) : []
 
-    if (metGoals.length > 0) {
+    if (metGoals.length > 0 || returnSkillIds.length > 0) {
       const service = createServiceSupabaseClient()
 
-      // ignoreDuplicates: a goal already met (or a double call) inserts nothing and is not celebrated.
-      const { data: inserted, error: insertOutcomeError } = await service
-        .from('confidence_tracker_goal_outcomes')
-        .upsert(
-          metGoals.map(m => ({
-            goal_history_id: m.goalHistoryId,
-            student_id: userId,
-            skill_id: m.skillId,
-            met_rating: m.rating,
-            met_assignment_id: assignmentId,
-          })),
-          { onConflict: 'goal_history_id', ignoreDuplicates: true }
-        )
-        .select('id, goal_history_id')
-      if (insertOutcomeError) throw insertOutcomeError
-      for (const row of inserted ?? []) outcomeIdByHistoryId.set(row.goal_history_id, row.id)
+      if (metGoals.length > 0) {
+        // ignoreDuplicates: a goal already met (or a double call) inserts nothing and is not celebrated.
+        const { data: inserted, error: insertOutcomeError } = await service
+          .from('confidence_tracker_goal_outcomes')
+          .upsert(
+            metGoals.map(m => ({
+              goal_history_id: m.goalHistoryId,
+              student_id: userId,
+              skill_id: m.skillId,
+              met_rating: m.rating,
+              met_assignment_id: assignmentId,
+            })),
+            { onConflict: 'goal_history_id', ignoreDuplicates: true }
+          )
+          .select('id, goal_history_id')
+        if (insertOutcomeError) throw insertOutcomeError
+        for (const row of inserted ?? []) outcomeIdByHistoryId.set(row.goal_history_id, row.id)
+      }
+
+      // A return to 10 with no goal has no goal_history row to hang the outcome on. It is one-time per
+      // assignment because a student's first submission is the only occasion ratings are saved.
+      if (returnSkillIds.length > 0) {
+        const { data: insertedReturns, error: insertReturnError } = await service
+          .from('confidence_tracker_goal_outcomes')
+          .insert(
+            returnSkillIds.map(skillId => ({
+              goal_history_id: null,
+              student_id: userId,
+              skill_id: skillId,
+              met_rating: 10,
+              met_assignment_id: assignmentId,
+            }))
+          )
+          .select('id, skill_id')
+        if (insertReturnError) throw insertReturnError
+        for (const row of insertedReturns ?? []) returnOutcomeIdBySkill.set(row.skill_id, row.id)
+      }
 
       // The "log what helped" reminder goes into the bell right away and stays there until the question
       // is answered or the student clears it. Best-effort on its own: the celebration doesn't depend on it.
       try {
-        const newlyMet = metGoals.filter(m => outcomeIdByHistoryId.has(m.goalHistoryId))
-        if (newlyMet.length > 0) {
+        const reminders: { outcomeId: string; skillId: string; target: number | null }[] = [
+          ...metGoals
+            .filter(m => outcomeIdByHistoryId.has(m.goalHistoryId))
+            .map(m => ({ outcomeId: outcomeIdByHistoryId.get(m.goalHistoryId)!, skillId: m.skillId, target: m.target })),
+          ...[...returnOutcomeIdBySkill].map(([skillId, outcomeId]) => ({ outcomeId, skillId, target: null })),
+        ]
+        if (reminders.length > 0) {
           const { data: skillRows } = await service
             .from('confidence_tracker_skills')
             .select('id, name')
-            .in('id', newlyMet.map(m => m.skillId))
+            .in('id', reminders.map(r => r.skillId))
           const skillName = new Map((skillRows ?? []).map(s => [s.id, s.name as string]))
-          for (const m of newlyMet) {
+          for (const r of reminders) {
             const { data: notification } = await service
               .from('notifications')
               .insert({
                 user_id: userId,
                 type: GOAL_MET_REMINDER_TYPE,
-                message: goalMetReminderMessage(skillName.get(m.skillId) ?? 'this skill', m.target),
+                message: goalMetReminderMessage(skillName.get(r.skillId) ?? 'this skill', r.target),
               })
               .select('id')
               .single()
@@ -198,7 +227,7 @@ async function recordCelebrations(
               await service
                 .from('confidence_tracker_goal_outcomes')
                 .update({ reminder_notification_id: notification.id })
-                .eq('id', outcomeIdByHistoryId.get(m.goalHistoryId)!)
+                .eq('id', r.outcomeId)
             }
           }
         }
@@ -207,12 +236,13 @@ async function recordCelebrations(
       }
     }
   } catch {
-    // Skip the goal-met part; mastery celebrations need none of the above.
+    // Skip the "what helped" celebrations; a first 10 needs none of the above.
     metGoals = []
     outcomeIdByHistoryId.clear()
+    returnOutcomeIdBySkill.clear()
   }
 
-  return buildCelebrations(candidates, outcomeIdByHistoryId, metGoals, masteredSkillIds)
+  return buildCelebrations(candidates, outcomeIdByHistoryId, metGoals, returnOutcomeIdBySkill, firstTenSkillIds)
 }
 
 export async function saveConfidenceRatings(
@@ -247,24 +277,20 @@ export async function saveConfidenceRatings(
   if (taggedError) return { error: taggedError.message }
 
   const taggedSkillIds = new Set((taggedSkills ?? []).map(s => s.skill_id))
-  let candidates = valid.filter(r => taggedSkillIds.has(r.skillId))
+  const candidates = valid.filter(r => taggedSkillIds.has(r.skillId))
   if (candidates.length === 0) return { error: null }
 
   const { data: progressRows, error: progressError } = await supabase
     .from('confidence_tracker_skill_progress')
-    .select(
-      'skill_id, is_new_pending, goal, goal_is_maintain, target_date, study_plan, study_plan_other, ten_rating_count, is_mastered, mastered_at'
-    )
+    .select('skill_id, goal, goal_is_maintain, target_date, study_plan, study_plan_other')
     .eq('student_id', user.id)
     .in('skill_id', candidates.map(c => c.skillId))
   if (progressError) return { error: progressError.message }
 
   const progressBySkill = new Map<string, SkillProgressRow>((progressRows ?? []).map(p => [p.skill_id, p]))
 
-  // Server-side mastery gate — never trust the client's rendered list (an instructor may
-  // keep a mastered skill tagged, or a stale page could resend it).
-  candidates = candidates.filter(c => !progressBySkill.get(c.skillId)?.is_mastered)
-  if (candidates.length === 0) return { error: null }
+  const { error: openGoalError, skillIds: openGoalSkillIds } = await findSkillsWithOpenGoal(supabase, user.id, progressRows ?? [])
+  if (openGoalError) return { error: openGoalError }
 
   // Phase 5 kudos: read the student's earlier ratings BEFORE inserting this submission's.
   // Best-effort — if this read fails we just skip kudos rather than fail a good save.
@@ -285,19 +311,12 @@ export async function saveConfidenceRatings(
   const { error: insertError } = await supabase.from('confidence_tracker_ratings').insert(rows)
   if (insertError) return { error: insertError.message }
 
-  const masteredSkillIds = new Set<string>()
   const progressUpserts = candidates.map(c => {
     const row = progressBySkill.get(c.skillId)
-    const { tenRatingCount, isMastered, justMastered } = nextMasteryState(
-      row?.ten_rating_count ?? 0,
-      row?.is_mastered ?? false,
-      c.rating
-    )
-    if (justMastered) masteredSkillIds.add(c.skillId)
-    // A goal can be set on ANY occasion the skill still has none captured yet — not just
-    // its first-ever ("new") rating. Once a goal (numeric or "maintaining") exists, it's
-    // permanent: a later rating must never overwrite it.
-    const canSetGoal = !row || (row.goal == null && !row.goal_is_maintain)
+    // A goal can be set on ANY occasion the skill has no open goal — not just its first-ever ("new")
+    // rating, and again after a goal was reached or a rating dropped below 10. A goal still in
+    // progress is never overwritten by a later rating.
+    const canSetGoal = !openGoalSkillIds.has(c.skillId)
     const validated = canSetGoal ? validateGoalInput(c.rating, c.goal) : null
 
     return {
@@ -305,13 +324,11 @@ export async function saveConfidenceRatings(
       skill_id: c.skillId,
       is_new_pending: false,
       goal: validated ? validated.goal : row?.goal ?? null,
-      goal_is_maintain: validated ? validated.goalIsMaintain : row?.goal_is_maintain ?? false,
+      // A new goal replaces any old "maintaining this rating" marker, which the table does not allow beside a goal.
+      goal_is_maintain: validated ? false : row?.goal_is_maintain ?? false,
       target_date: validated ? validated.targetDate : row?.target_date ?? null,
       study_plan: validated ? validated.studyPlan : row?.study_plan ?? null,
       study_plan_other: validated ? validated.studyPlanOther : row?.study_plan_other ?? null,
-      ten_rating_count: tenRatingCount,
-      is_mastered: isMastered,
-      mastered_at: justMastered ? new Date().toISOString() : row?.mastered_at ?? null,
     }
   })
 
@@ -322,14 +339,12 @@ export async function saveConfidenceRatings(
 
   // Kudos and celebrations are computed here; the flag only withholds them (ratings above are
   // saved either way, and with the flag off no goal outcome is recorded at all). A celebration
-  // replaces the ordinary kudos line for the same skill.
+  // replaces the ordinary kudos line for the same skill, so a rise to 10 shows one message.
   const flagEnabled = isConfidenceRatingsEnabled()
-  const kudos =
-    flagEnabled && !priorError
-      ? computeKudos(candidates, latestPriorRatingBySkill(priorRows ?? []), progressBySkill)
-      : []
+  const priorBySkill = priorError ? null : latestPriorRatingBySkill(priorRows ?? [])
+  const kudos = flagEnabled && priorBySkill ? computeKudos(candidates, priorBySkill) : []
   const celebrations = flagEnabled
-    ? await recordCelebrations(supabase, user.id, assignmentId, candidates, progressBySkill, masteredSkillIds)
+    ? await recordCelebrations(supabase, user.id, assignmentId, candidates, progressBySkill, priorBySkill)
     : []
   return { error: null, kudos: withoutCelebrated(kudos, celebrations), celebrations }
 }

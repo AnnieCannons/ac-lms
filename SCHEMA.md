@@ -613,7 +613,7 @@ Unique on `(student_id, assignment_id, skill_id)`. RLS: a student can read/inser
 ---
 
 ### confidence_tracker_skill_progress
-Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-date/study-plan for a skill's first-ever ("new") rating, plus a running count of 10-ratings that drives mastery. Deliberately a separate, mutable table from the append-only, immutable `confidence_tracker_ratings` audit trail (which has no UPDATE/DELETE policy) — a later "reactivate" action needs a plain UPDATE to reset mastery state, which an insert-only table can't support.
+Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-date/study-plan for a skill. **Growing and Maintaining skills:** `ten_rating_count`, `is_mastered`, `mastered_at`, `reactivated_at`, `goal_is_maintain` and (for new skills) `is_new_pending` are no longer read or written — a skill is Maintaining when its latest rating is 10, worked out from `confidence_tracker_ratings`, and an old `goal_is_maintain` row is treated as no goal. The columns and `confidence_tracker_skill_events` stay in place, unused. Deliberately a separate, mutable table from the append-only, immutable `confidence_tracker_ratings` audit trail (which has no UPDATE/DELETE policy) — a later "reactivate" action needs a plain UPDATE to reset mastery state, which an insert-only table can't support.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -672,16 +672,16 @@ RLS: same read rules as `confidence_tracker_goal_history`; no insert/update/dele
 ---
 
 ### confidence_tracker_goal_outcomes
-Confidence Tracker v2, Phase 6: one row per goal a student has **met** (rating at or above a numeric goal), holding the optional "what helped" answer and a link to its reminder in the bell. Hangs off `confidence_tracker_goal_history` so that table stays append-only; `UNIQUE (goal_history_id)` guarantees a goal is met at most once, and goals met before Phase 6 shipped simply have no row. Written only by server actions using the service-role client (there are no insert/update/delete policies): `saveConfidenceRatings` inserts the row and creates its bell reminder, and `answerWhatHelped` fills the answer (add-only) and clears the reminder. Mastery is celebrated but is not stored here.
+Confidence Tracker v2, Phase 6: one row per goal a student has **met** (rating at or above a numeric goal), or per time they got back to 10 with no goal to meet (Growing and Maintaining skills; `goal_history_id` is null then), holding the optional "what helped" answer and a link to its reminder in the bell. Hangs off `confidence_tracker_goal_history` so that table stays append-only; `UNIQUE (goal_history_id)` guarantees a goal is met at most once (it still allows any number of null rows), and goals met before Phase 6 shipped simply have no row. Written only by server actions using the service-role client (there are no insert/update/delete policies): `saveConfidenceRatings` inserts the row and creates its bell reminder, and `answerWhatHelped` fills the answer (add-only) and clears the reminder. A first-ever 10 is celebrated but is not stored here.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
-| `goal_history_id` | uuid | FK → confidence_tracker_goal_history, CASCADE DELETE, UNIQUE — the goal that was met |
+| `goal_history_id` | uuid | FK → confidence_tracker_goal_history, CASCADE DELETE, UNIQUE, nullable — the goal that was met; null for a return to 10 with no goal (made nullable by `20261005000000_confidence_tracker_goal_outcomes_standalone.sql`) |
 | `student_id` | uuid | FK → users, CASCADE DELETE |
 | `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
 | `met_at` | timestamptz | Default: now() |
-| `met_rating` | int | 1–10 — the rating that met the goal |
+| `met_rating` | int | 1–10 — the rating that met the goal (10 for a return to 10) |
 | `met_assignment_id` | uuid | FK → assignments, SET NULL on delete, nullable |
 | `what_helped` | text[] | Nullable — one or more of `practice_alone`, `review_lessons`, `ta_help`, `outside_tutorials`, `flashcards`, `review_notes`, `own_plan` (the student's own study-plan "Other" text for that goal), `other`; null until answered |
 | `what_helped_other` | text | Nullable — write-in, required (non-blank, at most 200 characters) iff `what_helped` includes `'other'` |

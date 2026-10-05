@@ -4,20 +4,20 @@ import userEvent from '@testing-library/user-event'
 import ConfidenceKudos from '@/components/ui/ConfidenceKudos'
 
 describe('ConfidenceKudos', () => {
-  it('says "maintaining this rating" instead of the numbers for a skill that also reached 10, alongside other skills', () => {
+  it('shows only the plain "went up from X to Y" line, with no maintaining variant, even for a skill that went up to 10', () => {
     render(
       <ConfidenceKudos
         items={[
-          { skillName: 'Git', from: 6, to: 10, maintaining: true },
+          { skillName: 'Git', from: 6, to: 10 },
           { skillName: 'React', from: 4, to: 6 },
         ]}
         onDismiss={vi.fn()}
       />
     )
     expect(screen.getByText(/Nice progress!/)).toBeInTheDocument()
-    expect(screen.getByText("You're at the top of the scale in Git! You're now maintaining this rating.")).toBeInTheDocument()
-    expect(screen.queryByText(/Git went up from/)).not.toBeInTheDocument()
+    expect(screen.getByText('Your confidence in Git went up from 6 to 10.')).toBeInTheDocument()
     expect(screen.getByText('Your confidence in React went up from 4 to 6.')).toBeInTheDocument()
+    expect(screen.queryByText(/maintaining/)).not.toBeInTheDocument()
   })
 
   it('renders nothing when there are no items', () => {

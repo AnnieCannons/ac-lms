@@ -25,8 +25,9 @@ export const RATING_LABELS: Record<number, string> = {
   10: "🌟 I could teach this to someone just starting out",
 }
 
-export function suggestedGoal(rating: number): number | 'maintain' {
-  return rating === MAX_RATING ? 'maintain' : Math.min(rating + 2, MAX_RATING)
+// Only for a rating below 10: a skill at 10 has no goal to suggest.
+export function suggestedGoal(rating: number): number {
+  return Math.min(rating + 2, MAX_RATING)
 }
 
 export function defaultTargetDate(): string {
@@ -47,7 +48,7 @@ interface Props {
 // "set a goal" form: goal scale, target date and study plan (with its "Other" write-in).
 // Never rendered for a rating of 10 — there is no numeric goal above the top of the scale.
 export default function GoalFields({ skillId, skillName, rating, goalState, onGoalChange, disabled }: Props) {
-  const numericGoal = typeof goalState?.goal === 'number' ? goalState.goal : null
+  const numericGoal = goalState?.goal ?? null
 
   return (
     <>

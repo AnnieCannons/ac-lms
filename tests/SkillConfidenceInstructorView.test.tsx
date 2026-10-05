@@ -23,9 +23,8 @@ const trend = (skillId: string, name: string, over: Partial<SkillTrend> = {}): S
   ],
   startCourseName: 'Intro',
   courseBreakpoints: [{ x: 1.5, label: 'Frontend' }],
-  events: [], currentGoal: null, previousGoals: [],
-  isMastered: false, previouslyMastered: false, masteredDates: [], reactivatedDates: [], pendingNew: false,
-  latestRating: 6, goalStatus: 'none', canSetGoal: false, ...over,
+  currentGoal: null, previousGoals: [], reachedTens: [],
+  isMaintaining: false, latestRating: 6, goalStatus: 'none', canSetGoal: false, ...over,
 })
 
 const skills: CourseTrendSkill[] = [
@@ -34,7 +33,7 @@ const skills: CourseTrendSkill[] = [
 ]
 const students: CourseTrendStudent[] = [
   { id: 'u1', name: 'Ada', trends: [trend('s1', 'React'), trend('s2', 'CSS')] },
-  { id: 'u2', name: 'Grace', trends: [trend('s1', 'React', { isMastered: true, masteredDates: ['2026-05-11T10:00:00Z'] })] },
+  { id: 'u2', name: 'Grace', trends: [trend('s1', 'React', { isMaintaining: true })] },
   { id: 'u3', name: 'Linus', trends: [] },
 ]
 
@@ -137,13 +136,15 @@ describe('SkillConfidenceInstructorView', () => {
     expect(screen.getAllByText('Old project').length).toBeGreaterThan(0)
   })
 
-  it('never offers a Reactivate control, even for a mastered skill', async () => {
+  it('shows a skill at 10 with the Maintaining wording, no goal panel, and no Reactivate or Set a goal control', async () => {
     const user = userEvent.setup()
     render(<SkillConfidenceInstructorView students={students} skills={skills} />)
     await openStudentsTab(user)
     await user.click(within(screen.getByRole('list')).getByText('Grace'))
-    expect(await screen.findByText(/Mastered May 11, 2026/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /reactivate/i })).not.toBeInTheDocument()
+    expect(await screen.findByText("You're maintaining this rating.")).toBeInTheDocument()
+    expect(screen.getByText(/pick a lower rating on a future assignment/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /reactivate|set a goal/i })).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/mastered|reactivat/i)
   })
 
   it('only offers skills that have a rating from this course in the skill filter', async () => {
@@ -403,7 +404,7 @@ describe('SkillConfidenceInstructorView goal outcomes', () => {
     // Once in Ada's goal history; the patterns sections above repeat the method name.
     expect(screen.getAllByText('Studying flashcards').length).toBeGreaterThan(0)
     expect(screen.getByText(/What helped: Not answered yet/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /answer|set a goal|reactivate/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /answer|set a goal|reactivate|log what helped/i })).not.toBeInTheDocument()
   })
 })
 

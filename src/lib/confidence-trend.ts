@@ -29,28 +29,17 @@ export interface GoalRow {
   createdAt: string
 }
 
-// One met goal (Phase 6), with the student's optional "what helped" answer.
+// One reached goal (Phase 6), or one return to 10 with no goal (goalHistoryId null), with the
+// student's optional "what helped" answer.
 export interface OutcomeRow {
   id: string
-  goalHistoryId: string
+  goalHistoryId: string | null
   skillId: string
   metAt: string
   metRating: number
   whatHelped: string[] | null
   whatHelpedOther: string | null
   answeredAt: string | null
-}
-
-export interface EventRow {
-  skillId: string
-  eventType: 'mastered' | 'reactivated'
-  createdAt: string
-}
-
-export interface ProgressRow {
-  skillId: string
-  isMastered: boolean
-  isNewPending: boolean
 }
 
 export interface SkillMeta {
@@ -72,11 +61,6 @@ export interface TrendRating {
 export interface TrendMarker {
   x: number
   label: string
-}
-
-export interface TrendEvent extends TrendMarker {
-  type: 'mastered' | 'reactivated'
-  date: string
 }
 
 export interface TrendGoalMet {
@@ -103,10 +87,10 @@ export interface TrendGoal {
   setAt: string
 }
 
-// none = no goal captured; open = numeric goal not reached yet; met = the latest goal was reached
-// (it now sits in the goal history, so there is no current goal); maintain = "maintaining this
-// rating" (a skill first rated 10).
-export type GoalStatus = 'none' | 'open' | 'met' | 'maintain'
+// none = no goal captured (an old "maintaining this rating" marker counts as none); open = numeric
+// goal not reached yet; met = the latest goal was reached (it now sits in the goal history, so there
+// is no current goal).
+export type GoalStatus = 'none' | 'open' | 'met'
 
 export interface SkillTrend {
   skillId: string
@@ -116,20 +100,17 @@ export interface SkillTrend {
   // earliest ratings are for.
   startCourseName: string | null
   courseBreakpoints: TrendMarker[]
-  events: TrendEvent[]
   currentGoal: TrendGoal | null
   previousGoals: TrendGoal[]
-  isMastered: boolean
-  // Mastered at some point but reactivated since — shown in the regular list with a note.
-  previouslyMastered: boolean
-  masteredDates: string[]
-  reactivatedDates: string[]
-  // Reactivated and not yet rated again: it will come back as a "new" skill.
-  pendingNew: boolean
+  // Times the student got to 10 from a lower rating with no goal to meet, each with its optional
+  // "what helped" answer. A reached goal lives on its goal in previousGoals instead.
+  reachedTens: TrendGoalMet[]
+  // The latest rating is 10: the skill is "maintaining". Below 10 it is growing.
+  isMaintaining: boolean
   latestRating: number | null
   goalStatus: GoalStatus
-  // A student can set a goal now: no goal yet, or the current one was met, and there is room above
-  // the latest rating. Never for a mastered or reactivated-and-not-yet-rated skill.
+  // A student can set a goal now: no open goal (none yet, or the last one was met) and room above the
+  // latest rating. Never for a skill at 10.
   canSetGoal: boolean
 }
 
@@ -187,8 +168,6 @@ export interface BuildSkillTrendsInput {
   ratings: RatingRow[]
   assignments: Record<string, AssignmentInfo>
   goals: GoalRow[]
-  events: EventRow[]
-  progress: ProgressRow[]
   outcomes?: OutcomeRow[]
   // When set, ratings from this course are flagged isCurrentCourse (instructor page).
   currentCourseId?: string
@@ -196,7 +175,7 @@ export interface BuildSkillTrendsInput {
 
 // One student's trends, one entry per skill they have rated at least once.
 export function buildSkillTrends(input: BuildSkillTrendsInput): SkillTrend[] {
-  const { skills, ratings, assignments, goals, events, progress, outcomes = [], currentCourseId } = input
+  const { skills, ratings, assignments, goals, outcomes = [], currentCourseId } = input
   const trends: SkillTrend[] = []
 
   for (const skill of skills) {
@@ -225,58 +204,38 @@ export function buildSkillTrends(input: BuildSkillTrendsInput): SkillTrend[] {
       }
     }
 
-    const skillEvents = events
-      .filter(e => e.skillId === skill.id)
-      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
-    const trendEvents: TrendEvent[] = skillEvents.map(e => {
-      const before = skillRatings.filter(r => r.createdAt <= e.createdAt)
-      if (e.eventType === 'mastered') {
-        // Mastery is reached by the second 10 since the last reactivation, so the marker sits on
-        // that rating rather than between two points. It is found from the ratings themselves
-        // (not the event's timestamp, which the app clock sets and could sit a moment before the
-        // rating it followed); the latest 10 recorded before the event is the fallback.
-        const cycleStart = [...skillEvents].reverse().find(x => x.eventType === 'reactivated' && x.createdAt <= e.createdAt)?.createdAt
-        const tens = skillRatings.map((r, i) => ({ r, i })).filter(({ r }) => r.rating === 10 && (!cycleStart || r.createdAt > cycleStart))
-        const lastTen = before.map(r => r.rating).lastIndexOf(10)
-        const idx = tens.length >= 2 ? tens[1].i : lastTen >= 0 ? lastTen : before.length - 1
-        return { type: e.eventType, date: e.createdAt, x: Math.max(idx, 0) + 1, label: 'Mastered' }
-      }
-      // Reactivation isn't tied to a rating: it sits after the ratings recorded before it.
-      return { type: e.eventType, date: e.createdAt, x: before.length + 0.5, label: 'Reactivated' }
-    })
-    const masteredDates = skillEvents.filter(e => e.eventType === 'mastered').map(e => e.createdAt)
-    const reactivatedDates = skillEvents.filter(e => e.eventType === 'reactivated').map(e => e.createdAt)
-    const lastReactivation = reactivatedDates.length > 0 ? reactivatedDates[reactivatedDates.length - 1] : null
-
     const skillGoals = goals
       .filter(g => g.skillId === skill.id)
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0)) // newest first
-    // A goal captured before the latest reactivation is history; only a goal set after it is current.
-    const head = skillGoals[0]
-    const headIsCurrent = !!head && (!lastReactivation || head.createdAt > lastReactivation)
-    const outcomeByGoal = new Map(outcomes.filter(o => o.skillId === skill.id).map(o => [o.goalHistoryId, o]))
+    const skillOutcomes = outcomes.filter(o => o.skillId === skill.id)
+    const outcomeByGoal = new Map(skillOutcomes.filter(o => o.goalHistoryId).map(o => [o.goalHistoryId as string, o]))
     const withOutcome = (g: GoalRow) => toTrendGoal(g, outcomeByGoal.get(g.id))
-    const headGoal = headIsCurrent ? withOutcome(head) : null
+    // An old "maintaining this rating" marker is never a current goal: maintaining is just a skill at 10.
+    const head = skillGoals[0]
+    const headGoal = head && !head.goalIsMaintain ? withOutcome(head) : null
     const headMet = !!headGoal?.met
     // A goal that has been reached is finished: it moves to the goal history, and the skill shows "no
     // goal set yet" (with the option to set a new one) rather than still presenting it as current.
     const currentGoal = headGoal && !headMet ? headGoal : null
     const previousGoals = [
       ...(headGoal && headMet ? [headGoal] : []),
-      ...(headIsCurrent ? skillGoals.slice(1) : skillGoals).map(withOutcome),
+      ...(headGoal ? skillGoals.slice(1) : skillGoals).map(withOutcome),
     ]
 
-    const prog = progress.find(p => p.skillId === skill.id)
-    const isMastered = prog?.isMastered ?? false
-    const pendingNew = !isMastered && (prog?.isNewPending ?? false) && reactivatedDates.length > 0
+    const reachedTens: TrendGoalMet[] = skillOutcomes
+      .filter(o => !o.goalHistoryId)
+      .map(o => ({
+        outcomeId: o.id,
+        metAt: o.metAt,
+        rating: o.metRating,
+        answered: o.answeredAt !== null,
+        answerLabels: whatHelpedLabels(o.whatHelped, o.whatHelpedOther, null),
+        answerValues: o.whatHelped ?? [],
+      }))
+      .sort((a, b) => (a.metAt < b.metAt ? 1 : a.metAt > b.metAt ? -1 : 0))
+
     const latestRating = trendRatings[trendRatings.length - 1].value
-    const goalStatus: GoalStatus = !headGoal
-      ? 'none'
-      : headGoal.isMaintain
-        ? 'maintain'
-        : headMet
-          ? 'met'
-          : 'open'
+    const goalStatus: GoalStatus = !headGoal ? 'none' : headMet ? 'met' : 'open'
 
     trends.push({
       skillId: skill.id,
@@ -284,17 +243,13 @@ export function buildSkillTrends(input: BuildSkillTrendsInput): SkillTrend[] {
       ratings: trendRatings,
       startCourseName: trendRatings[0].courseName,
       courseBreakpoints,
-      events: trendEvents,
       currentGoal,
       previousGoals,
-      isMastered,
-      previouslyMastered: !isMastered && masteredDates.length > 0,
-      masteredDates,
-      reactivatedDates,
-      pendingNew,
+      reachedTens,
+      isMaintaining: latestRating === 10,
       latestRating,
       goalStatus,
-      canSetGoal: !isMastered && !pendingNew && latestRating < 10 && (goalStatus === 'none' || goalStatus === 'met'),
+      canSetGoal: latestRating < 10 && (goalStatus === 'none' || goalStatus === 'met'),
     })
   }
 
@@ -367,13 +322,14 @@ export interface UnansweredGoal {
   skillId: string
   skillName: string
   outcomeId: string
-  target: number
+  // null for a return to 10 with no goal.
+  target: number | null
   metAt: string
   ownPlanText: string | null
 }
 
-// Every met goal the student hasn't answered "what helped" for yet, newest first — the
-// follow-up list shown at the top of My Skill Confidence.
+// Every reached goal, and every return to 10 with no goal, that the student hasn't answered "what
+// helped" for yet, newest first — the follow-up list shown at the top of My Skill Confidence.
 export function unansweredMetGoals(trends: SkillTrend[]): UnansweredGoal[] {
   const out: UnansweredGoal[] = []
   for (const t of trends) {
@@ -381,6 +337,9 @@ export function unansweredMetGoals(trends: SkillTrend[]): UnansweredGoal[] {
       if (g?.met && !g.met.answered && g.goal != null) {
         out.push({ skillId: t.skillId, skillName: t.name, outcomeId: g.met.outcomeId, target: g.goal, metAt: g.met.metAt, ownPlanText: g.ownPlanText })
       }
+    }
+    for (const r of t.reachedTens) {
+      if (!r.answered) out.push({ skillId: t.skillId, skillName: t.name, outcomeId: r.outcomeId, target: null, metAt: r.metAt, ownPlanText: null })
     }
   }
   return out.sort((a, b) => (a.metAt < b.metAt ? 1 : a.metAt > b.metAt ? -1 : 0))

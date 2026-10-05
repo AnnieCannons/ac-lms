@@ -6,5 +6,5 @@ export const GOAL_MET_REMINDER_TYPE = 'confidence_goal_what_helped'
 export function goalMetReminderMessage(skillName: string, target: number | null): string {
   return target
     ? `You reached your goal of ${target} in ${skillName}. Log what helped.`
-    : `You reached your goal in ${skillName}. Log what helped.`
+    : `You're back at 10 in ${skillName}. Log what helped.`
 }

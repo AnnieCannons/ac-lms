@@ -21,9 +21,8 @@ const trend = (count: number, over: Partial<SkillTrend> = {}): SkillTrend => ({
     value: (i % 9) + 1, date: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(), assignmentTitle: `A${i}`,
     courseId: 'c1', courseName: 'Frontend', isCurrentCourse: false,
   })),
-  startCourseName: 'Frontend', courseBreakpoints: [], events: [], currentGoal: null, previousGoals: [],
-  isMastered: false, previouslyMastered: false, masteredDates: [], reactivatedDates: [], pendingNew: false,
-  latestRating: 5, goalStatus: 'none', canSetGoal: false, ...over,
+  startCourseName: 'Frontend', courseBreakpoints: [], currentGoal: null, previousGoals: [], reachedTens: [],
+  isMaintaining: false, latestRating: 5, goalStatus: 'none', canSetGoal: false, ...over,
 })
 
 describe('SkillTrendChart', () => {
@@ -41,6 +40,12 @@ describe('SkillTrendChart', () => {
   it('shows no start label when the first rating\'s course is unknown', () => {
     render(<SkillTrendChart trend={trend(3, { startCourseName: null })} />)
     expect(screen.queryAllByTestId('ref-label')).toHaveLength(0)
+  })
+
+  it('draws no mastered or reactivated reference lines, even for a skill at 10', () => {
+    render(<SkillTrendChart trend={trend(3, { isMaintaining: true, latestRating: 10 })} />)
+    const labels = screen.queryAllByTestId('ref-label').map(l => l.textContent ?? '')
+    expect(labels.some(l => /mastered|reactivated/i.test(l))).toBe(false)
   })
 
   it('squeezes up to 29 ratings into the width of the card', () => {

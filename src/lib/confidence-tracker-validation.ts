@@ -28,28 +28,30 @@ function isStudyPlanArray(value: unknown): value is StudyPlan[] {
   return Array.isArray(value) && value.length > 0 && value.every(v => typeof v === 'string' && STUDY_PLAN_VALUES.has(v))
 }
 
-// A numeric goal always carries a target date + study plan(s); "maintaining" a rating
-// already at the max isn't working toward anything, so it carries neither. A student may
-// select more than one study plan (e.g. flashcards AND TA help), hence the array.
-export type ConfidenceGoalInput =
-  | { goal: number; targetDate: string; studyPlan: StudyPlan[]; studyPlanOther?: string }
-  | { goal: 'maintain' }
+// A goal always carries a target date + study plan(s). A student may select more than one
+// study plan (e.g. flashcards AND TA help), hence the array. A skill rated 10 has no goal:
+// it is simply "maintaining", derived from the rating rather than stored.
+export interface ConfidenceGoalInput {
+  goal: number
+  targetDate: string
+  studyPlan: StudyPlan[]
+  studyPlanOther?: string
+}
 
 // Per-skill in-progress goal state, shared between ConfidenceRatingPrompt and
 // SubmissionForm (and their sessionStorage persistence) — a single source of truth for
 // the shape so the two files can't quietly drift.
 export interface GoalState {
-  goal: number | 'maintain' | null // null = no goal set / cleared
+  goal: number | null // null = no goal set / cleared
   targetDate: string // '' = unset, else 'YYYY-MM-DD'
   studyPlan: string[] // [] = unset, else one or more StudyPlan values
   studyPlanOther: string
 }
 
 export interface ValidatedGoal {
-  goal: number | null
-  goalIsMaintain: boolean
-  targetDate: string | null
-  studyPlan: StudyPlan[] | null
+  goal: number
+  targetDate: string
+  studyPlan: StudyPlan[]
   studyPlanOther: string | null
 }
 
@@ -71,14 +73,9 @@ export function validateGoalInput(
 ): ValidatedGoal | null {
   if (!input) return null
 
-  if (rating === MAX_RATING) {
-    // Maintaining a rating already at the max isn't working toward anything, so no
-    // target date/study plan applies (or is accepted) here.
-    if (input.goal !== 'maintain') return null
-    return { goal: null, goalIsMaintain: true, targetDate: null, studyPlan: null, studyPlanOther: null }
-  }
+  // A rating already at the max has nothing to work toward, so no goal is accepted.
+  if (rating === MAX_RATING) return null
 
-  if (input.goal === 'maintain') return null
   if (!Number.isInteger(input.goal)) return null
   if (input.goal < rating + 1 || input.goal > MAX_RATING) return null
   if (!isValidTargetDate(input.targetDate, today)) return null
@@ -89,20 +86,7 @@ export function validateGoalInput(
   if (includesOther && studyPlanOther === '') return null
   if (studyPlanOther !== null && studyPlanOther.length > OTHER_TEXT_MAX_LENGTH) return null
 
-  return { goal: input.goal, goalIsMaintain: false, targetDate: input.targetDate, studyPlan: input.studyPlan, studyPlanOther }
-}
-
-export function nextMasteryState(
-  priorCount: number,
-  priorIsMastered: boolean,
-  rating: number
-): { tenRatingCount: number; isMastered: boolean; justMastered: boolean } {
-  if (priorIsMastered) return { tenRatingCount: priorCount, isMastered: true, justMastered: false }
-  if (rating !== MAX_RATING) return { tenRatingCount: priorCount, isMastered: false, justMastered: false }
-
-  const tenRatingCount = priorCount + 1
-  const isMastered = tenRatingCount >= 2
-  return { tenRatingCount, isMastered, justMastered: isMastered }
+  return { goal: input.goal, targetDate: input.targetDate, studyPlan: input.studyPlan, studyPlanOther }
 }
 
 // What helped a student reach a goal (Phase 6). Deliberately mirrors the study-plan values

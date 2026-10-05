@@ -8,10 +8,11 @@ export interface CelebrationDisplayItem {
   skillId: string
   skillName: string
   rating: number
-  mastered: boolean
+  kind: 'goal' | 'returned' | 'first'
   goal?: {
     outcomeId: string
-    target: number
+    // null for a return to 10 with no goal.
+    target: number | null
     ownPlanText: string | null
     nextGoalAllowed: boolean
   }
@@ -25,9 +26,9 @@ interface Props {
 type Step = 'question' | 'next' | 'done'
 
 function headline(item: CelebrationDisplayItem): string {
-  if (item.mastered && item.goal) return `You've mastered ${item.skillName}, and reached your goal of ${item.goal.target}!`
-  if (item.mastered) return `You've mastered ${item.skillName}!`
-  return `You reached your goal of ${item.goal?.target} in ${item.skillName}!`
+  if (item.kind === 'goal') return `You reached your goal of ${item.goal?.target} in ${item.skillName}!`
+  if (item.kind === 'returned') return `You're back at 10 in ${item.skillName}!`
+  return `You're at 10 in ${item.skillName}!`
 }
 
 function CelebrationRow({ item }: { item: CelebrationDisplayItem }) {
@@ -46,9 +47,9 @@ function CelebrationRow({ item }: { item: CelebrationDisplayItem }) {
       <p role="status" className="font-semibold">
         {headline(item)} <span aria-hidden="true">🎉</span>
       </p>
-      {item.mastered && (
+      {item.kind !== 'goal' && (
         <p className="text-sm">
-          It won&apos;t show up on your assignments again, but you can bring it back any time from My Skill Confidence.
+          You&apos;re maintaining this rating. If it ever stops feeling like a 10, you can pick a lower rating on a future assignment.
         </p>
       )}
 
@@ -88,9 +89,9 @@ function CelebrationRow({ item }: { item: CelebrationDisplayItem }) {
 }
 
 // Confidence Tracker v2 Phase 6: the larger moment shown after a first submission when a goal
-// is met or a skill is mastered. Replaces the small Phase 5 kudos line for those skills. The
-// "what helped" question (met goals only) and the next-goal step are both optional; skipping
-// either is the same as walking away.
+// is reached or a skill is rated 10. Replaces the small Phase 5 kudos line for those skills. The
+// "what helped" question (a reached goal, or a return to 10) and the next-goal step are both
+// optional; skipping either is the same as walking away. A first-ever 10 asks nothing.
 export default function GoalMetCelebration({ items, onDismiss }: Props) {
   if (items.length === 0) return null
 

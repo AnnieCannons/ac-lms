@@ -33,7 +33,7 @@ export default async function SkillConfidencePage() {
         <p className="mt-1 mb-8 text-sm text-muted-text">
           How your confidence in each skill has changed across your assignments, with the goals you set along the way.
         </p>
-        <SkillConfidenceView trends={trends} canReactivate={!isStaff} />
+        <SkillConfidenceView trends={trends} canEdit={!isStaff} />
       </main>
     </div>
   )

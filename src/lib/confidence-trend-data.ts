@@ -13,10 +13,8 @@ import {
   latestRatingsBySkill,
   type AssignmentInfo,
   type ClassStats,
-  type EventRow,
   type GoalRow,
   type OutcomeRow,
-  type ProgressRow,
   type RatingRow,
   type SkillMeta,
   type SkillTrend,
@@ -38,9 +36,7 @@ const one = <T,>(v: T | T[] | null | undefined): T | undefined => (Array.isArray
 
 interface RatingDbRow { id: string; student_id: string; skill_id: string; rating: number; created_at: string; assignment_id: string }
 interface GoalDbRow { id: string; student_id: string; skill_id: string; goal: number | null; goal_is_maintain: boolean; target_date: string | null; study_plan: string[] | null; study_plan_other: string | null; created_at: string }
-interface EventDbRow { student_id: string; skill_id: string; event_type: 'mastered' | 'reactivated'; created_at: string }
-interface OutcomeDbRow { id: string; goal_history_id: string; student_id: string; skill_id: string; met_at: string; met_rating: number; what_helped: string[] | null; what_helped_other: string | null; answered_at: string | null }
-interface ProgressDbRow { student_id: string; skill_id: string; is_mastered: boolean; is_new_pending: boolean }
+interface OutcomeDbRow { id: string; goal_history_id: string | null; student_id: string; skill_id: string; met_at: string; met_rating: number; what_helped: string[] | null; what_helped_other: string | null; answered_at: string | null }
 
 const toOutcome = (o: OutcomeDbRow): OutcomeRow => ({
   id: o.id, goalHistoryId: o.goal_history_id, skillId: o.skill_id, metAt: o.met_at, metRating: o.met_rating,
@@ -50,8 +46,6 @@ const toGoal = (g: GoalDbRow): GoalRow => ({
   id: g.id, skillId: g.skill_id, goal: g.goal, goalIsMaintain: g.goal_is_maintain, targetDate: g.target_date,
   studyPlan: g.study_plan, studyPlanOther: g.study_plan_other, createdAt: g.created_at,
 })
-const toEvent = (e: EventDbRow): EventRow => ({ skillId: e.skill_id, eventType: e.event_type, createdAt: e.created_at })
-const toProgress = (p: ProgressDbRow): ProgressRow => ({ skillId: p.skill_id, isMastered: p.is_mastered, isNewPending: p.is_new_pending })
 const toRating = (r: RatingDbRow): RatingRow => ({ id: r.id, skillId: r.skill_id, rating: r.rating, createdAt: r.created_at, assignmentId: r.assignment_id })
 
 async function loadSkills(client: AnyClient, skillIds: string[]): Promise<SkillMeta[]> {
@@ -117,11 +111,9 @@ export async function loadStudentTrend(supabase: ServerClient, service: ServiceC
   if (ratingRows.length === 0) return []
 
   const skillIds = [...new Set(ratingRows.map(r => r.skill_id))]
-  const [skills, progress, goals, events, outcomes, assignments] = await Promise.all([
+  const [skills, goals, outcomes, assignments] = await Promise.all([
     loadSkills(supabase, skillIds),
-    fetchByStudentsAndSkills<ProgressDbRow>(supabase, 'confidence_tracker_skill_progress', 'student_id, skill_id, is_mastered, is_new_pending', [studentId], skillIds),
     fetchByStudentsAndSkills<GoalDbRow>(supabase, 'confidence_tracker_goal_history', 'id, student_id, skill_id, goal, goal_is_maintain, target_date, study_plan, study_plan_other, created_at', [studentId], skillIds),
-    fetchByStudentsAndSkills<EventDbRow>(supabase, 'confidence_tracker_skill_events', 'student_id, skill_id, event_type, created_at', [studentId], skillIds),
     fetchByStudentsAndSkills<OutcomeDbRow>(supabase, 'confidence_tracker_goal_outcomes', 'id, goal_history_id, student_id, skill_id, met_at, met_rating, what_helped, what_helped_other, answered_at', [studentId], skillIds),
     loadAssignmentInfo(service, ratingRows.map(r => r.assignment_id)),
   ])
@@ -131,8 +123,6 @@ export async function loadStudentTrend(supabase: ServerClient, service: ServiceC
     ratings: ratingRows.map(toRating),
     assignments,
     goals: goals.map(toGoal),
-    events: events.map(toEvent),
-    progress: progress.map(toProgress),
     outcomes: outcomes.map(toOutcome),
   })
 }
@@ -202,11 +192,9 @@ export async function loadCourseTrend(service: ServiceClient, courseId: string):
   const ratingRows = await fetchByStudentsAndSkills<RatingDbRow>(
     service, 'confidence_tracker_ratings', 'id, student_id, skill_id, rating, created_at, assignment_id', studentIds, skillIds, true
   )
-  const [skills, progress, goals, events, outcomes, assignments] = await Promise.all([
+  const [skills, goals, outcomes, assignments] = await Promise.all([
     loadSkills(service, skillIds),
-    fetchByStudentsAndSkills<ProgressDbRow>(service, 'confidence_tracker_skill_progress', 'student_id, skill_id, is_mastered, is_new_pending', studentIds, skillIds),
     fetchByStudentsAndSkills<GoalDbRow>(service, 'confidence_tracker_goal_history', 'id, student_id, skill_id, goal, goal_is_maintain, target_date, study_plan, study_plan_other, created_at', studentIds, skillIds),
-    fetchByStudentsAndSkills<EventDbRow>(service, 'confidence_tracker_skill_events', 'student_id, skill_id, event_type, created_at', studentIds, skillIds),
     fetchByStudentsAndSkills<OutcomeDbRow>(service, 'confidence_tracker_goal_outcomes', 'id, goal_history_id, student_id, skill_id, met_at, met_rating, what_helped, what_helped_other, answered_at', studentIds, skillIds),
     loadAssignmentInfo(service, ratingRows.map(r => r.assignment_id)),
   ])
@@ -217,8 +205,6 @@ export async function loadCourseTrend(service: ServiceClient, courseId: string):
       ratings: ratingRows.filter(r => r.student_id === student.id).map(toRating),
       assignments,
       goals: goals.filter(g => g.student_id === student.id).map(toGoal),
-      events: events.filter(e => e.student_id === student.id).map(toEvent),
-      progress: progress.filter(p => p.student_id === student.id).map(toProgress),
       outcomes: outcomes.filter(o => o.student_id === student.id).map(toOutcome),
       currentCourseId: courseId,
     })
