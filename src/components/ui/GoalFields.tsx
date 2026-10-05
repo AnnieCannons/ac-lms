@@ -143,7 +143,7 @@ export default function GoalFields({ skillId, skillName, rating, goalState, onGo
                           opt.value === 'other' && checked ? '' : goalState.studyPlanOther,
                       })
                     }
-                    className="flex items-start gap-3 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-start gap-3 py-1 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span
                       aria-hidden="true"
