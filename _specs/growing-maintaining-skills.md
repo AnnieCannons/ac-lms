@@ -25,6 +25,7 @@ This reverses the Phase 3 decision that a skill stops appearing after two 10s, a
 - The two sections are titled "Skills you're growing" and "Skills you're maintaining", each with a short description, a searchable skill picker, its own empty-state wording, and the same skill cards as today.
 - The "Mastered" note, the "Previously mastered / reactivated" note, the Reactivate control and its confirmation dialog are removed.
 - A skill in Maintaining has no goal panel to act on; the card says the student is maintaining this rating. It has no "Set a goal" control.
+- The card also carries a short, gentle note that the student can lower the rating on a future assignment if it no longer feels like a 10, and that doing so is fine.
 - When a rating below 10 moves a skill from Maintaining to Growing, the card shows the normal goal panel again, with "Set a goal" available, as for any skill with no open goal.
 - The student-only controls (set a goal, log what helped) keep working exactly as today; staff previewing the page still see them disabled.
 
@@ -35,8 +36,8 @@ This reverses the Phase 3 decision that a skill stops appearing after two 10s, a
 
 ### Submission form (first submission of an assignment)
 - Every tagged skill still appears, including skills the student is maintaining; nothing is hidden because of earlier 10s.
-- Skills the student is maintaining are grouped in one collapsed row, for example "Still feeling confident on: HTML, Git", with a way to expand it and change any of those ratings. Skills in Growing, and skills never rated, appear as separate rating boxes as they do today.
-- Inside the expanded row each maintained skill is shown already at 10.
+- Only the skills tagged on this assignment appear on the form, as today. Of those, the ones the student is maintaining are grouped in one collapsed row, for example "Still feeling confident on: HTML, Git", with a way to expand it and change any of those ratings. Maintained skills that are not tagged on this assignment are not shown. Skills in Growing, and skills never rated, appear as separate rating boxes as they do today.
+- Inside the expanded row each maintained skill is shown already at 10. Choosing a lower rating there shows the goal fields (goal, target date, study plan) right in that skill's box, as for any Growing skill.
 - If the student does not touch a maintained skill, nothing is saved for it: no new rating, no kudos, no celebration. Ratings stay optional and stay the student's own.
 - If the student chooses a lower rating for a maintained skill, that rating is saved like any other, the skill moves to Growing, and the normal goal flow is offered (goal, target date, study plan), because the skill now has no current goal.
 - If the student explicitly chooses 10 again on a maintained skill, it is saved as a rating of 10 like any other (a student who wants a fresh data point can have one).
@@ -51,6 +52,7 @@ This reverses the Phase 3 decision that a skill stops appearing after two 10s, a
 - Reaching a numeric goal of 10 shows the goal-met celebration and asks "what helped", as today for any met goal.
 - Getting back to 10 after a dip (a rating below 10 followed by a 10) asks "what helped" even when no goal or study plan was set for that skill. This is recorded the same way as other "what helped" answers, can be skipped for now, and appears as a follow-up and a bell reminder like any unanswered one.
 - A first-ever rating of 10 with no goal shows a short celebration with no "what helped" question.
+- A celebration shows each time a skill reaches 10 from a lower rating (or from no rating), not only the first time. A rating that stays at 10 does not repeat it.
 - The second-10 mastery celebration no longer exists.
 - Kudos ("from 4 to 6") still shows for any increase over the previous rating, except when the increase reaches 10: then the 10 celebration replaces the kudos, so the student sees one message, not two.
 - A rating that stays at 10 (for example an explicit 10 on a maintained skill) shows no kudos and no celebration.
@@ -96,11 +98,23 @@ This reverses the Phase 3 decision that a skill stops appearing after two 10s, a
 - With the flag off, nothing about this feature is visible, as before.
 
 ## Open Questions
+<!--
+When a question here gets answered (e.g. via an inline PR/file comment), do not delete or replace the question text.
+Keep the original question and add the answer beneath it, like:
+- <original question>
+  - **Answer:** <answer>
+This preserves a visible record of what was asked and decided, for anyone reading the spec later.
+-->
 - Does the instructor By student view (and its skill cards) rely on the mastered or reactivated state anywhere, and if so how should it read once those are gone?
+  - **Answer:** The instructor's per-student skill cards are the same card the student sees, so they follow the student page: instructors see "maintaining this rating" for a skill at 10 and no mastered or reactivated notes.
 - When a student expands the "Still feeling confident on" row and picks a lower rating, should the goal fields appear right there in that skill's box, as for any Growing skill, or only after submitting?
+  - **Answer:** Ask right there, in that skill's box.
 - Should the short celebration for a first-ever 10 with no goal be shown again if the student later dips and returns to 10, or is the "what helped" version at that point the only one?
+  - **Answer:** Show a celebration each time a skill hits 10. (Taken to mean each time it reaches 10 from a lower rating; a rating that stays at 10 does not repeat it. A return to 10 after a dip is the version that asks "what helped".)
 - The "what helped" list includes the student's own study-plan write-in as an extra choice. For a return to 10 with no study plan, nothing extra is offered; is that acceptable?
+  - **Answer:** Yes.
 - Once nothing is "mastered", should "Maintaining" skills on the My Skill Confidence page offer anything beyond viewing history (for example, a note encouraging the student to lower the rating if it no longer feels true)?
+  - **Answer:** Yes; add a gentle note on the Maintaining card.
 
 ## Testing Guidelines
 Create a test file(s) in the ./tests folder for the new feature, and create meaningful tests for the following cases, without going too heavy:
