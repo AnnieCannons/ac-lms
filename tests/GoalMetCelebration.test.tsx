@@ -11,7 +11,7 @@ const goalItem = (over: Partial<CelebrationDisplayItem> = {}, goal: Partial<NonN
   skillId: 's1',
   skillName: 'React',
   rating: 8,
-  mastered: false,
+  kind: 'goal',
   goal: { outcomeId: 'o1', target: 7, ownPlanText: null, nextGoalAllowed: true, ...goal },
   ...over,
 })
@@ -36,19 +36,44 @@ describe('GoalMetCelebration', () => {
     expect(screen.getAllByRole('checkbox')).toHaveLength(7)
   })
 
-  it('celebrates mastery alone with no question and a pointer to bringing the skill back', () => {
-    render(<GoalMetCelebration items={[{ skillId: 's1', skillName: 'Git', rating: 10, mastered: true }]} onDismiss={vi.fn()} />)
-    expect(screen.getByRole('status')).toHaveTextContent("You've mastered Git!")
-    expect(screen.getByText(/bring it back any time from My Skill Confidence/)).toBeInTheDocument()
+  it('celebrates a first-ever 10 with no question, no next goal, and a maintaining note', () => {
+    render(<GoalMetCelebration items={[{ skillId: 's1', skillName: 'Git', rating: 10, kind: 'first' }]} onDismiss={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent("You're at 10 in Git!")
+    expect(screen.getByText(/You're maintaining this rating/)).toBeInTheDocument()
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Set a new goal')).not.toBeInTheDocument()
+    expect(screen.queryByText(/mastered/i)).not.toBeInTheDocument()
   })
 
-  it('combines a met goal and mastery into one headline, still asking once for the goal, with no next goal step', async () => {
+  it('celebrates a return to 10 by asking what helped, with a maintaining note and no next goal step', async () => {
     const user = userEvent.setup()
-    render(<GoalMetCelebration items={[goalItem({ rating: 10, mastered: true }, { target: 10, nextGoalAllowed: false })]} onDismiss={vi.fn()} />)
+    render(
+      <GoalMetCelebration
+        items={[goalItem({ rating: 10, kind: 'returned' }, { target: null, nextGoalAllowed: false })]}
+        onDismiss={vi.fn()}
+      />
+    )
+    expect(screen.getByRole('status')).toHaveTextContent("You're back at 10 in React!")
+    expect(screen.getByText(/You're maintaining this rating/)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /What helped/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Studying flashcards' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(answerWhatHelped).toHaveBeenCalledWith('o1', ['flashcards'], undefined)
+    expect(await screen.findByText(/your answer is saved/)).toBeInTheDocument()
+    expect(screen.queryByText('Set a new goal')).not.toBeInTheDocument()
+  })
+
+  it('does not show the maintaining note for a reached goal that is below 10', () => {
+    render(<GoalMetCelebration items={[goalItem()]} onDismiss={vi.fn()} />)
+    expect(screen.queryByText(/You're maintaining this rating/)).not.toBeInTheDocument()
+  })
+
+  it('a reached goal of 10 asks once and offers no next goal step when nextGoalAllowed is false', async () => {
+    const user = userEvent.setup()
+    render(<GoalMetCelebration items={[goalItem({ rating: 10 }, { target: 10, nextGoalAllowed: false })]} onDismiss={vi.fn()} />)
     expect(screen.getAllByRole('status')).toHaveLength(1)
-    expect(screen.getByRole('status')).toHaveTextContent("You've mastered React, and reached your goal of 10!")
+    expect(screen.getByRole('status')).toHaveTextContent('You reached your goal of 10 in React!')
     await user.click(screen.getByRole('checkbox', { name: 'Studying flashcards' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/your answer is saved/)).toBeInTheDocument()
@@ -151,7 +176,7 @@ describe('GoalMetCelebration', () => {
   it('celebrates several skills together in one card, each with its own question', () => {
     render(
       <GoalMetCelebration
-        items={[goalItem(), goalItem({ skillId: 's2', skillName: 'Git', rating: 10, mastered: true, goal: undefined })]}
+        items={[goalItem(), goalItem({ skillId: 's2', skillName: 'Git', rating: 10, kind: 'first', goal: undefined })]}
         onDismiss={vi.fn()}
       />
     )

@@ -25,8 +25,9 @@ interface Opts {
 // ratings reads/writes so we can assert the prior-rating read happens before the insert.
 function makeClient(opts: Opts = {}) {
   const calls: string[] = []
-  const upsert = vi.fn(async () => ({ error: null }))
+  const upsert = vi.fn(async (..._args: unknown[]) => ({ error: null }))
   const outcomeUpsert = vi.fn()
+  const outcomeInsert = vi.fn()
   const outcomeUpdate = vi.fn()
   const notificationInsert = vi.fn()
   let ratingsSelects = 0
@@ -98,6 +99,10 @@ function makeClient(opts: Opts = {}) {
       if (table === 'confidence_tracker_goal_outcomes') {
         return {
           upsert: outcomeUpsert,
+          insert: (rows: { skill_id: string }[]) => {
+            outcomeInsert(rows)
+            return { select: async () => ({ data: rows.map((r, i) => ({ id: `r${i + 1}`, skill_id: r.skill_id })), error: null }) }
+          },
           update: (payload: unknown) => {
             const c: Record<string, unknown> = {}
             c.eq = (col: string, val: unknown) => { outcomeUpdate(payload, col, val); return Promise.resolve({ error: null }) }
@@ -120,12 +125,11 @@ function makeClient(opts: Opts = {}) {
     },
   }
   vi.mocked(createServiceSupabaseClient).mockReturnValue(service as never)
-  return { calls, upsert, outcomeUpsert, outcomeUpdate, notificationInsert }
+  return { calls, upsert, outcomeUpsert, outcomeInsert, outcomeUpdate, notificationInsert }
 }
 
 const established = {
-  skill_id: 's1', is_new_pending: false, goal: null, goal_is_maintain: false, target_date: null,
-  study_plan: null, study_plan_other: null, ten_rating_count: 0, is_mastered: false, mastered_at: null,
+  skill_id: 's1', goal: null, goal_is_maintain: false, target_date: null, study_plan: null, study_plan_other: null,
 }
 const prior = (rating: number) => [{ id: 'r1', skill_id: 's1', rating, created_at: '2026-01-01T00:00:00Z' }]
 
@@ -155,9 +159,9 @@ describe('saveConfidenceRatings kudos', () => {
     expect((await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 6 }])).kudos).toEqual([])
   })
 
-  it('returns no kudos for the first rating after a reactivation', async () => {
-    makeClient({ priorRows: prior(2), progress: [{ ...established, is_new_pending: true }] })
-    expect((await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 8 }])).kudos).toEqual([])
+  it('gives kudos for a rise of just +1, with no dependence on the progress row', async () => {
+    makeClient({ priorRows: prior(5), progress: [] })
+    expect((await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 6 }])).kudos).toEqual([{ skillId: 's1', from: 5, to: 6 }])
   })
 
   it('still saves and returns no kudos when the earlier-ratings read fails', async () => {
@@ -190,7 +194,7 @@ describe('saveConfidenceRatings kudos', () => {
   })
 })
 
-describe('saveConfidenceRatings goal-met and mastery celebrations', () => {
+describe('saveConfidenceRatings goal-met and 10 celebrations', () => {
   const withGoal = { ...established, goal: 7, target_date: '2026-11-01', study_plan: ['flashcards'] }
   const goalRow = (over: Record<string, unknown> = {}) => ({
     id: 'g1', skill_id: 's1', goal: 7, goal_is_maintain: false, study_plan: ['flashcards'], study_plan_other: null, ...over,
@@ -200,7 +204,7 @@ describe('saveConfidenceRatings goal-met and mastery celebrations', () => {
     const { outcomeUpsert } = makeClient({ priorRows: prior(4), progress: [withGoal], goalRows: [goalRow()] })
     const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 7 }])
     expect(result.celebrations).toEqual([
-      { skillId: 's1', rating: 7, mastered: false, goal: { outcomeId: 'o1', target: 7, ownPlanText: null, nextGoalAllowed: true } },
+      { skillId: 's1', rating: 7, kind: 'goal', goal: { outcomeId: 'o1', target: 7, ownPlanText: null, nextGoalAllowed: true } },
     ])
     expect(result.kudos).toEqual([])
     expect(outcomeUpsert).toHaveBeenCalledTimes(1)
@@ -239,29 +243,55 @@ describe('saveConfidenceRatings goal-met and mastery celebrations', () => {
     expect((await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 9 }])).celebrations).toEqual([])
   })
 
-  it('celebrates mastery on the second 10 without recording an outcome', async () => {
-    const { outcomeUpsert } = makeClient({ priorRows: prior(10), progress: [{ ...established, ten_rating_count: 1 }] })
-    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
-    expect(result.celebrations).toEqual([{ skillId: 's1', rating: 10, mastered: true }])
-    expect(outcomeUpsert).not.toHaveBeenCalled()
-  })
-
-  it('does not celebrate a first 10 that meets no goal', async () => {
-    makeClient({ priorRows: prior(7), progress: [established] })
-    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
-    expect(result.celebrations).toEqual([])
-    expect(result.kudos).toEqual([{ skillId: 's1', from: 7, to: 10 }])
-  })
-
-  it('gives one combined celebration, with the question for the goal and no next goal, when a 10 meets a goal of 10 and completes mastery', async () => {
+  it('celebrates a met goal of 10 with the goal question and no next goal', async () => {
     makeClient({
-      priorRows: prior(10), goalRows: [goalRow({ goal: 10 })],
-      progress: [{ ...established, goal: 10, target_date: '2026-11-01', study_plan: ['flashcards'], ten_rating_count: 1 }],
+      priorRows: prior(8), goalRows: [goalRow({ goal: 10 })],
+      progress: [{ ...established, goal: 10, target_date: '2026-11-01', study_plan: ['flashcards'] }],
     })
     const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
     expect(result.celebrations).toEqual([
-      { skillId: 's1', rating: 10, mastered: true, goal: { outcomeId: 'o1', target: 10, ownPlanText: null, nextGoalAllowed: false } },
+      { skillId: 's1', rating: 10, kind: 'goal', goal: { outcomeId: 'o1', target: 10, ownPlanText: null, nextGoalAllowed: false } },
     ])
+    expect(result.kudos).toEqual([])
+  })
+
+  it('records a standalone outcome and celebrates a return to 10 with no goal, replacing the kudos', async () => {
+    const { outcomeInsert, outcomeUpsert } = makeClient({ priorRows: prior(7), progress: [established] })
+    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
+    expect(result.celebrations).toEqual([
+      { skillId: 's1', rating: 10, kind: 'returned', goal: { outcomeId: 'r1', target: null, ownPlanText: null, nextGoalAllowed: false } },
+    ])
+    expect(result.kudos).toEqual([])
+    expect(outcomeUpsert).not.toHaveBeenCalled()
+    expect(outcomeInsert).toHaveBeenCalledTimes(1)
+    expect(outcomeInsert.mock.calls[0][0][0]).toMatchObject({
+      goal_history_id: null, student_id: 'u1', skill_id: 's1', met_rating: 10, met_assignment_id: 'a1',
+    })
+  })
+
+  it('gives a first-ever 10 a short celebration with no outcome and no reminder', async () => {
+    const { outcomeInsert, outcomeUpsert, notificationInsert } = makeClient({ priorRows: [], progress: [] })
+    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
+    expect(result.celebrations).toEqual([{ skillId: 's1', rating: 10, kind: 'first' }])
+    expect(result.kudos).toEqual([])
+    expect(outcomeInsert).not.toHaveBeenCalled()
+    expect(outcomeUpsert).not.toHaveBeenCalled()
+    expect(notificationInsert).not.toHaveBeenCalled()
+  })
+
+  it('saves an explicit 10 on a skill already at 10 with no kudos and no celebration', async () => {
+    const { calls, outcomeInsert, notificationInsert } = makeClient({ priorRows: prior(10), progress: [established] })
+    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
+    expect(result).toEqual({ error: null, kudos: [], celebrations: [] })
+    expect(calls).toContain('insert')
+    expect(outcomeInsert).not.toHaveBeenCalled()
+    expect(notificationInsert).not.toHaveBeenCalled()
+  })
+
+  it('has no mastery behavior: repeated 10s never produce a mastered celebration', async () => {
+    makeClient({ priorRows: [...prior(10), { id: 'r0', skill_id: 's1', rating: 10, created_at: '2025-12-01T00:00:00Z' }], progress: [established] })
+    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
+    expect(result.celebrations).toEqual([])
   })
 
   it('still saves and shows kudos (no celebration) when recording the outcome fails', async () => {
@@ -290,7 +320,7 @@ describe('saveConfidenceRatings goal-met and mastery celebrations', () => {
 })
 
 describe('saveConfidenceRatings goal-met reminder in the bell', () => {
-  const withGoal = { skill_id: 's1', is_new_pending: false, goal: 7, goal_is_maintain: false, target_date: '2026-11-01', study_plan: ['flashcards'], study_plan_other: null, ten_rating_count: 0, is_mastered: false, mastered_at: null }
+  const withGoal = { skill_id: 's1', goal: 7, goal_is_maintain: false, target_date: '2026-11-01', study_plan: ['flashcards'], study_plan_other: null }
   const goalRow = { id: 'g1', skill_id: 's1', goal: 7, goal_is_maintain: false, study_plan: ['flashcards'], study_plan_other: null }
 
   it('puts the reminder in the bell right away and links it to the met goal', async () => {
@@ -313,10 +343,21 @@ describe('saveConfidenceRatings goal-met reminder in the bell', () => {
     expect(result.celebrations).toHaveLength(1)
   })
 
-  it('creates no reminder for mastery (nothing to log), for a goal already met, or with the flag off', async () => {
-    const mastery = makeClient({ priorRows: prior(10), progress: [{ ...withGoal, goal: null, target_date: null, study_plan: null, ten_rating_count: 1 }] })
+  it('puts a "back at 10" reminder in the bell for a return to 10 with no goal, linked to its outcome', async () => {
+    const { notificationInsert, outcomeUpdate } = makeClient({ priorRows: prior(7), progress: [{ ...withGoal, goal: null, target_date: null, study_plan: null }] })
     await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
-    expect(mastery.notificationInsert).not.toHaveBeenCalled()
+    expect(notificationInsert).toHaveBeenCalledWith({
+      user_id: 'u1',
+      type: 'confidence_goal_what_helped',
+      message: "You're back at 10 in React. Log what helped.",
+    })
+    expect(outcomeUpdate).toHaveBeenCalledWith({ reminder_notification_id: 'n1' }, 'id', 'r1')
+  })
+
+  it('creates no reminder for a first-ever 10, for a goal already met, or with the flag off', async () => {
+    const first = makeClient({ priorRows: [], progress: [] })
+    await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10 }])
+    expect(first.notificationInsert).not.toHaveBeenCalled()
 
     const already = makeClient({ priorRows: prior(4), progress: [withGoal], goalRows: [goalRow], outcomeRows: [{ goal_history_id: 'g1' }] })
     await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 9 }])
@@ -326,5 +367,29 @@ describe('saveConfidenceRatings goal-met reminder in the bell', () => {
     const off = makeClient({ priorRows: prior(4), progress: [withGoal], goalRows: [goalRow] })
     await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 7 }])
     expect(off.notificationInsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('saveConfidenceRatings goals', () => {
+  const newGoal = { goal: 8, targetDate: '2999-01-01', studyPlan: ['flashcards' as const] }
+
+  it('a new goal after a dip replaces an old maintain marker (goal_is_maintain false in the upsert)', async () => {
+    const { upsert } = makeClient({ priorRows: prior(10), progress: [{ ...established, goal_is_maintain: true }] })
+    await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 6, goal: newGoal }])
+    const [rows] = upsert.mock.calls[0] as unknown as [Record<string, unknown>[]]
+    expect(rows[0]).toMatchObject({ goal: 8, goal_is_maintain: false, target_date: '2999-01-01', study_plan: ['flashcards'] })
+    expect(rows[0]).not.toHaveProperty('ten_rating_count')
+    expect(rows[0]).not.toHaveProperty('is_mastered')
+  })
+
+  it('never overwrites a goal still open, and accepts no goal at a rating of 10', async () => {
+    const open = { ...established, goal: 7, target_date: '2026-11-01', study_plan: ['flashcards'] }
+    const a = makeClient({ priorRows: prior(4), progress: [open], goalRows: [{ id: 'g1', skill_id: 's1', goal: 7, goal_is_maintain: false, study_plan: ['flashcards'], study_plan_other: null }] })
+    await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 5, goal: newGoal }])
+    expect((a.upsert.mock.calls[0] as unknown as [Record<string, unknown>[]])[0][0]).toMatchObject({ goal: 7 })
+
+    const b = makeClient({ priorRows: prior(10), progress: [established] })
+    await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 10, goal: newGoal }])
+    expect((b.upsert.mock.calls[0] as unknown as [Record<string, unknown>[]])[0][0]).toMatchObject({ goal: null })
   })
 })

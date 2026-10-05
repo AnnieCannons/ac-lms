@@ -13,7 +13,6 @@ import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
 import ConfidenceKudos, { type KudosDisplayItem } from "@/components/ui/ConfidenceKudos";
 import GoalMetCelebration, { type CelebrationDisplayItem } from "@/components/ui/GoalMetCelebration";
-import ConfidenceMaintaining, { type MaintainingDisplayItem } from "@/components/ui/ConfidenceMaintaining";
 import type { ConfidenceSkillWithStatus } from "@/lib/confidence-tracker-actions";
 import type { GoalState, StudyPlan, ConfidenceGoalInput } from "@/lib/confidence-tracker-validation";
 import { isOptionalClosed } from "@/lib/date-utils";
@@ -141,10 +140,8 @@ export default function SubmissionForm({
   const [ratingError, setRatingError] = useState<string | null>(null);
   // One-time Phase 5 kudos for this submission; component-local on purpose (never persisted).
   const [kudos, setKudos] = useState<KudosDisplayItem[]>([]);
-  // One-time Phase 6 goal-met / mastery celebration; likewise component-local and never replayed.
+  // One-time Phase 6 celebration (goal reached, or a skill rated 10); likewise component-local and never replayed.
   const [celebrations, setCelebrations] = useState<CelebrationDisplayItem[]>([]);
-  // "You're now maintaining this rating" for a skill rated 10; shown after submitting, not while rating.
-  const [maintaining, setMaintaining] = useState<MaintainingDisplayItem[]>([]);
 
   // Hydrate from sessionStorage after mount, not during the initial render — reading it
   // in a lazy useState initializer would make the client's first render diverge from the
@@ -192,10 +189,9 @@ export default function SubmissionForm({
   // The one place in this feature where something blocks Submit — every other
   // confidence-tracker input (Phase 2's ratings, a goal itself) is best-effort/optional,
   // but once a numeric goal is set, its target date + study plan are required alongside
-  // it. "Maintaining" a rating already at 10 isn't working toward anything, so it never
-  // needs either and never blocks Submit.
+  // it.
   const isGoalIncomplete = Object.values(goals).some(g =>
-    g.goal != null && g.goal !== 'maintain' &&
+    g.goal != null &&
     (!g.targetDate || g.studyPlan.length === 0 || (g.studyPlan.includes('other') && !g.studyPlanOther.trim()))
   );
 
@@ -295,14 +291,12 @@ export default function SubmissionForm({
           const goal: ConfidenceGoalInput | undefined =
             g?.goal == null
               ? undefined
-              : g.goal === 'maintain'
-                ? { goal: 'maintain' }
-                : {
-                    goal: g.goal,
-                    targetDate: g.targetDate,
-                    studyPlan: g.studyPlan as StudyPlan[],
-                    studyPlanOther: g.studyPlan.includes('other') ? g.studyPlanOther : undefined,
-                  };
+              : {
+                  goal: g.goal,
+                  targetDate: g.targetDate,
+                  studyPlan: g.studyPlan as StudyPlan[],
+                  studyPlanOther: g.studyPlan.includes('other') ? g.studyPlanOther : undefined,
+                };
           return { skillId, rating, goal };
         });
         if (entries.length > 0) {
@@ -310,25 +304,11 @@ export default function SubmissionForm({
           if (ratingSaveError) {
             setRatingError("Your assignment was submitted, but we couldn't save your confidence rating(s) or goal due to an error — please let your instructor know.");
           } else {
-            // A 10 on a skill with no goal yet starts "maintaining"; a celebration (mastery) says its own thing.
-            const celebrated = new Set((celebrationItems ?? []).map(c => c.skillId));
-            const maintainingIds = new Set(
-              entries
-                .filter(e => e.goal && "goal" in e.goal && e.goal.goal === "maintain" && !celebrated.has(e.skillId))
-                .map(e => e.skillId)
-            );
-            // A skill that both went up and reached 10 gets ONE "Nice progress!" card with the maintaining
-            // message, rather than a maintaining card plus a separate "went up from X to Y" line.
-            const kudosDisplay = (kudosItems ?? []).flatMap(k => {
-              const skill = confidenceSkills.find(s => s.id === k.skillId);
-              return skill ? [{ skillName: skill.name, from: k.from, to: k.to, maintaining: maintainingIds.has(k.skillId) }] : [];
-            });
-            setKudos(kudosDisplay);
-            const mergedIntoKudos = new Set((kudosItems ?? []).map(k => k.skillId));
-            setMaintaining(
-              entries.flatMap(e => {
-                const skill = confidenceSkills.find(s => s.id === e.skillId);
-                return skill && maintainingIds.has(e.skillId) && !mergedIntoKudos.has(e.skillId) ? [{ skillName: skill.name }] : [];
+            // A rise to 10 is celebrated instead (the server leaves it out of the kudos), so each skill gets one message.
+            setKudos(
+              (kudosItems ?? []).flatMap(k => {
+                const skill = confidenceSkills.find(s => s.id === k.skillId);
+                return skill ? [{ skillName: skill.name, from: k.from, to: k.to }] : [];
               })
             );
           }
@@ -499,8 +479,6 @@ export default function SubmissionForm({
       )}
 
       <GoalMetCelebration items={celebrations} onDismiss={() => setCelebrations([])} />
-
-      <ConfidenceMaintaining items={maintaining} onDismiss={() => setMaintaining([])} />
 
       <ConfidenceKudos items={kudos} onDismiss={() => setKudos([])} />
 

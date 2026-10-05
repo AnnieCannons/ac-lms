@@ -3,7 +3,6 @@ import {
   isValidTargetDate,
   validateGoalInput,
   validateWhatHelped,
-  nextMasteryState,
   OTHER_TEXT_MAX_LENGTH,
   OWN_PLAN_VALUE,
   type StudyPlan,
@@ -37,7 +36,6 @@ describe('validateGoalInput', () => {
   it('accepts a goal at rating + 1 (the floor)', () => {
     expect(validateGoalInput(5, { ...base, goal: 6 }, TODAY)).toEqual({
       goal: 6,
-      goalIsMaintain: false,
       targetDate: '2026-09-29',
       studyPlan: ['flashcards'],
       studyPlanOther: null,
@@ -47,7 +45,6 @@ describe('validateGoalInput', () => {
   it('accepts more than one study plan value at once', () => {
     expect(validateGoalInput(5, { goal: 7, targetDate: '2026-09-29', studyPlan: ['flashcards', 'ta_help'] }, TODAY)).toEqual({
       goal: 7,
-      goalIsMaintain: false,
       targetDate: '2026-09-29',
       studyPlan: ['flashcards', 'ta_help'],
       studyPlanOther: null,
@@ -78,22 +75,20 @@ describe('validateGoalInput', () => {
     expect(validateGoalInput(9, { ...base, goal: 11 }, TODAY)).toBeNull()
   })
 
-  it('accepts "maintain" when the rating is 10, carrying no target date or study plan', () => {
-    expect(validateGoalInput(10, { goal: 'maintain' }, TODAY)).toEqual({
-      goal: null,
-      goalIsMaintain: true,
-      targetDate: null,
-      studyPlan: null,
-      studyPlanOther: null,
-    })
-  })
-
-  it('rejects a numeric goal when the rating is 10', () => {
+  it('rejects any goal when the rating is 10, numeric or otherwise', () => {
     expect(validateGoalInput(10, { ...base, goal: 10 }, TODAY)).toBeNull()
+    expect(validateGoalInput(10, { ...base, goal: 11 }, TODAY)).toBeNull()
   })
 
-  it('rejects "maintain" when the rating is below 10', () => {
+  it('does not accept the old "maintain" goal, at any rating', () => {
+    // @ts-expect-error 'maintain' is no longer a valid goal input
+    expect(validateGoalInput(10, { goal: 'maintain' }, TODAY)).toBeNull()
+    // @ts-expect-error 'maintain' is no longer a valid goal input
     expect(validateGoalInput(9, { ...base, goal: 'maintain' }, TODAY)).toBeNull()
+  })
+
+  it('never returns a goalIsMaintain field', () => {
+    expect(validateGoalInput(5, { ...base, goal: 6 }, TODAY)).not.toHaveProperty('goalIsMaintain')
   })
 
   it('rejects study plan "other" with a blank free-text field', () => {
@@ -105,7 +100,6 @@ describe('validateGoalInput', () => {
       validateGoalInput(5, { goal: 7, targetDate: '2026-09-29', studyPlan: ['other'], studyPlanOther: '  Pairing with a TA  ' }, TODAY)
     ).toEqual({
       goal: 7,
-      goalIsMaintain: false,
       targetDate: '2026-09-29',
       studyPlan: ['other'],
       studyPlanOther: 'Pairing with a TA',
@@ -120,7 +114,6 @@ describe('validateGoalInput', () => {
       validateGoalInput(5, { goal: 7, targetDate: '2026-09-29', studyPlan: ['flashcards', 'other'], studyPlanOther: 'Group study' }, TODAY)
     ).toEqual({
       goal: 7,
-      goalIsMaintain: false,
       targetDate: '2026-09-29',
       studyPlan: ['flashcards', 'other'],
       studyPlanOther: 'Group study',
@@ -138,28 +131,6 @@ describe('validateGoalInput', () => {
 
   it('returns null when no goal input is given', () => {
     expect(validateGoalInput(5, undefined, TODAY)).toBeNull()
-  })
-})
-
-describe('nextMasteryState', () => {
-  it('leaves the count unchanged for a non-10 rating', () => {
-    expect(nextMasteryState(0, false, 7)).toEqual({ tenRatingCount: 0, isMastered: false, justMastered: false })
-  })
-
-  it('increments the count on a first rating of 10, without mastering yet', () => {
-    expect(nextMasteryState(0, false, 10)).toEqual({ tenRatingCount: 1, isMastered: false, justMastered: false })
-  })
-
-  it('masters the skill on the second rating of 10', () => {
-    expect(nextMasteryState(1, false, 10)).toEqual({ tenRatingCount: 2, isMastered: true, justMastered: true })
-  })
-
-  it('is idempotent once already mastered — a later rating never re-triggers justMastered', () => {
-    expect(nextMasteryState(2, true, 10)).toEqual({ tenRatingCount: 2, isMastered: true, justMastered: false })
-  })
-
-  it('leaves an already-mastered skill\'s count untouched even for a non-10 rating', () => {
-    expect(nextMasteryState(2, true, 5)).toEqual({ tenRatingCount: 2, isMastered: true, justMastered: false })
   })
 })
 

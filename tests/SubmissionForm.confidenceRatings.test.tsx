@@ -31,16 +31,16 @@ vi.mock('@/components/ui/SubmissionComments', () => ({
 }))
 
 const SKILLS: ConfidenceSkillWithStatus[] = [
-  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: false },
-  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false },
+  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: false, isMaintaining: false },
+  { id: 'skill-b', name: 'Testing', isNew: false, canSetGoal: false, isMaintaining: false },
 ]
 
-const NEW_SKILL: ConfidenceSkillWithStatus[] = [{ id: 'skill-a', name: 'React', isNew: true, canSetGoal: true }]
+const NEW_SKILL: ConfidenceSkillWithStatus[] = [{ id: 'skill-a', name: 'React', isNew: true, canSetGoal: true, isMaintaining: false }]
 
 // A skill the student has rated before (no "New" tag) but skipped goal-setting on that
 // occasion — goal-setting must still be offered on a later assignment.
 const SKIPPED_GOAL_SKILL: ConfidenceSkillWithStatus[] = [
-  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: true },
+  { id: 'skill-a', name: 'React', isNew: false, canSetGoal: true, isMaintaining: false },
 ]
 
 const BASE_PROPS = {
@@ -253,11 +253,11 @@ describe('SubmissionForm confidence rating prompt', () => {
     })
   })
 
-  describe('goal-met and mastery celebration', () => {
+  describe('goal-met and 10 celebrations', () => {
     const GOAL_MET = {
       skillId: 'skill-a',
       rating: 7,
-      mastered: false,
+      kind: 'goal' as const,
       goal: { outcomeId: 'outcome-1', target: 7, ownPlanText: null, nextGoalAllowed: false },
     }
 
@@ -286,14 +286,28 @@ describe('SubmissionForm confidence rating prompt', () => {
       expect(screen.queryByText(/You reached your goal/)).not.toBeInTheDocument()
     })
 
-    it('celebrates mastery without asking what helped', async () => {
+    it('celebrates a first-ever 10 without asking anything, and says the student is maintaining it', async () => {
       vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
-        error: null, kudos: [], celebrations: [{ skillId: 'skill-a', rating: 10, mastered: true }],
+        error: null, kudos: [], celebrations: [{ skillId: 'skill-a', rating: 10, kind: 'first' }],
       })
       await rateReactAndSubmit()
-      expect(await screen.findByText(/You've mastered React!/)).toBeInTheDocument()
+      expect(await screen.findByText(/You're at 10 in React!/)).toBeInTheDocument()
+      expect(screen.getByText(/You're maintaining this rating/)).toBeInTheDocument()
       expect(screen.queryByRole('group', { name: /What helped/ })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    })
+
+    it('celebrates a return to 10 and asks what helped', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: null, kudos: [], celebrations: [{
+          skillId: 'skill-a', rating: 10, kind: 'returned',
+          goal: { outcomeId: 'outcome-2', target: null, ownPlanText: null, nextGoalAllowed: false },
+        }],
+      })
+      await rateReactAndSubmit()
+      expect(await screen.findByText(/You're back at 10 in React!/)).toBeInTheDocument()
+      expect(screen.getByText(/You're maintaining this rating/)).toBeInTheDocument()
+      expect(screen.getByRole('group', { name: /What helped/ })).toBeInTheDocument()
     })
 
     it('saves the chosen options, scoped to the met goal, and thanks the student', async () => {
@@ -329,68 +343,149 @@ describe('SubmissionForm confidence rating prompt', () => {
     })
   })
 
-  describe('maintaining message for a rating of 10', () => {
-    async function rateTenBeforeSubmit() {
+  describe('kudos card', () => {
+    it('has no maintaining variant: a rise to 10 reported as kudos reads as a plain "went up from X to Y"', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
+        error: null, kudos: [{ skillId: 'skill-a', from: 6, to: 10 }], celebrations: [],
+      })
       const user = userEvent.setup()
       renderForm({ confidenceSkills: NEW_SKILL })
       const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
       await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
-      return user
-    }
-
-    it('does not show it while rating, only after the submission succeeds', async () => {
-      const user = await rateTenBeforeSubmit()
-      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
-      await submitLink(user)
-      expect(await screen.findByText(/You're at the top of the scale in React! You're now maintaining this rating\./)).toBeInTheDocument()
-      expect(await screen.findByText('Turned in')).toBeInTheDocument()
-    })
-
-    it('can be dismissed', async () => {
-      const user = await rateTenBeforeSubmit()
-      await submitLink(user)
-      await user.click(await screen.findByRole('button', { name: /dismiss maintaining message/i }))
-      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
-    })
-
-    it('is not shown when the rating save failed', async () => {
-      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: 'network error' })
-      const user = await rateTenBeforeSubmit()
-      await submitLink(user)
-      expect(await screen.findByText(/couldn't save your confidence rating/i)).toBeInTheDocument()
-      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
-    })
-
-    it('combines with the "Nice progress" kudos into one card when the skill also went up, without the "went up from" numbers', async () => {
-      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
-        error: null, kudos: [{ skillId: 'skill-a', from: 6, to: 10 }], celebrations: [],
-      })
-      const user = await rateTenBeforeSubmit()
-      await submitLink(user)
-      const card = (await screen.findByText(/Nice progress!/)).closest('[role="status"]') as HTMLElement
-      expect(within(card).getByText(/You're at the top of the scale in React! You're now maintaining this rating\./)).toBeInTheDocument()
-      expect(screen.queryByText(/went up from/)).not.toBeInTheDocument()
-      // one card, not a maintaining card plus a separate kudos card
-      expect(screen.getAllByRole('status')).toHaveLength(1)
-      expect(screen.getAllByText(/now maintaining this rating/)).toHaveLength(1)
-    })
-
-    it('keeps the plain maintaining card when the 10 is not an improvement', async () => {
-      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [] })
-      const user = await rateTenBeforeSubmit()
-      await submitLink(user)
-      expect(await screen.findByText(/You're at the top of the scale in React!/)).toBeInTheDocument()
       expect(screen.queryByText(/Nice progress!/)).not.toBeInTheDocument()
+      await submitLink(user)
+      expect(await screen.findByText(/Your confidence in React went up from 6 to 10/)).toBeInTheDocument()
+      expect(screen.queryByText(/maintaining/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/top of the scale/)).not.toBeInTheDocument()
     })
 
-    it('gives way to the mastery celebration when the same 10 masters the skill', async () => {
-      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({
-        error: null, kudos: [], celebrations: [{ skillId: 'skill-a', rating: 10, mastered: true }],
-      })
-      const user = await rateTenBeforeSubmit()
+    it('shows nothing extra after submitting a 10 when the server reports no kudos or celebration', async () => {
+      vi.mocked(confidenceTrackerActions.saveConfidenceRatings).mockResolvedValue({ error: null, kudos: [], celebrations: [] })
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: NEW_SKILL })
+      const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '10' }))
       await submitLink(user)
-      expect(await screen.findByText(/You've mastered React!/)).toBeInTheDocument()
-      expect(screen.queryByText(/now maintaining this rating/)).not.toBeInTheDocument()
+      expect(await screen.findByText('Turned in')).toBeInTheDocument()
+      expect(screen.queryByText(/Nice progress!/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/maintaining/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('maintained skills', () => {
+    const MAINTAINED: ConfidenceSkillWithStatus[] = [
+      { id: 'skill-g', name: 'Git', isNew: false, canSetGoal: true, isMaintaining: true },
+      { id: 'skill-a', name: 'React', isNew: false, canSetGoal: false, isMaintaining: false },
+    ]
+    const openDisclosure = (user: ReturnType<typeof userEvent.setup>) =>
+      user.click(screen.getByRole('button', { name: /Still feeling confident on/ }))
+
+    it('shows the maintained skill collapsed, with no separate maintaining card', async () => {
+      renderForm({ confidenceSkills: MAINTAINED })
+      expect(await screen.findByRole('button', { name: /Still feeling confident on your maintaining skills/ })).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByRole('radiogroup', { name: 'Confidence rating for Git' })).not.toBeInTheDocument()
+      expect(screen.getByRole('radiogroup', { name: 'Confidence rating for React' })).toBeInTheDocument()
+    })
+
+    it('does not send an untouched maintained skill to saveConfidenceRatings', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: MAINTAINED })
+      const reactGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for React' })
+      await user.click(within(reactGroup).getByRole('radio', { name: '4' }))
+      await submitLink(user)
+      await waitFor(() =>
+        expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [{ skillId: 'skill-a', rating: 4 }])
+      )
+    })
+
+    it('does not call saveConfidenceRatings at all when only maintained skills exist and none is touched', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: [MAINTAINED[0]] })
+      await submitLink(user)
+      await waitFor(() => expect(submissionActions.saveSubmission).toHaveBeenCalled())
+      expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
+    })
+
+    it('sends a lower rating on a maintained skill, with its goal when chosen', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: [MAINTAINED[0]] })
+      await openDisclosure(user)
+      const gitGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '6' }))
+      const planGroup = screen.getByRole('group', { name: /How do you plan to work on this/ })
+      await user.click(within(planGroup).getByRole('checkbox', { name: 'Study flashcards' }))
+      await submitLink(user)
+      await waitFor(() =>
+        expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
+          { skillId: 'skill-g', rating: 6, goal: { goal: 8, targetDate: DEFAULT_TARGET_DATE, studyPlan: ['flashcards'], studyPlanOther: undefined } },
+        ])
+      )
+    })
+
+    it('blocks Submit until a goal started on a maintained skill has a study plan', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: [MAINTAINED[0]] })
+      await user.type(await screen.findByPlaceholderText('https://github.com/your-username/your-repo'), 'https://github.com/example/repo')
+      await openDisclosure(user)
+      const gitGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '6' }))
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    })
+
+    it('sends a lower rating without a goal when the goal is skipped', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: [MAINTAINED[0]] })
+      await openDisclosure(user)
+      const gitGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '6' }))
+      await user.click(screen.getByRole('button', { name: 'Skip' }))
+      await submitLink(user)
+      await waitFor(() =>
+        expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [{ skillId: 'skill-g', rating: 6 }])
+      )
+    })
+
+    it('sends an explicit 10 on a maintained skill, with no goal and no study plan needed', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: [MAINTAINED[0]] })
+      await openDisclosure(user)
+      const gitGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '10, current rating' }))
+      expect(screen.queryByRole('group', { name: /How do you plan to work on this/ })).not.toBeInTheDocument()
+      await submitLink(user)
+      await waitFor(() =>
+        expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [{ skillId: 'skill-g', rating: 10 }])
+      )
+    })
+
+    it('does not save a rating on a maintained skill from a Draft', async () => {
+      const user = userEvent.setup()
+      renderForm({ confidenceSkills: [MAINTAINED[0]] })
+      await openDisclosure(user)
+      const gitGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '6' }))
+      await user.type(await screen.findByPlaceholderText('https://github.com/your-username/your-repo'), 'https://github.com/example/repo')
+      await user.click(screen.getByRole('button', { name: 'Save draft' }))
+      await waitFor(() => expect(submissionActions.saveSubmission).toHaveBeenCalled())
+      expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
+    })
+
+    it('Student Preview can try a maintained skill but nothing is saved; an Observer cannot change it', async () => {
+      const user = userEvent.setup()
+      const { unmount } = renderForm({ confidenceSkills: [MAINTAINED[0]], isStudentPreview: true })
+      await openDisclosure(user)
+      const gitGroup = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      await user.click(within(gitGroup).getByRole('radio', { name: '6' }))
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+      expect(confidenceTrackerActions.saveConfidenceRatings).not.toHaveBeenCalled()
+      unmount()
+      // The preview's rating was kept for in-app navigation; start the observer from a clean slate.
+      sessionStorage.clear()
+
+      renderForm({ confidenceSkills: [MAINTAINED[0]], isObserver: true })
+      await openDisclosure(user)
+      const observed = await screen.findByRole('radiogroup', { name: 'Confidence rating for Git' })
+      within(observed).getAllByRole('radio').forEach(r => expect(r).toBeDisabled())
     })
   })
 
@@ -476,7 +571,7 @@ describe('SubmissionForm confidence rating prompt', () => {
       )
     })
 
-    it('rating a new skill 10 saves a "maintain" goal immediately, with no target date or study plan needed', async () => {
+    it('rating a new skill 10 saves just the rating, with no goal, target date or study plan needed', async () => {
       const user = userEvent.setup()
       renderForm({ confidenceSkills: NEW_SKILL })
       const input = await screen.findByPlaceholderText('https://github.com/your-username/your-repo')
@@ -488,11 +583,7 @@ describe('SubmissionForm confidence rating prompt', () => {
       await user.click(screen.getByRole('button', { name: 'Submit' }))
       await waitFor(() =>
         expect(confidenceTrackerActions.saveConfidenceRatings).toHaveBeenCalledWith('assignment-1', [
-          {
-            skillId: 'skill-a',
-            rating: 10,
-            goal: { goal: 'maintain' },
-          },
+          { skillId: 'skill-a', rating: 10 },
         ])
       )
     })

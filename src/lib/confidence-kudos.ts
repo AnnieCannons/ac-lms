@@ -32,17 +32,13 @@ export function latestPriorRatingBySkill(rows: PriorRatingRow[]): Map<string, nu
 }
 
 // A skill earns kudos only when it was rated on this submission, has an earlier rating, and
-// the new rating is higher (even by 1). A skill whose progress row is still is_new_pending is
-// treated as a fresh start (first-ever rating, or the first rating after a reactivation), so
-// earlier ratings are deliberately not compared.
+// the new rating is higher (even by 1). A first-ever rating has nothing to compare with.
 export function computeKudos(
   entries: { skillId: string; rating: number }[],
-  priorBySkill: Map<string, number>,
-  progressBySkill: Map<string, { is_new_pending: boolean }>
+  priorBySkill: Map<string, number>
 ): KudosItem[] {
   const items: KudosItem[] = []
   for (const { skillId, rating } of entries) {
-    if (progressBySkill.get(skillId)?.is_new_pending ?? true) continue
     const prior = priorBySkill.get(skillId)
     if (prior !== undefined && rating > prior) items.push({ skillId, from: prior, to: rating })
   }

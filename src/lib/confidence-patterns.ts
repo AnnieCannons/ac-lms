@@ -13,7 +13,7 @@ export interface PatternSkillCount {
 export interface PatternMethod {
   value: string
   label: string
-  // Answered goals that named this method (one per goal, however many options were picked).
+  // Answers that named this method (one per goal or return to 10, however many options were picked).
   count: number
   skills: PatternSkillCount[]
 }
@@ -35,12 +35,12 @@ export function computeWhatHelpedPatterns(trends: SkillTrend[]): WhatHelpedPatte
   const byMethod = new Map<string, Map<string, PatternSkillCount>>()
 
   for (const trend of trends) {
-    const goals = [trend.currentGoal, ...trend.previousGoals]
-    for (const goal of goals) {
-      const met = goal?.met
+    // A reached goal and a return to 10 with no goal are counted alike: one answer each.
+    const answers = [...[trend.currentGoal, ...trend.previousGoals].map(goal => goal?.met), ...trend.reachedTens]
+    for (const met of answers) {
       if (!met?.answered || met.answerValues.length === 0) continue
 
-      // De-duplicated per goal, so one goal counts once toward each method it named.
+      // De-duplicated per answer, so one answer counts once toward each method it named.
       const methods = new Set<string>()
       for (const raw of met.answerValues) {
         const method = methodOf(raw)

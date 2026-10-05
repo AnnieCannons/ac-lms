@@ -28,7 +28,7 @@ const LABEL_OFFSETS = [4, 16, 28]
 const shortLabel = (label: string, max = 34) => (label.length > max ? `${label.slice(0, max - 1)}…` : label)
 
 // Ratings are evenly spaced (rating 1, 2, 3 …) with the date shown under each, so idle stretches
-// don't leave gaps. Course dividers and mastery/reactivation markers are lines at whole or half
+// don't leave gaps. Course dividers are lines at whole or half
 // steps along that axis; the first course's name is written at the start.
 export default function SkillTrendChart({ trend }: { trend: SkillTrend }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -107,17 +107,6 @@ export default function SkillTrendChart({ trend }: { trend: SkillTrend }) {
           // The label reads after the line; near the right edge of a squeezed chart it is shortened
           // so it isn't clipped.
           label={{ value: shortLabel(b.label, !scrollable && b.x > n * 0.6 ? 20 : 34), position: 'top', offset: LABEL_OFFSETS[(i + 1) % LABEL_OFFSETS.length], textAnchor: 'start', fontSize: 10, fill: 'var(--color-muted-text)' }}
-        />
-      ))}
-      {trend.events.map(e => (
-        <ReferenceLine
-          key={`${e.type}-${e.date}`}
-          x={e.x}
-          stroke="var(--color-purple-primary)"
-          strokeWidth={2}
-          // A reactivation sits half a step after the mastery it follows, so its label goes low to
-          // keep the two apart.
-          label={{ value: e.label, position: e.type === 'mastered' ? 'insideTopRight' : 'insideBottomRight', fontSize: 10, fill: 'var(--color-purple-primary)' }}
         />
       ))}
       <Line

@@ -182,7 +182,7 @@ interface GoalOpts {
 }
 
 const progressRow = (over: Record<string, unknown> = {}) => ({
-  goal: null, goal_is_maintain: false, is_mastered: false, is_new_pending: false, updated_at: '2026-09-30T10:00:00.123456+00:00', ...over,
+  skill_id: 's1', goal: null, updated_at: '2026-09-30T10:00:00.123456+00:00', ...over,
 })
 const goalInput = { goal: 8, targetDate: '2999-01-01', studyPlan: ['flashcards' as const] }
 
@@ -208,8 +208,13 @@ function goalSetup(opts: GoalOpts = {}) {
           },
         }
       }
-      if (table === 'confidence_tracker_goal_history') return { select: () => chain({ data: opts.head === undefined ? { id: 'g1' } : opts.head }) }
-      if (table === 'confidence_tracker_goal_outcomes') return { select: () => chain({ data: opts.met ?? null }) }
+      if (table === 'confidence_tracker_goal_history') {
+        const head = opts.head === undefined ? { id: 'g1' } : opts.head
+        return { select: () => chain({ data: head ? [{ ...head, skill_id: 's1' }] : [], error: null }) }
+      }
+      if (table === 'confidence_tracker_goal_outcomes') {
+        return { select: () => chain({ data: opts.met ? [{ goal_history_id: 'g1' }] : [], error: null }) }
+      }
       if (table === 'confidence_tracker_ratings') return { select: () => chain({ data: opts.latest === undefined ? { rating: 5 } : opts.latest }) }
       throw new Error(`unexpected table ${table}`)
     },
@@ -241,7 +246,7 @@ describe('setSkillGoal', () => {
       goal: 8, goal_is_maintain: false, target_date: '2999-01-01', study_plan: ['flashcards'], study_plan_other: null,
     })
     expect(s.eqs).toEqual(expect.arrayContaining([
-      ['student_id', 'u1'], ['skill_id', 's1'], ['is_mastered', false], ['updated_at', '2026-09-30T10:00:00.123456+00:00'],
+      ['student_id', 'u1'], ['skill_id', 's1'], ['updated_at', '2026-09-30T10:00:00.123456+00:00'],
     ]))
   })
 
@@ -251,25 +256,19 @@ describe('setSkillGoal', () => {
     expect(s.update).toHaveBeenCalledTimes(1)
   })
 
-  it('refuses a second goal while the current one is still open, and for mastered, maintaining or reactivated skills', async () => {
+  it('refuses a second goal while the current one is still open', async () => {
     const open = goalSetup({ progress: progressRow({ goal: 7 }), met: null })
     expect((await setSkillGoal('s1', goalInput)).error).toMatch(/already have a goal in progress/)
     expect(open.update).not.toHaveBeenCalled()
-
-    const mastered = goalSetup({ progress: progressRow({ is_mastered: true }) })
-    expect((await setSkillGoal('s1', goalInput)).error).toMatch(/mastered/)
-    expect(mastered.update).not.toHaveBeenCalled()
-
-    const maintaining = goalSetup({ progress: progressRow({ goal_is_maintain: true }) })
-    expect((await setSkillGoal('s1', goalInput)).error).toMatch(/maintaining/)
-    expect(maintaining.update).not.toHaveBeenCalled()
-
-    const reactivated = goalSetup({ progress: progressRow({ is_new_pending: true }) })
-    expect((await setSkillGoal('s1', goalInput)).error).toMatch(/next time you rate/)
-    expect(reactivated.update).not.toHaveBeenCalled()
   })
 
-  it('needs a rating first, and offers no numeric goal above a rating of 10', async () => {
+  it('allows a goal after a dip below 10 even when only an old maintain-only progress row exists', async () => {
+    const s = goalSetup({ progress: progressRow({ goal: null, goal_is_maintain: true }), latest: { rating: 7 } })
+    expect(await setSkillGoal('s1', goalInput)).toEqual({ error: null })
+    expect(s.update).toHaveBeenCalledWith(expect.objectContaining({ goal: 8, goal_is_maintain: false }))
+  })
+
+  it('needs a rating first, and offers no goal at a rating of 10', async () => {
     const none = goalSetup({ progress: null })
     expect((await setSkillGoal('s1', goalInput)).error).toMatch(/Rate this skill/)
     expect(none.update).not.toHaveBeenCalled()
@@ -288,6 +287,7 @@ describe('setSkillGoal', () => {
     expect((await setSkillGoal('s1', { ...goalInput, goal: 8 })).error).toMatch(/check your goal/)
     expect((await setSkillGoal('s1', { ...goalInput, targetDate: '2000-01-01' })).error).toMatch(/check your goal/)
     expect((await setSkillGoal('s1', { ...goalInput, studyPlan: [] })).error).toMatch(/check your goal/)
+    // @ts-expect-error 'maintain' is no longer a valid goal input
     expect((await setSkillGoal('s1', { goal: 'maintain' })).error).toMatch(/check your goal/)
     expect(s.update).not.toHaveBeenCalled()
     expect(await setSkillGoal('s1', { ...goalInput, goal: 9 })).toEqual({ error: null })

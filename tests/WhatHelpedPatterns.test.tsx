@@ -2,7 +2,7 @@ import { afterEach, describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WhatHelpedPatterns from '@/components/ui/WhatHelpedPatterns'
-import type { SkillTrend, TrendGoal } from '@/lib/confidence-trend'
+import type { SkillTrend, TrendGoal, TrendGoalMet } from '@/lib/confidence-trend'
 
 const goal = (id: string, values: string[]): TrendGoal => ({
   id, goal: 7, isMaintain: false, targetDate: null, studyPlanLabels: [], ownPlanText: null, setAt: '2026-02-01T10:00:00Z',
@@ -10,8 +10,7 @@ const goal = (id: string, values: string[]): TrendGoal => ({
 })
 
 const trend = (skillId: string, name: string, previousGoals: TrendGoal[]): SkillTrend => ({
-  skillId, name, ratings: [], startCourseName: null, courseBreakpoints: [], events: [], currentGoal: null, previousGoals,
-  isMastered: false, previouslyMastered: false, masteredDates: [], reactivatedDates: [], pendingNew: false,
+  skillId, name, ratings: [], startCourseName: null, courseBreakpoints: [], currentGoal: null, previousGoals, reachedTens: [], isMaintaining: false,
   latestRating: 7, goalStatus: 'met', canSetGoal: false,
 })
 
@@ -22,6 +21,14 @@ const skillLists = () => screen.getAllByRole('list', { name: /helped on/ })
 const chip = (list: HTMLElement, name: string) => within(list).getByText(name).closest('li')!
 
 describe('WhatHelpedPatterns', () => {
+  it('counts a return-to-10 answer like a goal answer', () => {
+    const ten: TrendGoalMet = { outcomeId: 'ot', metAt: '2026-04-01T10:00:00Z', rating: 10, answered: true, answerLabels: [], answerValues: ['flashcards'] }
+    render(<WhatHelpedPatterns trends={[{ ...trend('s1', 'React', []), reachedTens: [ten], isMaintaining: true, latestRating: 10 }]} />)
+    expect(screen.getByText('Studying flashcards')).toBeInTheDocument()
+    expect(screen.getByText('Helped 1 time')).toBeInTheDocument()
+    expect(chip(skillLists()[0], 'React')).toHaveTextContent('React: 1')
+  })
+
   it('shows only a gentle note, plus the reading guide, with no answers', () => {
     render(<WhatHelpedPatterns trends={[]} />)
     expect(screen.getByRole('heading', { name: 'What tends to help you' })).toBeInTheDocument()

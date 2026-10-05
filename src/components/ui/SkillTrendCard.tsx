@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import SkillTrendChart from '@/components/ui/SkillTrendChart'
-import { formatDateOnly, formatTimestamp, type SkillTrend, type TrendGoal } from '@/lib/confidence-trend'
+import { formatDateOnly, formatTimestamp, type SkillTrend, type TrendGoal, type TrendGoalMet } from '@/lib/confidence-trend'
 
 // A reached goal's "what helped" answer, read-only (instructors see this too), or a plain
 // "Not answered yet" — never worded as a shortfall.
@@ -14,6 +14,25 @@ function WhatHelpedAnswer({ goal }: { goal: TrendGoal }) {
         {goal.met.answerLabels.map(label => <li key={label}>{label}</li>)}
       </ul>
     </div>
+  )
+}
+
+// A return to 10 with no goal: its date and the optional "what helped" answer, read-only.
+function ReachedTen({ reached }: { reached: TrendGoalMet }) {
+  return (
+    <>
+      <p className="text-sm text-dark-text">Got to 10 <span className="text-muted-text">· {formatTimestamp(reached.metAt)}</span></p>
+      {!reached.answered ? (
+        <p className="mt-1 text-xs text-muted-text">What helped: Not answered yet</p>
+      ) : (
+        <div className="mt-1 text-xs text-muted-text">
+          <p>What helped:</p>
+          <ul className="list-disc pl-5">
+            {reached.answerLabels.map(label => <li key={label}>{label}</li>)}
+          </ul>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -42,15 +61,13 @@ function GoalLine({ goal }: { goal: TrendGoal }) {
 
 // The current goal at a glance: the target rating and date, and the study methods the student
 // planned to get there.
-function GoalPanel({ goal, pendingNew, action }: { goal: TrendGoal | null; pendingNew: boolean; action?: React.ReactNode }) {
+function GoalPanel({ goal, action }: { goal: TrendGoal | null; action?: React.ReactNode }) {
   if (!goal) {
     return (
       <div className="mt-4 rounded-xl border border-border p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-text mb-2">Current goal</p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <p className="text-sm text-muted-text">
-            {pendingNew ? "You'll set a new goal the next time you rate this skill." : 'No goal set for this skill yet.'}
-          </p>
+          <p className="text-sm text-muted-text">No goal set for this skill yet.</p>
           {action}
         </div>
       </div>
@@ -63,7 +80,7 @@ function GoalPanel({ goal, pendingNew, action }: { goal: TrendGoal | null; pendi
       <div className="grid gap-x-12 gap-y-4 sm:grid-cols-[max-content_1fr] lg:gap-x-24 xl:gap-x-40">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-text">Goal</dt>
-          <dd className="font-semibold text-dark-text">{goal.isMaintain ? 'Maintaining this rating' : `${goal.goal} / 10`}</dd>
+          <dd className="font-semibold text-dark-text">{goal.goal} / 10</dd>
           {goal.targetDate && (
             <>
               <dt className="text-muted-text">Target date</dt>
@@ -102,15 +119,11 @@ export default function SkillTrendCard({ trend, showCourseContext = false, colla
   showCourseContext?: boolean
   // Instructor view: closed to begin with, showing only the skill name and latest rating until opened.
   collapsible?: boolean
-  // A student-only control shown inside the goal panel ("Set a goal", or "Reactivate" on a mastered
-  // skill), beside the goal status.
+  // A student-only control shown inside the goal panel ("Set a goal"), beside the goal status.
   goalAction?: React.ReactNode
   children?: React.ReactNode
 }) {
-  const historyGoals =
-    trend.isMastered && trend.currentGoal && !trend.currentGoal.isMaintain
-      ? [trend.currentGoal, ...trend.previousGoals]
-      : trend.previousGoals
+  const historyGoals = trend.previousGoals
   // Name and latest rating: the card's header, or the closed summary of a collapsible card.
   const ratingList = (
     <ol className="mt-2 space-y-1.5 text-sm">
@@ -132,31 +145,19 @@ export default function SkillTrendCard({ trend, showCourseContext = false, colla
   const latest = <p className={`${collapsible ? 'text-xs' : 'text-sm'} text-muted-text`}>Latest rating <strong className="text-dark-text">{trend.latestRating}</strong> / 10</p>
   const body = (
     <>
-      {trend.isMastered && (
-        <p className="mb-3 text-sm text-dark-text">
-          Mastered {trend.masteredDates.map(formatTimestamp).join(', ')}
-        </p>
-      )}
-      {trend.previouslyMastered && (
-        <p className="mb-3 text-sm text-dark-text">
-          Previously mastered {trend.masteredDates.map(formatTimestamp).join(', ')}
-          {trend.reactivatedDates.length > 0 && <> · reactivated {trend.reactivatedDates.map(formatTimestamp).join(', ')}</>}
-          {trend.pendingNew && <span className="text-muted-text"> · it will come back as a new skill on the next assignment it is tagged on</span>}
-        </p>
-      )}
-
       <SkillTrendChart trend={trend} />
 
-      {/* A maintained skill (mastered, or rated 10 once with "maintaining this rating") has nothing left to
-          work toward, so no goal panel: just that it is being maintained. A mastered skill's numeric goal,
-          if any, stays viewable (with its answer) in the history below. */}
-      {trend.isMastered || trend.goalStatus === 'maintain' ? (
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border p-4">
-          <p className="text-sm text-dark-text">You&apos;re now maintaining this rating.</p>
-          {goalAction}
+      {/* A skill at 10 is maintained: nothing is left to work toward, so no goal panel, just that it is being
+          maintained. Earlier goals (and any old "maintaining" marker) stay viewable in the history below. */}
+      {trend.isMaintaining ? (
+        <div className="mt-4 rounded-xl border border-border p-4">
+          <p className="text-sm text-dark-text">You&apos;re maintaining this rating.</p>
+          <p className="mt-1 text-xs text-muted-text">
+            If it ever stops feeling like a 10, pick a lower rating on a future assignment. That is fine, and your history is kept.
+          </p>
         </div>
       ) : (
-        <GoalPanel goal={trend.currentGoal} pendingNew={trend.pendingNew} action={goalAction} />
+        <GoalPanel goal={trend.currentGoal} action={goalAction} />
       )}
 
       {historyGoals.length > 0 && (
@@ -165,6 +166,17 @@ export default function SkillTrendCard({ trend, showCourseContext = false, colla
           <ul className="mt-2 space-y-3">
             {historyGoals.map(g => (
               <li key={g.setAt} className="rounded-xl border border-border p-3"><GoalLine goal={g} /></li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {trend.reachedTens.length > 0 && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-medium text-teal-primary">Times you got to 10 ({trend.reachedTens.length})</summary>
+          <ul className="mt-2 space-y-3">
+            {trend.reachedTens.map(r => (
+              <li key={r.outcomeId} className="rounded-xl border border-border p-3"><ReachedTen reached={r} /></li>
             ))}
           </ul>
         </details>

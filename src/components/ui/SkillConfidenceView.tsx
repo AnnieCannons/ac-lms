@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import SkillTrendCard from '@/components/ui/SkillTrendCard'
@@ -9,7 +9,6 @@ import SkillMultiSelect from '@/components/ui/SkillMultiSelect'
 import SetGoalForm from '@/components/ui/SetGoalForm'
 import WhatHelpedForm from '@/components/ui/WhatHelpedForm'
 import WhatHelpedPatterns from '@/components/ui/WhatHelpedPatterns'
-import { reactivateConfidenceSkill } from '@/lib/confidence-trend-actions'
 import { formatTimestamp, unansweredMetGoals, type SkillTrend, type UnansweredGoal } from '@/lib/confidence-trend'
 
 // One titled section: a searchable multi-select over its skills and, beneath it, an empty
@@ -64,25 +63,22 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'patterns', label: 'Patterns' },
 ]
 
-// `canReactivate` covers every student-only action on this page (reactivate, answer "what
-// helped", set a goal): it is false for staff previewing the page, and the actions themselves
-// also re-check on the server.
-export default function SkillConfidenceView({ trends, canReactivate }: { trends: SkillTrend[]; canReactivate: boolean }) {
+// `canEdit` covers every student-only action on this page (answer "what helped", set a goal):
+// it is false for staff previewing the page, and the actions themselves also re-check on the server.
+export default function SkillConfidenceView({ trends, canEdit }: { trends: SkillTrend[]; canEdit: boolean }) {
   const router = useRouter()
   const [answering, setAnswering] = useState<UnansweredGoal | null>(null)
   const [listing, setListing] = useState(false)
   // Goals answered from the list this visit, hidden at once instead of waiting for the refresh.
   const [answeredHere, setAnsweredHere] = useState<Set<string>>(new Set())
   const [settingGoal, setSettingGoal] = useState<SkillTrend | null>(null)
-  const [activeSel, setActiveSel] = useState<string[]>([])
-  const [masteredSel, setMasteredSel] = useState<string[]>([])
-  const [confirming, setConfirming] = useState<SkillTrend | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [growingSel, setGrowingSel] = useState<string[]>([])
+  const [maintainingSel, setMaintainingSel] = useState<string[]>([])
   const [tab, setTab] = useState<Tab>('skills')
 
-  const active = trends.filter(t => !t.isMastered)
-  const mastered = trends.filter(t => t.isMastered)
+  // Growing: the latest rating is below 10. Maintaining: it is 10. A new rating moves a skill either way.
+  const growing = trends.filter(t => !t.isMaintaining)
+  const maintaining = trends.filter(t => t.isMaintaining)
   const unanswered = unansweredMetGoals(trends)
   const waiting = unanswered.filter(u => !answeredHere.has(u.outcomeId))
 
@@ -95,10 +91,12 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
       <div className="mt-4 flex flex-col gap-2">
         {pendingAnswers.map(u => (
           <div key={u.outcomeId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-background px-3 py-2">
-            <p className="text-sm text-dark-text">You reached your goal of {u.target} in {t.name}.</p>
+            <p className="text-sm text-dark-text">
+              {u.target != null ? `You reached your goal of ${u.target} in ${t.name}.` : `You got to 10 in ${t.name}.`}
+            </p>
             <button
               type="button"
-              disabled={!canReactivate}
+              disabled={!canEdit}
               onClick={() => setAnswering(u)}
               className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -106,7 +104,7 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
             </button>
           </div>
         ))}
-        {!canReactivate && <p className="text-xs text-muted-text">Only the student can do this.</p>}
+        {!canEdit && <p className="text-xs text-muted-text">Only the student can do this.</p>}
       </div>
     )
   }
@@ -118,35 +116,15 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
       <span className="inline-flex flex-col gap-1">
         <button
           type="button"
-          disabled={!canReactivate}
+          disabled={!canEdit}
           onClick={() => setSettingGoal(t)}
           className="px-4 py-1.5 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Set a goal
         </button>
-        {!canReactivate && <span className="text-xs text-muted-text">Only the student can do this.</span>}
+        {!canEdit && <span className="text-xs text-muted-text">Only the student can do this.</span>}
       </span>
     ) : null
-
-  const closeModal = () => { setConfirming(null); setError(null) }
-
-  const confirmReactivate = () => {
-    if (!confirming) return
-    const skillId = confirming.skillId
-    setError(null)
-    startTransition(async () => {
-      const result = await reactivateConfidenceSkill(skillId)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      // The skill moves to the working-on section; select it there so it doesn't vanish.
-      setMasteredSel(prev => prev.filter(s => s !== skillId))
-      setActiveSel(prev => (prev.includes(skillId) ? prev : [...prev, skillId]))
-      closeModal()
-      router.refresh()
-    })
-  }
 
   const onTabKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
@@ -230,45 +208,32 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
       {tab === 'patterns' ? patternsPanel : (
       <div role="tabpanel" id="my-skill-panel-skills" aria-labelledby="my-skill-tab-skills" className="pt-6 space-y-12">
       <SkillSection
-        id="skills-working-on"
-        title="Skills you're working on"
-        description="These are the skills you're growing right now. Pick the ones you want to see your progress and history for."
+        id="skills-growing"
+        title="Skills you're growing"
+        description="Skills you've rated below 10. Pick the ones you want to see your progress and history for."
         selectLabel="Choose skills to view"
         placeholder="Search your skills…"
         emptyChartMessage="Select a skill above to see your progress and history."
-        noSkillsMessage="You don't have any skills in progress right now."
-        trends={active}
-        selectedIds={activeSel}
-        onChange={setActiveSel}
+        noSkillsMessage="You don't have any skills you're growing right now."
+        trends={growing}
+        selectedIds={growingSel}
+        onChange={setGrowingSel}
         renderFooter={skillActions}
         renderGoalAction={goalAction}
       />
 
       <SkillSection
-        id="skills-mastered"
-        title="Mastered skills"
-        description="Skills you've rated a 10 twice, so they no longer appear on assignments. You can reactivate any of them to work on it again."
-        selectLabel="Choose mastered skills to view"
-        placeholder="Search mastered skills…"
-        emptyChartMessage="Select a mastered skill above to see its history, or to reactivate it."
-        noSkillsMessage="No mastered skills yet — keep going! A skill lands here once you rate it a 10 twice."
-        trends={mastered}
-        selectedIds={masteredSel}
-        onChange={setMasteredSel}
+        id="skills-maintaining"
+        title="Skills you're maintaining"
+        description="Skills you've rated a 10. They still show up on assignments, already at 10, and you can pick a lower rating any time if it no longer feels like a 10. Picking a lower rating moves the skill to Skills you're growing."
+        selectLabel="Choose maintained skills to view"
+        placeholder="Search maintained skills…"
+        emptyChartMessage="Select a skill above to see its history."
+        noSkillsMessage="No skills here yet — a skill lands here once you rate it a 10."
+        trends={maintaining}
+        selectedIds={maintainingSel}
+        onChange={setMaintainingSel}
         renderFooter={skillActions}
-        renderGoalAction={t => (
-          <span className="inline-flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => setConfirming(t)}
-              disabled={!canReactivate}
-              className="px-4 py-1.5 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Reactivate
-            </button>
-            {!canReactivate && <span className="text-xs text-muted-text">Only the student can reactivate a skill.</span>}
-          </span>
-        )}
       />
       </div>
       )}
@@ -287,11 +252,13 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
             {waiting.map(u => (
               <li key={u.outcomeId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3">
                 <p className="text-sm text-dark-text">
-                  {u.skillName}: you reached your goal of {u.target} on {formatTimestamp(u.metAt)}.
+                  {u.target != null
+                    ? `${u.skillName}: you reached your goal of ${u.target} on ${formatTimestamp(u.metAt)}.`
+                    : `${u.skillName}: you got to 10 on ${formatTimestamp(u.metAt)}.`}
                 </p>
                 <button
                   type="button"
-                  disabled={!canReactivate}
+                  disabled={!canEdit}
                   onClick={() => setAnswering(u)}
                   className="px-3 py-1 rounded-lg border border-teal-primary text-sm font-semibold text-teal-primary hover:bg-teal-light disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -334,27 +301,6 @@ export default function SkillConfidenceView({ trends, canReactivate }: { trends:
         </Modal>
       )}
 
-      {confirming && (
-        <Modal title={`Reactivate ${confirming.name}?`} onClose={closeModal} maxWidth="max-w-md">
-          <p className="text-sm text-dark-text">
-            {confirming.name} will show up on your future assignments again, and you&apos;ll choose your current level and set a new goal. Your earlier ratings, goal, and the date you mastered it are kept.
-          </p>
-          {error && <p role="alert" className="mt-3 text-sm alert-error rounded-lg p-2">{error}</p>}
-          <div className="mt-5 flex justify-end gap-3">
-            <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-dark-text hover:bg-background">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={confirmReactivate}
-              disabled={pending}
-              className="px-4 py-2 rounded-lg bg-teal-primary text-white text-sm font-semibold disabled:opacity-60"
-            >
-              {pending ? 'Reactivating…' : 'Reactivate'}
-            </button>
-          </div>
-        </Modal>
-      )}
     </>
   )
 }
