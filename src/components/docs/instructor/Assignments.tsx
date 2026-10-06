@@ -21,8 +21,12 @@ export default function Assignments() {
                 <DocStep number={1}>Click <strong>+ Create</strong> and choose <strong>Assignment</strong> under &ldquo;What would you like to create?&rdquo;</DocStep>
                 <DocStep number={2}>Choose a <strong>Section</strong> — <strong>Course Outline</strong>, <strong>Career Development</strong>, or <strong>Level Up Your Skills</strong>.</DocStep>
                 <DocStep number={3}>Choose a <strong>Module</strong>, then a <strong>Day</strong> (required for assignments).</DocStep>
-                <DocStep number={4}>Optionally pick <strong>Skills</strong> tags — preset tags or your own, added with <strong>+ Add</strong> — to label what the assignment covers. Visible to students.</DocStep>
+                <DocStep number={4}>Pick <strong>Skills</strong> tags — preset tags or your own, added with <strong>+ Add</strong> — to label what the assignment covers. Students can see them, and Level Up Your Skills uses them.</DocStep>
                 <DocStep number={5}>Click <strong>Create &amp; Edit →</strong> to open the assignment editor.</DocStep>
+                <DocStep number={6}>Open the assignment editor and add <strong>Confidence Skills</strong> for the skills you want students to rate (see Tagging Confidence Skills below). <strong>Create &amp; Edit →</strong> opens the editor for you. If you created the assignment from the Course Outline, open it and click <strong>Edit →</strong>.</DocStep>
+                <DocNote>
+                  There are two kinds of skills, and an assignment can have both. <strong>Skills</strong> tags label what the assignment covers and are shown to students, and Level Up Your Skills uses them. <strong>Confidence Skills</strong> are a separate, shared list that Skill Confidence uses: students rate how confident they feel on them when they first turn the assignment in. Changing one never changes the other.
+                </DocNote>
                 <DocTip>
                   If the module you need doesn&apos;t exist yet, click <strong>+ New module</strong> inside the modal
                   to add one without leaving the flow — or type a title directly into the Module field when the
@@ -99,6 +103,7 @@ export default function Assignments() {
 
                 <DocH3>Good to know</DocH3>
                 <DocList>
+                  <li>Confidence Skills are only in the full assignment editor, not in the Create modal or the Course Outline&apos;s add form. To reach the editor, open the assignment and click <strong>Edit →</strong>.</li>
                   <li>Skills are shared. A skill you create is available to every assignment in every course.</li>
                   <li>Click the <strong>✕</strong> on a tag to remove it from this assignment. The skill itself stays in the shared list.</li>
                   <li>Click the pencil icon on a tag, or beside a skill in the list, to rename it. A rename applies everywhere that skill is used, including students&apos; past ratings, so use it to fix a typo and not to change what a skill means.</li>
