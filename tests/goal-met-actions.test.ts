@@ -155,11 +155,10 @@ describe('answerWhatHelped', () => {
     expect(without.outcomeUpdate).not.toHaveBeenCalled()
   })
 
-  it('marks the reminder read once answered, but leaves it in the bell (not cleared)', async () => {
+  it('marks the reminder read and clears it from the bell once answered, so only skipped questions keep one', async () => {
     const s = answerSetup({ outcome: { id: 'o1', goal_history_id: 'g1', answered_at: null, reminder_notification_id: 'n1' } })
     await answerWhatHelped('o1', ['flashcards'])
-    expect(s.notifUpdate).toHaveBeenCalledWith({ read: true })
-    expect(s.notifUpdate.mock.calls[0][0]).not.toHaveProperty('cleared_at')
+    expect(s.notifUpdate).toHaveBeenCalledWith({ read: true, cleared_at: expect.any(String) })
     expect(s.notifEqs).toEqual(expect.arrayContaining([['id', 'n1'], ['user_id', 'u1']]))
   })
 

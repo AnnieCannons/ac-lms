@@ -26,7 +26,7 @@ async function getStudentUser() {
 
 // Saves a student's "what helped" answer for one reached goal, or one return to 10 with no goal. Add-only: once answered it is
 // never changed, and a repeat (double click, second tab) is a harmless no-op. Answering
-// also marks the reminder read (it stays in the bell until cleared or clicked).
+// also clears the reminder from the bell, so a reminder only stays for a question that is still waiting.
 export async function answerWhatHelped(
   outcomeId: string,
   selections: string[],
@@ -79,12 +79,13 @@ export async function answerWhatHelped(
   // Zero rows: answered in another tab a moment ago. Nothing more to do.
   if (!updated || updated.length === 0) return { error: null }
 
-  // Answering marks the reminder read. It stays in the bell until the student clears it or clicks it
-  // (which opens My Skill Confidence and clears it).
+  // Answering removes the reminder from the bell (read, and cleared: hidden, not deleted, so the digest
+  // email is unaffected). The reminder is created the moment a goal is reached, so what is left in the
+  // bell is only the questions a student skipped or walked away from; it also goes if they click it.
   if (outcome.reminder_notification_id) {
     await service
       .from('notifications')
-      .update({ read: true })
+      .update({ read: true, cleared_at: new Date().toISOString() })
       .eq('id', outcome.reminder_notification_id)
       .eq('user_id', user.id)
   }
