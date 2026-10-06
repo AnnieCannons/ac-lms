@@ -6,6 +6,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/docs/student/getting-st
 import DocsLayout from '@/components/docs/DocsLayout'
 import SkillConfidence from '@/components/docs/student/SkillConfidence'
 import InstructorAssignments from '@/components/docs/instructor/Assignments'
+import InstructorSkillConfidence from '@/components/docs/instructor/SkillConfidence'
 
 const layout = (showSkillConfidence?: boolean) =>
   render(
@@ -107,5 +108,60 @@ describe('Tagging Confidence Skills instructor docs', () => {
     expect(screen.getByText(/to create a new skill with the name exactly as you typed it/)).toBeInTheDocument()
     expect(screen.getByText(/A rename applies everywhere that skill is used/)).toBeInTheDocument()
     expect(screen.getByText(/TAs cannot/)).toBeInTheDocument()
+  })
+})
+
+describe('Instructor docs: the two kinds of skills and no-ratings wording', () => {
+  it('Creating an Assignment does not call Skills tags optional, and explains the two kinds of skills', () => {
+    const { container } = render(<InstructorAssignments />)
+    const text = container.textContent ?? ''
+    expect(text).not.toMatch(/Optionally pick/)
+    expect(text).toMatch(/There are two kinds of skills, and an assignment can have both/)
+    expect(text).toMatch(/Changing one never changes the other/)
+    expect(text).toMatch(/Open the assignment editor and add Confidence Skills/)
+    expect(text).toMatch(/If you created the assignment from the Course Outline, open it and click Edit/)
+    expect(text).toMatch(/Confidence Skills are only in the full assignment editor, not in the Create modal or the Course Outline.s add form/)
+  })
+
+  it('explains what No ratings yet can mean without implying anything about the student', () => {
+    const { container } = render(<InstructorSkillConfidence />)
+    const text = container.textContent ?? ''
+    expect(text).toMatch(/have not turned in a tagged assignment yet, they turned it in before the skill was tagged, or they chose not to rate/)
+    expect(text).toMatch(/It says nothing about how the student is doing/)
+  })
+})
+
+describe('Skill Confidence instructor docs', () => {
+  const instructorLayout = (show?: boolean) =>
+    render(
+      <DocsLayout guide="instructor" section="getting-started" isInstructor backHref="/instructor/courses" showSkillConfidence={show}>
+        <p>content</p>
+      </DocsLayout>
+    )
+
+  it('lists the section in the instructor menu only when the feature is on', () => {
+    const { unmount } = instructorLayout(true)
+    expect(screen.getByRole('link', { name: 'Skill Confidence' })).toHaveAttribute('href', '/docs/instructor/skill-confidence')
+    unmount()
+    instructorLayout(false)
+    expect(screen.queryByRole('link', { name: 'Skill Confidence' })).not.toBeInTheDocument()
+  })
+
+  it('covers the three tabs, access, patterns care and Student View', () => {
+    const { container } = render(<InstructorSkillConfidence />)
+    for (const title of ['What Skill Confidence Is', 'Class Overview', 'By Student', 'Patterns', 'Using It Well']) {
+      expect(screen.getByRole('button', { name: title })).toBeInTheDocument()
+    }
+    const text = container.textContent ?? ''
+    expect(text).toMatch(/TAs cannot/)
+    expect(text).toMatch(/read-only/)
+    expect(text).toMatch(/never names students/)
+    expect(text).toMatch(/Not answered yet/)
+    expect(screen.getByRole('link', { name: 'Student View' })).toHaveAttribute('href', '/docs/instructor/student-preview')
+  })
+
+  it('uses no mastered or reactivate wording, which was removed from the feature', () => {
+    const { container } = render(<InstructorSkillConfidence />)
+    expect(container.textContent).not.toMatch(/mastered|reactivat/i)
   })
 })

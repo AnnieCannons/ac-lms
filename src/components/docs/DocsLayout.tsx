@@ -26,6 +26,8 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'course-editor', label: 'Course Editor' },
   { slug: 'resources', label: 'Managing Resources' },
   { slug: 'assignments', label: 'Assignments & Grading' },
+  // Behind CONFIDENCE_TRACKER_V2_RATINGS_ENABLED, like the student entry (see FLAGGED_SECTIONS).
+  { slug: 'skill-confidence', label: 'Skill Confidence' },
   { slug: 'quizzes', label: 'Quizzes' },
   { slug: 'career-dev', label: 'Career Development' },
   { slug: 'people', label: 'People & Enrollment' },
