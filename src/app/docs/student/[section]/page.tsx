@@ -1,9 +1,11 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
+import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 import DocsLayout from '@/components/docs/DocsLayout'
 import GettingStarted from '@/components/docs/student/GettingStarted'
 import Courses from '@/components/docs/student/Courses'
 import Assignments from '@/components/docs/student/Assignments'
+import SkillConfidence from '@/components/docs/student/SkillConfidence'
 import Quizzes from '@/components/docs/student/Quizzes'
 import Resources from '@/components/docs/student/Resources'
 import Observer from '@/components/docs/student/Observer'
@@ -16,6 +18,7 @@ const SECTIONS: Record<string, React.ComponentType> = {
   'getting-started': GettingStarted,
   'courses': Courses,
   'assignments': Assignments,
+  'skill-confidence': SkillConfidence,
   'quizzes': Quizzes,
   'resources': Resources,
   'observer': Observer,
@@ -61,13 +64,15 @@ export default async function StudentDocSectionPage({
     if (taEnrollment) isInstructor = true
   }
 
+  // Documents a feature behind a flag: with the flag off the page doesn't exist, as the feature itself doesn't.
+  const skillConfidenceOn = isConfidenceRatingsEnabled()
   const SectionComponent = SECTIONS[section]
-  if (!SectionComponent) notFound()
+  if (!SectionComponent || (section === 'skill-confidence' && !skillConfidenceOn)) notFound()
 
   const backHref = isInstructor ? '/instructor/courses' : '/student/courses'
 
   return (
-    <DocsLayout guide="student" section={section} isInstructor={isInstructor} backHref={backHref} fromPath={from}>
+    <DocsLayout guide="student" section={section} isInstructor={isInstructor} backHref={backHref} fromPath={from} showSkillConfidence={skillConfidenceOn}>
       <SectionComponent />
     </DocsLayout>
   )

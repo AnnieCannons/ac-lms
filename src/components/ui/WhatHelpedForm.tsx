@@ -44,7 +44,7 @@ export default function WhatHelpedForm({ outcomeId, skillName, ownPlanText, onAn
         setError(result.error)
         return
       }
-      // Answering marks the reminder read server-side; tell the bell to refetch so it shows that now.
+      // Answering clears the reminder server-side; tell the bell to refetch so it drops it now.
       window.dispatchEvent(new Event('notifications-updated'))
       onAnswered()
     })
