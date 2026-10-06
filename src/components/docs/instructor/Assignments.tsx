@@ -80,6 +80,35 @@ export default function Assignments() {
             ),
           },
           {
+            id: 'confidence-skills',
+            title: 'Tagging Confidence Skills',
+            content: (
+              <>
+                <DocP>
+                  The <strong>Confidence Skills</strong> field in the assignment editor lets you tag an assignment with the skills it helps students practice, such as HTML, Git, or Presenting. Tags prepare the assignment for <strong>Skill Confidence</strong>, where students rate how confident they feel on those skills the first time they turn the assignment in.
+                </DocP>
+                <DocNote>
+                  Students only see the rating prompt once Skill Confidence is switched on. Until then, tagging has no effect on what students see. This field is separate from the <strong>Skills</strong> field above it, which is for Level Up Your Skills.
+                </DocNote>
+
+                <DocH3>Adding skills</DocH3>
+                <DocStep number={1}>Open the assignment editor and find <strong>Confidence Skills</strong>.</DocStep>
+                <DocStep number={2}>Click the field and start typing. Matching skills appear as you type, and it does not matter how you capitalize or space them, or whether you add punctuation: &ldquo;Node.js&rdquo; and &ldquo;node js&rdquo; find the same skill.</DocStep>
+                <DocStep number={3}>Click a skill, or press <strong>Enter</strong> on a highlighted one, to add it. If nothing matches, press <strong>Enter</strong> to create a new skill with the name exactly as you typed it.</DocStep>
+                <DocStep number={4}>Save the assignment as usual.</DocStep>
+
+                <DocH3>Good to know</DocH3>
+                <DocList>
+                  <li>Skills are shared. A skill you create is available to every assignment in every course.</li>
+                  <li>Click the <strong>✕</strong> on a tag to remove it from this assignment. The skill itself stays in the shared list.</li>
+                  <li>Click the pencil icon on a tag, or beside a skill in the list, to rename it. A rename applies everywhere that skill is used, including students&apos; past ratings, so use it to fix a typo and not to change what a skill means.</li>
+                  <li>An assignment can have any number of skills, or none. Each tagged skill adds a rating box to the student&apos;s submission form, so a few focused skills usually work best.</li>
+                  <li>Admins, instructors and staff can tag skills. TAs cannot.</li>
+                </DocList>
+              </>
+            ),
+          },
+          {
             id: 'checklist',
             title: 'Grading Checklist & Templates',
             content: (

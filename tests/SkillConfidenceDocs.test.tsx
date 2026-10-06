@@ -5,6 +5,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/docs/student/getting-st
 
 import DocsLayout from '@/components/docs/DocsLayout'
 import SkillConfidence from '@/components/docs/student/SkillConfidence'
+import InstructorAssignments from '@/components/docs/instructor/Assignments'
 
 const layout = (showSkillConfidence?: boolean) =>
   render(
@@ -95,5 +96,16 @@ describe('Skill Confidence help docs', () => {
   it('uses no mastered or reactivate wording, which was removed from the feature', () => {
     const { container } = render(<SkillConfidence />)
     expect(container.textContent).not.toMatch(/mastered|reactivat/i)
+  })
+})
+
+describe('Tagging Confidence Skills instructor docs', () => {
+  it('is always shown in Assignments & Grading (tagging is live whatever the flag), with steps and a note that students see nothing yet', () => {
+    render(<InstructorAssignments />)
+    expect(screen.getByText('Tagging Confidence Skills')).toBeInTheDocument()
+    expect(screen.getByText(/Students only see the rating prompt once Skill Confidence is switched on/)).toBeInTheDocument()
+    expect(screen.getByText(/to create a new skill with the name exactly as you typed it/)).toBeInTheDocument()
+    expect(screen.getByText(/A rename applies everywhere that skill is used/)).toBeInTheDocument()
+    expect(screen.getByText(/TAs cannot/)).toBeInTheDocument()
   })
 })
