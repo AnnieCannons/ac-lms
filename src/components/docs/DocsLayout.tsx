@@ -12,6 +12,8 @@ const STUDENT_SECTIONS = [
   { slug: 'getting-started', label: 'Getting Started' },
   { slug: 'courses', label: 'Course Outline' },
   { slug: 'assignments', label: 'Assignments' },
+  // Behind CONFIDENCE_TRACKER_V2_RATINGS_ENABLED (see FLAGGED_SECTIONS): only listed when the feature is on.
+  { slug: 'skill-confidence', label: 'Skill Confidence' },
   { slug: 'quizzes', label: 'Quizzes' },
   { slug: 'flashcards', label: 'Flashcard App' },
   { slug: 'resources', label: 'Resources' },
@@ -35,6 +37,10 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'accessibility', label: 'Accessibility' },
 ]
 
+// Sections that describe a feature behind a server-side flag. The flag can't be read in this client
+// component, so each docs page passes `showSkillConfidence` and the entry is dropped when it is false.
+const FLAGGED_SECTIONS = new Set(['skill-confidence'])
+
 interface DocsLayoutProps {
   children: ReactNode
   guide: 'student' | 'instructor'
@@ -42,11 +48,13 @@ interface DocsLayoutProps {
   isInstructor: boolean
   backHref: string
   fromPath?: string
+  showSkillConfidence?: boolean
 }
 
-export default function DocsLayout({ children, guide, section, isInstructor, backHref, fromPath }: DocsLayoutProps) {
+export default function DocsLayout({ children, guide, section, isInstructor, backHref, fromPath, showSkillConfidence = false }: DocsLayoutProps) {
   const pathname = usePathname()
-  const sections = guide === 'student' ? STUDENT_SECTIONS : INSTRUCTOR_SECTIONS
+  const allSections = guide === 'student' ? STUDENT_SECTIONS : INSTRUCTOR_SECTIONS
+  const sections = allSections.filter(s => showSkillConfidence || !FLAGGED_SECTIONS.has(s.slug))
 
   // Update persisted URL whenever we arrive from a non-docs page
   if (fromPath && !fromPath.startsWith('/docs')) {
