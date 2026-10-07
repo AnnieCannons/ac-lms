@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { reviewExtensionRequest } from '@/lib/extension-actions'
+import { reviewExtensionRequest, undoExtensionReview } from '@/lib/extension-actions'
 import type { ExtensionRequest } from '@/lib/extension-actions'
 
 const REASON_LABELS: Record<string, string> = {
@@ -34,10 +34,12 @@ function RequestCard({
   req,
   courseId,
   onReviewed,
+  onUndone,
 }: {
   req: ExtensionRequest
   courseId: string
-  onReviewed: (id: string, status: 'approved' | 'denied') => void
+  onReviewed: (id: string, status: 'approved' | 'denied', comment: string | null) => void
+  onUndone: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(req.status === 'pending')
   const [comment, setComment] = useState('')
@@ -50,7 +52,24 @@ function RequestCard({
     const result = await reviewExtensionRequest(req.id, courseId, status, comment.trim() || null)
     setSubmitting(false)
     if (result.error) { setError(result.error); return }
-    onReviewed(req.id, status)
+    onReviewed(req.id, status, comment.trim() || null)
+  }
+
+  async function handleUndo() {
+    const message = req.status === 'approved'
+      ? `Undo approval for ${req.student_name}? Their due date goes back to what it was, and the request returns to Pending so you can approve or deny it again.`
+      : `Undo denial for ${req.student_name}? The request returns to Pending so you can approve or deny it again.`
+    if (!window.confirm(message)) return
+    setSubmitting(true)
+    setError(null)
+    const result = await undoExtensionReview(req.id, courseId)
+    setSubmitting(false)
+    if (result.error) { setError(result.error); return }
+    if (result.overrideKept) {
+      window.alert(`${req.student_name}'s due date for this assignment was changed after the approval, so it was left as is. Check it on the assignment page if it needs to change.`)
+    }
+    setComment('')
+    onUndone(req.id)
   }
 
   const reasonLabel = REASON_LABELS[req.reason] ?? req.reason
@@ -166,10 +185,23 @@ function RequestCard({
           )}
 
           {/* Reviewed state */}
-          {req.status !== 'pending' && req.instructor_comment && (
-            <div className="border-t border-border pt-4">
-              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Your comment</p>
-              <p className="text-sm text-dark-text">{req.instructor_comment}</p>
+          {req.status !== 'pending' && (
+            <div className="border-t border-border pt-4 flex flex-col gap-3">
+              {req.instructor_comment && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Your comment</p>
+                  <p className="text-sm text-dark-text">{req.instructor_comment}</p>
+                </div>
+              )}
+              {error && <p className="text-sm text-red-500">{error}</p>}
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={submitting}
+                className="self-start text-sm text-muted-text hover:text-dark-text underline disabled:opacity-50"
+              >
+                {submitting ? 'Undoing…' : req.status === 'approved' ? 'Undo approval' : 'Undo denial'}
+              </button>
             </div>
           )}
         </div>
@@ -190,11 +222,18 @@ export default function ExtensionRequestList({
   const [pendingList, setPendingList] = useState(pending)
   const [reviewedList, setReviewedList] = useState(reviewed)
 
-  function handleReviewed(id: string, status: 'approved' | 'denied') {
+  function handleReviewed(id: string, status: 'approved' | 'denied', comment: string | null) {
     const req = pendingList.find(r => r.id === id)
     if (!req) return
     setPendingList(prev => prev.filter(r => r.id !== id))
-    setReviewedList(prev => [{ ...req, status }, ...prev])
+    setReviewedList(prev => [{ ...req, status, instructor_comment: comment }, ...prev])
+  }
+
+  function handleUndone(id: string) {
+    const req = reviewedList.find(r => r.id === id)
+    if (!req) return
+    setReviewedList(prev => prev.filter(r => r.id !== id))
+    setPendingList(prev => [{ ...req, status: 'pending', instructor_comment: null, reviewed_by: null, reviewed_at: null }, ...prev])
   }
 
   return (
@@ -211,7 +250,7 @@ export default function ExtensionRequestList({
         ) : (
           <div className="flex flex-col gap-3">
             {pendingList.map(req => (
-              <RequestCard key={req.id} req={req} courseId={courseId} onReviewed={handleReviewed} />
+              <RequestCard key={req.id} req={req} courseId={courseId} onReviewed={handleReviewed} onUndone={handleUndone} />
             ))}
           </div>
         )}
@@ -225,7 +264,7 @@ export default function ExtensionRequestList({
           </h2>
           <div className="flex flex-col gap-3">
             {reviewedList.map(req => (
-              <RequestCard key={req.id} req={req} courseId={courseId} onReviewed={handleReviewed} />
+              <RequestCard key={req.id} req={req} courseId={courseId} onReviewed={handleReviewed} onUndone={handleUndone} />
             ))}
           </div>
         </section>
