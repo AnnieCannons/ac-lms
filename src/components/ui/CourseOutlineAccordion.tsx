@@ -5,6 +5,7 @@ import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import WikiView from '@/components/ui/WikiView'
+import { quizBelongsToDay, moduleTitleSet } from '@/lib/quiz-day-match'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -373,6 +374,7 @@ export default function CourseOutlineAccordion({
   showSearch = true,
 }: Props) {
   const todayName = DAY_NAMES[new Date().getDay()]
+  const courseModuleTitles = moduleTitleSet(modules)
   const [search, setSearch] = useState('')
   const [openDayIds, setOpenDayIds] = useState<Set<string>>(new Set())
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
@@ -595,13 +597,7 @@ export default function CourseOutlineAccordion({
                     const isToday = isCurrentWeek && day.day_name === todayName
                     const publishedAssignments = [...(day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                     const resources = day.resources ?? []
-                    const dayQuizzes = (quizzes ?? []).filter(q => {
-                      if (q.linked_day_id === day.id) return true
-                      if (q.day_title?.trim() !== day.day_name?.trim()) return false
-                      if (q.module_title?.trim() === module.title?.trim()) return true
-                      const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
-                      return !!(quizWeek && module.week_number === parseInt(quizWeek, 10))
-                    })
+                    const dayQuizzes = (quizzes ?? []).filter(q => quizBelongsToDay(q, day, module, courseModuleTitles))
                     const total = publishedAssignments.length + resources.length + dayQuizzes.length
                     const isDayOpen = openDayIds.has(day.id)
 

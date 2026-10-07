@@ -40,6 +40,7 @@ import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup,
 import WikiBlock from "@/components/ui/WikiBlock";
 import { createWiki } from "@/lib/wiki-actions";
 import AnswerKeyField from "@/components/ui/AnswerKeyField";
+import { quizBelongsToDay, moduleTitleSet } from "@/lib/quiz-day-match";
 
 
 type Assignment = {
@@ -2204,6 +2205,7 @@ function SortableModule({
   dayRefreshTriggers,
   isDraggingOverlay = false,
   allQuizzes,
+  courseModuleTitles,
   expandDays,
   onWikiCreated,
   onWikiUpdated,
@@ -2232,6 +2234,7 @@ function SortableModule({
   dayRefreshTriggers: Record<string, number>;
   isDraggingOverlay?: boolean;
   allQuizzes: QuizEntry[];
+  courseModuleTitles: ReadonlySet<string>;
   expandDays?: number;
   onWikiCreated: (wiki: Wiki) => void;
   onWikiUpdated: (wikiId: string, title: string, content: string) => void;
@@ -2466,13 +2469,7 @@ function SortableModule({
                   onWikiUpdated={onWikiUpdated}
                   onWikiPublishToggled={onWikiPublishToggled}
                   onWikiDeleted={onWikiDeleted}
-                  quizzesForDay={allQuizzes.filter(q => {
-                    if (q.linked_day_id === day.id) return true;
-                    if (q.day_title?.trim() !== day.day_name?.trim()) return false;
-                    if (q.module_title?.trim() === module.title?.trim()) return true;
-                    const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1];
-                    return !!(quizWeek && module.week_number === parseInt(quizWeek, 10));
-                  })}
+                  quizzesForDay={allQuizzes.filter(q => quizBelongsToDay(q, day, module, courseModuleTitles))}
                   moduleTitle={module.title}
                   onRegisterResources={onRegisterResources}
                 />
@@ -2779,6 +2776,7 @@ export default function CourseEditor({
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(initialModules.map(m => m.id)));
   const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
   const [allQuizzes, setAllQuizzes] = useState<QuizEntry[]>(courseQuizzes);
+  const courseModuleTitles = moduleTitleSet(modules);
   // Registry for resource state in each SortableDay, used by outer DnD for cross-day moves
   const resourceRegistryRef = useRef<Map<string, { getResources: () => Resource[]; setResources: React.Dispatch<React.SetStateAction<Resource[]>> }>>(new Map());
   const handleRegisterResources = (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => {
@@ -3764,6 +3762,7 @@ export default function CourseEditor({
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
                   allQuizzes={allQuizzes}
+                  courseModuleTitles={courseModuleTitles}
                   expandDays={expandDaysTriggers[module.id]}
                   onRegisterResources={handleRegisterResources}
                   onWikiCreated={handleWikiCreated}
