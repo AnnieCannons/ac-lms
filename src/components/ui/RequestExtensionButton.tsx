@@ -4,6 +4,7 @@ import { DayPicker } from 'react-day-picker'
 import { format } from 'date-fns'
 import { submitExtensionRequest, cancelExtensionRequest } from '@/lib/extension-actions'
 import type { ExtensionRequest } from '@/lib/extension-actions'
+import { maxExtensionDate, MAX_EXTENSION_DAYS } from '@/lib/extension-limits'
 
 const REASONS = [
   { value: 'not_enough_time', label: 'I did not have enough time to complete the assignment' },
@@ -77,11 +78,13 @@ export default function RequestExtensionButton({
   courseId,
   existingRequest,
   assignmentTitle,
+  dueDate,
 }: {
   assignmentId: string
   courseId: string
   existingRequest: ExtensionRequest | null
   assignmentTitle: string
+  dueDate: string | null
 }) {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<'form' | 'confirm'>('form')
@@ -96,6 +99,7 @@ export default function RequestExtensionButton({
   const [error, setError] = useState<string | null>(null)
   const [localRequest, setLocalRequest] = useState<ExtensionRequest | null>(existingRequest)
   const modalRef = useRef<HTMLDivElement>(null)
+  const latestDate = maxExtensionDate(dueDate)
 
   useEffect(() => {
     if (!open) return
@@ -357,12 +361,16 @@ export default function RequestExtensionButton({
                     <p className="text-sm font-semibold text-dark-text mb-2">
                       When will the assignment be done? <span className="text-red-500">*</span>
                     </p>
+                    <p className="text-xs text-muted-text mb-2">
+                      You can request up to {MAX_EXTENSION_DAYS} days past the due date (latest: {format(latestDate, 'EEE, MMM d')}).
+                    </p>
                     <div className="border border-border rounded-xl overflow-hidden bg-surface">
                       <DayPicker
                         mode="single"
                         selected={selectedDate}
                         onSelect={handleDateSelect}
-                        disabled={{ before: new Date() }}
+                        disabled={[{ before: new Date() }, { after: latestDate }]}
+                        endMonth={latestDate}
                         defaultMonth={new Date()}
                         components={{
                           Chevron: ({ orientation }: { orientation?: string }) => (

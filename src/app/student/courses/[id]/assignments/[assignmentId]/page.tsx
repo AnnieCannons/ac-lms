@@ -287,6 +287,7 @@ export default async function StudentAssignmentPage({
               courseId={id}
               existingRequest={existingExtensionRequest}
               assignmentTitle={assignment.title}
+              dueDate={effectiveDueDate}
             />
           </div>
         )}
