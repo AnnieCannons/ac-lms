@@ -40,6 +40,7 @@ import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup,
 import WikiBlock from "@/components/ui/WikiBlock";
 import { createWiki } from "@/lib/wiki-actions";
 import AnswerKeyField from "@/components/ui/AnswerKeyField";
+import { titleWeekMismatch } from "@/lib/module-week";
 
 
 type Assignment = {
@@ -2290,6 +2291,8 @@ function SortableModule({
     setEditingTitle(false);
   };
 
+  const mismatchTitleWeek = titleWeekMismatch(module.title, module.week_number);
+
   const saveWeek = () => {
     const n = parseInt(weekDraft, 10);
     if (!isNaN(n) && n > 0 && n !== module.week_number) onUpdateWeekNumber(module.id, n);
@@ -2345,6 +2348,52 @@ function SortableModule({
                 </button>
               )}
             </div>
+          )}
+          {mismatchTitleWeek !== null && (
+            !readOnly && editingWeek ? (
+              <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                <span className="text-xs text-muted-text">Week</span>
+                <input
+                  autoFocus
+                  type="number"
+                  min="1"
+                  value={weekDraft}
+                  onChange={e => setWeekDraft(e.target.value)}
+                  onBlur={saveWeek}
+                  onKeyDown={e => { if (e.key === 'Enter') saveWeek(); if (e.key === 'Escape') { setWeekDraft(String(module.week_number ?? '')); setEditingWeek(false); } }}
+                  aria-label="Week number"
+                  className="w-14 text-xs text-dark-text bg-background border border-teal-primary rounded px-1.5 py-0.5 focus:outline-none"
+                />
+              </div>
+            ) : (
+              <div
+                role="status"
+                className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/40 rounded-md px-2 py-1 cursor-default"
+                onClick={e => e.stopPropagation()}
+              >
+                <span>
+                  ⚠ Title says Week {mismatchTitleWeek}, but this module is scheduled for week {module.week_number} — that&apos;s the week students see it as current.
+                </span>
+                {!readOnly && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateWeekNumber(module.id, mismatchTitleWeek)}
+                      className="font-semibold underline hover:no-underline"
+                    >
+                      Schedule for week {mismatchTitleWeek}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setWeekDraft(String(module.week_number ?? '')); setEditingWeek(true); }}
+                      className="underline hover:no-underline"
+                    >
+                      Pick another week
+                    </button>
+                  </>
+                )}
+              </div>
+            )
           )}
         </div>
         {!readOnly && (
