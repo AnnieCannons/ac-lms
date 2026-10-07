@@ -8,6 +8,7 @@ import DayResourceList from '@/components/ui/DayResourceList'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import WikiView from '@/components/ui/WikiView'
+import { quizBelongsToDay, moduleTitleSet } from '@/lib/quiz-day-match'
 
 function stripHtml(html: string): string {
   return html
@@ -121,20 +122,23 @@ export default async function StudentDayDetailPage({
   const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
   const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
 
-  const [{ data: dayQuizData }, { data: crossQuizData }] = await Promise.all([
+  const [{ data: dayQuizData }, { data: crossQuizData }, { data: courseModules }] = await Promise.all([
     day.day_name
       ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
     admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).is('deleted_at', null),
+    admin.from('modules').select('title').eq('course_id', id).is('deleted_at', null),
   ])
 
   if (day.day_name) {
     const allDayQuizzes = (dayQuizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>
-    quizzes = allDayQuizzes.filter(q => {
-      if (q.module_title?.trim() === module?.title?.trim()) return true
-      const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
-      return !!(quizWeek && weekNumber !== null && parseInt(quizWeek, 10) === weekNumber)
-    })
+    const courseModuleTitles = moduleTitleSet(courseModules ?? [])
+    quizzes = allDayQuizzes.filter(q => quizBelongsToDay(
+      { module_title: q.module_title, day_title: day.day_name, linked_day_id: null },
+      { id: dayId, day_name: day.day_name },
+      { title: module?.title ?? null, week_number: weekNumber },
+      courseModuleTitles,
+    ))
   }
 
   const crossQuizzes = ((crossQuizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>)
