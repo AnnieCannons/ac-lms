@@ -64,6 +64,9 @@ function fileNameFromUrl(url: string): string {
   }
 }
 
+// Stable default -- SubmissionComments resyncs whenever this prop's identity changes
+const NO_COMMENTS: CommentEntry[] = [];
+
 export default function SubmissionForm({
   assignmentId,
   studentId,
@@ -76,7 +79,7 @@ export default function SubmissionForm({
   instructorResponseMap,
   isObserver,
   isStudentPreview,
-  initialComments = [],
+  initialComments = NO_COMMENTS,
   currentUserName = 'Student',
   currentUserRole = 'student',
   optionalClosesOn = null,
