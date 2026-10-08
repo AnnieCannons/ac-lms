@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import SmartBackLink from '@/components/ui/SmartBackLink'
 import { useSearchParams } from 'next/navigation'
 import ImportDeckModal from './ImportDeckModal'
 
@@ -16,9 +17,11 @@ export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
 
   return (
     <>
-      <Link href={from ?? '/student/courses'} className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4">
-        {from ? '← Back to Course' : '← Back to Home'}
-      </Link>
+      <SmartBackLink
+        fallbackHref={from ?? '/student/courses'}
+        fallbackLabel={from ? 'Back to Course' : 'Back to Home'}
+        className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4"
+      />
       <header className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
