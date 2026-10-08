@@ -87,7 +87,7 @@ export default function RequestExtensionButton({
   dueDate: string | null
 }) {
   const [open, setOpen] = useState(false)
-  const [step, setStep] = useState<'form' | 'confirm'>('form')
+  const [step, setStep] = useState<'intro' | 'form' | 'confirm'>('intro')
   const [reason, setReason] = useState('')
   const [reasonOther, setReasonOther] = useState('')
   const [plan, setPlan] = useState<string[]>([])
@@ -174,11 +174,11 @@ export default function RequestExtensionButton({
     setOpen(false)
     // Reset form
     setReason(''); setReasonOther(''); setPlan([]); setPlanOther(''); setSelectedDate(undefined); setNotes('')
-    setStep('form')
+    setStep('intro')
   }
 
   function openFresh() {
-    setStep('form'); setError(null); setOpen(true)
+    setStep('intro'); setError(null); setOpen(true)
   }
 
   const statusColors = {
@@ -287,6 +287,28 @@ export default function RequestExtensionButton({
                     </>
                   )}
                   {error && <p className="text-sm text-red-500">{error}</p>}
+                </div>
+              )}
+
+              {/* ── Expectations, read before the form ── */}
+              {!localRequest && step === 'intro' && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm font-semibold text-dark-text">Before you request an extension</p>
+                  <ul className="flex flex-col gap-3 text-sm text-dark-text list-disc pl-5">
+                    <li>
+                      Extensions give you a little breathing room, but try to catch up as soon as you can. Each
+                      day&rsquo;s work builds on the day before, so falling behind on one assignment makes the next
+                      one harder.
+                    </li>
+                    <li>
+                      Longer extensions (up to {MAX_EXTENSION_DAYS} days) are for extenuating circumstances, or for
+                      assignments that aren&rsquo;t about coding.
+                    </li>
+                    <li>
+                      Aim to have everything caught up by Sunday night, so you&rsquo;re ready for the new
+                      week&rsquo;s material on Monday.
+                    </li>
+                  </ul>
                 </div>
               )}
 
@@ -422,6 +444,25 @@ export default function RequestExtensionButton({
                 </form>
               )}
             </div>
+
+            {!localRequest && step === 'intro' && (
+              <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setStep('form')}
+                  className="flex-1 bg-teal-primary text-white text-sm font-semibold py-2 rounded-full hover:bg-teal-primary/90 transition-colors"
+                >
+                  Next &rarr;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-5 text-sm text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
 
             {!localRequest && step === 'form' && (
               <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
