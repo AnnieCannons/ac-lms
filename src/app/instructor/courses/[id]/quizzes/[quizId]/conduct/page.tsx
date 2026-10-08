@@ -1,6 +1,6 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import SmartBackLink from "@/components/ui/SmartBackLink";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import ConductView from "./ConductView";
@@ -96,12 +96,7 @@ export default async function ConductQuizPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-6 sm:px-8 sm:py-10 focus:outline-none">
             <div className="mb-6">
-              <Link
-                href={`/instructor/courses/${id}/quizzes?open=${quizId}`}
-                className="text-muted-text hover:text-teal-primary text-sm"
-              >
-                ← Back to quiz
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${id}/quizzes?open=${quizId}`} fallbackLabel="Back to quiz" className="text-muted-text hover:text-teal-primary text-sm" />
             </div>
 
             <div className="mb-6">

@@ -2,6 +2,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import SmartBackLink from '@/components/ui/SmartBackLink'
 import DOMPurify from 'isomorphic-dompurify'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import { updateCard, rateCard, completeStudySession } from '@/lib/flashcards/actions'
@@ -265,9 +266,7 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     <div className="max-w-2xl mx-auto px-6 py-8 flex flex-col min-h-[calc(100vh-4rem)]">
 
       <div className="flex items-center justify-between mb-2">
-        <Link href="/flashcards" className="text-sm text-muted-text hover:text-dark-text transition-colors">
-          ← My Decks
-        </Link>
+        <SmartBackLink fallbackHref="/flashcards" fallbackLabel="My Decks" className="text-sm text-muted-text hover:text-dark-text transition-colors" />
         <div className="flex items-center gap-3">
           <button
             onClick={toggleShuffle}

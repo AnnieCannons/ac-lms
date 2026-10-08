@@ -1,7 +1,7 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import SmartBackLink from '@/components/ui/SmartBackLink'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import StudentDetailView, { type CategorizedAssignment } from '@/components/ui/StudentDetailView'
@@ -229,12 +229,7 @@ export default async function StudentDetailPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
             <div className="mb-6 flex items-center justify-between gap-4">
-              <Link
-                href={`/instructor/courses/${courseId}/roster`}
-                className="text-sm text-muted-text hover:text-teal-primary"
-              >
-                ← Roster
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${courseId}/roster`} fallbackLabel="Roster" className="text-sm text-muted-text hover:text-teal-primary" />
               {profile?.role === 'admin' && (
                 <ViewAsStudentButton
                   studentId={student.id}

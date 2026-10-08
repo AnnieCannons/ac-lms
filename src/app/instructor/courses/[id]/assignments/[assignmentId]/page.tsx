@@ -1,6 +1,6 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import SmartBackLink from "@/components/ui/SmartBackLink";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import AssignmentViewEdit from "@/components/ui/AssignmentViewEdit";
@@ -104,9 +104,7 @@ export default async function InstructorAssignmentEditPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
             <div className="mb-6">
-              <Link href={`/instructor/courses/${id}/assignments`} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-                ← Back
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${id}/assignments`} fallbackLabel="Assignments" />
             </div>
 
             <AssignmentViewEdit

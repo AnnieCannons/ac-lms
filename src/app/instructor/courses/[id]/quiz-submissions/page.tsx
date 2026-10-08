@@ -2,6 +2,7 @@ import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/paginate";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import SmartBackLink from "@/components/ui/SmartBackLink";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
@@ -115,12 +116,7 @@ export default async function QuizSubmissionsPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-6 sm:px-8 sm:py-10 focus:outline-none">
             <div className="flex items-center justify-between mb-6">
-              <Link
-                href={`/instructor/courses/${id}/quizzes`}
-                className="text-muted-text hover:text-teal-primary text-sm"
-              >
-                ← Quizzes
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${id}/quizzes`} fallbackLabel="Quizzes" className="text-muted-text hover:text-teal-primary text-sm" />
             </div>
 
             <div className="mb-8">

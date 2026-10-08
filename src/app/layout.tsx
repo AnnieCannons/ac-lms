@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import FocusResetter from "@/components/ui/FocusResetter"
+import NavTracker from "@/components/ui/NavTracker";
 import ThemeSync from "@/components/ui/ThemeSync";
 import DueCardsNotifier from "@/components/ui/DueCardsNotifier";
 import NextTopLoader from "nextjs-toploader";
@@ -38,6 +39,7 @@ export default function RootLayout({
         </a>
         <NextTopLoader color="var(--color-teal-primary)" showSpinner={false} />
         <FocusResetter />
+        <NavTracker />
         <ThemeSync />
         <DueCardsNotifier />
         {children}
