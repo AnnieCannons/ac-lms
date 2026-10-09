@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { zoneForScore, notifyStaffOfCheckinCompletion, type Zone, type EscalationStatus } from '@/lib/readiness'
 import { computeClassAverages, isTesterEmail, normalizeEmail, type ClassAverages } from '@/lib/readiness-summary'
-import { EXCLUDED_STUDENT_USER_IDS } from '@/lib/excluded-students'
+import { EXCLUDED_STUDENT_USER_IDS, CLASS_READINESS_PINNED_TEST_STUDENT_IDS } from '@/lib/excluded-students'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { getPredecessorCourse, getReadinessChain, isEnrolledStudent } from '@/lib/readiness-chain'
 import { computeStudentAssignmentStats } from '@/lib/student-stats-actions'
@@ -151,6 +151,8 @@ export type CourseReadinessRow = {
   avatarUrl: string | null
   /** This student's snapshot for the selected week, or null if they weren't scored that week. */
   week: ReadinessHistoryPoint | null
+  /** A pinned test account (CLASS_READINESS_PINNED_TEST_STUDENT_IDS): shown last, never averaged. */
+  isTestAccount?: boolean
 }
 
 export type CourseReadinessWeek = {
@@ -176,7 +178,9 @@ const ZONE_SORT_ORDER: Record<Zone, number> = { red: 0, yellow: 1, green: 2 }
  * Whole-class readiness for one week (defaults to the most recent scored week)
  * -- staff/instructor/admin only. Excludes known non-actionable accounts
  * (EXCLUDED_STUDENT_USER_IDS: QA, graduated, withdrawn) and staff tester
- * accounts (see isTesterEmail) from both the table and the averages.
+ * accounts (see isTesterEmail) from both the table and the averages --
+ * except CLASS_READINESS_PINNED_TEST_STUDENT_IDS, which get a row at the very
+ * bottom but still never count toward the averages.
  */
 export async function getCourseReadinessWeek(courseId: string, requestedWeek?: string): Promise<CourseReadinessWeek> {
   const supabase = await createServerSupabaseClient()
@@ -214,8 +218,12 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
       const u = Array.isArray(e.users) ? e.users[0] : e.users
       return { studentId: e.user_id, name: u?.name ?? '', email: u?.email ?? null, avatarUrl: u?.avatar_url ?? null }
     })
-    .filter(s => !EXCLUDED_STUDENT_USER_IDS.has(s.studentId) && !isTesterEmail(s.email, staffEmails))
-    .map(s => ({ studentId: s.studentId, name: s.name, avatarUrl: s.avatarUrl }))
+    .filter(s => CLASS_READINESS_PINNED_TEST_STUDENT_IDS.has(s.studentId)
+      || (!EXCLUDED_STUDENT_USER_IDS.has(s.studentId) && !isTesterEmail(s.email, staffEmails)))
+    .map(s => ({
+      studentId: s.studentId, name: s.name, avatarUrl: s.avatarUrl,
+      ...(CLASS_READINESS_PINNED_TEST_STUDENT_IDS.has(s.studentId) ? { isTestAccount: true } : {}),
+    }))
 
   const weeks = [...new Set(weekRows.map(r => r.week_start))].sort()
   const weekStart = requestedWeek && weeks.includes(requestedWeek) ? requestedWeek : (weeks.at(-1) ?? null)
@@ -245,10 +253,15 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
   }
   const current = byWeek.get(weekStart) ?? new Map<string, ReadinessHistoryPoint>()
   const previous = previousWeek ? byWeek.get(previousWeek) : undefined
+  const realStudentPoints = (m: Map<string, ReadinessHistoryPoint>) =>
+    [...m.entries()].filter(([id]) => !CLASS_READINESS_PINNED_TEST_STUDENT_IDS.has(id)).map(([, p]) => p)
 
   const rows = students
     .map(s => ({ ...s, week: current.get(s.studentId) ?? null }))
     .sort((a, b) => {
+      const pa = a.isTestAccount ? 1 : 0
+      const pb = b.isTestAccount ? 1 : 0
+      if (pa !== pb) return pa - pb
       const za = a.week?.zone ? ZONE_SORT_ORDER[a.week.zone] : 3
       const zb = b.week?.zone ? ZONE_SORT_ORDER[b.week.zone] : 3
       if (za !== zb) return za - zb
@@ -258,8 +271,8 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
   return {
     ...empty,
     rows,
-    averages: computeClassAverages([...current.values()]),
-    previousAverages: previous ? computeClassAverages([...previous.values()]) : null,
+    averages: computeClassAverages(realStudentPoints(current)),
+    previousAverages: previous ? computeClassAverages(realStudentPoints(previous)) : null,
   }
 }
 

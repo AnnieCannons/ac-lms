@@ -6,8 +6,9 @@ import HtmlContent from '@/components/ui/HtmlContent'
 import { CommentsPreview } from '@/components/ui/StudentStatsWidgets'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
+import { ReadinessTrendChart, ReadinessZoneBadge, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
 import type { ReadinessHistoryPoint, EscalationEventRecord, PriorCourseMissing } from '@/lib/readiness-actions'
+import ReadinessNotesSection from '@/components/ui/ReadinessNotesSection'
 
 export type CategorizedAssignment = {
   id: string
@@ -233,8 +234,7 @@ export default function StudentDetailView({
         </div>
       </div>
 
-      {/* ── Readiness score + escalation history ── */}
-      {readinessHistory.length > 0 && (
+      {/* ── Readiness score + notes + escalation history (always shown so staff can leave notes before a first score) ── */}
         <>
         <HowThisWorksSection audience="staff" />
         <div className="bg-surface rounded-2xl border border-border p-5 sm:p-6">
@@ -251,16 +251,15 @@ export default function StudentDetailView({
             })()}
           </div>
           <PriorCourseMissingNote prior={priorCourseMissing} href={`/instructor/courses/${priorCourseMissing?.courseId}/roster/${student.id}`} />
-          <ReadinessTrendChart history={readinessHistory} />
+          {readinessHistory.length > 0
+            ? <ReadinessTrendChart history={readinessHistory} />
+            : <p className="text-sm text-muted-text py-2">Not scored yet.</p>}
 
-          {escalationHistory.length > 0 && (
-            <div className="mt-4">
-              <EscalationHistorySection events={escalationHistory} />
-            </div>
-          )}
+          <div className="mt-4">
+            <ReadinessNotesSection studentId={student.id} courseId={courseId} events={escalationHistory} />
+          </div>
         </div>
         </>
-      )}
 
       {/* ── Stat cards ── */}
       <div>

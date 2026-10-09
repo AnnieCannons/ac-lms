@@ -50,3 +50,10 @@ const READINESS_TEST_STUDENT_IDS = new Set([
 export function isExcludedFromReadiness(userId: string): boolean {
   return EXCLUDED_STUDENT_USER_IDS.has(userId) && !READINESS_TEST_STUDENT_IDS.has(userId)
 }
+
+/** Excluded accounts that still get a row on the Class Readiness page -- always
+ * sorted to the bottom and left out of the class averages -- so staff can click
+ * through to a student view (e.g. to try out readiness notes). */
+export const CLASS_READINESS_PINNED_TEST_STUDENT_IDS = new Set([
+  '26d0fef7-64b1-4da7-a9e1-a5b185add4d1', // zcatie student (catiehart@mac.com)
+])
