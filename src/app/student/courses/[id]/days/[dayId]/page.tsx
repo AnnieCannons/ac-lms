@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { ExcusedBadge } from '@/components/ui/AssignmentDueStatus'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
@@ -220,7 +221,7 @@ export default async function StudentDayDetailPage({
                 {assignments.map(assignment => (
                   <div
                     key={assignment.id}
-                    className="bg-surface rounded-xl border border-border px-4 py-4"
+                    className={`bg-surface rounded-xl border border-border px-4 py-4 ${dayOverrideMap.get(assignment.id)?.excused ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -250,7 +251,7 @@ export default async function StudentDayDetailPage({
                           return (
                             <>
                               {excused && (
-                                <span className="badge-amber text-xs font-medium border rounded-full px-2 py-0.5">Excused</span>
+                                <div className="mt-2"><ExcusedBadge /></div>
                               )}
                               {!excused && effectiveDue && (
                                 <p className="text-xs text-muted-text mt-2">

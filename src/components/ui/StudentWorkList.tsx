@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDueDateWithTime, localDate, todayLocal } from "@/lib/date-utils";
+import { ExcusedBadge } from "./AssignmentDueStatus";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
@@ -30,7 +31,8 @@ export type WorkAssignment = {
 
 type WorkAssignmentWithLate = WorkAssignment & { isLate: boolean; isClosed: boolean };
 
-function StatusBadge({ status, grade, isLate, isOptional }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean; isOptional: boolean }) {
+function StatusBadge({ status, grade, isLate, isOptional, isExcused }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean; isOptional: boolean; isExcused: boolean }) {
+  if (isExcused) return <ExcusedBadge />;
   // Optional: always an Optional pill, plus the normal status once turned in — never Late or Not started
   if (isOptional) return (
     <span className="flex items-center gap-1.5 shrink-0">
@@ -111,7 +113,7 @@ export default function StudentWorkList({
   const AssignmentRow = ({ a }: { a: WorkAssignmentWithLate }) => (
     <Link
       href={`/student/courses/${a.courseId}/assignments/${a.id}`}
-      className="flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-4 hover:border-teal-primary transition-colors gap-4"
+      className={`flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-4 hover:border-teal-primary transition-colors gap-4 ${a.isExcused ? "opacity-60" : ""}`}
     >
       <div className="flex-1 min-w-0">
         <p className={`font-semibold text-base truncate ${a.isLate && !a.status && !a.grade ? "text-amber-700" : "text-dark-text"}`}>
@@ -130,7 +132,7 @@ export default function StudentWorkList({
           </p>
         )}
       </div>
-      <StatusBadge status={a.status} grade={a.grade} isLate={a.isLate} isOptional={a.isOptional} />
+      <StatusBadge status={a.status} grade={a.grade} isLate={a.isLate} isOptional={a.isOptional} isExcused={a.isExcused} />
     </Link>
   );
 

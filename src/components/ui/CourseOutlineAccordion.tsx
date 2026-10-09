@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
+import { ExcusedBadge } from './AssignmentDueStatus'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import WikiView from '@/components/ui/WikiView'
@@ -151,9 +152,10 @@ interface Module {
   wikis?: WikiItem[]
 }
 
-type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
+type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; excused?: boolean }
 
 function AssignmentStatusBadge({ info, dueDate, isOptional }: { info: SubmissionInfo | undefined; dueDate?: string | null; isOptional?: boolean }) {
+  if (info?.excused) return <ExcusedBadge />
   // Optional: always an Optional pill, plus the normal status once turned in — never Late or Not Started
   if (isOptional) return (
     <span className="flex items-center gap-1.5 shrink-0">
@@ -283,7 +285,7 @@ function DayContent({
             {publishedAssignments.map(a => (
               <div
                 key={a.id}
-                className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
+                className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
