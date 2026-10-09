@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '@testing-library/react'
 import LevelUpCards from '@/components/ui/LevelUpCards'
 import type { LevelUpLink } from '@/lib/level-up-links'
@@ -6,6 +7,12 @@ import type { LevelUpLink } from '@/lib/level-up-links'
 const link = (over: Partial<LevelUpLink>): LevelUpLink => ({
   id: Math.random().toString(36), course_id: null, platform: 'codecademy', title: 'Course', url: 'https://example.com',
   description: null, order: 0, published: true, ...over,
+})
+
+// jsdom has <dialog> but not showModal/close
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) { this.open = true })
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) { this.open = false })
 })
 
 describe('LevelUpCards', () => {
@@ -27,21 +34,21 @@ describe('LevelUpCards', () => {
     expect(screen.queryByText('More recommended courses')).not.toBeInTheDocument()
   })
 
-  it('lists recommended courses on their platform card, opening in a new tab', () => {
+  it('lists recommended courses on their platform card, opening in a new tab', async () => {
     render(<LevelUpCards courseId="c1" practiceQuizCount={0} links={[
       link({ platform: 'freecodecamp', title: 'Responsive Web Design', url: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/', description: 'Start here' }),
       link({ platform: 'other', title: 'MDN Learn', url: 'https://developer.mozilla.org/en-US/docs/Learn' }),
     ]} />)
     const fcc = screen.getByRole('region', { name: 'freeCodeCamp' })
+    // Behind a button that opens a pop-up, so the cards never change size
+    await userEvent.setup().click(within(fcc).getByRole('button', { name: '1 recommended course' }))
     const course = within(fcc).getByRole('link', { name: /responsive web design/i })
     expect(course).toHaveAttribute('href', 'https://www.freecodecamp.org/learn/2022/responsive-web-design/')
     expect(course).toHaveAttribute('target', '_blank')
     expect(course).toHaveAttribute('rel', 'noopener noreferrer')
     expect(within(fcc).getByText('Start here')).toBeInTheDocument()
-    // Collapsed by default behind a count, so cards stay short
-    expect(within(fcc).getByText(/1 recommended course$/)).toBeInTheDocument()
-    expect(course.closest('details')).not.toHaveAttribute('open')
-    expect(within(screen.getByRole('region', { name: 'More recommended courses' })).getByRole('link', { name: /mdn learn/i })).toBeInTheDocument()
+    expect(course.closest('dialog')).not.toBeNull()
+    expect(within(screen.getByRole('region', { name: 'More recommended courses' })).getByRole('button', { name: '1 recommended course' })).toBeInTheDocument()
     expect(screen.getByText(/None have been added yet/)).toBeInTheDocument()
   })
 })

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { LEVEL_UP_PLATFORMS, LEVEL_UP_PLATFORM_IDS, type LevelUpPlatform } from '@/lib/level-up-platforms'
 import type { LevelUpLink } from '@/lib/level-up-links'
+import RecommendedCoursesDialog from './RecommendedCoursesDialog'
 
 const CARD = 'bg-surface rounded-2xl border border-border p-5 flex flex-col gap-3'
 const MARK = 'shrink-0 w-10 h-10 rounded-xl bg-teal-light text-teal-primary font-bold text-sm flex items-center justify-center'
@@ -44,25 +45,7 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
       </div>
       <p className="text-sm text-muted-text">{info.description}</p>
 
-      {links.length > 0 && (
-        // Collapsed by default so cards stay short; the count shows there's something inside
-        <details className="group">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-dark-text hover:text-teal-primary inline-flex items-center gap-1.5 [&::-webkit-details-marker]:hidden">
-            {links.length} recommended course{links.length === 1 ? '' : 's'}
-            <span aria-hidden="true" className="text-xs text-muted-text transition-transform group-open:rotate-180">▾</span>
-          </summary>
-          <ul className="flex flex-col gap-2 mt-2 pl-3 border-l-2 border-border">
-            {links.map(l => (
-              <li key={l.id}>
-                <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-teal-primary hover:underline">
-                  {l.title} ↗<NewTab />
-                </a>
-                {l.description && <p className="text-xs text-muted-text">{l.description}</p>}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      {links.length > 0 && <RecommendedCoursesDialog platformName={info.name} links={links} />}
 
       {info.url && (
         <a
