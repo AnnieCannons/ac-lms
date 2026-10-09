@@ -83,16 +83,7 @@ export default async function StudentLevelUpPage({
 
   const hasContent = modules.length > 0 || bonusAssignments.length > 0
 
-  const [links, { count: practiceQuizCount }] = await Promise.all([
-    getLevelUpLinks(id),
-    admin
-      .from('quizzes')
-      .select('id', { count: 'exact', head: true })
-      .eq('course_id', id)
-      .eq('is_practice', true)
-      .eq('published', true)
-      .is('deleted_at', null),
-  ])
+  const links = await getLevelUpLinks(id)
 
   return (
     <div className="min-h-screen bg-background">
@@ -117,7 +108,7 @@ export default async function StudentLevelUpPage({
               <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 
-            <LevelUpCards courseId={id} links={links} practiceQuizCount={practiceQuizCount ?? 0} />
+            <LevelUpCards courseId={id} links={links} />
 
             {hasContent && (
               <div className="flex flex-col gap-10 mt-10">

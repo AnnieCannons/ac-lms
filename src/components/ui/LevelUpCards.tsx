@@ -62,7 +62,7 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
 }
 
 /** The top of Level Up Your Skills: study tools, then a card per learning platform with its recommended courses. */
-export default function LevelUpCards({ courseId, links, practiceQuizCount }: { courseId: string; links: LevelUpLink[]; practiceQuizCount: number }) {
+export default function LevelUpCards({ courseId, links }: { courseId: string; links: LevelUpLink[] }) {
   const levelUpPath = `/student/courses/${courseId}/level-up`
   const byPlatform = (p: LevelUpPlatform) => links.filter(l => l.platform === p)
 
@@ -82,9 +82,7 @@ export default function LevelUpCards({ courseId, links, practiceQuizCount }: { c
             href={`${levelUpPath}/practice`}
             mark="?"
             title="Practice quizzes"
-            description={practiceQuizCount > 0
-              ? `${practiceQuizCount} ungraded quiz${practiceQuizCount === 1 ? '' : 'zes'} to check what you know. Retake them as often as you like.`
-              : 'Ungraded quizzes to check what you know. None have been added yet.'}
+            description="Practice your skills with these ungraded quizzes."
             cta="Practice"
           />
         </div>

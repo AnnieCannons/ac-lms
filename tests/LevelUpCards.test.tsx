@@ -17,10 +17,10 @@ beforeAll(() => {
 
 describe('LevelUpCards', () => {
   it('shows the study tools and every platform card, with org links for the pro platforms', () => {
-    render(<LevelUpCards courseId="c1" links={[]} practiceQuizCount={2} />)
+    render(<LevelUpCards courseId="c1" links={[]} />)
     expect(screen.getByRole('link', { name: /flashcards/i })).toHaveAttribute('href', '/flashcards?from=%2Fstudent%2Fcourses%2Fc1%2Flevel-up')
     expect(screen.getByRole('link', { name: /practice quizzes/i })).toHaveAttribute('href', '/student/courses/c1/level-up/practice')
-    expect(screen.getByText(/2 ungraded quizzes/)).toBeInTheDocument()
+    expect(screen.getByText('Practice your skills with these ungraded quizzes.')).toBeInTheDocument()
 
     expect(screen.getByRole('link', { name: /open udemy/i })).toHaveAttribute('href', 'https://anniecannons.udemy.com/organization/home/')
     expect(screen.getByRole('link', { name: /open pluralsight/i })).toHaveAttribute('href', expect.stringContaining('pa-anniecannons-inc'))
@@ -35,7 +35,7 @@ describe('LevelUpCards', () => {
   })
 
   it('lists recommended courses on their platform card, opening in a new tab', async () => {
-    render(<LevelUpCards courseId="c1" practiceQuizCount={0} links={[
+    render(<LevelUpCards courseId="c1" links={[
       link({ platform: 'freecodecamp', title: 'Responsive Web Design', url: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/', description: 'Start here' }),
       link({ platform: 'other', title: 'MDN Learn', url: 'https://developer.mozilla.org/en-US/docs/Learn' }),
     ]} />)
@@ -49,6 +49,5 @@ describe('LevelUpCards', () => {
     expect(within(fcc).getByText('Start here')).toBeInTheDocument()
     expect(course.closest('dialog')).not.toBeNull()
     expect(within(screen.getByRole('region', { name: 'More recommended courses' })).getByRole('button', { name: '1 recommended course' })).toBeInTheDocument()
-    expect(screen.getByText(/None have been added yet/)).toBeInTheDocument()
   })
 })
