@@ -2,7 +2,7 @@
 
 The steps for turning Confidence Tracker v2 on in production, checking it, and turning it off again if needed. It is a checklist to follow on launch day, not a place to record findings; the roadmap ([`confidence-tracker-v2-roadmap.md`](./confidence-tracker-v2-roadmap.md)) stays the record of what was built and checked.
 
-Written 2026-10-07. Nothing in this file has been run. **The flag is never turned on without the owner saying so in that moment** (see Step 6).
+Written 2026-10-07, updated 2026-10-09. Nothing in this file has been run. The launch date is not set: it waits for more testing by the team. **The flag is never turned on without the owner saying so in that moment** (see Step 6).
 
 ## What the flag is
 
@@ -24,7 +24,7 @@ Local development and production use the same Supabase database. The test data w
 
 ## Before you start
 
-- [ ] Coworker testing is finished (due Fri 2026-10-09) and their log has been read; anything they found is fixed, merged and deployed.
+- [ ] Team testing is finished (the first coworker's log was due Fri 2026-10-09; more testing by the team follows) and every log has been read; anything found is fixed, merged and deployed.
 - [ ] The one open hand check, a real screen reader, is done or consciously accepted as open.
 - [ ] Everything intended for launch is merged to `main`. In particular the branch with the cleanup script (`claude/chore/cleanup-confidence-test-data`, commit `f96745a`) is **not pushed or merged yet**; the script does not exist on `main` until it is.
 - [ ] The roadmap's pre-launch checklist ("Before flipping the flag on in production") has been read start to finish, since it holds the exact test-data lists this runbook relies on.
@@ -43,7 +43,7 @@ Migrations are applied by hand: paste each file into the Supabase Dashboard's SQ
 
 | File | What needs it |
 | --- | --- |
-| `20250327000000_confidence_tracker.sql` | The older tracker (untouched by this work) |
+| `20250327000000_confidence_tracker.sql` | The older tracker (being retired, see Step 5; its two tables are dropped last) |
 | `20260922000000_confidence_tracker_skills.sql` | Skills and assignment tagging (Phase 1, already live) |
 | `20260923000000_confidence_tracker_ratings.sql` | Ratings on submission |
 | `20260928000000_confidence_tracker_skill_progress.sql` | Current state per student and skill |
@@ -97,9 +97,13 @@ How:
 - [ ] The instructors know it is going live today (the instructor help docs gain a Skill Confidence section when the flag is on). Who tells them, and how, is the owner's call.
 - [ ] Someone is available for the first hour after the switch to watch for problems and, if needed, turn it off.
 
-## Step 5 — Decide what happens to the old Confidence Tracker link
+## Step 5 — Retire the old Confidence Tracker
 
-Decided: the old Confidence Tracker (`/student/confidence`, `confidence_skills` / `confidence_entries`) stays as it is, with no import and no export; it has almost no data. The only open question is what to do with the old navigation link at launch. Settle that before the switch, and write the answer here.
+Decided 2026-10-08, and its data was deleted on 2026-10-09 (10 entries, 9 skills; a JSON backup was made). The old tracker (`/student/confidence`, `/instructor/courses/[id]/confidence`, `confidence_skills` / `confidence_entries`) is hidden entirely, with no read-only view, no export and no import into the new tracker. It does not depend on the flag, so it can be done before launch. In this order:
+
+1. Stop linking to the old pages (sidebars and any other links) and redirect their URLs to the new pages. The old nav link needs a decision here: remove it, or point it at the new page.
+2. Remove the old code (`src/components/ui/ConfidenceTracker.tsx`, the old instructor page).
+3. Last, drop the two tables with a new idempotent migration (`DROP TABLE IF EXISTS confidence_entries, confidence_skills;`), applied by hand in the Supabase dashboard. Only after the pages are gone, or they will error.
 
 ## Step 6 — Turn the flag on (needs the owner's go-ahead)
 
@@ -132,6 +136,5 @@ What this does not do: it deletes nothing. Ratings, goals and answers students s
 
 ## After launch
 
-- Retire the old Confidence Tracker pages (without deleting anything students saved there).
-- The open ideas in the roadmap's "Ideas for later" list: tagging Confidence Skills when creating an assignment, how to display "Other" methods, a cap on skills per assignment.
-- Update the roadmap (a separate change, since another branch also edits it): tick off the pre-launch items, and record the old-tracker decision.
+- Ideas for later, from the roadmap's "Ideas for later" list, none needed for the MVP: tagging Confidence Skills when creating an assignment, how to display "Other" methods, a cap on skills per assignment.
+- Update the roadmap: tick off the pre-launch items.
