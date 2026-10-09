@@ -21,6 +21,8 @@ describe('LevelUpCards', () => {
     expect(screen.getByRole('link', { name: /open codecademy/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open freecodecamp/i })).toBeInTheDocument()
     expect(screen.getAllByText('Pro account included')).toHaveLength(3)
+    // Codecademy is the first platform card
+    expect(screen.getAllByRole('link', { name: /^open /i })[0]).toHaveAccessibleName(/open codecademy/i)
     // No "other" links → no "More recommended courses" card
     expect(screen.queryByText('More recommended courses')).not.toBeInTheDocument()
   })
@@ -36,6 +38,9 @@ describe('LevelUpCards', () => {
     expect(course).toHaveAttribute('target', '_blank')
     expect(course).toHaveAttribute('rel', 'noopener noreferrer')
     expect(within(fcc).getByText('Start here')).toBeInTheDocument()
+    // Collapsed by default behind a count, so cards stay short
+    expect(within(fcc).getByText(/1 recommended course$/)).toBeInTheDocument()
+    expect(course.closest('details')).not.toHaveAttribute('open')
     expect(within(screen.getByRole('region', { name: 'More recommended courses' })).getByRole('link', { name: /mdn learn/i })).toBeInTheDocument()
     expect(screen.getByText(/None have been added yet/)).toBeInTheDocument()
   })

@@ -40,9 +40,13 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
       <p className="text-sm text-muted-text">{info.description}</p>
 
       {links.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1.5">Recommended</p>
-          <ul className="flex flex-col gap-1.5">
+        // Collapsed by default so cards stay short; the count shows there's something inside
+        <details className="group">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-dark-text hover:text-teal-primary inline-flex items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+            {links.length} recommended course{links.length === 1 ? '' : 's'}
+            <span aria-hidden="true" className="text-xs text-muted-text transition-transform group-open:rotate-180">▾</span>
+          </summary>
+          <ul className="flex flex-col gap-2 mt-2 pl-3 border-l-2 border-border">
             {links.map(l => (
               <li key={l.id}>
                 <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-teal-primary hover:underline">
@@ -52,7 +56,7 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       )}
 
       {info.url && (
@@ -100,7 +104,8 @@ export default function LevelUpCards({ courseId, links, practiceQuizCount }: { c
 
       <div>
         <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Learning platforms</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* items-start: opening one card's course list doesn't stretch its neighbour */}
+        <div className="grid gap-4 sm:grid-cols-2 items-start">
           {LEVEL_UP_PLATFORM_IDS
             .filter(p => p !== 'other' || byPlatform('other').length > 0)
             .map(p => <PlatformCard key={p} platform={p} links={byPlatform(p)} />)}

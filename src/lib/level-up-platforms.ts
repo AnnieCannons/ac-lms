@@ -2,7 +2,8 @@
 // main link, blurb) lives here; the specific recommended courses under each card are
 // rows in level_up_links, edited by staff from the instructor Level Up page.
 
-export const LEVEL_UP_PLATFORM_IDS = ['udemy', 'pluralsight', 'masterdev', 'codecademy', 'freecodecamp', 'other'] as const
+// Card order on the student page
+export const LEVEL_UP_PLATFORM_IDS = ['codecademy', 'udemy', 'pluralsight', 'masterdev', 'freecodecamp', 'other'] as const
 export type LevelUpPlatform = typeof LEVEL_UP_PLATFORM_IDS[number]
 
 export type LevelUpPlatformInfo = {
