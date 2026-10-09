@@ -76,6 +76,8 @@ interface Props {
   editable?: boolean
   instructorView?: boolean
   submissionMap?: Record<string, SubmissionInfo>
+  /** Viewing as a student: show their stars/completions but don't change anything */
+  readOnly?: boolean
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
 }
@@ -412,7 +414,7 @@ function SortableModuleRow({ id, canDrag, children }: {
 
 export default function ResourceOutline({
   modules, courseId, mode, editable, instructorView, submissionMap,
-  initialStarredIds, initialCompletedIds,
+  initialStarredIds, initialCompletedIds, readOnly,
 }: Props) {
   const supabase = createClient()
   const router = useRouter()
@@ -477,6 +479,7 @@ export default function ResourceOutline({
   }
 
   const toggleStar = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceStar(id, courseId, isStarred)
@@ -487,6 +490,7 @@ export default function ResourceOutline({
   }
 
   const toggleComplete = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceComplete(id, courseId, isDone)

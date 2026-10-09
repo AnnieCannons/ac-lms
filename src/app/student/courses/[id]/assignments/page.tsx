@@ -1,4 +1,5 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -6,10 +7,6 @@ import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import ResourceOutline from '@/components/ui/ResourceOutline'
 import PageRefresher from '@/components/ui/PageRefresher'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
-import { getImpersonation } from '@/lib/impersonate'
-import ImpersonateBanner from '@/components/ui/ImpersonateBanner'
 import { getStudentOverrides } from '@/lib/student-overrides'
 
 export const dynamic = 'force-dynamic'
@@ -20,37 +17,8 @@ export default async function StudentAssignmentsPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const impersonation = await getImpersonation()
-  const preview = await isStudentPreview(id)
-
-  // Admins/instructors bypass to instructor view — unless previewing or impersonating
-  if (!preview && !impersonation && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  const effectiveUserId = impersonation?.userId ?? user.id
-
-  // Enrollment check (bypassed when previewing or impersonating)
-  if (!preview && !impersonation) {
-    const { data: enrollment } = await supabase
-      .from('course_enrollments')
-      .select('id, role')
-      .eq('user_id', effectiveUserId)
-      .eq('course_id', id)
-      .in('role', ['student', 'observer', 'ta'])
-      .maybeSingle()
-    if (!enrollment) redirect('/student/courses')
-  }
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb, viewerId } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -81,19 +49,17 @@ export default async function StudentAssignmentsPage({
         })),
     }))
 
-  // Use service role when impersonating to bypass RLS
-  const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
 
   const allAssignmentIds = publishedModules.flatMap(m =>
     m.module_days.flatMap((d: { assignments: Array<{ id: string }> }) => d.assignments.map((a: { id: string }) => a.id))
   )
 
   const [{ data: submissions }, overrides] = await Promise.all([
-    fetchClient
+    studentDb
       .from('submissions')
       .select('id, assignment_id, status, grade, submitted_at, is_late')
-      .eq('student_id', effectiveUserId),
-    getStudentOverrides(effectiveUserId, allAssignmentIds),
+      .eq('student_id', viewerId),
+    getStudentOverrides(viewerId, allAssignmentIds),
   ])
 
   const excusedSet = new Set([...overrides].filter(([, o]) => o.excused).map(([id]) => id))
@@ -109,7 +75,7 @@ export default async function StudentAssignmentsPage({
 
   const submissionIds = (submissions ?? []).map(s => s.id)
   const { data: commentedSubs } = submissionIds.length > 0
-    ? await fetchClient
+    ? await studentDb
         .from('submission_comments')
         .select('submission_id')
         .in('submission_id', submissionIds)
@@ -135,18 +101,11 @@ export default async function StudentAssignmentsPage({
     }
   }
 
-  const displayName = impersonation?.studentName ?? profile?.name
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={displayName} role={profile?.role} />
-      {impersonation && (
-        <ImpersonateBanner
-          studentName={impersonation.studentName}
-          returnPath={`/instructor/courses/${id}/roster`}
-        />
-      )}
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
 
       <div className="flex">
         <ResizableSidebar>

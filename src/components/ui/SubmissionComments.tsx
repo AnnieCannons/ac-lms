@@ -54,6 +54,7 @@ export default function SubmissionComments({
   currentUserName,
   currentUserRole,
   isObserver,
+  readOnly,
   isTa,
   courseId,
   text: externalText,
@@ -65,6 +66,8 @@ export default function SubmissionComments({
   currentUserName: string;
   currentUserRole: string;
   isObserver?: boolean;
+  /** View only: no comment box and no edit/delete (an admin viewing as a student) */
+  readOnly?: boolean;
   isTa?: boolean;
   courseId?: string;
   text?: string;
@@ -181,8 +184,8 @@ export default function SubmissionComments({
       {comments.length > 0 && (
         <ul role="list" className="flex flex-col gap-4 mb-4">
           {comments.map((c) => {
-            const canEdit = c.author_id === currentUserId;
-            const canDelete = c.author_id === currentUserId || isInstructor(currentUserRole);
+            const canEdit = !readOnly && c.author_id === currentUserId;
+            const canDelete = !readOnly && (c.author_id === currentUserId || isInstructor(currentUserRole));
             const isEditing = editingId === c.id;
             const isConfirmingDelete = deletingId === c.id;
 
@@ -317,7 +320,7 @@ export default function SubmissionComments({
       )}
       {deleteError && <p role="alert" className="text-xs text-red-500 mb-2">{deleteError}</p>}
 
-      {!isObserver && (
+      {!isObserver && !readOnly && (
         <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
           {isStudent ? (
             <>
