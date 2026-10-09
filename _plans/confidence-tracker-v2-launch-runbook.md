@@ -43,7 +43,7 @@ Migrations are applied by hand: paste each file into the Supabase Dashboard's SQ
 
 | File | What needs it |
 | --- | --- |
-| `20250327000000_confidence_tracker.sql` | The older tracker (being retired, see Step 5; its two tables are dropped last) |
+| `20250327000000_confidence_tracker.sql` | The older tracker (retired and its two tables dropped on 2026-10-09, see Step 5) |
 | `20260922000000_confidence_tracker_skills.sql` | Skills and assignment tagging (Phase 1, already live) |
 | `20260923000000_confidence_tracker_ratings.sql` | Ratings on submission |
 | `20260928000000_confidence_tracker_skill_progress.sql` | Current state per student and skill |
@@ -97,13 +97,12 @@ How:
 - [ ] The instructors know it is going live today (the instructor help docs gain a Skill Confidence section when the flag is on). Who tells them, and how, is the owner's call.
 - [ ] Someone is available for the first hour after the switch to watch for problems and, if needed, turn it off.
 
-## Step 5 — Retire the old Confidence Tracker
+## Step 5 — Retire the old Confidence Tracker (done)
 
-Decided 2026-10-08, and its data was deleted on 2026-10-09 (10 entries, 9 skills; a JSON backup was made). The old tracker (`/student/confidence`, `/instructor/courses/[id]/confidence`, `confidence_skills` / `confidence_entries`) is hidden entirely, with no read-only view, no export and no import into the new tracker. It does not depend on the flag, so it can be done before launch. In this order:
+Decided 2026-10-08, and its data was deleted on 2026-10-09 (10 entries, 9 skills; a JSON backup was made). The old tracker (`/student/confidence`, `/instructor/courses/[id]/confidence`, `confidence_skills` / `confidence_entries`) is hidden entirely, with no read-only view, no export and no import into the new tracker. It does not depend on the flag, so it can be done before launch.
 
-1. Stop linking to the old pages (sidebars and any other links) and redirect their URLs to the new pages. The old nav link needs a decision here: remove it, or point it at the new page.
-2. Remove the old code (`src/components/ui/ConfidenceTracker.tsx`, the old instructor page).
-3. Last, drop the two tables with a new idempotent migration (`DROP TABLE IF EXISTS confidence_entries, confidence_skills;`), applied by hand in the Supabase dashboard. Only after the pages are gone, or they will error.
+- [x] Pages, components and the instructor sidebar link removed, and the help-doc mentions dropped ([PR #185](https://github.com/AnnieCannons/ac-lms/pull/185), merged 2026-10-09). The old URLs return a normal 404; there is no redirect.
+- [x] Dropped the two empty tables on 2026-10-09: `supabase/migrations/20261009100000_drop_old_confidence_tracker.sql` was applied by hand in the Supabase dashboard after the deploy, and both tables were confirmed gone. Nothing is left to do for the old tracker.
 
 ## Step 6 — Turn the flag on (needs the owner's go-ahead)
 
