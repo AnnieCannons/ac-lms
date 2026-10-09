@@ -13,6 +13,7 @@ const TOP_ITEMS = [
 const BOTTOM_ITEMS = [
   { label: 'Computer and Wifi', base: '/instructor/globals/computer-wifi' },
   { label: 'Calendar', base: '/instructor/calendar' },
+  { label: 'Cutting Edge Talks', base: '/instructor/cutting-edge-talks' },
   { label: 'Paid Time Off', base: '/instructor/globals/pto' },
   { label: 'Benefits', base: '/instructor/globals/benefits' },
 ]

@@ -38,6 +38,12 @@ function notificationHref(n: Notification): string | null {
   if (n.type === 'cards_due_today') {
     return '/flashcards'
   }
+  if (n.type.startsWith('cutting_edge_') && n.course_id && n.cutting_edge_event_id) {
+    const base = `/student/courses/${n.course_id}/cutting-edge-talks/${n.cutting_edge_event_id}`
+    if (n.type === 'cutting_edge_question_reminder') return `${base}/question`
+    if (n.type === 'cutting_edge_thanks_reminder') return `${base}/thank-you`
+    return base
+  }
   if (n.course_id && n.assignment_id) {
     return `/student/courses/${n.course_id}/assignments/${n.assignment_id}`
   }

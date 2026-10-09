@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/weekly-grading-groups",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/cutting-edge-reminders",
+      "schedule": "30 15,16 * * *"
     }
   ]
 }
