@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -28,6 +28,25 @@ const PAID_ITEMS = [
   { label: 'Paid Time Off', slug: 'pto' },
 ]
 
+// "New" badge on Level Up Your Skills after its redesign: hidden once the student opens
+// Level Up (remembered in this browser), and switched off entirely after NEW_UNTIL so
+// later cohorts never see it. The server and first render always show no badge.
+const LEVEL_UP_NEW_UNTIL = new Date('2026-11-30T23:59:59')
+const LEVEL_UP_SEEN_KEY = 'level-up-redesign-seen'
+const seenListeners = new Set<() => void>()
+function readLevelUpSeen() {
+  try { return localStorage.getItem(LEVEL_UP_SEEN_KEY) === '1' } catch { return true }
+}
+function markLevelUpSeen() {
+  try { localStorage.setItem(LEVEL_UP_SEEN_KEY, '1') } catch {}
+  seenListeners.forEach(l => l())
+}
+function subscribeLevelUpSeen(listener: () => void) {
+  seenListeners.add(listener)
+  window.addEventListener('storage', listener)
+  return () => { seenListeners.delete(listener); window.removeEventListener('storage', listener) }
+}
+
 export default function StudentCourseNav({ courseId, courseName, paidLearners }: Props) {
   const pathname = usePathname()
   const [isTa, setIsTa] = useState(false)
@@ -50,9 +69,17 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
     return () => { cancelled = true }
   }, [courseId])
 
+  const levelUpSeen = useSyncExternalStore(subscribeLevelUpSeen, readLevelUpSeen, () => true)
+  const onLevelUp = pathname.startsWith(`/student/courses/${courseId}/level-up`)
+  useEffect(() => {
+    if (onLevelUp && !readLevelUpSeen()) markLevelUpSeen()
+  }, [onLevelUp])
+  const showLevelUpNew = !levelUpSeen && !onLevelUp && new Date() < LEVEL_UP_NEW_UNTIL
+
   const navLink = (label: string, slug: string) => {
     const href = `/student/courses/${courseId}${slug ? `/${slug}` : ''}`
     const isActive = pathname === href
+    const isNew = slug === 'level-up' && showLevelUpNew
     return (
       <Link
         key={label}
@@ -64,6 +91,11 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         }`}
       >
         {label}
+        {isNew && (
+          <span className="ml-2 align-middle text-[10px] font-bold uppercase tracking-wide bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-1.5 py-0.5">
+            New
+          </span>
+        )}
       </Link>
     )
   }
