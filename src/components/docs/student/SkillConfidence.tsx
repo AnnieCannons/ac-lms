@@ -19,9 +19,6 @@ export default function SkillConfidence() {
       <DocP>
         Your ratings and goals are <strong>not part of your grades</strong>, and they are not used when your work is graded.
       </DocP>
-      <DocNote>
-        This is separate from the older <strong>Confidence Tracker</strong>, where you add your own skills. Skill Confidence uses the skills your instructors tag on assignments.
-      </DocNote>
 
       <DocH2>Rating Skills When You Turn In an Assignment</DocH2>
       <DocP>

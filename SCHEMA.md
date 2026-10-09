@@ -544,34 +544,8 @@ In-app notifications for students and instructors.
 
 ---
 
-### confidence_skills
-Skills a student is personally tracking in the Confidence Tracker.
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | uuid | Primary key |
-| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
-| `name` | text | Skill name (e.g. `React`, `CSS Flexbox`) |
-| `created_at` | timestamptz | Default: now() |
-
----
-
-### confidence_entries
-Individual score log entries per tracked skill.
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | uuid | Primary key |
-| `skill_id` | uuid | FK → confidence_skills, CASCADE DELETE |
-| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
-| `score` | int | 1–10 self-rating |
-| `goal_points` | int | Nullable, 1–5 — optional effort/goal points |
-| `created_at` | timestamptz | Default: now() |
-
----
-
 ### confidence_tracker_skills
-Canonical, shared skill taxonomy for Confidence Tracker v2 (Phase 1: assignment tagging). Deliberately separate from `confidence_skills` (the older per-student, free-text tracker) and from `assignments.skill_tags`/`modules.skill_tags` (the unrelated "Level Up Your Skills" preset+free-text tags).
+Canonical, shared skill taxonomy for Confidence Tracker v2 (Phase 1: assignment tagging). Deliberately separate from `assignments.skill_tags`/`modules.skill_tags` (the unrelated "Level Up Your Skills" preset+free-text tags).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -597,7 +571,7 @@ Unique on `(assignment_id, skill_id)`. Removing a tag deletes only this join row
 ---
 
 ### confidence_tracker_ratings
-Confidence Tracker v2, Phase 2: a student's self-rating on a tagged skill, captured once per student/assignment on their first-ever submission. Fully separate from `confidence_skills`/`confidence_entries` and from `assignments.skill_tags`/`modules.skill_tags`.
+Confidence Tracker v2, Phase 2: a student's self-rating on a tagged skill, captured once per student/assignment on their first-ever submission. Fully separate from `assignments.skill_tags`/`modules.skill_tags`.
 
 | Column | Type | Notes |
 |--------|------|-------|

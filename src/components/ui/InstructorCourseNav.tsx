@@ -210,7 +210,6 @@ export default function InstructorCourseNav({
             <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
             {navLink('Gradebook', 'gradebook')}
             {navLink('Quiz Submissions', 'quiz-submissions')}
-            {navLink('Confidence Tracker', 'confidence')}
             {/* Staff only: TAs are excluded from Confidence Tracker v2 data. */}
             {showSkillConfidence && !isTa && navLink('Skill Confidence', 'skill-confidence')}
             <button
