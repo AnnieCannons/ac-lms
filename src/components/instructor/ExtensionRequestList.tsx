@@ -95,6 +95,11 @@ function RequestCard({
             <span className={`text-xs font-medium border rounded-full px-2 py-0.5 ${statusColors[req.status]}`}>
               {req.status === 'pending' ? 'Pending' : req.status === 'approved' ? 'Approved' : 'Denied'}
             </span>
+            {!!req.previous_denials && (
+              <span className="text-xs font-medium border border-border text-muted-text rounded-full px-2 py-0.5">
+                {req.previous_denials === 1 ? 'Asked again after a denial' : `Asked again after ${req.previous_denials} denials`}
+              </span>
+            )}
           </div>
           <p className="text-sm text-muted-text truncate">{req.assignment_title}</p>
           <p className="text-xs text-muted-text/60 mt-0.5">Submitted {formatDate(req.created_at)}</p>

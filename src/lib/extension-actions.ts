@@ -24,6 +24,8 @@ export type ExtensionRequest = {
   // joined
   student_name?: string
   assignment_title?: string
+  // how many earlier requests for the same assignment were denied (instructor list only)
+  previous_denials?: number
 }
 
 async function getAuthedStudent() {
@@ -99,14 +101,16 @@ export async function submitExtensionRequest(
     return { error: `Extensions can be at most ${MAX_EXTENSION_DAYS} days past the due date` }
   }
 
-  // Check no existing request for this assignment
+  // A student can ask again after a denial, but not while a request is pending
+  // or after one was approved. The DB enforces this too (one non-denied row).
   const { data: existing } = await supabase
     .from('extension_requests')
     .select('id, status')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
-    .maybeSingle()
-  if (existing) return { error: 'You already have an extension request for this assignment' }
+  const live = (existing ?? []).find(r => r.status !== 'denied')
+  if (live) return { error: 'You already have an extension request for this assignment' }
+  const isRerequest = (existing ?? []).length > 0
 
   const { data, error } = await supabase
     .from('extension_requests')
@@ -149,7 +153,7 @@ export async function submitExtensionRequest(
         course_id: courseId,
         assignment_id: assignmentId,
         extension_request_id: data.id,
-        message: `${profile.name} requested an extension for "${assignment?.title ?? 'an assignment'}"`,
+        message: `${profile.name} requested ${isRerequest ? 'another' : 'an'} extension for "${assignment?.title ?? 'an assignment'}"`,
       }))
     )
   }
@@ -270,13 +274,25 @@ export async function undoExtensionReview(
 
   const { data: req } = await admin
     .from('extension_requests')
-    .select('id, assignment_id, student_id, requested_due_date, status')
+    .select('id, assignment_id, student_id, requested_due_date, status, created_at')
     .eq('id', requestId)
     .eq('course_id', courseId)
     .single()
 
   if (!req) return { error: 'Request not found' }
   if (req.status === 'pending') return { error: 'Request has not been reviewed yet' }
+
+  // Once the student has asked again after a denial, the older denial is history.
+  // Reopening it would give them two live requests for the same assignment.
+  if (req.status === 'denied') {
+    const { count } = await admin
+      .from('extension_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('assignment_id', req.assignment_id)
+      .eq('student_id', req.student_id)
+      .gt('created_at', req.created_at)
+    if (count) return { error: 'The student has already submitted a newer request for this assignment. Review that one instead.' }
+  }
 
   let overrideKept = false
   if (req.status === 'approved') {
@@ -332,12 +348,16 @@ export async function getExtensionRequestForStudent(
   const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
   if (!isStaff && user.id !== studentId) return null
 
+  // A student may have several requests for one assignment (re-requests after a
+  // denial); the latest one is the one that matters.
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('extension_requests')
     .select('*')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
   return data ?? null
 }
@@ -358,10 +378,17 @@ export async function getCourseExtensionRequests(
     .eq('course_id', courseId)
     .order('created_at', { ascending: false })
 
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+  const rows = (data ?? []) as Record<string, unknown>[]
+  return rows.map(r => ({
     ...r,
     student_name: (r.users as { name: string } | null)?.name ?? 'Unknown',
     assignment_title: (r.assignments as { title: string } | null)?.title ?? 'Unknown',
+    previous_denials: rows.filter(o =>
+      o.assignment_id === r.assignment_id &&
+      o.student_id === r.student_id &&
+      o.status === 'denied' &&
+      (o.created_at as string) < (r.created_at as string)
+    ).length,
   })) as ExtensionRequest[]
 }
 
