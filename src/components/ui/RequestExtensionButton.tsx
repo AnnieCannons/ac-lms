@@ -98,6 +98,9 @@ export default function RequestExtensionButton({
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [localRequest, setLocalRequest] = useState<ExtensionRequest | null>(existingRequest)
+  // True while a student whose last request was denied is filling in a new one.
+  const [requestingAgain, setRequestingAgain] = useState(false)
+  const showRequestFlow = !localRequest || requestingAgain
   const modalRef = useRef<HTMLDivElement>(null)
   const latestDate = maxExtensionDate(dueDate)
 
@@ -161,6 +164,7 @@ export default function RequestExtensionButton({
       reviewed_at: null,
       created_at: new Date().toISOString(),
     })
+    setRequestingAgain(false)
     setStep('confirm')
   }
 
@@ -172,13 +176,23 @@ export default function RequestExtensionButton({
     if (result.error) { setError(result.error); return }
     setLocalRequest(null)
     setOpen(false)
-    // Reset form
-    setReason(''); setReasonOther(''); setPlan([]); setPlanOther(''); setSelectedDate(undefined); setNotes('')
+    resetForm()
     setStep('intro')
+  }
+
+  function resetForm() {
+    setReason(''); setReasonOther(''); setPlan([]); setPlanOther(''); setSelectedDate(undefined); setNotes('')
   }
 
   function openFresh() {
     setStep('intro'); setError(null); setOpen(true)
+  }
+
+  function startNewRequest() {
+    resetForm()
+    setError(null)
+    setRequestingAgain(true)
+    setStep('intro')
   }
 
   const statusColors = {
@@ -201,7 +215,7 @@ export default function RequestExtensionButton({
       ) : (
         <button
           type="button"
-          onClick={() => { setStep(localRequest.status === 'pending' ? 'form' : 'confirm'); setOpen(true) }}
+          onClick={() => { setRequestingAgain(false); setError(null); setStep('confirm'); setOpen(true) }}
           className={`text-sm font-medium border rounded-full px-4 py-1.5 transition-colors ${statusColors[localRequest.status]}`}
         >
           Extension: {localRequest.status === 'pending' ? 'Pending' : localRequest.status === 'approved' ? 'Approved' : 'Not Approved'}
@@ -223,7 +237,8 @@ export default function RequestExtensionButton({
           >
             <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border shrink-0">
               <h2 className="text-base font-semibold text-dark-text">
-                {localRequest?.status === 'approved' ? 'Extension Approved' :
+                {showRequestFlow ? 'Request Extension' :
+                 localRequest?.status === 'approved' ? 'Extension Approved' :
                  localRequest?.status === 'denied' ? 'Extension Request' :
                  localRequest ? 'Extension Pending' :
                  'Request Extension'}
@@ -235,7 +250,7 @@ export default function RequestExtensionButton({
 
             <div className="px-6 py-5 overflow-y-auto min-h-0">
               {/* ── Status view (after submit or existing non-pending) ── */}
-              {localRequest && step === 'confirm' && (
+              {localRequest && !requestingAgain && step === 'confirm' && (
                 <div className="flex flex-col gap-4">
                   {localRequest.status === 'pending' && (
                     <>
@@ -284,6 +299,13 @@ export default function RequestExtensionButton({
                           <p className="text-sm text-dark-text">{localRequest.instructor_comment}</p>
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={startNewRequest}
+                        className="self-start text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
+                      >
+                        Request another extension
+                      </button>
                     </>
                   )}
                   {error && <p className="text-sm text-red-500">{error}</p>}
@@ -291,7 +313,7 @@ export default function RequestExtensionButton({
               )}
 
               {/* ── Expectations, read before the form ── */}
-              {!localRequest && step === 'intro' && (
+              {showRequestFlow && step === 'intro' && (
                 <div className="flex flex-col gap-4">
                   <p className="text-sm font-semibold text-dark-text">Before you request an extension</p>
                   <ul className="flex flex-col gap-3 text-sm text-dark-text list-disc pl-5">
@@ -313,7 +335,7 @@ export default function RequestExtensionButton({
               )}
 
               {/* ── Request form ── */}
-              {!localRequest && step === 'form' && (
+              {showRequestFlow && step === 'form' && (
                 <form id="extension-request-form" onSubmit={e => { e.preventDefault(); handleSubmit() }} className="flex flex-col gap-5">
                   {/* Reason */}
                   <fieldset>
@@ -445,7 +467,7 @@ export default function RequestExtensionButton({
               )}
             </div>
 
-            {!localRequest && step === 'intro' && (
+            {showRequestFlow && step === 'intro' && (
               <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
                 <button
                   type="button"
@@ -464,7 +486,7 @@ export default function RequestExtensionButton({
               </div>
             )}
 
-            {!localRequest && step === 'form' && (
+            {showRequestFlow && step === 'form' && (
               <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
                 <button
                   type="submit"

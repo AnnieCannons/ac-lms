@@ -505,7 +505,7 @@ Student requests for a due date extension on a specific assignment.
 | `reviewed_at` | timestamptz | Nullable |
 | `created_at` | timestamptz | Default: now() |
 
-Unique constraint on `(assignment_id, student_id)` — one request per student per assignment.
+Partial unique index on `(assignment_id, student_id) WHERE status <> 'denied'` — at most one pending or approved request per student per assignment. Denied requests are kept as history, so a student who was denied can request again (`20261009000000_extension_rerequest.sql`).
 
 ---
 
