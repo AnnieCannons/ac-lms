@@ -446,6 +446,7 @@ export default function ResourceOutline({
     return (p && FILTERS.some(f => f.key === p)) ? p : 'all'
   })
   const [search, setSearch] = useState('')
+  const [starredOnly, setStarredOnly] = useState(false)
   const [collapsedPastDue, setCollapsedPastDue] = useState(false)
   const [collapsedUpcoming, setCollapsedUpcoming] = useState(false)
 
@@ -548,6 +549,10 @@ export default function ResourceOutline({
   }
 
   const searchQ = search.trim().toLowerCase()
+  const resourceVisible = (r: Resource) =>
+    !deletedIds.has(r.id) &&
+    (!searchQ || r.title.toLowerCase().includes(searchQ)) &&
+    (!starredOnly || starredIds.has(r.id))
 
   const allPublishedAssignments = orderedModules.flatMap(m =>
     m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published).map(a => ({
@@ -603,9 +608,7 @@ export default function ResourceOutline({
   const modulesWithContent = orderedModules.filter(m =>
     m.module_days.some(d => {
       if (skipDays.has(d.day_name)) return false
-      if (mode === 'resources') return (d.resources ?? []).some(r =>
-        !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
-      )
+      if (mode === 'resources') return (d.resources ?? []).some(resourceVisible)
       if (instructorView) return searchQ
         ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
         : true
@@ -634,8 +637,15 @@ export default function ResourceOutline({
 
   const studentActions = !editable && !instructorView
 
+  const starredCount = mode === 'resources'
+    ? orderedModules.reduce((n, m) => n + m.module_days.reduce((k, d) =>
+        skipDays.has(d.day_name) ? k : k + (d.resources ?? []).filter(r => !deletedIds.has(r.id) && starredIds.has(r.id)).length, 0), 0)
+    : 0
+  const showStarredToggle = mode === 'resources' && studentActions
+
   const searchBar = (
-    <div className="relative mb-4">
+    <div className="flex items-center gap-2 mb-4">
+    <div className="relative flex-1">
       <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
@@ -646,6 +656,22 @@ export default function ResourceOutline({
         placeholder={mode === 'resources' ? 'Search resources…' : 'Search assignments…'}
         className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
       />
+    </div>
+    {showStarredToggle && (
+      <button
+        type="button"
+        onClick={() => { const next = !starredOnly; setStarredOnly(next); if (next) expandAll() }}
+        aria-pressed={starredOnly}
+        aria-label={`Show only starred resources (${starredCount})`}
+        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+          starredOnly ? 'bg-teal-primary text-white border-teal-primary' : 'bg-surface text-dark-text border-border hover:border-teal-primary'
+        }`}
+      >
+        <span aria-hidden="true">{starredOnly ? '★' : '☆'}</span>
+        Starred
+        <span className={`font-normal ${starredOnly ? 'opacity-80' : 'text-muted-text'}`}>{starredCount}</span>
+      </button>
+    )}
     </div>
   )
 
@@ -679,9 +705,13 @@ export default function ResourceOutline({
         {filterBar}
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">
           <p className="text-muted-text">
-            {searchQ ? `No results for "${search}".` : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
+            {searchQ ? `No results for "${search}"${starredOnly ? ' in your starred resources' : ''}.`
+              : starredOnly ? 'No starred resources yet. Tap ☆ on any resource to save it here.'
+              : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
           </p>
-          {searchQ ? (
+          {starredOnly && !searchQ ? (
+            <button type="button" onClick={() => setStarredOnly(false)} className="mt-3 text-sm text-teal-primary hover:underline">Show all resources</button>
+          ) : searchQ ? (
             <button type="button" onClick={() => setSearch('')} className="mt-3 text-sm text-teal-primary hover:underline">Clear search</button>
           ) : filter !== 'all' && (
             <button type="button" onClick={() => setFilter('all')} className="mt-3 text-sm text-teal-primary hover:underline">View all assignments</button>
@@ -815,9 +845,7 @@ export default function ResourceOutline({
             .sort((a, b) => a.order - b.order)
             .filter(d => {
               if (skipDays.has(d.day_name)) return false
-              if (mode === 'resources') return (d.resources ?? []).some(r =>
-                !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
-              )
+              if (mode === 'resources') return (d.resources ?? []).some(resourceVisible)
               if (instructorView) return searchQ
                 ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
                 : true
@@ -899,7 +927,7 @@ export default function ResourceOutline({
                         {!dayCollapsed && mode === 'resources' && (
                           <div className="flex flex-col gap-2 pl-3">
                             {[...(day.resources ?? [])]
-                              .filter(r => !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ)))
+                              .filter(resourceVisible)
                               .sort((a, b) => a.order - b.order)
                               .map(r => {
                                 const resolved = editedResources.get(r.id) ?? r
