@@ -98,7 +98,7 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
       >
         {label}
         {isNew && (
-          <span className="ml-2 align-middle text-[10px] font-bold uppercase tracking-wide bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-1.5 py-0.5">
+          <span className="badge-amber ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5">
             New
           </span>
         )}

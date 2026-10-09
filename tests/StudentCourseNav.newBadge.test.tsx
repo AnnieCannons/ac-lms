@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 
 const state = { pathname: '/student/courses/c1', userId: 'student-a' }
 vi.mock('next/navigation', () => ({ usePathname: () => state.pathname }))
@@ -41,7 +41,7 @@ describe('StudentCourseNav — Level Up "New" badge', () => {
     state.pathname = '/student/courses/c1/level-up'
     const second = renderNav()
     await expectNoNew()
-    expect(localStorage.getItem('level-up-redesign-seen:student-a')).toBe('1')
+    await waitFor(() => expect(localStorage.getItem('level-up-redesign-seen:student-a')).toBe('1'))
     second.unmount()
 
     state.pathname = '/student/courses/c1/quizzes'
@@ -53,7 +53,7 @@ describe('StudentCourseNav — Level Up "New" badge', () => {
     state.pathname = '/student/courses/c1/level-up'
     const a = renderNav() // student A opens Level Up
     await expectNoNew()
-    expect(localStorage.getItem('level-up-redesign-seen:student-a')).toBe('1')
+    await waitFor(() => expect(localStorage.getItem('level-up-redesign-seen:student-a')).toBe('1'))
     a.unmount()
 
     state.pathname = '/student/courses/c1'
