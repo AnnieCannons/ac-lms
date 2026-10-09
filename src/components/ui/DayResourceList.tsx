@@ -56,17 +56,21 @@ export default function DayResourceList({
   courseId,
   initialStarredIds,
   initialCompletedIds,
+  readOnly,
 }: {
   resources: Resource[]
   courseId: string
   initialStarredIds: string[]
   initialCompletedIds: string[]
+  /** Viewing as a student: show their stars/completions but don't change anything */
+  readOnly?: boolean
 }) {
   const [starredIds, setStarredIds] = useState(() => new Set(initialStarredIds))
   const [completedIds, setCompletedIds] = useState(() => new Set(initialCompletedIds))
   const [openReadings, setOpenReadings] = useState<Set<string>>(new Set())
 
   const toggleStar = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceStar(id, courseId, isStarred)
@@ -76,6 +80,7 @@ export default function DayResourceList({
   }
 
   const toggleComplete = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceComplete(id, courseId, isDone)

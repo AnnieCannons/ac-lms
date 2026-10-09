@@ -36,6 +36,7 @@ export default function QuizForm({
   lockedAnswers,
   isObserver,
   isStudentPreview,
+  viewingAs,
 }: {
   courseId: string;
   quizId: string;
@@ -45,12 +46,16 @@ export default function QuizForm({
   lockedAnswers?: Record<string, string>;  // index → choice_ident (already correct in retake)
   isObserver?: boolean;
   isStudentPreview?: boolean;
+  /** Set while an admin views a student's pages: read-only, and nothing is saved */
+  viewingAs?: string;
 }) {
   // Track answers by question index — no state, no re-renders
   const answersRef = useRef<Record<string, string>>({});
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Saving progress would write it to the admin's own account
+    if (viewingAs) return;
     const m: Record<string, string> = savedProgress ? { ...savedProgress } : {};
     answersRef.current = m;
     const answers: AnswerEntry[] = Object.entries(m).map(([idx, ci]) => ({
@@ -74,11 +79,13 @@ export default function QuizForm({
 
   const isRetake = lockedAnswers !== undefined;
 
-  if (isObserver) {
+  if (isObserver || viewingAs) {
     return (
       <div className="space-y-4">
         <div className="status-late-badge border rounded-xl px-4 py-3 text-sm">
-          Quiz submissions are paused while you&apos;re on leave.
+          {viewingAs
+            ? <>Viewing as {viewingAs} — read-only. They haven&apos;t taken this quiz yet.</>
+            : <>Quiz submissions are paused while you&apos;re on leave.</>}
         </div>
         {questions.map((q, i) => (
           <div

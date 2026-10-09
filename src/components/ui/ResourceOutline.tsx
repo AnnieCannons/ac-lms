@@ -76,6 +76,8 @@ interface Props {
   editable?: boolean
   instructorView?: boolean
   submissionMap?: Record<string, SubmissionInfo>
+  /** Viewing as a student: show their stars/completions but don't change anything */
+  readOnly?: boolean
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
 }
@@ -412,7 +414,7 @@ function SortableModuleRow({ id, canDrag, children }: {
 
 export default function ResourceOutline({
   modules, courseId, mode, editable, instructorView, submissionMap,
-  initialStarredIds, initialCompletedIds,
+  initialStarredIds, initialCompletedIds, readOnly,
 }: Props) {
   const supabase = createClient()
   const router = useRouter()
@@ -424,37 +426,44 @@ export default function ResourceOutline({
   const moduleKey = `outline-modules-${courseId}-${mode}`
   const dayKey = `outline-days-${courseId}-${mode}`
 
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(moduleKey)
-      if (saved !== null) return new Set(JSON.parse(saved))
-    } catch {}
-    return new Set(modules.map(m => m.id))
-  })
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(dayKey)
-      if (saved !== null) return new Set(JSON.parse(saved))
-    } catch {}
-    return new Set()
-  })
+  // Start from fixed defaults so the server and the first browser render match, then
+  // restore the saved expand/collapse state after mount (reading localStorage during
+  // render caused a hydration mismatch on the Expand/Collapse All button)
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(modules.map(m => m.id)))
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => new Set())
+  const [collapseRestored, setCollapseRestored] = useState(false)
   const searchParams = useSearchParams()
   const [filter, setFilter] = useState<AssignmentFilter>(() => {
     const p = searchParams.get('filter') as AssignmentFilter | null
     return (p && FILTERS.some(f => f.key === p)) ? p : 'all'
   })
   const [search, setSearch] = useState('')
+  const [starredOnly, setStarredOnly] = useState(false)
   const [collapsedPastDue, setCollapsedPastDue] = useState(false)
   const [collapsedUpcoming, setCollapsedUpcoming] = useState(false)
 
-  // Save whenever collapse state changes
+  /* eslint-disable react-hooks/set-state-in-effect -- browser-only saved state can only be read after hydration */
   useEffect(() => {
+    try {
+      const savedModules = localStorage.getItem(moduleKey)
+      if (savedModules !== null) setCollapsedModules(new Set(JSON.parse(savedModules)))
+      const savedDays = localStorage.getItem(dayKey)
+      if (savedDays !== null) setCollapsedDays(new Set(JSON.parse(savedDays)))
+    } catch {}
+    setCollapseRestored(true)
+  }, [moduleKey, dayKey])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Save whenever collapse state changes — but not before the saved state has been restored
+  useEffect(() => {
+    if (!collapseRestored) return
     try { localStorage.setItem(moduleKey, JSON.stringify([...collapsedModules])) } catch {}
-  }, [collapsedModules])
+  }, [collapsedModules, collapseRestored, moduleKey])
 
   useEffect(() => {
+    if (!collapseRestored) return
     try { localStorage.setItem(dayKey, JSON.stringify([...collapsedDays])) } catch {}
-  }, [collapsedDays])
+  }, [collapsedDays, collapseRestored, dayKey])
 
   const allExpanded = collapsedModules.size === 0
   const expandAll = () => {
@@ -477,6 +486,7 @@ export default function ResourceOutline({
   }
 
   const toggleStar = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceStar(id, courseId, isStarred)
@@ -487,6 +497,7 @@ export default function ResourceOutline({
   }
 
   const toggleComplete = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceComplete(id, courseId, isDone)
@@ -544,6 +555,10 @@ export default function ResourceOutline({
   }
 
   const searchQ = search.trim().toLowerCase()
+  const resourceVisible = (r: Resource) =>
+    !deletedIds.has(r.id) &&
+    (!searchQ || r.title.toLowerCase().includes(searchQ)) &&
+    (!starredOnly || starredIds.has(r.id))
 
   const allPublishedAssignments = orderedModules.flatMap(m =>
     m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published).map(a => ({
@@ -599,9 +614,7 @@ export default function ResourceOutline({
   const modulesWithContent = orderedModules.filter(m =>
     m.module_days.some(d => {
       if (skipDays.has(d.day_name)) return false
-      if (mode === 'resources') return (d.resources ?? []).some(r =>
-        !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
-      )
+      if (mode === 'resources') return (d.resources ?? []).some(resourceVisible)
       if (instructorView) return searchQ
         ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
         : true
@@ -630,8 +643,15 @@ export default function ResourceOutline({
 
   const studentActions = !editable && !instructorView
 
+  const starredCount = mode === 'resources'
+    ? orderedModules.reduce((n, m) => n + m.module_days.reduce((k, d) =>
+        skipDays.has(d.day_name) ? k : k + (d.resources ?? []).filter(r => !deletedIds.has(r.id) && starredIds.has(r.id)).length, 0), 0)
+    : 0
+  const showStarredToggle = mode === 'resources' && studentActions
+
   const searchBar = (
-    <div className="relative mb-4">
+    <div className="flex items-center gap-2 mb-4">
+    <div className="relative flex-1">
       <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
@@ -642,6 +662,22 @@ export default function ResourceOutline({
         placeholder={mode === 'resources' ? 'Search resources…' : 'Search assignments…'}
         className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
       />
+    </div>
+    {showStarredToggle && (
+      <button
+        type="button"
+        onClick={() => { const next = !starredOnly; setStarredOnly(next); if (next) expandAll() }}
+        aria-pressed={starredOnly}
+        aria-label={`Show only starred resources (${starredCount})`}
+        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+          starredOnly ? 'bg-teal-primary text-white border-teal-primary' : 'bg-surface text-dark-text border-border hover:border-teal-primary'
+        }`}
+      >
+        <span aria-hidden="true">{starredOnly ? '★' : '☆'}</span>
+        Starred
+        <span className={`font-normal ${starredOnly ? 'opacity-80' : 'text-muted-text'}`}>{starredCount}</span>
+      </button>
+    )}
     </div>
   )
 
@@ -675,9 +711,13 @@ export default function ResourceOutline({
         {filterBar}
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">
           <p className="text-muted-text">
-            {searchQ ? `No results for "${search}".` : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
+            {searchQ ? `No results for "${search}"${starredOnly ? ' in your starred resources' : ''}.`
+              : starredOnly ? 'No starred resources yet. Tap ☆ on any resource to save it here.'
+              : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
           </p>
-          {searchQ ? (
+          {starredOnly && !searchQ ? (
+            <button type="button" onClick={() => setStarredOnly(false)} className="mt-3 text-sm text-teal-primary hover:underline">Show all resources</button>
+          ) : searchQ ? (
             <button type="button" onClick={() => setSearch('')} className="mt-3 text-sm text-teal-primary hover:underline">Clear search</button>
           ) : filter !== 'all' && (
             <button type="button" onClick={() => setFilter('all')} className="mt-3 text-sm text-teal-primary hover:underline">View all assignments</button>
@@ -811,9 +851,7 @@ export default function ResourceOutline({
             .sort((a, b) => a.order - b.order)
             .filter(d => {
               if (skipDays.has(d.day_name)) return false
-              if (mode === 'resources') return (d.resources ?? []).some(r =>
-                !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
-              )
+              if (mode === 'resources') return (d.resources ?? []).some(resourceVisible)
               if (instructorView) return searchQ
                 ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
                 : true
@@ -895,7 +933,7 @@ export default function ResourceOutline({
                         {!dayCollapsed && mode === 'resources' && (
                           <div className="flex flex-col gap-2 pl-3">
                             {[...(day.resources ?? [])]
-                              .filter(r => !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ)))
+                              .filter(resourceVisible)
                               .sort((a, b) => a.order - b.order)
                               .map(r => {
                                 const resolved = editedResources.get(r.id) ?? r

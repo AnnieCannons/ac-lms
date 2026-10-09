@@ -144,7 +144,7 @@ export default function GettingStarted() {
           <DocH3>Tools</DocH3>
           <DocP>The <strong>Tools</strong> dropdown in the top nav opens features that live outside any single course:</DocP>
           <DocStep number={1}>Click <strong>Tools</strong> in the top navigation bar.</DocStep>
-          <DocStep number={2}>Choose <strong>Attendance Portal</strong> to view your own attendance records, <strong>Weekly Readiness</strong> to check in on how ready you feel for the week, or <strong>Flashcard App</strong> to review flashcards — all open inside AC-LMS, not in a separate app.</DocStep>
+          <DocStep number={2}>Choose <strong>Attendance Portal</strong> to view your own attendance records, <strong>Weekly Readiness</strong> to check in on how ready you feel for the week — both open inside AC-LMS, not in a separate app. (Flashcards are on your course&apos;s <strong>Level Up Your Skills</strong> page.)</DocStep>
         </>
       ),
     },

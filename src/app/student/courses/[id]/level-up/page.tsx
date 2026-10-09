@@ -1,13 +1,15 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import LevelUpFilter from '@/components/ui/LevelUpFilter'
-import { isStudentPreview } from '@/lib/student-preview'
+import LevelUpCards from '@/components/ui/LevelUpCards'
+import { getLevelUpLinks } from '@/lib/level-up-links'
 import { formatDueDateWithTime } from '@/lib/date-utils'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 
 export default async function StudentLevelUpPage({
   params,
@@ -15,31 +17,8 @@ export default async function StudentLevelUpPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -104,10 +83,12 @@ export default async function StudentLevelUpPage({
 
   const hasContent = modules.length > 0 || bonusAssignments.length > 0
 
+  const links = await getLevelUpLinks(id)
+
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
 
       <div className="flex">
         <ResizableSidebar>
@@ -127,8 +108,11 @@ export default async function StudentLevelUpPage({
               <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 
-            {hasContent ? (
-              <div className="flex flex-col gap-10">
+            <LevelUpCards courseId={id} links={links} />
+
+            {hasContent && (
+              <div className="flex flex-col gap-10 mt-10">
+                <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide -mb-6">From your instructors</h2>
                 {modules.length > 0 && (
                   <LevelUpFilter
                     modules={modulesWithWikis as Parameters<typeof LevelUpFilter>[0]['modules']}
@@ -173,10 +157,6 @@ export default async function StudentLevelUpPage({
                     </div>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-                <p className="text-muted-text">No content available yet.</p>
               </div>
             )}
           </main>

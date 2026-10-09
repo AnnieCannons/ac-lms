@@ -1,11 +1,11 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import StudentTopNav from "@/components/ui/StudentTopNav";
 import ResizableSidebar from "@/components/ui/ResizableSidebar";
 import StudentCourseNav from "@/components/ui/StudentCourseNav";
-import { isStudentPreview } from "@/lib/student-preview";
-import StudentViewBanner from "@/components/ui/StudentViewBanner";
+import StudentPageBanner from "@/components/ui/StudentPageBanner";
+import { getStudentCourseViewer } from "@/lib/student-course-viewer";
 import QuizForm from "./QuizForm";
 import { type AnswerEntry } from "./actions";
 import HtmlContent from "@/components/ui/HtmlContent";
@@ -53,35 +53,12 @@ export default async function TakeQuizPage({
   const { retake } = await searchParams;
   const isRetakeMode = retake === "1";
 
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  const preview = await isStudentPreview(id);
-
-  if (!preview && (profile?.role === "instructor" || profile?.role === "admin")) {
-    redirect(`/instructor/courses/${id}`);
-  }
-
-  let isObserver = false;
-  if (!preview) {
-    const { data: enrollment } = await supabase
-      .from("course_enrollments")
-      .select("id, role")
-      .eq("user_id", user.id)
-      .eq("course_id", id)
-      .in("role", ["student", "observer", "ta"])
-      .maybeSingle();
-
-    if (!enrollment) redirect("/student/courses");
-    isObserver = enrollment.role === "observer";
-  }
+  const viewer = await getStudentCourseViewer(id);
+  const { supabase, preview } = viewer;
+  // Observers (on leave) and admins viewing as a student see results but can't take the quiz
+  const isObserver = viewer.enrollmentRole === "observer";
+  const isLocked = isObserver || viewer.readOnly;
+  const viewingAs = viewer.impersonation?.studentName;
 
   const { data: course } = await supabase
     .from("courses")
@@ -95,7 +72,7 @@ export default async function TakeQuizPage({
 
   const { data: quiz } = await admin
     .from("quizzes")
-    .select("id, title, module_title, questions, max_attempts")
+    .select("id, title, module_title, questions, max_attempts, is_practice")
     .eq("id", quizId)
     .eq("course_id", id)
     .eq("published", true)
@@ -108,11 +85,12 @@ export default async function TakeQuizPage({
     .from("quiz_submissions")
     .select("id, submitted_at, score_percent, answers, attempt_count")
     .eq("quiz_id", quizId)
-    .eq("student_id", user.id)
+    .eq("student_id", viewer.viewerId)
     .maybeSingle();
 
   const rawQuestions = (quiz.questions ?? []) as Question[];
-  const maxAttempts: number | null = quiz.max_attempts ?? null;
+  // Practice quizzes are ungraded with unlimited retakes
+  const maxAttempts: number | null = quiz.is_practice ? null : quiz.max_attempts ?? null;
   const attemptCount = submission?.attempt_count ?? 0;
 
   // Shuffle choices deterministically per student + quiz + attempt number.
@@ -158,7 +136,7 @@ export default async function TakeQuizPage({
   }
 
   // Observers can never retake — they only see results
-  const effectiveCanRetake = !isObserver && !outOfAttempts;
+  const effectiveCanRetake = !isLocked && !outOfAttempts;
 
   // Guard retake mode: must have a submission, attempts remaining, and wrong questions
   if (isRetakeMode && (!submission || !effectiveCanRetake || wrongCount === 0)) {
@@ -172,7 +150,7 @@ export default async function TakeQuizPage({
       .from("quiz_progress")
       .select("answers_json")
       .eq("quiz_id", quizId)
-      .eq("student_id", user.id)
+      .eq("student_id", viewer.viewerId)
       .maybeSingle();
 
     if (progressRow?.answers_json) {
@@ -189,8 +167,8 @@ export default async function TakeQuizPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
       <div className="flex">
         <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
@@ -239,15 +217,18 @@ export default async function TakeQuizPage({
             <>
               <div className="mb-6">
                 <Link
-                  href={`/student/courses/${id}/quizzes`}
-                  aria-label="Back to quizzes"
+                  href={quiz.is_practice ? `/student/courses/${id}/level-up/practice` : `/student/courses/${id}/quizzes`}
+                  aria-label={quiz.is_practice ? "Back to practice quizzes" : "Back to quizzes"}
                   className="text-muted-text hover:text-teal-primary text-sm"
                 >
-                  ← Quizzes
+                  ← {quiz.is_practice ? "Practice quizzes" : "Quizzes"}
                 </Link>
               </div>
 
               <h1 className="text-2xl font-bold text-dark-text mb-1">{displayTitle}</h1>
+              {quiz.is_practice && (
+                <p className="text-xs font-medium text-teal-primary mb-1">Practice quiz · ungraded · retake as often as you like</p>
+              )}
               {quiz.module_title && (
                 <p className="text-sm text-muted-text mb-2">{quiz.module_title}</p>
               )}
@@ -272,6 +253,7 @@ export default async function TakeQuizPage({
                   savedProgress={savedProgress}
                   isObserver={isObserver}
                   isStudentPreview={preview}
+                  viewingAs={viewingAs}
                 />
               )}
 
@@ -401,9 +383,11 @@ export default async function TakeQuizPage({
                   </div>
 
                   {/* Out of attempts / observer locked message */}
-                  {(outOfAttempts || isObserver) && (
+                  {(outOfAttempts || isLocked) && (
                     <div className="text-sm text-muted-text bg-surface border border-border rounded-xl px-5 py-4">
-                      {isObserver
+                      {viewingAs
+                        ? `Viewing as ${viewingAs} — read-only.`
+                        : isObserver
                         ? "Quiz submissions are paused while you're on leave."
                         : `You've used all ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""}. Correct answers are shown above.`}
                     </div>

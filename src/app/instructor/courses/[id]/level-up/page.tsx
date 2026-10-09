@@ -6,6 +6,8 @@ import CourseEditor from "@/components/layout/CourseEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import BonusAssignmentList from "@/components/ui/BonusAssignmentList";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
+import LevelUpLinksEditor from "@/components/ui/LevelUpLinksEditor";
+import { getLevelUpLinks } from "@/lib/level-up-links";
 
 export default async function InstructorLevelUpPage({
   params,
@@ -24,6 +26,8 @@ export default async function InstructorLevelUpPage({
     .single();
 
   if (!course) redirect("/instructor/courses");
+
+  const levelUpLinks = await getLevelUpLinks(id, { includeHidden: true });
 
   const [{ data: modulesRaw }, { data: bonusAssignmentsRaw }] = await Promise.all([
     admin
@@ -94,8 +98,17 @@ export default async function InstructorLevelUpPage({
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>
-            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Level Up Your Skills</h2>
+            <h2 className="text-xl font-bold text-dark-text mt-6 mb-2">Level Up Your Skills</h2>
+            <p className="text-sm text-muted-text mb-6">
+              Students see study tools and learning-platform cards at the top, then the modules and bonus assignments below.
+              Mark a quiz as <span className="font-medium">Practice</span> in Quizzes to list it under Practice quizzes.
+            </p>
 
+            <div className="mb-10">
+              <LevelUpLinksEditor courseId={id} initialLinks={levelUpLinks} canEditShared={!isTa} />
+            </div>
+
+            <h3 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Level Up modules</h3>
             <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" readOnly={false} />
 
             {bonusAssignments.length > 0 && (

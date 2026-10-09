@@ -1,10 +1,10 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ExcusedBadge } from '@/components/ui/AssignmentDueStatus'
 import StudentTopNav from '@/components/ui/StudentTopNav'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import DayResourceList from '@/components/ui/DayResourceList'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
@@ -33,32 +33,8 @@ export default async function StudentDayDetailPage({
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!UUID_RE.test(id) || !UUID_RE.test(dayId)) redirect('/student/courses')
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  // Verify enrollment
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id, role')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb, readOnly } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -84,8 +60,8 @@ export default async function StudentDayDetailPage({
   const admin2 = createServiceSupabaseClient()
   const [{ data: resources }, { data: stars }, { data: completions }, { data: dayWikis }] = await Promise.all([
     supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).eq('instructor_only', false).eq('published', true).order('order', { ascending: true }),
-    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
-    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+    studentDb.from('resource_stars').select('resource_id').eq('user_id', viewer.viewerId),
+    studentDb.from('resource_completions').select('resource_id').eq('user_id', viewer.viewerId),
     admin2.from('wikis').select('id, title, content').eq('module_day_id', dayId).eq('published', true).order('order', { ascending: true }),
   ])
 
@@ -116,7 +92,7 @@ export default async function StudentDayDetailPage({
     ? await admin
         .from('assignment_overrides')
         .select('assignment_id, due_date, excused')
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .in('assignment_id', assignmentIds)
     : { data: [] }
   const dayOverrideMap = new Map((dayOverrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
@@ -125,9 +101,9 @@ export default async function StudentDayDetailPage({
 
   const [{ data: dayQuizData }, { data: crossQuizData }, { data: courseModules }] = await Promise.all([
     day.day_name
-      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).is('deleted_at', null)
+      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).eq('is_practice', false).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
-    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).is('deleted_at', null),
+    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).eq('is_practice', false).is('deleted_at', null),
     admin.from('modules').select('title').eq('course_id', id).is('deleted_at', null),
   ])
 
@@ -149,18 +125,18 @@ export default async function StudentDayDetailPage({
 
   if (quizzes.length > 0) {
     const quizIds = quizzes.map(q => q.id)
-    const { data: subData } = await supabase
+    const { data: subData } = await studentDb
       .from('quiz_submissions')
       .select('quiz_id, score_percent, attempt_count')
-      .eq('student_id', user.id)
+      .eq('student_id', viewer.viewerId)
       .in('quiz_id', quizIds)
     quizSubmissions = (subData ?? []) as typeof quizSubmissions
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
       <div className="flex">
         <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
@@ -207,6 +183,7 @@ export default async function StudentDayDetailPage({
                 courseId={id}
                 initialStarredIds={starredIds}
                 initialCompletedIds={completedIds}
+                readOnly={readOnly}
               />
             ) : (
               <p className="text-muted-text text-sm">No resources for this day.</p>

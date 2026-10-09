@@ -86,7 +86,7 @@ export async function createQuiz(courseId: string) {
 export async function updateQuizMeta(
   quizId: string,
   courseId: string,
-  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null }
+  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null; is_practice?: boolean }
 ) {
   const auth = await getAuthedInstructorOrTa(courseId)
   if (auth.error) throwAuthError(auth)

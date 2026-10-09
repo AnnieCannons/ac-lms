@@ -176,6 +176,8 @@ interface Props {
   currentWeek: number | null
   submissionMap?: Record<string, SubmissionInfo>
   initialStarredIds?: string[]
+  /** Viewing as a student: show their stars/completions but don't change anything */
+  readOnly?: boolean
   initialCompletedIds?: string[]
   hideLevelUpBanner?: boolean
   showBonusAssignments?: boolean
@@ -361,7 +363,7 @@ type SearchResult =
 
 export default function CourseOutlineAccordion({
   modules, courseId, currentWeek, submissionMap,
-  initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes,
+  initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes, readOnly,
   showSearch = true,
 }: Props) {
   const todayName = DAY_NAMES[new Date().getDay()]
@@ -393,6 +395,7 @@ export default function CourseOutlineAccordion({
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
 
   const toggleStar = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceStar(id, courseId, isStarred)
@@ -403,6 +406,7 @@ export default function CourseOutlineAccordion({
   }
 
   const toggleComplete = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceComplete(id, courseId, isDone)

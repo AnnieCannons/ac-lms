@@ -111,6 +111,8 @@ export default async function StudentDetailPage({
       .select('id, title, module_title, due_at')
       .eq('course_id', courseId)
       .eq('published', true)
+      // Practice quizzes are ungraded, so never missing or incomplete
+      .eq('is_practice', false)
       .is('deleted_at', null),
     assignmentIds.length > 0
       ? admin

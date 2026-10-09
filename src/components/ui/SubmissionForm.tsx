@@ -79,6 +79,7 @@ export default function SubmissionForm({
   instructorResponseMap,
   isObserver,
   isStudentPreview,
+  viewingAs,
   initialComments = NO_COMMENTS,
   currentUserName = 'Student',
   currentUserRole = 'student',
@@ -95,6 +96,8 @@ export default function SubmissionForm({
   instructorResponseMap?: Map<string, boolean>;
   isObserver?: boolean;
   isStudentPreview?: boolean;
+  /** Set while an admin views a student's pages: shows the student's work, read-only */
+  viewingAs?: string;
   initialComments?: CommentEntry[];
   currentUserName?: string;
   currentUserRole?: string;
@@ -109,7 +112,7 @@ export default function SubmissionForm({
   // to the latest timezone on earth so the server never shows it closed early
   const browserTz = useSyncExternalStore(noopSubscribe, () => Intl.DateTimeFormat().resolvedOptions().timeZone, () => null);
   const closed = isOptionalClosed(optionalClosesOn, browserTz);
-  const locked = !!isObserver || closed;
+  const locked = !!isObserver || !!viewingAs || closed;
 
   const hasChecklist = !!checklistItems && checklistItems.length > 0;
   const [checked, setChecked] = useState<Record<string, boolean>>(initialChecked ?? {});
@@ -362,12 +365,17 @@ export default function SubmissionForm({
         Assignment submission is disabled in Student View.
       </div>
     )}
-    {isObserver && (
+    {viewingAs && (
+      <div className="bg-surface border border-border rounded-xl px-4 py-3 text-sm text-muted-text">
+        Viewing as {viewingAs} — read-only. You&apos;re seeing their submission and comments exactly as they do.
+      </div>
+    )}
+    {isObserver && !viewingAs && (
       <div className="status-late-badge border rounded-xl px-4 py-3 text-sm">
         You&apos;re currently on leave. Your submitted work is visible below, but submissions are paused.
       </div>
     )}
-    {closed && !isObserver && (
+    {closed && !isObserver && !viewingAs && (
       <div className="bg-surface border border-border rounded-xl px-4 py-3 text-sm text-muted-text">
         This optional assignment is closed — the due date has passed{saved?.status === 'submitted' || saved?.status === 'graded' ? '' : ', so it no longer accepts submissions'}.
       </div>
@@ -837,6 +845,7 @@ export default function SubmissionForm({
         currentUserName={currentUserName}
         currentUserRole={currentUserRole}
         isObserver={isObserver}
+        readOnly={!!viewingAs}
         text={commentText}
         onTextChange={setCommentText}
       />
