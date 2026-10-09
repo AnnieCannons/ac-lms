@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDueDateWithTime, localDate, todayLocal } from "@/lib/date-utils";
-import { ExcusedBadge } from "./AssignmentDueStatus";
+import { getAssignmentStatus, type AssignmentStatus } from "@/lib/assignment-status";
+import AssignmentStatusBadge from "./AssignmentStatusBadge";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type Grade = "complete" | "incomplete" | null;
@@ -29,41 +30,16 @@ export type WorkAssignment = {
   courseId: string;
 };
 
-type WorkAssignmentWithLate = WorkAssignment & { isLate: boolean; isClosed: boolean };
-
-function StatusBadge({ status, grade, isLate, isOptional, isExcused }: { status: SubmissionStatus | null; grade: Grade; isLate: boolean; isOptional: boolean; isExcused: boolean }) {
-  if (isExcused) return <ExcusedBadge />;
-  // Optional: always an Optional pill, plus the normal status once turned in — never Late or Not started
-  if (isOptional) return (
-    <span className="flex items-center gap-1.5 shrink-0">
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary/30">Optional</span>
-      {grade === "complete" ? <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border">Complete ✓</span>
-        : grade === "incomplete" ? <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border">Needs Revision</span>
-        : status === "submitted" || status === "graded" ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned in</span>
-        : null}
-    </span>
-  );
-  if (grade === "complete") return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>;
-  if (grade === "incomplete") return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>;
-  if (status === "submitted") return (
-    <span className="flex items-center gap-1.5 shrink-0">
-      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border">Late</span>}
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned in</span>
-    </span>
-  );
-  if (status === "draft") return <span className="status-draft-badge text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">Draft</span>;
-  if (isLate) return <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>;
-  return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not started</span>;
-}
+type WorkAssignmentWithLate = WorkAssignment & { display: AssignmentStatus; isLate: boolean; isClosed: boolean };
 
 function getFilterMatch(a: WorkAssignmentWithLate, filter: Filter): boolean {
   if (filter === "level-up") return a.isBonus;
   // All other filters exclude Level Up (bonus) assignments
   if (a.isBonus) return false;
-  if (filter === "complete") return a.grade === "complete";
-  if (filter === "needs-revision") return a.grade === "incomplete";
-  if (filter === "turned-in") return a.status === "submitted";
-  if (filter === "not-started") return !a.status && !a.grade && !a.isExcused && !a.isClosed;
+  if (filter === "complete") return a.display.kind === "complete";
+  if (filter === "needs-revision") return a.display.kind === "needs-revision";
+  if (filter === "turned-in") return a.display.kind === "turned-in";
+  if (filter === "not-started") return a.display.isOutstanding && !a.isClosed;
   return true;
 }
 
@@ -91,16 +67,23 @@ export default function StudentWorkList({
   // clock/timezone rather than the server's.
   const assignments = useMemo<WorkAssignmentWithLate[]>(() => {
     const today = todayLocal();
-    return rawAssignments.map((a) => ({
-      ...a,
-      // A closed optional assignment is simply skipped, not outstanding
-      isClosed: a.isOptional && !!a.due_date && localDate(a.due_date) < today,
-      isLate: a.isExcused || a.isOptional
-        ? false
-        : a.submittedIsLate !== null
-          ? a.submittedIsLate
-          : !!a.due_date && localDate(a.due_date) < today,
-    }));
+    return rawAssignments.map((a) => {
+      const display = getAssignmentStatus({
+        status: a.status,
+        grade: a.grade,
+        excused: a.isExcused,
+        submittedIsLate: a.submittedIsLate,
+        dueDate: a.due_date,
+        isOptional: a.isOptional,
+      }, today);
+      return {
+        ...a,
+        display,
+        isLate: display.isLate,
+        // A closed optional assignment is simply skipped, not outstanding
+        isClosed: a.isOptional && !!a.due_date && localDate(a.due_date) < today,
+      };
+    });
   }, [rawAssignments]);
 
   const counts = Object.fromEntries(
@@ -116,12 +99,12 @@ export default function StudentWorkList({
       className={`flex items-center justify-between bg-surface rounded-xl border border-border px-5 py-4 hover:border-teal-primary transition-colors gap-4 ${a.isExcused ? "opacity-60" : ""}`}
     >
       <div className="flex-1 min-w-0">
-        <p className={`font-semibold text-base truncate ${a.isLate && !a.status && !a.grade ? "text-amber-700" : "text-dark-text"}`}>
+        <p className={`font-semibold text-base truncate ${a.display.isOutstanding && a.isLate ? "text-amber-700" : "text-dark-text"}`}>
           {a.title}
         </p>
         {filter === "all" ? (
           a.due_date && (
-            <p className={`text-xs mt-0.5 ${a.isLate && !a.status && !a.grade ? "text-amber-600" : "text-muted-text"}`}>
+            <p className={`text-xs mt-0.5 ${a.display.isOutstanding && a.isLate ? "text-amber-600" : "text-muted-text"}`}>
               Due {formatDueDateWithTime(a.due_date)}
             </p>
           )
@@ -132,7 +115,7 @@ export default function StudentWorkList({
           </p>
         )}
       </div>
-      <StatusBadge status={a.status} grade={a.grade} isLate={a.isLate} isOptional={a.isOptional} isExcused={a.isExcused} />
+      <AssignmentStatusBadge status={a.display} />
     </Link>
   );
 

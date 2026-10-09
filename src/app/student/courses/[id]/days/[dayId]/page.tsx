@@ -104,7 +104,7 @@ export default async function StudentDayDetailPage({
     ...((crossAssignments ?? []).map(a => ({ ...a, careerDev: true })) as DayAssignment[]),
   ]
 
-  const module = Array.isArray(day.modules) ? day.modules[0] : day.modules
+  const parentModule = Array.isArray(day.modules) ? day.modules[0] : day.modules
 
   let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; careerDev?: boolean }> = []
   let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
@@ -120,7 +120,7 @@ export default async function StudentDayDetailPage({
         .in('assignment_id', assignmentIds)
     : { data: [] }
   const dayOverrideMap = new Map((dayOverrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
-  const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
+  const weekMatch = parentModule?.title?.match(/^Week\s+(\d+)/i)
   const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
 
   const [{ data: dayQuizData }, { data: crossQuizData }, { data: courseModules }] = await Promise.all([
@@ -137,7 +137,7 @@ export default async function StudentDayDetailPage({
     quizzes = allDayQuizzes.filter(q => quizBelongsToDay(
       { module_title: q.module_title, day_title: day.day_name, linked_day_id: null },
       { id: dayId, day_name: day.day_name },
-      { title: module?.title ?? null, week_number: weekNumber },
+      { title: parentModule?.title ?? null, week_number: weekNumber },
       courseModuleTitles,
     ))
   }
@@ -173,15 +173,15 @@ export default async function StudentDayDetailPage({
           <span className="text-border">/</span>
           <Link href={`/student/courses/${id}`} className="hover:text-teal-primary">{course.name}</Link>
           <span className="text-border">/</span>
-          {module && <span className="text-muted-text">{module.title}</span>}
+          {parentModule && <span className="text-muted-text">{parentModule.title}</span>}
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium">{day.day_name}</span>
         </div>
 
         <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">{day.day_name}</h1>
-        {module && (
+        {parentModule && (
           <p className="text-muted-text text-sm mb-8">
-            {module.title}{module.week_number ? ` · Week ${module.week_number}` : ''}
+            {parentModule.title}{parentModule.week_number ? ` · Week ${parentModule.week_number}` : ''}
           </p>
         )}
 

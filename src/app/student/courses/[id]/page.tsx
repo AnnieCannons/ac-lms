@@ -56,7 +56,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, is_optional, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, is_optional, submission_required, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .not('title', 'ilike', '%DO NOT PUBLISH%')
@@ -81,12 +81,12 @@ export default async function StudentCourseDetailPage({
   const moduleIds = modules.map(m => m.id)
 
   const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }, { data: moduleWikisData }, { data: dayWikisData }] = await Promise.all([
-    supabase.from('submissions').select('assignment_id, status, grade, submitted_at').eq('student_id', user.id),
+    supabase.from('submissions').select('assignment_id, status, grade, submitted_at, is_late').eq('student_id', user.id),
     supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
     supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
     admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
     dayIds.length > 0
-      ? supabase.from('assignments').select('id, title, due_date, published, is_optional, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
+      ? supabase.from('assignments').select('id, title, due_date, published, is_optional, submission_required, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
     dayIds.length > 0
       ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null).eq('instructor_only', false).eq('published', true)
@@ -139,8 +139,8 @@ export default async function StudentCourseDetailPage({
     }),
   }))
 
-  const submissionMap: Record<string, { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; submitted_at?: string | null; excused?: boolean }> = Object.fromEntries(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null, excused: !!overrides.get(s.assignment_id)?.excused }])
+  const submissionMap: Record<string, { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; submitted_at?: string | null; is_late?: boolean | null; excused?: boolean }> = Object.fromEntries(
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null, is_late: s.is_late ?? null, excused: !!overrides.get(s.assignment_id)?.excused }])
   )
   // Excused assignments with no submission row still need an entry so they render as Excused
   for (const [assignmentId, o] of overrides) {

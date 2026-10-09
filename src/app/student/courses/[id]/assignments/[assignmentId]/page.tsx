@@ -196,7 +196,7 @@ export default async function StudentAssignmentPage({
     }
   })
 
-  const module = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
+  const parentModule = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
 
   return (
     <div className="min-h-screen bg-background">
@@ -263,8 +263,8 @@ export default async function StudentAssignmentPage({
           {isExcused && <ExcusedBadge size="md" />}
         </div>
         <div className="flex items-center gap-3 mb-8 flex-wrap">
-          {module && (
-            <p className="text-muted-text text-sm">{module.title}</p>
+          {parentModule && (
+            <p className="text-muted-text text-sm">{parentModule.title}</p>
           )}
           {effectiveDueDate && (
             <DueDatePill

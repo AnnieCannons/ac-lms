@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
-import { ExcusedBadge } from './AssignmentDueStatus'
+import { formatDueDateWithTime, localDate } from '@/lib/date-utils'
+import { getAssignmentStatus } from '@/lib/assignment-status'
+import SharedStatusBadge from './AssignmentStatusBadge'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import { trashResource } from '@/lib/trash-actions'
@@ -86,46 +87,20 @@ function isLevelUpAssignment(isBonus?: boolean, moduleCategory?: string | null) 
   return !!isBonus || moduleCategory === 'level_up'
 }
 
-function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequired, isOptional }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean; isOptional?: boolean }) {
-  // Optional assignments: always an Optional pill, plus the normal status once turned in — never Late or Not Started
-  if (isOptional) {
-    const optionalPill = <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary/30 shrink-0">Optional</span>
-    const statusPill = info?.excused ? null
-      : info?.grade === 'complete' ? <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
-      : info?.grade === 'incomplete' ? <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
-      : info?.status === 'submitted' || info?.status === 'graded' ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
-      : null
-    return <span className="flex items-center gap-1.5 shrink-0">{optionalPill}{statusPill}</span>
-  }
-  if (info?.excused) return <ExcusedBadge />
-  // Once turned in, use the server-computed is_late flag (accounts for the student's own
-  // timezone at submission time) rather than re-deriving it from date strings here — comparing
-  // a UTC submitted_at timestamp's date slice against a local due date is off by a day in the
-  // evening for timezones behind UTC.
-  const isLate = info?.submitted_at
-    ? !!info?.is_late
-    : !!dueDate && localDate(dueDate) < todayLocal()
-  if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
-  if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
-  if (info?.status === 'submitted') return (
-    <span className="flex items-center gap-1.5 shrink-0">
-      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border">Late</span>}
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned In</span>
-    </span>
-  )
-  // Level Up assignments: no status badge
-  if (isLevelUpAssignment(isBonus)) return null
-  // No submission required: show Not Started but never Late (instructor marks complete manually)
-  if (submissionRequired === false) {
-    return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
-  }
-  // not started (no submission or draft) — show both Late + Not Started if past due
-  return (
-    <div className="flex items-center gap-1.5">
-      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>}
-      <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
-    </div>
-  )
+function statusOf(info: SubmissionInfo | undefined, dueDate?: string | null, submissionRequired?: boolean, isOptional?: boolean) {
+  return getAssignmentStatus({
+    status: info?.status,
+    grade: info?.grade,
+    excused: info?.excused,
+    submittedIsLate: info?.is_late,
+    dueDate,
+    submissionRequired,
+    isOptional,
+  })
+}
+
+function AssignmentStatusBadge({ info, dueDate, isBonus, submissionRequired, isOptional }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean; isOptional?: boolean }) {
+  return <SharedStatusBadge status={statusOf(info, dueDate, submissionRequired, isOptional)} isLevelUp={isLevelUpAssignment(isBonus)} />
 }
 
 function StarButton({ starred, onToggle }: { starred: boolean; onToggle: () => void }) {
@@ -411,16 +386,14 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   if (levelUp) return false
   if (filter === 'all') return true
   if (filter === 'optional') return !!isOptional
-  if (filter === 'complete') return info?.grade === 'complete'
-  if (filter === 'turned-in') return (info?.status === 'submitted' || info?.status === 'graded') && !info?.grade
-  const isLate = !!dueDate && localDate(dueDate) < todayLocal()
-  const notStarted = !info || (info.status === 'draft' && !info.grade)
-  if (filter === 'needs-revision') return info?.grade === 'incomplete'
-  if (submissionRequired === false && filter === 'late') return false
+  const status = statusOf(info, dueDate, submissionRequired, isOptional)
+  if (filter === 'complete') return status.kind === 'complete'
+  if (filter === 'needs-revision') return status.kind === 'needs-revision'
+  if (filter === 'turned-in') return status.kind === 'turned-in'
   // Optional: never late or "not started" — they live under the Optional filter
-  if (isOptional && (filter === 'late' || filter === 'not-started')) return false
-  if (filter === 'late') return isLate && notStarted && !info?.excused
-  if (filter === 'not-started') return notStarted && !info?.excused
+  if (isOptional) return false
+  if (filter === 'late') return status.isOutstanding && status.isLate
+  if (filter === 'not-started') return status.isOutstanding
   return true
 }
 
@@ -534,9 +507,9 @@ export default function ResourceOutline({
     setCollapsedModules(prev => { const next = new Set(prev); isCollapsed ? next.delete(moduleId) : next.add(moduleId); return next })
     // When expanding a module, also expand all its days
     if (isCollapsed) {
-      const module = modules.find(m => m.id === moduleId)
-      if (module) {
-        const dayIds = module.module_days.map((d: { id: string }) => d.id)
+      const mod = modules.find(m => m.id === moduleId)
+      if (mod) {
+        const dayIds = mod.module_days.map((d: { id: string }) => d.id)
         setCollapsedDays(prev => { const next = new Set(prev); dayIds.forEach((id: string) => next.delete(id)); return next })
       }
     }
@@ -606,13 +579,11 @@ export default function ResourceOutline({
     ? (() => {
         const base = allPublishedAssignments.filter(a => {
           if (a.isLevelUp || a.is_optional) return false
-          const info = submissionMap[a.id]
-          const notStarted = !info || (info.status === 'draft' && !info.grade)
-          return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
+          return statusOf(submissionMap[a.id], a.due_date, a.submission_required).isOutstanding && (!searchQ || a.title.toLowerCase().includes(searchQ))
         })
-        const isPastDue = (a: typeof base[number]) => !!a.due_date && localDate(a.due_date) < todayLocal()
-        const pastDue = sortByDue(base.filter(a => a.submission_required !== false && isPastDue(a)))
-        const upcoming = sortByDue(base.filter(a => a.submission_required === false || !isPastDue(a)))
+        const isPastDue = (a: typeof base[number]) => statusOf(submissionMap[a.id], a.due_date, a.submission_required).isLate
+        const pastDue = sortByDue(base.filter(isPastDue))
+        const upcoming = sortByDue(base.filter(a => !isPastDue(a)))
         return { pastDue, upcoming }
       })()
     : null
@@ -901,8 +872,8 @@ export default function ResourceOutline({
                       .sort((a, b) => {
                         // In not-started view, sort late assignments first
                         if (!instructorView && filter === 'not-started') {
-                          const aLate = !submissionMap?.[a.id]?.excused && !!a.due_date && localDate(a.due_date) < todayLocal()
-                          const bLate = !submissionMap?.[b.id]?.excused && !!b.due_date && localDate(b.due_date) < todayLocal()
+                          const aLate = statusOf(submissionMap?.[a.id], a.due_date, a.submission_required, a.is_optional).isLate
+                          const bLate = statusOf(submissionMap?.[b.id], b.due_date, b.submission_required, b.is_optional).isLate
                           if (aLate && !bLate) return -1
                           if (!aLate && bLate) return 1
                         }
@@ -1006,11 +977,10 @@ export default function ResourceOutline({
                                 <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
                                   {a.due_date && (() => {
-                                    const isPast = localDate(a.due_date) < todayLocal()
-                                    const info = submissionMap?.[a.id]
-                                    const isResolved = info?.excused || info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
+                                    // No submissionMap (instructor view): every outstanding assignment is "not started"
+                                    const status = statusOf(submissionMap?.[a.id], a.due_date, a.submission_required, a.is_optional)
                                     return (
-                                      <p className={`text-xs font-medium mt-0.5 ${isPast && !isResolved && !a.is_optional ? 'text-amber-600' : 'text-muted-text'}`}>
+                                      <p className={`text-xs font-medium mt-0.5 ${status.isOutstanding && status.isLate ? 'text-amber-600' : 'text-muted-text'}`}>
                                         Due {formatDueDateWithTime(a.due_date)}
                                       </p>
                                     )

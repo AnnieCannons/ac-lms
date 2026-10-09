@@ -27,50 +27,6 @@ async function verifyAssignmentCourse(
   return mod?.course_id === courseId
 }
 
-export async function upsertAssignmentOverride(
-  assignmentId: string,
-  studentId: string,
-  courseId: string,
-  dueDate: string | null,
-  excused: boolean
-): Promise<{ id?: string; error?: string }> {
-  const auth = await getAuthedInstructor()
-  if ('error' in auth) return { error: auth.error }
-  const { admin } = auth
-
-  if (!await verifyAssignmentCourse(admin, assignmentId, courseId)) return { error: 'Not authorized' }
-
-  const { data, error } = await admin
-    .from('assignment_overrides')
-    .upsert(
-      { assignment_id: assignmentId, student_id: studentId, due_date: dueDate, excused },
-      { onConflict: 'assignment_id,student_id' }
-    )
-    .select('id')
-    .single()
-  if (error) return { error: error.message }
-
-  // Recalculate is_late on any existing submission if the due date changed
-  if (dueDate) {
-    const { data: submission } = await admin
-      .from('submissions')
-      .select('id, submitted_at, student_timezone')
-      .eq('assignment_id', assignmentId)
-      .eq('student_id', studentId)
-      .eq('status', 'submitted')
-      .maybeSingle()
-    if (submission?.submitted_at) {
-      const { data: assignment } = await admin.from('assignments').select('is_optional').eq('id', assignmentId).single()
-      // Optional assignments are never late
-      const isLate = excused || assignment?.is_optional ? false : isLateInTimezone(submission.submitted_at, dueDate, submission.student_timezone)
-      await admin.from('submissions').update({ is_late: isLate }).eq('id', submission.id)
-    }
-  }
-
-  revalidatePath(`/instructor/courses/${courseId}`)
-  return { id: data.id }
-}
-
 export async function removeAssignmentOverride(
   overrideId: string,
   courseId: string
@@ -96,8 +52,9 @@ export async function removeAssignmentOverride(
 }
 
 /**
- * Same as upsertAssignmentOverride, for many students at once (the "Paste
- * names" flow). Every student must be enrolled in this course as a student.
+ * Excuses, or sets a new due date for, one or more students on an assignment
+ * (the "+ Add override" checklist and "Paste names" flows). Every student must
+ * be enrolled in this course as a student.
  */
 export async function bulkUpsertAssignmentOverrides(
   assignmentId: string,
