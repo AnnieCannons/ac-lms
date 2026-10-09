@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -29,16 +29,19 @@ const PAID_ITEMS = [
 ]
 
 // "New" badge on Level Up Your Skills after its redesign: hidden once the student opens
-// Level Up (remembered in this browser), and switched off entirely after NEW_UNTIL so
-// later cohorts never see it. The server and first render always show no badge.
+// Level Up, and switched off entirely after NEW_UNTIL so later cohorts never see it.
+// "Seen" is remembered per user in this browser — keyed by user id, so on a shared
+// classroom computer one student opening Level Up doesn't hide it for the next. Until
+// the user is known (and on the server) no badge shows.
 const LEVEL_UP_NEW_UNTIL = new Date('2026-11-30T23:59:59')
-const LEVEL_UP_SEEN_KEY = 'level-up-redesign-seen'
+const levelUpSeenKey = (userId: string) => `level-up-redesign-seen:${userId}`
 const seenListeners = new Set<() => void>()
-function readLevelUpSeen() {
-  try { return localStorage.getItem(LEVEL_UP_SEEN_KEY) === '1' } catch { return true }
+function readLevelUpSeen(userId: string | null) {
+  if (!userId) return true
+  try { return localStorage.getItem(levelUpSeenKey(userId)) === '1' } catch { return true }
 }
-function markLevelUpSeen() {
-  try { localStorage.setItem(LEVEL_UP_SEEN_KEY, '1') } catch {}
+function markLevelUpSeen(userId: string) {
+  try { localStorage.setItem(levelUpSeenKey(userId), '1') } catch {}
   seenListeners.forEach(l => l())
 }
 function subscribeLevelUpSeen(listener: () => void) {
@@ -50,12 +53,14 @@ function subscribeLevelUpSeen(listener: () => void) {
 export default function StudentCourseNav({ courseId, courseName, paidLearners }: Props) {
   const pathname = usePathname()
   const [isTa, setIsTa] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
+      if (!cancelled) setUserId(user.id)
       supabase
         .from('course_enrollments')
         .select('role')
@@ -69,11 +74,12 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
     return () => { cancelled = true }
   }, [courseId])
 
-  const levelUpSeen = useSyncExternalStore(subscribeLevelUpSeen, readLevelUpSeen, () => true)
+  const getLevelUpSeen = useCallback(() => readLevelUpSeen(userId), [userId])
+  const levelUpSeen = useSyncExternalStore(subscribeLevelUpSeen, getLevelUpSeen, () => true)
   const onLevelUp = pathname.startsWith(`/student/courses/${courseId}/level-up`)
   useEffect(() => {
-    if (onLevelUp && !readLevelUpSeen()) markLevelUpSeen()
-  }, [onLevelUp])
+    if (onLevelUp && userId && !readLevelUpSeen(userId)) markLevelUpSeen(userId)
+  }, [onLevelUp, userId])
   const showLevelUpNew = !levelUpSeen && !onLevelUp && new Date() < LEVEL_UP_NEW_UNTIL
 
   const navLink = (label: string, slug: string) => {
