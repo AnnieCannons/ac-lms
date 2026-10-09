@@ -213,13 +213,24 @@ export default function RequestExtensionButton({
           Request Extension
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={() => { setRequestingAgain(false); setError(null); setStep('confirm'); setOpen(true) }}
-          className={`text-sm font-medium border rounded-full px-4 py-1.5 transition-colors ${statusColors[localRequest.status]}`}
-        >
-          Extension: {localRequest.status === 'pending' ? 'Pending' : localRequest.status === 'approved' ? 'Approved' : 'Not Approved'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setRequestingAgain(false); setError(null); setStep('confirm'); setOpen(true) }}
+            className={`text-sm font-medium border rounded-full px-4 py-1.5 transition-colors ${statusColors[localRequest.status]}`}
+          >
+            Extension: {localRequest.status === 'pending' ? 'Pending' : localRequest.status === 'approved' ? 'Approved' : 'Not Approved'}
+          </button>
+          {localRequest.status === 'denied' && (
+            <button
+              type="button"
+              onClick={() => { startNewRequest(); setOpen(true) }}
+              className="text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
+            >
+              Request another extension
+            </button>
+          )}
+        </div>
       )}
 
       {/* Modal backdrop */}
