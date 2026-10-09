@@ -33,7 +33,7 @@ export function PlainTextContent({ content }: { content: string }) {
   }
   if (lastIndex < content.length) parts.push({ type: 'text', value: content.slice(lastIndex) })
   return (
-    <p className="text-sm text-dark-text whitespace-pre-wrap break-all">
+    <p className="text-sm text-dark-text whitespace-pre-wrap [overflow-wrap:anywhere]">
       {parts.map((part, i) =>
         part.type === 'url' ? (
           <a key={i} href={part.value} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline">

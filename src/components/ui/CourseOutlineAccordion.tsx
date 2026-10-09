@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
+import { ExcusedBadge } from './AssignmentDueStatus'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import WikiView from '@/components/ui/WikiView'
@@ -151,9 +152,10 @@ interface Module {
   wikis?: WikiItem[]
 }
 
-type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
+type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; excused?: boolean }
 
 function AssignmentStatusBadge({ info, dueDate, isOptional }: { info: SubmissionInfo | undefined; dueDate?: string | null; isOptional?: boolean }) {
+  if (info?.excused) return <ExcusedBadge />
   // Optional: always an Optional pill, plus the normal status once turned in — never Late or Not Started
   if (isOptional) return (
     <span className="flex items-center gap-1.5 shrink-0">
@@ -283,7 +285,7 @@ function DayContent({
             {publishedAssignments.map(a => (
               <div
                 key={a.id}
-                className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
+                className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -598,7 +600,9 @@ export default function CourseOutlineAccordion({
                     const publishedAssignments = [...(day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                     const resources = day.resources ?? []
                     const dayQuizzes = (quizzes ?? []).filter(q => quizBelongsToDay(q, day, module, courseModuleTitles))
-                    const total = publishedAssignments.length + resources.length + dayQuizzes.length
+                    // Excused work is still listed (greyed out) but isn't counted as something to do
+                    const assignmentCount = publishedAssignments.filter(a => !submissionMap?.[a.id]?.excused).length
+                    const total = assignmentCount + resources.length + dayQuizzes.length
                     const isDayOpen = openDayIds.has(day.id)
 
                     return (
@@ -620,7 +624,7 @@ export default function CourseOutlineAccordion({
                             {total > 0 && !isDayOpen && (
                               <span className="text-xs text-muted-text">
                                 {[
-                                  publishedAssignments.length > 0 && `${publishedAssignments.length} assignment${publishedAssignments.length !== 1 ? 's' : ''}`,
+                                  assignmentCount > 0 && `${assignmentCount} assignment${assignmentCount !== 1 ? 's' : ''}`,
                                   resources.length > 0 && `${resources.length} resource${resources.length !== 1 ? 's' : ''}`,
                                   dayQuizzes.length > 0 && `${dayQuizzes.length} quiz${dayQuizzes.length !== 1 ? 'zes' : ''}`,
                                 ].filter(Boolean).join(' · ')}

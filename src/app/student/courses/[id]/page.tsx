@@ -5,6 +5,7 @@ import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
+import { getStudentOverrides } from '@/lib/student-overrides'
 import PageRefresher from '@/components/ui/PageRefresher'
 import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
@@ -110,6 +111,14 @@ export default async function StudentCourseDetailPage({
   const moduleWikis = (moduleWikisData ?? []) as ModuleWikiRow[]
   const dayWikis = (dayWikisData ?? []) as DayWikiRow[]
 
+  const overrides = await getStudentOverrides(user.id, [
+    ...modules.flatMap(m => (m.module_days ?? []).flatMap((d: { assignments?: Array<{ id: string }> }) => (d.assignments ?? []).map(a => a.id))),
+    ...crossAssignmentsArr.map(a => a.id),
+  ])
+  // Show the student's own (extended) due date so Late uses it
+  const withOverrideDue = <T extends { id: string; due_date?: string | null }>(a: T): T =>
+    overrides.get(a.id)?.due_date ? { ...a, due_date: overrides.get(a.id)!.due_date } : a
+
   // Build a mutable copy of modules to inject cross-posted data and wikis
   const modulesWithCross = modules.map(m => ({
     ...m,
@@ -123,16 +132,20 @@ export default async function StudentCourseDetailPage({
         .map(r => ({ ...r, careerDev: true }))
       return {
         ...d,
-        assignments: [...(d.assignments ?? []), ...extraAssignments],
+        assignments: [...(d.assignments ?? []), ...extraAssignments].map(a => withOverrideDue(a as { id: string; due_date?: string | null })),
         resources: [...(d.resources ?? []), ...extraResources],
         wikis: dayWikis.filter(w => w.module_day_id === d.id),
       }
     }),
   }))
 
-  const submissionMap = Object.fromEntries(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null }])
+  const submissionMap: Record<string, { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; submitted_at?: string | null; excused?: boolean }> = Object.fromEntries(
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null, excused: !!overrides.get(s.assignment_id)?.excused }])
   )
+  // Excused assignments with no submission row still need an entry so they render as Excused
+  for (const [assignmentId, o] of overrides) {
+    if (o.excused && !submissionMap[assignmentId]) submissionMap[assignmentId] = { status: 'draft', grade: null, excused: true }
+  }
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)
 

@@ -10,6 +10,7 @@ import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import { getImpersonation } from '@/lib/impersonate'
 import ImpersonateBanner from '@/components/ui/ImpersonateBanner'
+import { getStudentOverrides } from '@/lib/student-overrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,7 +69,7 @@ export default async function StudentAssignmentsPage({
     .order('order', { ascending: true })
 
   // Filter bonus assignments out — they belong to Level Up only; also filter trashed items
-  const modules = (rawModules ?? [])
+  const publishedModules = (rawModules ?? [])
     .filter(m => !m.title?.includes('DO NOT PUBLISH'))
     .map(m => ({
       ...m,
@@ -83,27 +84,28 @@ export default async function StudentAssignmentsPage({
   // Use service role when impersonating to bypass RLS
   const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
 
-  const allAssignmentIds = modules.flatMap(m =>
+  const allAssignmentIds = publishedModules.flatMap(m =>
     m.module_days.flatMap((d: { assignments: Array<{ id: string }> }) => d.assignments.map((a: { id: string }) => a.id))
   )
 
-  const [{ data: submissions }, { data: overrideRows }] = await Promise.all([
+  const [{ data: submissions }, overrides] = await Promise.all([
     fetchClient
       .from('submissions')
       .select('id, assignment_id, status, grade, submitted_at, is_late')
       .eq('student_id', effectiveUserId),
-    allAssignmentIds.length > 0
-      ? fetchClient
-          .from('assignment_overrides')
-          .select('assignment_id, excused')
-          .eq('student_id', effectiveUserId)
-          .in('assignment_id', allAssignmentIds)
-      : Promise.resolve({ data: [] }),
+    getStudentOverrides(effectiveUserId, allAssignmentIds),
   ])
 
-  const excusedSet = new Set(
-    (overrideRows ?? []).filter((o: { excused: boolean }) => o.excused).map((o: { assignment_id: string }) => o.assignment_id)
-  )
+  const excusedSet = new Set([...overrides].filter(([, o]) => o.excused).map(([id]) => id))
+
+  // Show the student's own (extended) due date, so Late / Past Due / filters all use it
+  const modules = publishedModules.map(m => ({
+    ...m,
+    module_days: m.module_days.map((d: { assignments: Array<{ id: string; due_date: string | null }> }) => ({
+      ...d,
+      assignments: d.assignments.map(a => ({ ...a, due_date: overrides.get(a.id)?.due_date ?? a.due_date })),
+    })),
+  }))
 
   const submissionIds = (submissions ?? []).map(s => s.id)
   const { data: commentedSubs } = submissionIds.length > 0

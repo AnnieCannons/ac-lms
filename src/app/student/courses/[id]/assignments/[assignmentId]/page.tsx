@@ -9,7 +9,7 @@ import { isStudentPreview } from '@/lib/student-preview'
 import StudentViewBanner from '@/components/ui/StudentViewBanner'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
-import { LateBadge, DueDatePill } from '@/components/ui/AssignmentDueStatus'
+import { LateBadge, DueDatePill, ExcusedBadge } from '@/components/ui/AssignmentDueStatus'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
 import { getExtensionRequestForStudent } from '@/lib/extension-actions'
@@ -260,11 +260,7 @@ export default async function StudentAssignmentPage({
             </span>
           )}
           <LateBadge dueDate={effectiveDueDate} isExcused={isExcused || !!assignment.is_optional} hasSubmission={!!existingSubmission} />
-          {isExcused && (
-            <span className="badge-amber shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
-              Excused
-            </span>
-          )}
+          {isExcused && <ExcusedBadge size="md" />}
         </div>
         <div className="flex items-center gap-3 mb-8 flex-wrap">
           {module && (

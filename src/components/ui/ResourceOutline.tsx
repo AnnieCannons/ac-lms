@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
+import { ExcusedBadge } from './AssignmentDueStatus'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import { trashResource } from '@/lib/trash-actions'
@@ -96,7 +97,7 @@ function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequir
       : null
     return <span className="flex items-center gap-1.5 shrink-0">{optionalPill}{statusPill}</span>
   }
-  if (info?.excused) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-muted-text shrink-0">Excused</span>
+  if (info?.excused) return <ExcusedBadge />
   // Once turned in, use the server-computed is_late flag (accounts for the student's own
   // timezone at submission time) rather than re-deriving it from date strings here — comparing
   // a UTC submitted_at timestamp's date slice against a local due date is off by a day in the
@@ -728,7 +729,7 @@ export default function ResourceOutline({
             <div
               role="listitem"
               key={a.id}
-              className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors gap-4"
+              className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
             >
               <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-dark-text">{a.title}</p>
@@ -900,8 +901,8 @@ export default function ResourceOutline({
                       .sort((a, b) => {
                         // In not-started view, sort late assignments first
                         if (!instructorView && filter === 'not-started') {
-                          const aLate = !!a.due_date && localDate(a.due_date) < todayLocal()
-                          const bLate = !!b.due_date && localDate(b.due_date) < todayLocal()
+                          const aLate = !submissionMap?.[a.id]?.excused && !!a.due_date && localDate(a.due_date) < todayLocal()
+                          const bLate = !submissionMap?.[b.id]?.excused && !!b.due_date && localDate(b.due_date) < todayLocal()
                           if (aLate && !bLate) return -1
                           if (!aLate && bLate) return 1
                         }
@@ -1000,14 +1001,14 @@ export default function ResourceOutline({
                               <div
                                 role="listitem"
                                 key={a.id}
-                                className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
+                                className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
                               >
                                 <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
                                   {a.due_date && (() => {
                                     const isPast = localDate(a.due_date) < todayLocal()
                                     const info = submissionMap?.[a.id]
-                                    const isResolved = info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
+                                    const isResolved = info?.excused || info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
                                     return (
                                       <p className={`text-xs font-medium mt-0.5 ${isPast && !isResolved && !a.is_optional ? 'text-amber-600' : 'text-muted-text'}`}>
                                         Due {formatDueDateWithTime(a.due_date)}
