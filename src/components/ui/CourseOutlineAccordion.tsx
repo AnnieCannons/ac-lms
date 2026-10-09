@@ -600,7 +600,9 @@ export default function CourseOutlineAccordion({
                     const publishedAssignments = [...(day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                     const resources = day.resources ?? []
                     const dayQuizzes = (quizzes ?? []).filter(q => quizBelongsToDay(q, day, module, courseModuleTitles))
-                    const total = publishedAssignments.length + resources.length + dayQuizzes.length
+                    // Excused work is still listed (greyed out) but isn't counted as something to do
+                    const assignmentCount = publishedAssignments.filter(a => !submissionMap?.[a.id]?.excused).length
+                    const total = assignmentCount + resources.length + dayQuizzes.length
                     const isDayOpen = openDayIds.has(day.id)
 
                     return (
@@ -622,7 +624,7 @@ export default function CourseOutlineAccordion({
                             {total > 0 && !isDayOpen && (
                               <span className="text-xs text-muted-text">
                                 {[
-                                  publishedAssignments.length > 0 && `${publishedAssignments.length} assignment${publishedAssignments.length !== 1 ? 's' : ''}`,
+                                  assignmentCount > 0 && `${assignmentCount} assignment${assignmentCount !== 1 ? 's' : ''}`,
                                   resources.length > 0 && `${resources.length} resource${resources.length !== 1 ? 's' : ''}`,
                                   dayQuizzes.length > 0 && `${dayQuizzes.length} quiz${dayQuizzes.length !== 1 ? 'zes' : ''}`,
                                 ].filter(Boolean).join(' · ')}
