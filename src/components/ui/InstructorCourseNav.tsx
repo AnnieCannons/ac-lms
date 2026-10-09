@@ -234,6 +234,15 @@ export default function InstructorCourseNav({
         <TrashNavLink courseId={courseId} pathname={pathname} />
 
         {isTa && (
+          <Link
+            href={`/instructor/cutting-edge-talks?from=${courseId}`}
+            className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith('/instructor/cutting-edge-talks') ? 'bg-teal-light text-teal-primary' : 'text-muted-text hover:text-dark-text hover:bg-border/20'}`}
+          >
+            Cutting Edge Talks
+          </Link>
+        )}
+
+        {isTa && (
           <>
             <SectionHeader label="Employment" open={employmentOpen} onToggle={toggleEmploymentOpen} />
             {employmentOpen && (

@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getMyCuttingEdgeTaskCount } from '@/lib/cutting-edge-actions'
+import { CUTTING_EDGE_TASKS_CHANGED } from '@/lib/cutting-edge'
 
 interface Props {
   courseId: string
@@ -12,6 +14,7 @@ interface Props {
 
 const TOP_ITEMS = [
   { label: 'General Info', slug: 'info' },
+  { label: 'Cutting Edge Talks', slug: 'cutting-edge-talks' },
 ]
 
 const COURSE_ITEMS = [
@@ -74,6 +77,19 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
     return () => { cancelled = true }
   }, [courseId])
 
+  // "Tasks due" badge on Cutting Edge Talks: refetched on navigation and whenever the
+  // student RSVPs or checks something off.
+  const [cuttingEdgeTasks, setCuttingEdgeTasks] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    const fetchCount = () => {
+      getMyCuttingEdgeTaskCount(courseId).then(n => { if (!cancelled) setCuttingEdgeTasks(n) }).catch(() => {})
+    }
+    fetchCount()
+    window.addEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount)
+    return () => { cancelled = true; window.removeEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount) }
+  }, [courseId, pathname])
+
   const getLevelUpSeen = useCallback(() => readLevelUpSeen(userId), [userId])
   const levelUpSeen = useSyncExternalStore(subscribeLevelUpSeen, getLevelUpSeen, () => true)
   const onLevelUp = pathname.startsWith(`/student/courses/${courseId}/level-up`)
@@ -97,6 +113,11 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         }`}
       >
         {label}
+        {slug === 'cutting-edge-talks' && cuttingEdgeTasks > 0 && (
+          <span className="badge-orange ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5 whitespace-nowrap">
+            Tasks due
+          </span>
+        )}
         {isNew && (
           <span className="badge-amber ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5">
             New

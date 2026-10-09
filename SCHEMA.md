@@ -541,6 +541,47 @@ In-app notifications for students and instructors.
 | `created_at` | timestamptz | Default: now() |
 | `emailed_at` | timestamptz | Nullable — set when included in a daily digest email; prevents re-sending |
 | `cleared_at` | timestamptz | Nullable — set when the user clears the notification; it is then hidden from the bell but the row stays (so the digest email is unaffected) |
+| `cutting_edge_event_id` | uuid | FK → cutting_edge_events, nullable — set on `cutting_edge_new_event` / `cutting_edge_question_reminder` / `cutting_edge_thanks_reminder` (bell only, never in the digest email) |
+
+---
+
+### cutting_edge_events
+Global Cutting Edge Talks (guest speakers), shared by every course. Each event owns its two checkbox assignments as columns — they are not rows in `assignments` and never touch gradebooks, missing/late or readiness. Written only by server actions (`src/lib/cutting-edge-actions.ts`) with the service client.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `title` | text | Required |
+| `speaker` | text | Nullable |
+| `starts_at` | timestamptz | Entered in the creator's timezone, shown in each viewer's local timezone (bell/Slack text and due-date/reminder logic use Pacific) |
+| `location_text` / `location_url` | text | Usually the Focus Friday Zoom; never a physical address |
+| `about_html` | text | Rich HTML (sanitized on render) |
+| `audience_all` | boolean | true = students in every course active at the event (or now, while upcoming); false = only `cutting_edge_event_courses` |
+| `block` | text | Nullable — `A`/`B`/`C`/`D`, the part of the day; a label only |
+| `status` | text | `draft` / `published` — students only see published; publishing can skip the RSVP notification ("publish quietly") |
+| `first_published_at` | timestamptz | Set on first publish; the "new event" RSVP prompt is sent only then |
+| `question_due_date` / `thanks_due_date` | date | Pacific calendar dates; default 7 days before / after the event |
+| `question_html` / `thanks_html` | text | Assignment instructions |
+| `question_padlet_url` / `thanks_padlet_url` | text | Per-event Padlet links; nullable (can be added later) |
+| `created_by` | uuid | FK → users |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | Soft-deletable |
+
+### cutting_edge_event_courses
+Course limits for events with `audience_all = false`. PK `(event_id, course_id)`.
+
+### cutting_edge_rsvps
+One row per student per event. PK `(event_id, user_id)`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `response` | text | `yes` / `no` / null — changeable until `starts_at` |
+| `question_done_at` | timestamptz | Submit Your Question checked off (required only for yes) |
+| `thanks_done_at` | timestamptz | Say Thank You checked off (required only for yes, after the event) |
+| `missed_at` | timestamptz | "I did not make it" — excuses the thank-you; mutually exclusive with `thanks_done_at` |
+| `updated_by` | uuid | Unused (staff overrides were dropped before launch) |
+
+### cutting_edge_notifications_sent
+Sent-log making each notification once per student per event. PK `(event_id, user_id, kind)`; `kind` is `new_event` / `question_reminder` / `thanks_reminder`; `slack_sent` records whether the Slack DM went through.
 
 ---
 
