@@ -9,10 +9,9 @@ export const SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
 export const MAX_RATING = 10
 const TARGET_DATE_DEFAULT_DAYS_OUT = 7
 
-// Adapted from the original Confidence Tracker's 1-10 scale (ConfidenceTracker.tsx's
-// SCORE_LABELS), reworded to apply to any tagged skill (not just coding) since instructors
-// can tag assignments with skills like "Canva" or "Presenting," not only technical ones.
-// Kept as its own copy since the two systems are deliberately independent.
+// Adapted from the original Confidence Tracker's 1-10 scale (since removed), reworded to apply
+// to any tagged skill (not just coding) since instructors can tag assignments with skills like
+// "Canva" or "Presenting," not only technical ones.
 export const RATING_LABELS: Record<number, string> = {
   1: "😳 I just learned this exists",
   2: "👀 I've seen examples of this",
