@@ -94,3 +94,62 @@ export async function removeAssignmentOverride(
   revalidatePath(`/instructor/courses/${courseId}`)
   return {}
 }
+
+/**
+ * Same as upsertAssignmentOverride, for many students at once (the "Paste
+ * names" flow). Every student must be enrolled in this course as a student.
+ */
+export async function bulkUpsertAssignmentOverrides(
+  assignmentId: string,
+  studentIds: string[],
+  courseId: string,
+  dueDate: string | null,
+  excused: boolean
+): Promise<{ overrides?: { id: string; student_id: string }[]; error?: string }> {
+  const auth = await getAuthedInstructor()
+  if ('error' in auth) return { error: auth.error }
+  const { admin } = auth
+
+  const ids = [...new Set(studentIds)]
+  if (ids.length === 0) return { overrides: [] }
+  if (!excused && !dueDate) return { error: 'Choose a due date or excuse the students' }
+  if (!await verifyAssignmentCourse(admin, assignmentId, courseId)) return { error: 'Not authorized' }
+
+  const { data: enrolled } = await admin
+    .from('course_enrollments')
+    .select('user_id')
+    .eq('course_id', courseId)
+    .eq('role', 'student')
+    .in('user_id', ids)
+  if ((enrolled ?? []).length !== ids.length) return { error: 'Some of these students are not enrolled in this course' }
+
+  const { data, error } = await admin
+    .from('assignment_overrides')
+    .upsert(
+      ids.map(student_id => ({ assignment_id: assignmentId, student_id, due_date: dueDate, excused })),
+      { onConflict: 'assignment_id,student_id' }
+    )
+    .select('id, student_id')
+  if (error) return { error: error.message }
+
+  // Recalculate is_late on existing submissions if the due date changed
+  if (dueDate) {
+    const [{ data: submissions }, { data: assignment }] = await Promise.all([
+      admin
+        .from('submissions')
+        .select('id, submitted_at, student_timezone')
+        .eq('assignment_id', assignmentId)
+        .in('student_id', ids)
+        .eq('status', 'submitted'),
+      admin.from('assignments').select('is_optional').eq('id', assignmentId).single(),
+    ])
+    await Promise.all((submissions ?? []).filter(s => s.submitted_at).map(s => {
+      // Optional assignments are never late
+      const isLate = excused || assignment?.is_optional ? false : isLateInTimezone(s.submitted_at, dueDate, s.student_timezone)
+      return admin.from('submissions').update({ is_late: isLate }).eq('id', s.id)
+    }))
+  }
+
+  revalidatePath(`/instructor/courses/${courseId}`)
+  return { overrides: data ?? [] }
+}
