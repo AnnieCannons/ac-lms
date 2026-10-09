@@ -60,7 +60,7 @@ export default async function StudentCourseDetailPage({
     studentDb.from('submissions').select('assignment_id, status, grade, submitted_at, is_late').eq('student_id', viewer.viewerId),
     studentDb.from('resource_stars').select('resource_id').eq('user_id', viewer.viewerId),
     studentDb.from('resource_completions').select('resource_id').eq('user_id', viewer.viewerId),
-    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
+    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).eq('is_practice', false).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
     dayIds.length > 0
       ? supabase.from('assignments').select('id, title, due_date, published, is_optional, submission_required, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),

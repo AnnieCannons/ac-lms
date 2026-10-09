@@ -5,6 +5,8 @@ import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import LevelUpFilter from '@/components/ui/LevelUpFilter'
+import LevelUpCards from '@/components/ui/LevelUpCards'
+import { getLevelUpLinks } from '@/lib/level-up-links'
 import { formatDueDateWithTime } from '@/lib/date-utils'
 import StudentPageBanner from '@/components/ui/StudentPageBanner'
 import { getStudentCourseViewer } from '@/lib/student-course-viewer'
@@ -81,6 +83,17 @@ export default async function StudentLevelUpPage({
 
   const hasContent = modules.length > 0 || bonusAssignments.length > 0
 
+  const [links, { count: practiceQuizCount }] = await Promise.all([
+    getLevelUpLinks(id),
+    admin
+      .from('quizzes')
+      .select('id', { count: 'exact', head: true })
+      .eq('course_id', id)
+      .eq('is_practice', true)
+      .eq('published', true)
+      .is('deleted_at', null),
+  ])
+
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
@@ -104,8 +117,11 @@ export default async function StudentLevelUpPage({
               <p className="text-muted-text text-sm">{course.code}</p>
             </div>
 
-            {hasContent ? (
-              <div className="flex flex-col gap-10">
+            <LevelUpCards courseId={id} links={links} practiceQuizCount={practiceQuizCount ?? 0} />
+
+            {hasContent && (
+              <div className="flex flex-col gap-10 mt-10">
+                <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide -mb-6">From your instructors</h2>
                 {modules.length > 0 && (
                   <LevelUpFilter
                     modules={modulesWithWikis as Parameters<typeof LevelUpFilter>[0]['modules']}
@@ -150,10 +166,6 @@ export default async function StudentLevelUpPage({
                     </div>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-                <p className="text-muted-text">No content available yet.</p>
               </div>
             )}
           </main>

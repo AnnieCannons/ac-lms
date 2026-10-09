@@ -101,9 +101,9 @@ export default async function StudentDayDetailPage({
 
   const [{ data: dayQuizData }, { data: crossQuizData }, { data: courseModules }] = await Promise.all([
     day.day_name
-      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).is('deleted_at', null)
+      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).eq('is_practice', false).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
-    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).is('deleted_at', null),
+    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).eq('is_practice', false).is('deleted_at', null),
     admin.from('modules').select('title').eq('course_id', id).is('deleted_at', null),
   ])
 

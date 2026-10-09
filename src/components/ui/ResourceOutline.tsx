@@ -426,20 +426,12 @@ export default function ResourceOutline({
   const moduleKey = `outline-modules-${courseId}-${mode}`
   const dayKey = `outline-days-${courseId}-${mode}`
 
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(moduleKey)
-      if (saved !== null) return new Set(JSON.parse(saved))
-    } catch {}
-    return new Set(modules.map(m => m.id))
-  })
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(dayKey)
-      if (saved !== null) return new Set(JSON.parse(saved))
-    } catch {}
-    return new Set()
-  })
+  // Start from fixed defaults so the server and the first browser render match, then
+  // restore the saved expand/collapse state after mount (reading localStorage during
+  // render caused a hydration mismatch on the Expand/Collapse All button)
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(modules.map(m => m.id)))
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => new Set())
+  const [collapseRestored, setCollapseRestored] = useState(false)
   const searchParams = useSearchParams()
   const [filter, setFilter] = useState<AssignmentFilter>(() => {
     const p = searchParams.get('filter') as AssignmentFilter | null
@@ -450,14 +442,28 @@ export default function ResourceOutline({
   const [collapsedPastDue, setCollapsedPastDue] = useState(false)
   const [collapsedUpcoming, setCollapsedUpcoming] = useState(false)
 
-  // Save whenever collapse state changes
+  /* eslint-disable react-hooks/set-state-in-effect -- browser-only saved state can only be read after hydration */
   useEffect(() => {
+    try {
+      const savedModules = localStorage.getItem(moduleKey)
+      if (savedModules !== null) setCollapsedModules(new Set(JSON.parse(savedModules)))
+      const savedDays = localStorage.getItem(dayKey)
+      if (savedDays !== null) setCollapsedDays(new Set(JSON.parse(savedDays)))
+    } catch {}
+    setCollapseRestored(true)
+  }, [moduleKey, dayKey])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Save whenever collapse state changes — but not before the saved state has been restored
+  useEffect(() => {
+    if (!collapseRestored) return
     try { localStorage.setItem(moduleKey, JSON.stringify([...collapsedModules])) } catch {}
-  }, [collapsedModules])
+  }, [collapsedModules, collapseRestored, moduleKey])
 
   useEffect(() => {
+    if (!collapseRestored) return
     try { localStorage.setItem(dayKey, JSON.stringify([...collapsedDays])) } catch {}
-  }, [collapsedDays])
+  }, [collapsedDays, collapseRestored, dayKey])
 
   const allExpanded = collapsedModules.size === 0
   const expandAll = () => {

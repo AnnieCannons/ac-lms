@@ -46,6 +46,8 @@ export type QuizRow = {
   published: boolean;
   questions: QuizQuestion[];
   max_attempts: number | null;
+  /** Ungraded, unlimited retakes, listed under Level Up instead of Quizzes */
+  is_practice?: boolean;
   day_title?: string | null;
   created_at?: string;
   updated_at?: string;

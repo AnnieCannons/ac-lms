@@ -212,11 +212,13 @@ export default function Assignments() {
             content: (
               <>
                 <DocP>
-                  <strong>Level Up Your Skills</strong>, in the sidebar under Course, is where optional bonus content
-                  lives — extra practice for students who want to go deeper on a topic or explore something new. It
-                  always appears in the sidebar, even when your instructor hasn&apos;t published anything there yet.
+                  <strong>Level Up Your Skills</strong>, in the sidebar under Course, is where optional extra learning
+                  lives — for students who want to go deeper on a topic or explore something new.
                 </DocP>
                 <DocList>
+                  <li><strong>Study tools</strong> at the top: <strong>Flashcards</strong>, and <strong>Practice quizzes</strong> — ungraded quizzes you can retake as often as you like. They never count toward your grades.</li>
+                  <li><strong>Learning platforms</strong>: cards for Udemy, Pluralsight and master.dev (AnnieCannons gives you a pro account on each), plus Codecademy and freeCodeCamp. Each card links to the site and lists the specific courses your instructors recommend.</li>
+                  <li>Below the cards, any Level Up modules and bonus assignments your instructors have published:</li>
                   <li>Use the <strong>Search Level Up…</strong> box, or click a skill-tag pill (or <strong>All</strong>), to narrow down the modules shown.</li>
                   <li>A separate <strong>Bonus Assignments</strong> list below the modules covers optional assignments attached to your regular coursework rather than to a Level Up module — each shows its skill tags, due date, and a <strong>View →</strong> link.</li>
                   <li>Bonus work is clearly marked with a purple <strong>Bonus</strong> pill. An unsubmitted bonus assignment never shows a Late badge, even past its due date — but if you submit one after the due date, it can still show a <strong>Late</strong> tag next to <strong>Turned In</strong>, same as a regular assignment. Your instructor grades it the same way as any other assignment.</li>

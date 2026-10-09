@@ -53,17 +53,19 @@ export async function POST(req: NextRequest) {
   if (!sourceCourse) return NextResponse.json({ error: 'Source course not found' }, { status: 404 })
 
   let modules: Row[], days: Row[], assignments: Row[], resources: Row[], checklistItems: Row[]
-  let courseSections: Row[], quizzes: Row[], wikis: Row[], assignmentSkills: Row[]
+  let courseSections: Row[], quizzes: Row[], wikis: Row[], assignmentSkills: Row[], levelUpLinks: Row[]
   try {
     modules = await fetchIn('modules', 'course_id', [sourceCourseId], { excludeDeleted: true })
     const moduleIds = modules.map(m => m.id)
     days = await fetchIn('module_days', 'module_id', moduleIds, { excludeDeleted: true })
     const dayIds = days.map(d => d.id)
-    ;[assignments, resources, courseSections, quizzes] = await Promise.all([
+    ;[assignments, resources, courseSections, quizzes, levelUpLinks] = await Promise.all([
       fetchIn('assignments', 'module_day_id', dayIds, { excludeDeleted: true }),
       fetchIn('resources', 'module_day_id', dayIds, { excludeDeleted: true }),
       fetchIn('course_sections', 'course_id', [sourceCourseId]),
       fetchIn('quizzes', 'course_id', [sourceCourseId], { excludeDeleted: true }),
+      // Only this course's own Level Up extras; shared links (course_id null) already show everywhere
+      fetchIn('level_up_links', 'course_id', [sourceCourseId]),
     ])
     const assignmentIds = assignments.map(a => a.id)
     const [moduleWikis, dayWikis] = await Promise.all([
@@ -202,7 +204,10 @@ export async function POST(req: NextRequest) {
       module_day_id: w.module_day_id ? dayIdMap.get(w.module_day_id) ?? null : null,
     })))
 
+    const newLevelUpLinks = await insertAll('level_up_links', levelUpLinks.map(l => copyRow(l, { course_id: newCourse.id })))
+
     stats = {
+      levelUpLinks: newLevelUpLinks.length,
       modules: newModules.length,
       days: newDays.length,
       assignments: newAssignments.length,

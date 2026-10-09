@@ -60,7 +60,7 @@ export async function submitQuiz(formData: FormData) {
 
   const { data: quiz, error: quizError } = await admin
     .from("quizzes")
-    .select("id, questions, max_attempts")
+    .select("id, questions, max_attempts, is_practice")
     .eq("id", quizId)
     .eq("course_id", courseId)
     .eq("published", true)
@@ -85,7 +85,8 @@ export async function submitQuiz(formData: FormData) {
     .maybeSingle();
 
   const currentAttemptCount = existingSub?.attempt_count ?? 0;
-  const maxAttempts = quiz.max_attempts as number | null;
+  // Practice quizzes are ungraded with unlimited retakes
+  const maxAttempts = quiz.is_practice ? null : quiz.max_attempts as number | null;
   if (maxAttempts !== null && currentAttemptCount >= maxAttempts) {
     redirect(`/student/courses/${courseId}/quizzes/${quizId}`);
   }

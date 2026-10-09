@@ -72,7 +72,7 @@ export default async function TakeQuizPage({
 
   const { data: quiz } = await admin
     .from("quizzes")
-    .select("id, title, module_title, questions, max_attempts")
+    .select("id, title, module_title, questions, max_attempts, is_practice")
     .eq("id", quizId)
     .eq("course_id", id)
     .eq("published", true)
@@ -89,7 +89,8 @@ export default async function TakeQuizPage({
     .maybeSingle();
 
   const rawQuestions = (quiz.questions ?? []) as Question[];
-  const maxAttempts: number | null = quiz.max_attempts ?? null;
+  // Practice quizzes are ungraded with unlimited retakes
+  const maxAttempts: number | null = quiz.is_practice ? null : quiz.max_attempts ?? null;
   const attemptCount = submission?.attempt_count ?? 0;
 
   // Shuffle choices deterministically per student + quiz + attempt number.
@@ -216,15 +217,18 @@ export default async function TakeQuizPage({
             <>
               <div className="mb-6">
                 <Link
-                  href={`/student/courses/${id}/quizzes`}
-                  aria-label="Back to quizzes"
+                  href={quiz.is_practice ? `/student/courses/${id}/level-up/practice` : `/student/courses/${id}/quizzes`}
+                  aria-label={quiz.is_practice ? "Back to practice quizzes" : "Back to quizzes"}
                   className="text-muted-text hover:text-teal-primary text-sm"
                 >
-                  ← Quizzes
+                  ← {quiz.is_practice ? "Practice quizzes" : "Quizzes"}
                 </Link>
               </div>
 
               <h1 className="text-2xl font-bold text-dark-text mb-1">{displayTitle}</h1>
+              {quiz.is_practice && (
+                <p className="text-xs font-medium text-teal-primary mb-1">Practice quiz · ungraded · retake as often as you like</p>
+              )}
               {quiz.module_title && (
                 <p className="text-sm text-muted-text mb-2">{quiz.module_title}</p>
               )}
