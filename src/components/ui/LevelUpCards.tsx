@@ -30,9 +30,14 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
         <span aria-hidden="true" className={MARK}>{info.mark}</span>
         <div className="min-w-0">
           <h3 id={`level-up-${platform}`} className="font-semibold text-dark-text">{info.name}</h3>
-          {info.proAccount && (
+          {/* Every platform card gets a badge so the headers line up */}
+          {info.proAccount ? (
             <span className="inline-block mt-0.5 text-xs font-medium bg-purple-light text-purple-primary border border-purple-primary/30 rounded-full px-2 py-0.5">
               Pro account included
+            </span>
+          ) : info.url && (
+            <span className="inline-block mt-0.5 text-xs font-medium bg-teal-light text-teal-primary border border-teal-primary/30 rounded-full px-2 py-0.5">
+              Free
             </span>
           )}
         </div>
@@ -104,8 +109,8 @@ export default function LevelUpCards({ courseId, links, practiceQuizCount }: { c
 
       <div>
         <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Learning platforms</h2>
-        {/* items-start: opening one card's course list doesn't stretch its neighbour */}
-        <div className="grid gap-4 sm:grid-cols-2 items-start">
+        {/* auto-rows-fr: every row (so every card) is the height of the tallest card */}
+        <div className="grid gap-4 sm:grid-cols-2 sm:auto-rows-fr">
           {LEVEL_UP_PLATFORM_IDS
             .filter(p => p !== 'other' || byPlatform('other').length > 0)
             .map(p => <PlatformCard key={p} platform={p} links={byPlatform(p)} />)}
