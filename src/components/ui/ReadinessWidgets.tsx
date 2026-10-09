@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceArea } from 'recharts'
 import { Send, Bell, CheckCircle2, ArrowUpCircle, PartyPopper, MessageSquare, CalendarX, FileX, RotateCcw, type LucideIcon } from 'lucide-react'
 import { MISSING_COLOR, NEEDS_REVISION_COLOR, ABSENCE_COLOR } from '@/components/ui/StudentStatsWidgets'
 import Link from 'next/link'
 import type { ReadinessHistoryPoint, EscalationEventRecord, PriorCourseMissing } from '@/lib/readiness-actions'
+import type { ReadinessNote } from '@/lib/readiness-notes-actions'
 import type { Zone } from '@/lib/readiness'
 
 export const READINESS_COLOR = '#6D2B5E' // --color-teal-primary (plum)
@@ -237,12 +238,116 @@ function cycleLabel(cycle: Cycle): string {
   return `${start} – ${end}`
 }
 
-/** Collapsible "here's everything that's happened" timeline -- shared by the student and staff views. */
-export function EscalationHistorySection({ events }: { events: EscalationEventRecord[] }) {
-  const [open, setOpen] = useState(false)
-  if (events.length === 0) return null
+/** YYYY-MM-DD in the viewer's timezone, comparable with a note's note_date. */
+function localDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-CA')
+}
 
-  const cycles = [...groupIntoCycles(events)].reverse()
+/** Where a note sits in the timeline: its real save time if it was written on the
+ * day it's dated, otherwise midday of the chosen date. */
+export function noteSortKey(note: Pick<ReadinessNote, 'noteDate' | 'createdAt'>): string {
+  if (localDay(note.createdAt) === note.noteDate) return note.createdAt
+  const [y, m, d] = note.noteDate.split('-').map(Number)
+  return new Date(y, m - 1, d, 12).toISOString()
+}
+
+/** One note as a timeline row, styled like an escalation event. `actions` (edit/delete)
+ * and the shared tag are staff-only; the student view passes neither. */
+export function NoteTimelineItem({ note, isLast, actions, showSharedTag }: {
+  note: ReadinessNote
+  isLast: boolean
+  actions?: React.ReactNode
+  showSharedTag?: boolean
+}) {
+  const { icon: Icon, color } = EVENT_ICON.manual_note
+  const { short, full } = formatCompactDate(noteSortKey(note))
+  return (
+    <li className="flex gap-3">
+      <div className="flex flex-col items-center shrink-0">
+        <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}1A` }}>
+          <Icon size={14} strokeWidth={2.25} style={{ color }} aria-hidden="true" />
+        </span>
+        {!isLast && <span className="flex-1 w-px bg-border" aria-hidden="true" />}
+      </div>
+      <div className={`flex-1 min-w-0 ${isLast ? '' : 'pb-4'}`}>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-dark-text font-medium">Note{note.authorName ? ` from ${note.authorName}` : ''}</span>
+          <span className="text-xs text-muted-text" title={full}>{short}</span>
+          {showSharedTag && note.visibleToStudent && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-light text-teal-primary">Shared with student</span>
+          )}
+          {actions && <span className="ml-auto flex items-center gap-3">{actions}</span>}
+        </div>
+        <p className="text-sm text-dark-text mt-0.5 whitespace-pre-wrap break-words">{note.body}</p>
+      </div>
+    </li>
+  )
+}
+
+type TimelineItem =
+  | { kind: 'event'; key: string; event: EscalationEventRecord }
+  | { kind: 'note'; key: string; note: ReadinessNote }
+
+type TimelineBlock =
+  | { kind: 'cycle'; key: string; cycle: Cycle; items: TimelineItem[] }
+  | { kind: 'notes'; key: string; items: TimelineItem[] }
+
+/** Escalation cycles plus notes, newest first. A note dated inside a cycle goes into
+ * that cycle's card; notes outside any cycle are grouped into plain "Notes" cards. */
+function buildTimeline(events: EscalationEventRecord[], notes: ReadinessNote[]): TimelineBlock[] {
+  const cycles = groupIntoCycles(events)
+  const cycleItems = new Map<Cycle, TimelineItem[]>(
+    cycles.map(c => [c, c.events.map(e => ({ kind: 'event' as const, key: e.createdAt, event: e }))]),
+  )
+  const loose: TimelineItem[] = []
+
+  for (const note of notes) {
+    const item: TimelineItem = { kind: 'note', key: noteSortKey(note), note }
+    const home = cycles.find(c => localDay(c.startedAt) <= note.noteDate && (!c.endedAt || note.noteDate <= localDay(c.endedAt)))
+    if (home) cycleItems.get(home)!.push(item)
+    else loose.push(item)
+  }
+
+  const desc = (a: { key: string }, b: { key: string }) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0)
+  const blocks: TimelineBlock[] = cycles.map(c => ({
+    kind: 'cycle', key: c.startedAt, cycle: c, items: cycleItems.get(c)!.sort(desc),
+  }))
+
+  // Each loose note is placed by date, and runs of them between cycles share one card.
+  const merged: TimelineBlock[] = []
+  for (const block of [...blocks, ...loose.map(n => ({ kind: 'notes' as const, key: n.key, items: [n] }))].sort(desc)) {
+    const prev = merged[merged.length - 1]
+    if (block.kind === 'notes' && prev?.kind === 'notes') prev.items.push(...block.items)
+    else merged.push(block)
+  }
+  return merged
+}
+
+/** Collapsible "here's everything that's happened" timeline -- shared by the student and
+ * staff views. Starts open. `renderNote` lets the staff view swap in editable note rows. */
+export function EscalationHistorySection({ events, notes = [], renderNote }: {
+  events: EscalationEventRecord[]
+  notes?: ReadinessNote[]
+  renderNote?: (note: ReadinessNote, isLast: boolean) => React.ReactNode
+}) {
+  const [open, setOpen] = useState(true)
+  const total = events.length + notes.length
+  if (total === 0) return null
+
+  const blocks = buildTimeline(events, notes)
+  const latestCycle = blocks.find(b => b.kind === 'cycle')
+
+  const renderItems = (items: TimelineItem[]) => (
+    <ul className="pl-0.5">
+      {items.map((item, idx) => {
+        const isLast = idx === items.length - 1
+        if (item.kind === 'event') return <EscalationHistoryItem key={item.event.id} event={item.event} isLast={isLast} />
+        return renderNote
+          ? <Fragment key={item.note.id}>{renderNote(item.note, isLast)}</Fragment>
+          : <NoteTimelineItem key={item.note.id} note={item.note} isLast={isLast} />
+      })}
+    </ul>
+  )
 
   return (
     <div className="border-t border-border pt-3">
@@ -251,28 +356,31 @@ export function EscalationHistorySection({ events }: { events: EscalationEventRe
         onClick={() => setOpen(o => !o)}
         className="text-xs font-semibold text-teal-primary hover:underline"
       >
-        {open ? '▲ Hide history' : `▼ Show history (${events.length})`}
+        {open ? '▲ Hide history' : `▼ Show history (${total})`}
       </button>
       {open && (
         <div className="mt-3 space-y-5">
-          {cycles.map((cycle, i) => {
-            const ongoing = !cycle.endedAt && i === 0
+          {blocks.map(block => {
+            if (block.kind === 'notes') {
+              return (
+                <div key={`notes-${block.key}`} className="rounded-xl border border-border bg-background p-3.5">
+                  {renderItems(block.items)}
+                </div>
+              )
+            }
+            const ongoing = !block.cycle.endedAt && block === latestCycle
             return (
               <div
-                key={cycle.events[0].id}
+                key={block.cycle.events[0].id}
                 className={`rounded-xl border p-3.5 ${ongoing ? 'escalation-ongoing-card' : 'border-border bg-background'}`}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-text">{cycleLabel(cycle)}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-text">{cycleLabel(block.cycle)}</span>
                   {ongoing && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full escalation-ongoing-badge">Ongoing</span>
                   )}
                 </div>
-                <ul className="pl-0.5">
-                  {[...cycle.events].reverse().map((e, idx, arr) => (
-                    <EscalationHistoryItem key={e.id} event={e} isLast={idx === arr.length - 1} />
-                  ))}
-                </ul>
+                {renderItems(block.items)}
               </div>
             )
           })}

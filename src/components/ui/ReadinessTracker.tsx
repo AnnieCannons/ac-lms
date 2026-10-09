@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
 import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, getMyPriorCourseMissing, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord, type PriorCourseMissing } from '@/lib/readiness-actions'
 import type { EscalationStatus } from '@/lib/readiness'
+import { getMyReadinessNotes, type ReadinessNote } from '@/lib/readiness-notes-actions'
 
 function BreakdownStat({ label, value }: { label: string; value: string }) {
   return (
@@ -182,20 +183,23 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
   const [status, setStatus] = useState<EscalationStatus | null>(null)
   const [escalationHistory, setEscalationHistory] = useState<EscalationEventRecord[]>([])
   const [priorMissing, setPriorMissing] = useState<PriorCourseMissing | null>(null)
+  const [notes, setNotes] = useState<ReadinessNote[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [h, s, eh, pm] = await Promise.all([
+    const [h, s, eh, pm, n] = await Promise.all([
       getMyReadinessHistory(courseId),
       getMyEscalationStatus(courseId),
       getMyEscalationHistory(courseId),
       getMyPriorCourseMissing(courseId),
+      getMyReadinessNotes(courseId).catch(() => []),
     ])
     setHistory(h)
     setStatus(s?.status ?? 'none')
     setEscalationHistory(eh)
     setPriorMissing(pm)
+    setNotes(n)
     setLoading(false)
   }, [courseId])
 
@@ -255,9 +259,9 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
 
         <ReadinessTrendChart history={history} />
 
-        {escalationHistory.length > 0 && (
+        {(escalationHistory.length > 0 || notes.length > 0) && (
           <div className="mt-4">
-            <EscalationHistorySection events={escalationHistory} />
+            <EscalationHistorySection events={escalationHistory} notes={notes} />
           </div>
         )}
       </div>

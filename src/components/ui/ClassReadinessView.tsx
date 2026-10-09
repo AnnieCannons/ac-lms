@@ -90,7 +90,7 @@ export default function ClassReadinessView({
   }
 
   const index = weeks.indexOf(weekStart)
-  const noDataCount = rows.filter(r => !r.week).length
+  const noDataCount = rows.filter(r => !r.week && !r.isTestAccount).length
 
   return (
     <div className="space-y-6">
@@ -159,6 +159,9 @@ export default function ClassReadinessView({
                   >
                     <UserAvatar name={row.name} avatarUrl={row.avatarUrl} size="sm" />
                     {row.name || '—'}
+                    {row.isTestAccount && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-border/40 text-muted-text">Test</span>
+                    )}
                   </Link>
                 </td>
                 <td className="px-4 py-3">
