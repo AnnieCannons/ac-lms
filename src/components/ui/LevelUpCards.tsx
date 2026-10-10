@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { LEVEL_UP_PLATFORMS, LEVEL_UP_PLATFORM_IDS, type LevelUpPlatform } from '@/lib/level-up-platforms'
 import type { LevelUpLink } from '@/lib/level-up-links'
@@ -23,7 +24,7 @@ function StudyCard({ href, mark, title, description, cta }: { href: string; mark
   )
 }
 
-function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: LevelUpLink[] }) {
+function PlatformCard({ platform, links, renderLinks }: { platform: LevelUpPlatform; links: LevelUpLink[]; renderLinks?: RenderLinks }) {
   const info = LEVEL_UP_PLATFORMS[platform]
   return (
     <section aria-labelledby={`level-up-${platform}`} className={CARD}>
@@ -45,7 +46,9 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
       </div>
       <p className="text-sm text-muted-text">{info.description}</p>
 
-      {links.length > 0 && <RecommendedCoursesDialog platformName={info.name} links={links} />}
+      {renderLinks
+        ? renderLinks(platform, links)
+        : links.length > 0 && <RecommendedCoursesDialog platformName={info.name} links={links} />}
 
       {info.url && (
         <a
@@ -61,9 +64,20 @@ function PlatformCard({ platform, links }: { platform: LevelUpPlatform; links: L
   )
 }
 
-/** The top of Level Up Your Skills: study tools, then a card per learning platform with its recommended courses. */
-export default function LevelUpCards({ courseId, links }: { courseId: string; links: LevelUpLink[] }) {
-  const levelUpPath = `/student/courses/${courseId}/level-up`
+type RenderLinks = (platform: LevelUpPlatform, links: LevelUpLink[]) => ReactNode
+
+/**
+ * The top of Level Up Your Skills: study tools, then a card per learning platform with its recommended courses.
+ * The instructor page renders the same cards with `instructor`: study tools point at the staff pages, every
+ * platform card shows (so links can be added to an empty one), and `renderLinks` swaps the student pop-up for the editor.
+ */
+export default function LevelUpCards({ courseId, links, instructor, renderLinks }: {
+  courseId: string
+  links: LevelUpLink[]
+  instructor?: boolean
+  renderLinks?: RenderLinks
+}) {
+  const levelUpPath = instructor ? `/instructor/courses/${courseId}/level-up` : `/student/courses/${courseId}/level-up`
   const byPlatform = (p: LevelUpPlatform) => links.filter(l => l.platform === p)
 
   return (
@@ -79,11 +93,11 @@ export default function LevelUpCards({ courseId, links }: { courseId: string; li
             cta="Open flashcards"
           />
           <StudyCard
-            href={`${levelUpPath}/practice`}
+            href={instructor ? `/instructor/courses/${courseId}/quizzes` : `${levelUpPath}/practice`}
             mark="?"
             title="Practice quizzes"
             description="Practice your skills with these ungraded quizzes."
-            cta="Practice"
+            cta={instructor ? 'Mark quizzes as Practice in Quizzes' : 'Practice'}
           />
         </div>
       </div>
@@ -93,8 +107,8 @@ export default function LevelUpCards({ courseId, links }: { courseId: string; li
         {/* auto-rows-fr: every row (so every card) is the height of the tallest card */}
         <div className="grid gap-4 sm:grid-cols-2 sm:auto-rows-fr">
           {LEVEL_UP_PLATFORM_IDS
-            .filter(p => p !== 'other' || byPlatform('other').length > 0)
-            .map(p => <PlatformCard key={p} platform={p} links={byPlatform(p)} />)}
+            .filter(p => p !== 'other' || instructor || byPlatform('other').length > 0)
+            .map(p => <PlatformCard key={p} platform={p} links={byPlatform(p)} renderLinks={renderLinks} />)}
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
-import { LEVEL_UP_PLATFORMS, LEVEL_UP_PLATFORM_IDS, type LevelUpPlatform } from '@/lib/level-up-platforms'
+import { useRef, useState } from 'react'
+import { LEVEL_UP_PLATFORMS, type LevelUpPlatform } from '@/lib/level-up-platforms'
+import LevelUpCards from './LevelUpCards'
 import type { LevelUpLink } from '@/lib/level-up-links'
 import {
   createLevelUpLink,
@@ -10,18 +11,19 @@ import {
   listLevelUpLinksForEditor,
 } from '@/lib/level-up-actions'
 
-type Draft = { platform: LevelUpPlatform; title: string; url: string; description: string }
-const EMPTY_DRAFT: Draft = { platform: 'codecademy', title: '', url: '', description: '' }
+type Draft = { title: string; url: string; description: string; shared: boolean }
 
 const INPUT = 'w-full border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary'
 const SMALL_BTN = 'text-xs text-muted-text hover:text-teal-primary disabled:opacity-30 disabled:hover:text-muted-text'
+const CHIP = 'text-[11px] font-medium rounded-full px-1.5 py-px border'
 
-function LinkForm({ initial, submitLabel, onSubmit, onCancel, lockPlatform }: {
+function LinkForm({ initial, submitLabel, onSubmit, onCancel, canChooseScope }: {
   initial: Draft
   submitLabel: string
   onSubmit: (draft: Draft) => Promise<string | null>
-  onCancel?: () => void
-  lockPlatform?: boolean
+  onCancel: () => void
+  /** Only when adding, and only for someone who may edit shared links */
+  canChooseScope?: boolean
 }) {
   const [draft, setDraft] = useState(initial)
   const [saving, setSaving] = useState(false)
@@ -35,31 +37,30 @@ function LinkForm({ initial, submitLabel, onSubmit, onCancel, lockPlatform }: {
     const err = await onSubmit(draft)
     setSaving(false)
     if (err) setError(err)
-    else if (!onCancel) setDraft({ ...EMPTY_DRAFT, platform: draft.platform })
   }
 
   return (
     <form onSubmit={submit} className="bg-background rounded-lg border border-border p-3 flex flex-col gap-2">
-      <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
-        <select
-          value={draft.platform}
-          onChange={e => set({ platform: e.target.value as LevelUpPlatform })}
-          disabled={lockPlatform}
-          aria-label="Platform"
-          className={INPUT}
-        >
-          {LEVEL_UP_PLATFORM_IDS.map(p => <option key={p} value={p}>{p === 'other' ? 'Other' : LEVEL_UP_PLATFORMS[p].name}</option>)}
-        </select>
-        <input value={draft.title} onChange={e => set({ title: e.target.value })} placeholder="Course title, e.g. Learn JavaScript" aria-label="Title" className={INPUT} />
-      </div>
+      <input value={draft.title} onChange={e => set({ title: e.target.value })} placeholder="Course title, e.g. Learn JavaScript" aria-label="Title" className={INPUT} />
       <input value={draft.url} onChange={e => set({ url: e.target.value })} placeholder="https://…" aria-label="Link" inputMode="url" className={INPUT} />
       <input value={draft.description} onChange={e => set({ description: e.target.value })} placeholder="Short note for students (optional)" aria-label="Description" className={INPUT} />
-      <div className="flex items-center gap-2">
+      {canChooseScope && (
+        <fieldset className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-dark-text">
+          <legend className="sr-only">Show in</legend>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={!draft.shared} onChange={() => set({ shared: false })} /> Only this course
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={draft.shared} onChange={() => set({ shared: true })} /> Every course
+          </label>
+        </fieldset>
+      )}
+      <div className="flex items-center gap-2 flex-wrap">
         <button type="submit" disabled={saving || !draft.title.trim() || !draft.url.trim()}
           className="px-3 py-1.5 text-sm font-semibold bg-teal-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">
           {saving ? 'Saving…' : submitLabel}
         </button>
-        {onCancel && <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-muted-text hover:text-dark-text">Cancel</button>}
+        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-muted-text hover:text-dark-text">Cancel</button>
         {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
       </div>
     </form>
@@ -76,14 +77,14 @@ function LinkRow({ link, canEdit, isFirst, isLast, onChange, courseId }: {
 }) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const shared = link.course_id === null
 
   if (editing) {
     return (
       <li>
         <LinkForm
-          initial={{ platform: link.platform, title: link.title, url: link.url, description: link.description ?? '' }}
+          initial={{ title: link.title, url: link.url, description: link.description ?? '', shared }}
           submitLabel="Save"
-          lockPlatform
           onCancel={() => setEditing(false)}
           onSubmit={async d => {
             const err = await onChange(() => updateLevelUpLink(link.id, courseId, { title: d.title, url: d.url, description: d.description }))
@@ -96,17 +97,19 @@ function LinkRow({ link, canEdit, isFirst, isLast, onChange, courseId }: {
   }
 
   return (
-    <li className={`flex items-start gap-3 px-3 py-2 rounded-lg border border-border bg-surface ${link.published ? '' : 'opacity-60'}`}>
-      <div className="flex-1 min-w-0">
-        <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-teal-primary hover:underline break-words">
-          {link.title} ↗
+    <li className={`pb-3 border-b border-border last:border-b-0 last:pb-0 ${link.published ? '' : 'opacity-60'}`}>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <a href={link.url} target="_blank" rel="noopener noreferrer" className="font-medium text-teal-primary hover:underline break-words">
+          {link.title} ↗<span className="sr-only"> (opens in a new tab)</span>
         </a>
-        {!link.published && <span className="ml-2 text-xs text-muted-text">(hidden from students)</span>}
-        {link.description && <p className="text-xs text-muted-text">{link.description}</p>}
-        <p className="text-xs text-muted-text truncate">{link.url}</p>
+        <span className={`${CHIP} ${shared ? 'border-border text-muted-text' : 'border-purple-primary/30 bg-purple-light text-purple-primary'}`}>
+          {shared ? 'Every course' : 'This course'}
+        </span>
+        {!link.published && <span className={`${CHIP} border-border text-muted-text`}>Hidden from students</span>}
       </div>
+      {link.description && <p className="text-sm text-muted-text mt-0.5">{link.description}</p>}
       {canEdit && (
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
           <button type="button" className={SMALL_BTN} disabled={isFirst} aria-label={`Move ${link.title} up`} onClick={() => onChange(() => moveLevelUpLink(link.id, courseId, 'up'))}>↑</button>
           <button type="button" className={SMALL_BTN} disabled={isLast} aria-label={`Move ${link.title} down`} onClick={() => onChange(() => moveLevelUpLink(link.id, courseId, 'down'))}>↓</button>
           <button type="button" className={SMALL_BTN} onClick={() => onChange(() => updateLevelUpLink(link.id, courseId, { published: !link.published }))}>
@@ -127,80 +130,25 @@ function LinkRow({ link, canEdit, isFirst, isLast, onChange, courseId }: {
   )
 }
 
-function LinkSection({ title, hint, links, canEdit, readOnlyNote, courseId, shared, onChange, refresh }: {
-  title: string
-  hint: string
+/**
+ * The recommended courses on one platform card. The card shows the same "N recommended courses" button students
+ * get (so it looks and sizes like theirs), but it opens an editor instead of the plain list.
+ */
+function PlatformLinks({ platform, links, canEditShared, courseId, refresh }: {
+  platform: LevelUpPlatform
   links: LevelUpLink[]
-  canEdit: boolean
-  readOnlyNote?: string
+  canEditShared: boolean
   courseId: string
-  shared: boolean
-  onChange: (action: () => Promise<{ error?: string }>) => Promise<string | null>
   refresh: () => Promise<void>
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const [adding, setAdding] = useState(false)
-  const platforms = LEVEL_UP_PLATFORM_IDS.filter(p => links.some(l => l.platform === p))
-
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-dark-text">{title}</h3>
-          <p className="text-xs text-muted-text">{hint}</p>
-          {!canEdit && readOnlyNote && <p className="text-xs text-muted-text italic mt-0.5">{readOnlyNote}</p>}
-        </div>
-        {canEdit && !adding && (
-          <button type="button" onClick={() => setAdding(true)} className="text-xs text-teal-primary hover:underline shrink-0">+ Add link</button>
-        )}
-      </div>
-
-      {adding && (
-        <LinkForm
-          initial={EMPTY_DRAFT}
-          submitLabel="Add link"
-          onCancel={() => setAdding(false)}
-          onSubmit={async d => {
-            const result = await createLevelUpLink({ courseId, shared, ...d })
-            if (result.error) return result.error
-            await refresh()
-            setAdding(false)
-            return null
-          }}
-        />
-      )}
-
-      {links.length === 0 && !adding && <p className="text-sm text-muted-text">No links yet.</p>}
-
-      {platforms.map(p => {
-        const group = links.filter(l => l.platform === p)
-        return (
-          <div key={p}>
-            <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1.5">{p === 'other' ? 'Other' : LEVEL_UP_PLATFORMS[p].name}</p>
-            <ul className="flex flex-col gap-1.5">
-              {group.map((l, i) => (
-                <LinkRow key={l.id} link={l} canEdit={canEdit} isFirst={i === 0} isLast={i === group.length - 1} courseId={courseId} onChange={onChange} />
-              ))}
-            </ul>
-          </div>
-        )
-      })}
-    </section>
-  )
-}
-
-/** Staff editor for the recommended course links on Level Up Your Skills (shared + this course's extras). */
-export default function LevelUpLinksEditor({ courseId, initialLinks, canEditShared }: {
-  courseId: string
-  initialLinks: LevelUpLink[]
-  canEditShared: boolean
-}) {
-  const [links, setLinks] = useState(initialLinks)
   const [error, setError] = useState<string | null>(null)
-
-  const refresh = async () => {
-    const result = await listLevelUpLinksForEditor(courseId)
-    if (result.error === undefined) setLinks(result.links)
-  }
+  const visible = links.filter(l => l.published).length
+  const hidden = links.length - visible
+  const name = LEVEL_UP_PLATFORMS[platform].name
+  const titleId = `edit-recommended-${platform}`
+  const close = () => { dialogRef.current?.close(); setAdding(false); setError(null) }
 
   // Runs one mutation, then reloads the list; returns an error message for inline display
   const onChange = async (action: () => Promise<{ error?: string }>) => {
@@ -212,35 +160,99 @@ export default function LevelUpLinksEditor({ courseId, initialLinks, canEditShar
   }
 
   return (
-    <div className="bg-surface rounded-2xl border border-border p-5 flex flex-col gap-6">
-      <div>
-        <h2 className="text-base font-semibold text-dark-text">Recommended course links</h2>
-        <p className="text-sm text-muted-text">
-          These show on the platform cards (Udemy, Pluralsight, master.dev, Codecademy, freeCodeCamp) at the top of the student Level Up page.
-        </p>
-        {error && <p role="alert" className="text-xs text-red-500 mt-1">{error}</p>}
-      </div>
-      <LinkSection
-        title="Shared with every course"
-        hint="Every course's Level Up page shows these."
-        readOnlyNote="Only instructors and staff can change shared links."
-        links={links.filter(l => l.course_id === null)}
-        canEdit={canEditShared}
-        courseId={courseId}
-        shared
-        onChange={onChange}
-        refresh={refresh}
-      />
-      <LinkSection
-        title="Only this course"
-        hint="Extras for this course, shown after the shared ones. Copied when the course is duplicated."
-        links={links.filter(l => l.course_id !== null)}
-        canEdit
-        courseId={courseId}
-        shared={false}
-        onChange={onChange}
-        refresh={refresh}
-      />
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => dialogRef.current?.showModal()}
+        aria-haspopup="dialog"
+        className="self-start text-sm font-semibold text-dark-text hover:text-teal-primary underline decoration-dotted underline-offset-4"
+      >
+        {links.length === 0
+          ? '+ Add recommended courses'
+          : `${visible} recommended course${visible === 1 ? '' : 's'}${hidden ? ` (+${hidden} hidden)` : ''} · Edit`}
+      </button>
+
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={titleId}
+        onClose={() => { setAdding(false); setError(null) }}
+        // A click on the backdrop lands on the <dialog> itself, not its content
+        onClick={e => { if (e.target === e.currentTarget) close() }}
+        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-border bg-surface text-dark-text p-0 backdrop:bg-black/60"
+      >
+        <div className="p-5 flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-4">
+            <h3 id={titleId} className="font-semibold text-dark-text">Recommended on {name}</h3>
+            <button type="button" onClick={close} aria-label="Close" className="text-muted-text hover:text-dark-text text-lg leading-none -mt-1">
+              ✕
+            </button>
+          </div>
+
+          {links.length === 0 && !adding && <p className="text-sm text-muted-text">No recommended courses yet.</p>}
+          {links.length > 0 && (
+            <ul className="flex flex-col gap-3">
+              {links.map(l => {
+                // ↑/↓ reorder within the link's own scope (every course, or this course)
+                const scope = links.filter(o => (o.course_id === null) === (l.course_id === null))
+                const i = scope.indexOf(l)
+                return (
+                  <LinkRow key={l.id} link={l} canEdit={l.course_id !== null || canEditShared}
+                    isFirst={i === 0} isLast={i === scope.length - 1} courseId={courseId} onChange={onChange} />
+                )
+              })}
+            </ul>
+          )}
+          {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
+
+          {adding ? (
+            <LinkForm
+              initial={{ title: '', url: '', description: '', shared: false }}
+              submitLabel="Add course"
+              canChooseScope={canEditShared}
+              onCancel={() => setAdding(false)}
+              onSubmit={async d => {
+                const result = await createLevelUpLink({ courseId, platform, shared: d.shared, title: d.title, url: d.url, description: d.description })
+                if (result.error) return result.error
+                await refresh()
+                setAdding(false)
+                return null
+              }}
+            />
+          ) : (
+            <button type="button" onClick={() => setAdding(true)} className="self-start text-sm text-teal-primary hover:underline">
+              + Add a course
+            </button>
+          )}
+        </div>
+      </dialog>
+    </>
+  )
+}
+
+/**
+ * Staff view of the top of Level Up Your Skills: the same cards students see, with each platform's
+ * recommended courses editable from its card's pop-up. Links are either shared with every course or this course's own.
+ */
+export default function LevelUpLinksEditor({ courseId, initialLinks, canEditShared }: {
+  courseId: string
+  initialLinks: LevelUpLink[]
+  canEditShared: boolean
+}) {
+  const [links, setLinks] = useState(initialLinks)
+
+  const refresh = async () => {
+    const result = await listLevelUpLinksForEditor(courseId)
+    if (result.error === undefined) setLinks(result.links)
+  }
+
+  return (
+    <LevelUpCards
+      courseId={courseId}
+      links={links}
+      instructor
+      renderLinks={(platform, platformLinks) => (
+        <PlatformLinks platform={platform} links={platformLinks} canEditShared={canEditShared} courseId={courseId} refresh={refresh} />
+      )}
+    />
   )
 }
