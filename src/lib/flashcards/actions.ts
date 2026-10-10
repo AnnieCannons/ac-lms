@@ -74,7 +74,7 @@ export async function checkAndCreateDueCardsNotification(): Promise<boolean> {
   await service.from('notifications').insert({
     user_id: user.id,
     type: 'cards_due_today',
-    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} due today across ${deckLabel}.`,
+    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} to study today across ${deckLabel}. Ready when you are!`,
     read: false,
   })
   return true
