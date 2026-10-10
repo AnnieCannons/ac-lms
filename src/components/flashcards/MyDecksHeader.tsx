@@ -26,7 +26,7 @@ export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
           <p className="text-sm text-muted-text mt-1">
-            {deckCount} {deckCount === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} due today
+            {deckCount} {deckCount === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} to study today
           </p>
         </div>
         <div className="flex gap-2 shrink-0">

@@ -18,7 +18,7 @@ export default async function StudyPage({ params }: { params: Promise<{ deckId: 
   if (!deck || cards.length === 0) {
     return (
       <div className="max-w-xl mx-auto px-6 py-16 text-center">
-        <p className="text-muted-text text-sm mb-4">No cards due for this deck.</p>
+        <p className="text-muted-text text-sm mb-4">Nothing to study in this deck right now.</p>
         <Link href="/flashcards" className="text-sm text-teal-primary hover:underline">← Back to My Decks</Link>
       </div>
     )
