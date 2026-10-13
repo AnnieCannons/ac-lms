@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds } = await req.json()
+  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds, readinessInstructorIds } = await req.json()
   if (!sourceCourseId || !newName || !newCode) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -135,6 +135,19 @@ export async function POST(req: NextRequest) {
     new Map(source.map((r, i) => [r.id as string, inserted[i].id as string]))
 
   // Course — everything except per-cohort links (Canvas, Airtable attendance) and status flags
+  // Accountability instructors are picked per cohort in the duplicate form
+  // (prefilled from the source), so only keep ids of real staff users.
+  const readinessCandidates: string[] = Array.isArray(readinessInstructorIds) ? readinessInstructorIds.filter(Boolean) : []
+  let validReadinessInstructorIds: string[] = []
+  if (readinessCandidates.length > 0) {
+    const { data: validUsers } = await service
+      .from('users')
+      .select('id')
+      .in('id', readinessCandidates)
+      .in('role', ['instructor', 'staff', 'admin'])
+    validReadinessInstructorIds = (validUsers ?? []).map(u => u.id)
+  }
+
   const { data: newCourse, error: courseError } = await service
     .from('courses')
     .insert(copyRow(sourceCourse, {
@@ -146,6 +159,7 @@ export async function POST(req: NextRequest) {
       is_template: false,
       canvas_course_id: null,
       airtable_course_name: null,
+      readiness_instructor_ids: validReadinessInstructorIds,
     }))
     .select().single()
 

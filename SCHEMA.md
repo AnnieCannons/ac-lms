@@ -46,6 +46,7 @@ A course offered on the platform.
 | `is_template` | boolean | Default: false |
 | `paid_learners` | boolean | Default: false — enables Benefits & PTO sidebar |
 | `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
+| `readiness_instructor_ids` | uuid[] | Default: `{}` — the course's actual instructors ("Accountability Instructors"), set in course setup / Edit Course Settings; readiness step 3 group DMs and 48h check-in reminders go to them, not to every `role='instructor'` enrollment |
 | `created_at` | timestamptz | Default: now() |
 
 ---
