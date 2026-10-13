@@ -47,6 +47,7 @@ A course offered on the platform.
 | `paid_learners` | boolean | Default: false — enables Benefits & PTO sidebar |
 | `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
 | `readiness_instructor_ids` | uuid[] | Default: `{}` — the course's actual instructors ("Accountability Instructors"), set in course setup / Edit Course Settings; readiness step 3 group DMs and 48h check-in reminders go to them, not to every `role='instructor'` enrollment |
+| `readiness_slack_channel` | text | Nullable — Slack channel id for this course's readiness posts (step 1/2 started, check-in completed, 48h overdue, process completed); options in `src/lib/readiness-channels.ts`. Null skips those posts |
 | `created_at` | timestamptz | Default: now() |
 
 ---

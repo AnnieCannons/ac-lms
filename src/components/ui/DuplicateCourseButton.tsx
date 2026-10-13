@@ -6,6 +6,7 @@ import { getInstructorUsers } from "@/lib/people-actions";
 import Modal from "./Modal";
 import DatePickerField from "./DatePickerField";
 import ReadinessInstructorsPicker from "./ReadinessInstructorsPicker";
+import ReadinessChannelSelect from "./ReadinessChannelSelect";
 
 type Stats = {
   modules: number;
@@ -32,6 +33,7 @@ export default function DuplicateCourseButton({
   courseStartDate,
   currentUserId,
   readinessInstructorIds,
+  readinessSlackChannel,
 }: {
   courseId: string;
   courseName: string;
@@ -39,6 +41,7 @@ export default function DuplicateCourseButton({
   courseStartDate: string | null;
   currentUserId: string;
   readinessInstructorIds: string[];
+  readinessSlackChannel: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,6 +57,7 @@ export default function DuplicateCourseButton({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loadingInstructors, setLoadingInstructors] = useState(false);
   const [readinessIds, setReadinessIds] = useState<Set<string>>(new Set());
+  const [readinessChannel, setReadinessChannel] = useState("");
 
   const handleOpen = async () => {
     setName(`Copy of ${courseName}`);
@@ -63,6 +67,7 @@ export default function DuplicateCourseButton({
     setError(null);
     setStats(null);
     setReadinessIds(new Set(readinessInstructorIds));
+    setReadinessChannel(readinessSlackChannel ?? "");
     setOpen(true);
 
     setLoadingInstructors(true);
@@ -100,6 +105,7 @@ export default function DuplicateCourseButton({
         newStartDate: startDate || null,
         instructorIds: Array.from(selectedIds),
         readinessInstructorIds: Array.from(readinessIds),
+        readinessSlackChannel: readinessChannel || null,
       }),
     });
 
@@ -216,6 +222,8 @@ export default function DuplicateCourseButton({
                 onChange={setReadinessIds}
                 loading={loadingInstructors}
               />
+
+              <ReadinessChannelSelect value={readinessChannel} onChange={setReadinessChannel} />
 
               <p className="text-xs text-muted-text -mt-3">
                 The weekly readiness score starts off on the new course. Turn it on in Edit Dates once the Airtable Course Name is set.

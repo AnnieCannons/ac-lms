@@ -7,6 +7,7 @@ import { createCourse } from '@/lib/course-actions'
 import { getInstructorUsers } from '@/lib/people-actions'
 import { createClient } from '@/lib/supabase/client'
 import ReadinessInstructorsPicker from '@/components/ui/ReadinessInstructorsPicker'
+import ReadinessChannelSelect from '@/components/ui/ReadinessChannelSelect'
 
 type InstructorOption = { id: string; name: string | null; email: string }
 
@@ -26,6 +27,7 @@ export default function NewCourseForm() {
   const [loadingInstructors, setLoadingInstructors] = useState(true)
   const [instructorSearch, setInstructorSearch] = useState('')
   const [readinessIds, setReadinessIds] = useState<Set<string>>(new Set())
+  const [readinessChannel, setReadinessChannel] = useState('')
 
   useEffect(() => {
     (async () => {
@@ -66,6 +68,7 @@ export default function NewCourseForm() {
       paidLearners,
       instructorIds: Array.from(selectedIds),
       readinessInstructorIds: Array.from(readinessIds),
+      readinessSlackChannel: readinessChannel || null,
     })
 
     setSubmitting(false)
@@ -174,6 +177,7 @@ export default function NewCourseForm() {
               onChange={setReadinessIds}
               loading={loadingInstructors}
             />
+            <ReadinessChannelSelect value={readinessChannel} onChange={setReadinessChannel} />
             <div>
               <p className="text-sm font-medium text-dark-text mb-2">Course Type</p>
               <button

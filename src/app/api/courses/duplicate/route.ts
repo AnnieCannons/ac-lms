@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
+import { validReadinessChannel } from '@/lib/readiness-channels'
 
 export async function POST(req: NextRequest) {
   // Auth check
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds, readinessInstructorIds } = await req.json()
+  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds, readinessInstructorIds, readinessSlackChannel } = await req.json()
   if (!sourceCourseId || !newName || !newCode) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -163,6 +164,7 @@ export async function POST(req: NextRequest) {
       // enforces this); without one it would score on assignments alone.
       readiness_enabled: false,
       readiness_instructor_ids: validReadinessInstructorIds,
+      readiness_slack_channel: validReadinessChannel(readinessSlackChannel),
     }))
     .select().single()
 
