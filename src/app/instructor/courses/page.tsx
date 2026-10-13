@@ -118,7 +118,7 @@ export default async function CoursesPage() {
 
   const { data: rawCourses } = await supabase
     .from('courses')
-    .select('id, name, code, start_date, end_date, is_template, archived, airtable_course_name, readiness_enabled, readiness_instructor_ids')
+    .select('id, name, code, start_date, end_date, is_template, archived, airtable_course_name, readiness_enabled, readiness_instructor_ids, readiness_slack_channel')
     .order('created_at', { ascending: false })
 
   const isCurrentCourse = (startDate: string | null | undefined, isTemplate: boolean, endDate?: string | null) => {
@@ -183,6 +183,7 @@ export default async function CoursesPage() {
                     initialAirtableCourseName={course.airtable_course_name ?? null}
                     initialReadinessEnabled={course.readiness_enabled ?? false}
                     initialReadinessInstructorIds={course.readiness_instructor_ids ?? []}
+                    initialReadinessSlackChannel={course.readiness_slack_channel ?? null}
                   />
                   <DuplicateCourseButton
                     courseId={course.id}
@@ -191,6 +192,7 @@ export default async function CoursesPage() {
                     courseStartDate={course.start_date ?? null}
                     currentUserId={user.id}
                     readinessInstructorIds={course.readiness_instructor_ids ?? []}
+                    readinessSlackChannel={course.readiness_slack_channel ?? null}
                   />
                   <DeleteCourseButton courseId={course.id} courseName={course.name} />
                   <ArchiveCourseButton

@@ -7,11 +7,9 @@ import { fetchClassAttendanceWeekly, type ClassStudentWeekly } from '@/lib/airta
 import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats-actions'
 import {
   courseRanDuringWeek,
-  detectTrack,
   getCourseStudents,
   getWeekRanges,
   resolveAirtableCourseName,
-  TRACK_CHANNELS,
   type CourseRow,
 } from '@/lib/weekly-report'
 import { notifyByEmail, openGroupDM, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
@@ -75,8 +73,6 @@ type EscalationEventType =
   | 'reset' | 'manual_note'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.anniecannons.com'
-const ROBYN_EMAIL = process.env.STUDENT_SUCCESS_MANAGER_EMAIL
-const DAWN_EMAIL = process.env.CAREER_DEV_MANAGER_EMAIL
 
 async function studentContactEmail(admin: AdminClient, studentId: string): Promise<{ name: string; email: string } | null> {
   const { data } = await admin.from('users').select('name, email, slack_email').eq('id', studentId).single()
@@ -85,24 +81,25 @@ async function studentContactEmail(admin: AdminClient, studentId: string): Promi
   return row ? { name: row.name, email: row.slack_email ?? row.email } : null
 }
 
-async function courseTrack(admin: AdminClient, courseId: string): Promise<ReturnType<typeof detectTrack>> {
+/** The course's readiness Slack channel, as set in course setup / Edit Course Settings. */
+async function courseReadinessChannel(admin: AdminClient, courseId: string): Promise<string | null> {
   const { data: courseRow } = await admin
     .from('courses')
-    .select('name, airtable_course_name')
+    .select('readiness_slack_channel')
     .eq('id', courseId)
     .single()
-  type Course = { name: string; airtable_course_name: string | null }
-  const course = courseRow as Course | null
-  return course ? detectTrack(course.name, course.airtable_course_name) : null
+  const channel = (courseRow as { readiness_slack_channel: string | null } | null)?.readiness_slack_channel ?? null
+  if (!channel) console.warn(`readiness: no Slack channel set for course ${courseId} -- channel post skipped`)
+  return channel
 }
 
-/** Posts to the class's track channel when a student starts step 1 or advances to step 2. */
+/** Posts to the course's readiness channel when a student starts step 1 or advances to step 2. */
 async function notifyChannelOfStepStart(admin: AdminClient, courseId: string, studentName: string, step: 1 | 2): Promise<void> {
-  const track = await courseTrack(admin, courseId)
-  if (!track) return
+  const channel = await courseReadinessChannel(admin, courseId)
+  if (!channel) return
   const startedText = step === 1 ? 'started the accountability process' : 'moved to step 2'
   await slackPostMessage(
-    TRACK_CHANNELS[track],
+    channel,
     `${studentName} has ${startedText}. Once they submit their form this channel will be notified. If 48 hours passes and the form is not submitted, both the student and this channel will get a notification.`,
   )
 }
@@ -127,15 +124,15 @@ async function sendStep2(admin: AdminClient, studentId: string, courseId: string
   await notifyChannelOfStepStart(admin, courseId, student.name, 2)
 }
 
-/** Posts to the class's track channel and DMs the student when 2 consecutive good weeks close out the process. */
+/** Posts to the course's readiness channel and DMs the student when 2 consecutive good weeks close out the process. */
 async function sendResolved(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
   const student = await studentContactEmail(admin, studentId)
   const name = student?.name ?? 'This student'
-  const track = await courseTrack(admin, courseId)
+  const channel = await courseReadinessChannel(admin, courseId)
 
-  if (track) {
+  if (channel) {
     await slackPostMessage(
-      TRACK_CHANNELS[track],
+      channel,
       `${name} has completed the accountability process after two consecutive weeks in good standing. Please follow up and congratulate them!`,
     )
   }
@@ -149,7 +146,7 @@ async function sendResolved(admin: AdminClient, studentId: string, courseId: str
 }
 
 /** Always in step 3 group DMs, on top of the student and the course's accountability instructors. */
-const STEP3_ALWAYS_EMAILS = ['cmh@anniecannons.com', ROBYN_EMAIL, DAWN_EMAIL]
+const STEP3_ALWAYS_EMAILS = ['cmh@anniecannons.com', 'robyn@anniecannons.com', 'dawn@anniecannons.com']
 
 /**
  * The course's actual instructors as picked in course setup / Edit Course
@@ -200,7 +197,7 @@ const FOLLOW_UP_PROMPT =
   "Who will follow up with the student regarding this? If there is a staff member already working with the student, it should be them. Otherwise the instructor should follow up unless they are feeling like they need more support. If you would like more support, please let us know here."
 
 /**
- * Posts to the student's track monitor channel when they complete a step1/step2
+ * Posts to the course's readiness channel when they complete a step1/step2
  * check-in, linking straight to the staff roster view where the full response
  * is readable (via "View response" in the accountability history).
  */
@@ -210,15 +207,8 @@ export async function notifyStaffOfCheckinCompletion(
   courseId: string,
   formType: 'acknowledgment' | 'reflection',
 ): Promise<void> {
-  const { data: courseRow } = await admin
-    .from('courses')
-    .select('name, airtable_course_name')
-    .eq('id', courseId)
-    .single()
-  type Course = { name: string; airtable_course_name: string | null }
-  const course = courseRow as Course | null
-  const track = course ? detectTrack(course.name, course.airtable_course_name) : null
-  if (!track) return
+  const channel = await courseReadinessChannel(admin, courseId)
+  if (!channel) return
 
   const { data: studentRow } = await admin.from('users').select('name').eq('id', studentId).single()
   const studentName = (studentRow as { name: string } | null)?.name ?? 'A student'
@@ -226,7 +216,7 @@ export async function notifyStaffOfCheckinCompletion(
   const link = `${APP_URL}/instructor/courses/${courseId}/roster/${studentId}`
 
   await slackPostMessage(
-    TRACK_CHANNELS[track],
+    channel,
     `*${studentName}* just completed their ${formLabel}: ${link}\n\n${FOLLOW_UP_PROMPT}`,
   )
 }
@@ -619,7 +609,7 @@ export type EscalationReminderResult = { reminded: number }
 /**
  * Checks for step1/step2 students who haven't completed their check-in within
  * 48 hours and haven't already been reminded. Posts a staff-visibility nudge
- * to the student's track monitor channel, and separately opens a group Slack
+ * to the course's readiness channel, and separately opens a group Slack
  * DM with the student and that course's instructors so the student is
  * addressed directly with the instructor already looped in -- falling back to
  * an individual DM to the student alone if the group DM can't be formed (e.g.
@@ -644,23 +634,16 @@ export async function runEscalationReminders(admin: AdminClient, cutoffHours = 4
     const completed = await hasCompletedCheckin(admin, row.student_id, row.course_id, row.status, row.step_started_at)
     if (completed) continue
 
-    const { data: courseRow } = await admin
-      .from('courses')
-      .select('name, airtable_course_name')
-      .eq('id', row.course_id)
-      .single()
-    type Course = { name: string; airtable_course_name: string | null }
-    const course = courseRow as Course | null
-    const track = course ? detectTrack(course.name, course.airtable_course_name) : null
+    const channel = await courseReadinessChannel(admin, row.course_id)
 
     const { data: studentRow } = await admin.from('users').select('name').eq('id', row.student_id).single()
     const studentName = (studentRow as { name: string } | null)?.name ?? 'A student'
 
     const stepLabel = row.status === 'step1' ? '1' : '2'
 
-    if (track) {
+    if (channel) {
       await slackPostMessage(
-        TRACK_CHANNELS[track],
+        channel,
         `Heads up: *${studentName}* hasn't completed their step ${stepLabel} accountability check-in yet (sent 48h+ ago).`,
       )
     }

@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { notifyByEmail } from '@/lib/slack'
+import { validReadinessChannel } from '@/lib/readiness-channels'
 
 /** Keeps only ids of real instructor/staff/admin users, for courses.readiness_instructor_ids. */
 async function validStaffIds(admin: ReturnType<typeof createServiceSupabaseClient>, ids: string[]): Promise<string[]> {
@@ -24,6 +25,7 @@ export async function createCourse(params: {
   paidLearners: boolean
   instructorIds?: string[]
   readinessInstructorIds?: string[]
+  readinessSlackChannel?: string | null
 }): Promise<{ courseId?: string; error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -46,6 +48,7 @@ export async function createCourse(params: {
       syllabus_content: params.syllabusContent,
       paid_learners: params.paidLearners,
       readiness_instructor_ids: readinessInstructorIds,
+      readiness_slack_channel: validReadinessChannel(params.readinessSlackChannel),
     })
     .select('id')
     .single()
@@ -86,6 +89,7 @@ export async function updateCourseDates(
   airtableCourseName: string | null = null,
   readinessEnabled: boolean | null = null,
   readinessInstructorIds: string[] | null = null,
+  readinessSlackChannel: string | null | undefined = undefined,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -128,6 +132,8 @@ export async function updateCourseDates(
   if (readinessInstructorIds !== null) {
     update.readiness_instructor_ids = await validStaffIds(createServiceSupabaseClient(), readinessInstructorIds)
   }
+
+  if (readinessSlackChannel !== undefined) update.readiness_slack_channel = validReadinessChannel(readinessSlackChannel)
 
   const { error } = await supabase
     .from('courses')
