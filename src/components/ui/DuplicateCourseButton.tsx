@@ -217,6 +217,10 @@ export default function DuplicateCourseButton({
                 loading={loadingInstructors}
               />
 
+              <p className="text-xs text-muted-text -mt-3">
+                The weekly readiness score starts off on the new course. Turn it on in Edit Dates once the Airtable Course Name is set.
+              </p>
+
               {error && (
                 <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3">
                   {error}

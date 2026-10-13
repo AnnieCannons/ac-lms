@@ -159,6 +159,9 @@ export async function POST(req: NextRequest) {
       is_template: false,
       canvas_course_id: null,
       airtable_course_name: null,
+      // Readiness needs an Airtable name for attendance (updateCourseDates
+      // enforces this); without one it would score on assignments alone.
+      readiness_enabled: false,
       readiness_instructor_ids: validReadinessInstructorIds,
     }))
     .select().single()
