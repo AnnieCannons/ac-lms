@@ -3,6 +3,18 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { notifyByEmail } from '@/lib/slack'
 
+/** Keeps only ids of real instructor/staff/admin users, for courses.readiness_instructor_ids. */
+async function validStaffIds(admin: ReturnType<typeof createServiceSupabaseClient>, ids: string[]): Promise<string[]> {
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (unique.length === 0) return []
+  const { data } = await admin
+    .from('users')
+    .select('id')
+    .in('id', unique)
+    .in('role', ['instructor', 'staff', 'admin'])
+  return (data ?? []).map(u => u.id as string)
+}
+
 export async function createCourse(params: {
   name: string
   code: string
@@ -11,6 +23,7 @@ export async function createCourse(params: {
   syllabusContent: string | null
   paidLearners: boolean
   instructorIds?: string[]
+  readinessInstructorIds?: string[]
 }): Promise<{ courseId?: string; error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -22,6 +35,7 @@ export async function createCourse(params: {
   }
 
   const admin = createServiceSupabaseClient()
+  const readinessInstructorIds = await validStaffIds(admin, params.readinessInstructorIds ?? [])
   const { data: course, error: courseError } = await admin
     .from('courses')
     .insert({
@@ -31,6 +45,7 @@ export async function createCourse(params: {
       end_date: params.endDate,
       syllabus_content: params.syllabusContent,
       paid_learners: params.paidLearners,
+      readiness_instructor_ids: readinessInstructorIds,
     })
     .select('id')
     .single()
@@ -70,6 +85,7 @@ export async function updateCourseDates(
   endDate: string | null,
   airtableCourseName: string | null = null,
   readinessEnabled: boolean | null = null,
+  readinessInstructorIds: string[] | null = null,
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -107,6 +123,10 @@ export async function updateCourseDates(
       return { error: 'Set an Airtable Course Name before enabling the weekly readiness score.' }
     }
     update.readiness_enabled = readinessEnabled
+  }
+
+  if (readinessInstructorIds !== null) {
+    update.readiness_instructor_ids = await validStaffIds(createServiceSupabaseClient(), readinessInstructorIds)
   }
 
   const { error } = await supabase

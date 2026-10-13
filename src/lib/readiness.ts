@@ -148,22 +148,40 @@ async function sendResolved(admin: AdminClient, studentId: string, courseId: str
   }
 }
 
+/** Always in step 3 group DMs, on top of the student and the course's accountability instructors. */
+const STEP3_ALWAYS_EMAILS = ['cmh@anniecannons.com', ROBYN_EMAIL, DAWN_EMAIL]
+
+/**
+ * The course's actual instructors as picked in course setup / Edit Course
+ * Settings (courses.readiness_instructor_ids) -- not every role='instructor'
+ * enrollment, which also holds staff who self-enrolled to edit content.
+ */
+async function readinessInstructorEmails(admin: AdminClient, courseId: string): Promise<string[]> {
+  const { data: courseRow } = await admin
+    .from('courses')
+    .select('readiness_instructor_ids')
+    .eq('id', courseId)
+    .single()
+  const ids = (courseRow as { readiness_instructor_ids: string[] | null } | null)?.readiness_instructor_ids ?? []
+  if (ids.length === 0) return []
+  const { data: userRows } = await admin.from('users').select('email, slack_email').in('id', ids)
+  type Row = { email: string; slack_email: string | null }
+  return ((userRows as Row[] | null) ?? [])
+    .map(u => u.slack_email ?? u.email)
+    .filter((e): e is string => !!e)
+}
+
+/** Slack user ids for a list of emails, skipping blanks and duplicates. */
+async function slackIdsForEmails(emails: (string | null | undefined)[]): Promise<string[]> {
+  const unique = [...new Set(emails.filter((e): e is string => !!e).map(e => e.toLowerCase()))]
+  const ids = (await Promise.all(unique.map(slackLookupByEmail))).filter((id): id is string => !!id)
+  return [...new Set(ids)]
+}
+
 async function sendStep3(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
   const student = await studentContactEmail(admin, studentId)
-  const { data: instructorRows } = await admin
-    .from('course_enrollments')
-    .select('users(email, slack_email)')
-    .eq('course_id', courseId)
-    .eq('role', 'instructor')
-  type Row = { users: { email: string; slack_email: string | null } | null }
-  const instructorEmails = ((instructorRows as unknown as Row[]) ?? [])
-    .map(r => r.users?.slack_email ?? r.users?.email)
-    .filter((e): e is string => !!e)
-
-  const emails = [student?.email, ...instructorEmails, ROBYN_EMAIL, DAWN_EMAIL]
-    .filter((e): e is string => !!e)
-
-  const slackIds = (await Promise.all(emails.map(slackLookupByEmail))).filter((id): id is string => !!id)
+  const instructorEmails = await readinessInstructorEmails(admin, courseId)
+  const slackIds = await slackIdsForEmails([student?.email, ...STEP3_ALWAYS_EMAILS, ...instructorEmails])
   if (slackIds.length < 2) {
     console.warn(`readiness: could not resolve enough Slack IDs for step3 group DM (student ${studentId})`)
     return
@@ -171,10 +189,10 @@ async function sendStep3(admin: AdminClient, studentId: string, courseId: string
 
   const channel = await openGroupDM(slackIds)
   if (!channel) return
-  const name = student?.name ?? 'this student'
+  const greeting = student?.name ? `Hi ${student.name}!` : 'Hi!'
   await slackPostMessage(
     channel,
-    `Hi all — ${name} has been in the student accountability process for a couple of weeks without getting back to a good standing. Let's find a time to meet and get on the same page. :calendar:`,
+    `${greeting} We wanted to get everyone together in one place. You have been in the readiness process and are now in step 3. Let's get a meeting on the calendar so we can all get on the same page and see if we can make a plan to get you back to good standing. One of us will follow up here with a few times shortly.`,
   )
 }
 
@@ -648,22 +666,14 @@ export async function runEscalationReminders(admin: AdminClient, cutoffHours = 4
     }
 
     // Also nudge the student directly, in a group DM with the course's
-    // instructors so they see it land and can follow up without a second hop.
-    const { data: instructorRows } = await admin
-      .from('course_enrollments')
-      .select('users(email, slack_email)')
-      .eq('course_id', row.course_id)
-      .eq('role', 'instructor')
-    type InstructorRow = { users: { email: string; slack_email: string | null } | null }
-    const instructorEmails = ((instructorRows as unknown as InstructorRow[]) ?? [])
-      .map(r => r.users?.slack_email ?? r.users?.email)
-      .filter((e): e is string => !!e)
+    // accountability instructors so they see it land and can follow up
+    // without a second hop.
+    const instructorEmails = await readinessInstructorEmails(admin, row.course_id)
 
     const student = await studentContactEmail(admin, row.student_id)
     const reminderText = `Reminder: ${studentName}, your step ${stepLabel} form is overdue. Please fill it out as soon as possible, and let your instructor know if you need support. ${APP_URL}/student/readiness`
 
-    const reminderEmails = [student?.email, ...instructorEmails].filter((e): e is string => !!e)
-    const reminderSlackIds = (await Promise.all(reminderEmails.map(slackLookupByEmail))).filter((id): id is string => !!id)
+    const reminderSlackIds = await slackIdsForEmails([student?.email, ...instructorEmails])
     const reminderChannel = reminderSlackIds.length >= 2 ? await openGroupDM(reminderSlackIds) : null
 
     if (reminderChannel) {
