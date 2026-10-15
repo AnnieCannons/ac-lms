@@ -38,6 +38,9 @@ function notificationHref(n: Notification): string | null {
   if (n.type === 'cards_due_today') {
     return '/flashcards'
   }
+  if (n.type === 'readiness_note_shared') {
+    return n.course_id ? `/student/readiness?course=${n.course_id}` : '/student/readiness'
+  }
   if (n.type.startsWith('cutting_edge_') && n.course_id && n.cutting_edge_event_id) {
     const base = `/student/courses/${n.course_id}/cutting-edge-talks/${n.cutting_edge_event_id}`
     if (n.type === 'cutting_edge_question_reminder') return `${base}/question`
