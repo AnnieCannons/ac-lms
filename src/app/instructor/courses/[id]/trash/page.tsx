@@ -4,18 +4,15 @@ import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { getTrashedItems, emptyTrash } from '@/lib/trash-actions'
+import { getTrashedItems } from '@/lib/trash-actions'
 import TrashView from './TrashView'
 
 export default async function TrashPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ action?: string }>
 }) {
   const { id } = await params
-  const { action } = await searchParams
   const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
   if (isTa) redirect(`/instructor/courses/${id}`)
 
@@ -25,11 +22,6 @@ export default async function TrashPage({
   const { data: course } = await admin.from('courses').select('id, name').eq('id', id).single()
   if (!course) redirect('/instructor/courses')
 
-  // Handle ?action=empty from the weekly popup
-  if (action === 'empty') {
-    await emptyTrash(id)
-    redirect(`/instructor/courses/${id}/trash`)
-  }
 
   const { items = [], error } = await getTrashedItems(id)
 
