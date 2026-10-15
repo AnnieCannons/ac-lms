@@ -61,7 +61,7 @@ describe('readiness notes actions', () => {
 
   it('saves a trimmed note authored by the caller', async () => {
     signedInAs('staff')
-    const log = adminReturning({ error: null })
+    const log = adminReturning({ data: { id: 'n1' }, error: null })
     expect(await addReadinessNote(valid)).toEqual({})
     const insert = log.find(([m]) => m === 'insert')
     expect(insert?.[1][0]).toMatchObject({ student_id: 's1', course_id: 'c1', note_date: '2026-10-09', body: 'Met about attendance', author_id: 'me', visible_to_student: false })
@@ -69,7 +69,7 @@ describe('readiness notes actions', () => {
 
   it('stores the share-with-student choice', async () => {
     signedInAs('instructor')
-    const log = adminReturning({ error: null })
+    const log = adminReturning({ data: { id: 'n1' }, error: null })
     await addReadinessNote({ ...valid, visibleToStudent: true })
     expect(log.find(([m]) => m === 'insert')?.[1][0]).toMatchObject({ visible_to_student: true })
   })

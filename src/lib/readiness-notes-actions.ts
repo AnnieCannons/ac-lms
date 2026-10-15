@@ -33,6 +33,38 @@ type NoteRow = {
 
 const MAX_BODY = 5000
 const STAFF_ROLES = ['instructor', 'staff', 'admin']
+const READINESS_NOTE_SHARED_TYPE = 'readiness_note_shared'
+
+type AdminClient = ReturnType<typeof createServiceSupabaseClient>
+
+/** Bell-only (not in the digest email): tells the student a note was shared with them. Sent when
+ * a note is saved as shared or switched from staff-only to shared, never on other edits. Linked
+ * to the note, so it goes away when the note is unshared or deleted. A failure here never fails
+ * the save. */
+async function notifyNoteShared(
+  admin: AdminClient,
+  noteId: string,
+  studentId: string,
+  courseId: string,
+  authorId: string,
+) {
+  const { data: author } = await admin.from('users').select('name').eq('id', authorId).maybeSingle()
+  const who = (author as { name: string | null } | null)?.name?.trim() || 'Your instructor'
+  const { error } = await admin.from('notifications').insert({
+    user_id: studentId,
+    type: READINESS_NOTE_SHARED_TYPE,
+    course_id: courseId,
+    readiness_note_id: noteId,
+    message: `${who} shared a note with you on your Weekly Readiness page.`,
+  })
+  if (error) console.error('readiness-notes: failed to insert bell notification', error)
+}
+
+/** Takes a note's bell notification away once the student can no longer see the note. */
+async function removeNoteNotification(admin: AdminClient, noteId: string) {
+  const { error } = await admin.from('notifications').delete().eq('readiness_note_id', noteId)
+  if (error) console.error('readiness-notes: failed to remove bell notification', error)
+}
 
 async function requireStaff(): Promise<{ userId: string; role: string } | null> {
   const supabase = await createServerSupabaseClient()
@@ -126,15 +158,18 @@ export async function addReadinessNote(input: {
   if (invalid) return { error: invalid }
 
   const admin = createServiceSupabaseClient()
-  const { error } = await admin.from('readiness_notes').insert({
+  const { data, error } = await admin.from('readiness_notes').insert({
     student_id: input.studentId,
     course_id: input.courseId,
     note_date: input.noteDate,
     body: input.body.trim(),
     visible_to_student: input.visibleToStudent === true,
     author_id: me.userId,
-  })
-  if (error) return { error: 'Couldn’t save the note. Please try again.' }
+  }).select('id').single()
+  if (error || !data) return { error: 'Couldn’t save the note. Please try again.' }
+  if (input.visibleToStudent === true) {
+    await notifyNoteShared(admin, (data as { id: string }).id, input.studentId, input.courseId, me.userId)
+  }
   return {}
 }
 
@@ -151,6 +186,12 @@ export async function updateReadinessNote(input: {
   if (invalid) return { error: invalid }
 
   const admin = createServiceSupabaseClient()
+  const { data: before } = await admin
+    .from('readiness_notes')
+    .select('student_id, course_id, visible_to_student')
+    .eq('id', input.id)
+    .eq('author_id', me.userId)
+    .maybeSingle()
   const { data, error } = await admin
     .from('readiness_notes')
     .update({ note_date: input.noteDate, body: input.body.trim(), visible_to_student: input.visibleToStudent === true, updated_at: new Date().toISOString() })
@@ -159,6 +200,12 @@ export async function updateReadinessNote(input: {
     .select('id')
   if (error) return { error: 'Couldn’t save the note. Please try again.' }
   if (!data || data.length === 0) return { error: 'Only the person who wrote a note can edit it.' }
+  const prev = before as { student_id: string; course_id: string; visible_to_student: boolean } | null
+  if (prev && !prev.visible_to_student && input.visibleToStudent === true) {
+    await notifyNoteShared(admin, input.id, prev.student_id, prev.course_id, me.userId)
+  } else if (prev?.visible_to_student && input.visibleToStudent !== true) {
+    await removeNoteNotification(admin, input.id)
+  }
   return {}
 }
 

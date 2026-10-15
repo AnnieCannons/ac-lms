@@ -78,4 +78,14 @@ describe('NotificationBell', () => {
     const item = screen.getByText(REMINDER.message).closest('li')!
     expect(within(item).getByRole('button', { name: /^Clear notification/ })).toBeInTheDocument()
   })
+
+  it('opens the student Weekly Readiness page for that course when a shared-note notification is clicked', async () => {
+    const NOTE = { ...base, id: 'n3', type: 'readiness_note_shared', course_id: 'c1', message: 'Catie shared a note with you on your Weekly Readiness page.' }
+    vi.mocked(getMyNotifications).mockResolvedValue([NOTE])
+    const user = userEvent.setup()
+    render(<NotificationBell />)
+    await openBell(user)
+    await user.click(screen.getByText(NOTE.message))
+    expect(push).toHaveBeenCalledWith('/student/readiness?course=c1')
+  })
 })
