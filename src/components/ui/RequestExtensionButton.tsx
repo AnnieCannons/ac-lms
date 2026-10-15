@@ -79,12 +79,16 @@ export default function RequestExtensionButton({
   existingRequest,
   assignmentTitle,
   dueDate,
+  hasSubmitted = false,
 }: {
   assignmentId: string
   courseId: string
   existingRequest: ExtensionRequest | null
   assignmentTitle: string
   dueDate: string | null
+  // Once the student has turned the assignment in, they can't ask for (more) time.
+  // An existing request still shows its status.
+  hasSubmitted?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<'intro' | 'form' | 'confirm'>('intro')
@@ -195,6 +199,32 @@ export default function RequestExtensionButton({
     setStep('intro')
   }
 
+  // No request on file and no way to make one: show the button greyed out with
+  // a tooltip so the student knows why. aria-disabled (not disabled) keeps it
+  // focusable, so keyboard users get the tooltip too.
+  if (hasSubmitted && !localRequest) {
+    return (
+      <div className="group relative inline-block">
+        <button
+          type="button"
+          aria-disabled="true"
+          aria-describedby="extension-submitted-tooltip"
+          onClick={e => e.preventDefault()}
+          className="text-sm font-medium text-muted-text border border-border bg-surface rounded-full px-4 py-1.5 opacity-60 cursor-not-allowed"
+        >
+          Request Extension
+        </button>
+        <div
+          id="extension-submitted-tooltip"
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 w-56 scale-95 rounded-lg bg-dark-text px-2.5 py-1.5 text-xs [color:var(--color-background)] opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100"
+        >
+          This assignment has already been submitted, so an extension can no longer be requested.
+        </div>
+      </div>
+    )
+  }
+
   const statusColors = {
     pending: 'bg-amber-500/10 text-amber-700 border-amber-500',
     approved: 'bg-green-500/10 text-green-700 border-green-500',
@@ -221,7 +251,7 @@ export default function RequestExtensionButton({
           >
             Extension: {localRequest.status === 'pending' ? 'Pending' : localRequest.status === 'approved' ? 'Approved' : 'Not Approved'}
           </button>
-          {localRequest.status === 'denied' && (
+          {localRequest.status === 'denied' && !hasSubmitted && (
             <button
               type="button"
               onClick={() => { startNewRequest(); setOpen(true) }}
@@ -310,13 +340,15 @@ export default function RequestExtensionButton({
                           <p className="text-sm text-dark-text">{localRequest.instructor_comment}</p>
                         </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={startNewRequest}
-                        className="self-start text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
-                      >
-                        Request another extension
-                      </button>
+                      {!hasSubmitted && (
+                        <button
+                          type="button"
+                          onClick={startNewRequest}
+                          className="self-start text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
+                        >
+                          Request another extension
+                        </button>
+                      )}
                     </>
                   )}
                   {error && <p className="text-sm text-red-500">{error}</p>}
