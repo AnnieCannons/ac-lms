@@ -600,8 +600,10 @@ export async function saveStudentComment(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // RLS + explicit student_id filter ensures students can only update their own submissions
-  const { error } = await supabase
+  // Service client + explicit student_id filter: students can only update their own
+  // submission's comment. (Kept off the RLS client so no student UPDATE policy on
+  // submissions is needed — such a policy would also let them set grade/status.)
+  const { error } = await createServiceSupabaseClient()
     .from('submissions')
     .update({ student_comment: comment.trim() || null })
     .eq('id', submissionId)
