@@ -12,6 +12,7 @@ import {
   resolveAirtableStudentIdByEmail,
 } from '@/lib/airtable'
 import { filterRecordsByCourse } from '@/lib/attendance-utils'
+import { getAttendanceAccess, canSeeClass } from '@/lib/attendance-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,11 +31,22 @@ export default async function StudentAttendancePage({
     .eq('id', user.id)
     .single()
 
-  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
+  const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
   const { as: previewName, studentId: previewId, course: courseParam } = await searchParams
 
-  if (isInstructorOrAdmin && !previewName && !previewId) redirect('/instructor/attendance')
-  if (!isInstructorOrAdmin && (previewName || previewId)) redirect('/student/attendance')
+  if (isStaff && !previewName && !previewId) redirect('/instructor/attendance')
+
+  // A TA may open a student from the Attendance portal, but only for a class they can
+  // see there, and only by the student's stable Airtable id (a name could match someone
+  // in another class). Whether the student is actually in that class is checked below,
+  // once their Airtable profile is loaded.
+  let isTaView = false
+  if (!isStaff && (previewName || previewId)) {
+    const access = await getAttendanceAccess()
+    if (!access || !previewId || !courseParam || !canSeeClass(access, courseParam)) redirect('/student/attendance')
+    isTaView = true
+  }
+  const isInstructorOrAdmin = isStaff || isTaView
 
   // The airtable_student_id (when known) is the safe-to-use identifier — it doesn't
   // break when a student's display name collides with someone else's. previewName is
@@ -110,6 +122,17 @@ export default async function StudentAttendancePage({
     airtableError = true
   }
 
+  // A TA sees only the one class they opened, and only for a student in that class.
+  if (isTaView && !airtableError) {
+    const classCourse = courses?.find(c => c.name.trim() === courseParam!.trim()) ?? null
+    const inClass =
+      (!!classCourse && !!studentProfile?.enrolledCourseIds.includes(classCourse.id)) ||
+      studentProfile?.currentCourse?.trim() === courseParam!.trim()
+    if (!inClass) redirect('/instructor/attendance')
+    courses = classCourse ? [classCourse] : []
+    records = classCourse ? filterRecordsByCourse(records ?? [], classCourse) : []
+  }
+
   // Diagnostic: a student with attendance data on file but none of it landing in
   // their active course's date range usually means the course's Start/End Date is
   // wrong in Airtable, not that the student truly has no attendance yet.
@@ -130,6 +153,7 @@ export default async function StudentAttendancePage({
         <InstructorTopNav
           name={profile?.name}
           role={profile?.role}
+          isTa={isTaView}
           breadcrumbs={[
             { label: 'Attendance Portal', href: '/instructor/attendance' },
             { label: displayName },

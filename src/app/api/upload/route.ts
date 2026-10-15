@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getCourseIdForModule, getCourseIdForModuleDay } from '@/lib/course-access'
 
 const ALLOWED_BUCKETS = ['lms-submissions', 'lms-resources', 'avatars']
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
@@ -86,6 +87,14 @@ export async function POST(request: NextRequest) {
     if (segments[0] !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+  } else if (!isStaff && bucket === 'lms-resources') {
+    // A TA may attach course files, but only for a course they TA. The course is
+    // worked out from the path, never taken from the client as a separate field.
+    const admin = createServiceSupabaseClient()
+    const courseId = await courseIdForResourcePath(admin, path)
+    if (!courseId || !(await isTaOf(admin, user.id, courseId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
   } else if (!isStaff) {
     // Students may only upload to lms-submissions, and only under their own user ID
     if (bucket !== 'lms-submissions') {
@@ -126,4 +135,33 @@ function uniqueUploadPath(path: string): string {
   const slash = path.lastIndexOf('/')
   const dir = slash === -1 ? '' : path.slice(0, slash + 1)
   return `${dir}${randomUUID().slice(0, 8)}/${path.slice(slash + 1)}`
+}
+
+type Admin = ReturnType<typeof createServiceSupabaseClient>
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The course an lms-resources upload belongs to, from the path the Course Editor builds:
+ * `module-day-<dayId>/…`, `module-<moduleId>/…`, `course-<courseId>/…` or
+ * `quizzes/<courseId>/…`. Anything else (including `module-new/`) has no course.
+ */
+async function courseIdForResourcePath(admin: Admin, path: string): Promise<string | null> {
+  const [first, second] = path.split('/')
+  let m: RegExpMatchArray | null
+  if ((m = first.match(/^module-day-(.+)$/)) && UUID.test(m[1])) return getCourseIdForModuleDay(admin, m[1])
+  if ((m = first.match(/^module-(.+)$/)) && UUID.test(m[1])) return getCourseIdForModule(admin, m[1])
+  if ((m = first.match(/^course-(.+)$/)) && UUID.test(m[1])) return m[1]
+  if (first === 'quizzes' && second && UUID.test(second)) return second
+  return null
+}
+
+async function isTaOf(admin: Admin, userId: string, courseId: string): Promise<boolean> {
+  const { data } = await admin
+    .from('course_enrollments')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .eq('role', 'ta')
+    .maybeSingle()
+  return !!data
 }
