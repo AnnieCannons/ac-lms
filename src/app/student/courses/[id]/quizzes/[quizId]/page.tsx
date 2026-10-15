@@ -100,6 +100,10 @@ export default async function TakeQuizPage({
     if (q.question_type === 'true_false') return q;
     return { ...q, choices: randomShuffle(q.choices) };
   });
+  // QuizForm is a client component, so whatever it gets is in the page payload. Send it the
+  // questions without the answer key; scoring and the results breakdown stay server-side.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const formQuestions = questions.map(({ correct_response_ident: _answer, ...q }) => q);
   const outOfAttempts = maxAttempts !== null && attemptCount >= maxAttempts;
   const attemptsLeft = maxAttempts !== null ? maxAttempts - attemptCount : null;
   const displayTitle = quiz.title?.startsWith("Quiz: ") ? quiz.title.slice(6) : quiz.title;
@@ -204,7 +208,7 @@ export default async function TakeQuizPage({
               <QuizForm
                 courseId={id}
                 quizId={quizId}
-                questions={questions}
+                questions={formQuestions}
                 previousAnswers={previousAnswers}
                 lockedAnswers={lockedAnswers}
                 isStudentPreview={preview}
@@ -248,7 +252,7 @@ export default async function TakeQuizPage({
                 <QuizForm
                   courseId={id}
                   quizId={quizId}
-                  questions={questions}
+                  questions={formQuestions}
                   previousAnswers={[]}
                   savedProgress={savedProgress}
                   isObserver={isObserver}
