@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { pickFields } from '@/lib/pick-fields'
 
 export type PartnerStatus = 'prospect' | 'active' | 'inactive' | 'in_onboarding'
 export type PartnerType = 'service_provider' | 'corporate' | 'funder' | 'advisory' | 'mentorship' | 'apprenticeship' | 'media' | 'admissions_referral'
@@ -47,6 +48,19 @@ export interface PartnerFormData {
   service_categories: string[]
   service_categories_other: string | null
 }
+
+// Columns the partner form may write. Everything else on `partners` (do_not_email*,
+// audit fields, ids) has its own action.
+const PARTNER_FIELDS = [
+  'name', 'city', 'state', 'multi_city', 'website', 'how_we_met', 'services_focus_area', 'status',
+  'last_interaction_date', 'meeting_notes', 'tags', 'internal_owner_id', 'referred_by',
+  'service_categories', 'service_categories_other',
+] as const satisfies readonly (keyof PartnerFormData)[]
+
+const CONTACT_FIELDS = [
+  'name', 'title', 'email', 'phone', 'is_primary', 'notes', 'linkedin_url', 'website_url',
+  'departments', 'primary_departments',
+] as const
 
 function validateContactUrls(contacts: PartnerContact[]): string | null {
   for (const c of contacts) {
@@ -139,7 +153,8 @@ export async function createPartner(formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, departments, locations, ...partnerFields } = formData
+  const { partner_types, contacts, departments, locations } = formData
+  const partnerFields = pickFields(formData, PARTNER_FIELDS)
   const urlError = validateContactUrls(contacts)
   if (urlError) return { error: urlError }
 
@@ -169,7 +184,7 @@ export async function createPartner(formData: PartnerFormData) {
 
   if (contacts.length > 0) {
     await supabase.from('partner_contacts').insert(
-      contacts.map(c => ({ ...c, partner_id: partner.id }))
+      contacts.map(c => ({ ...pickFields(c as ContactData, CONTACT_FIELDS), partner_id: partner.id }))
     )
   }
 
@@ -193,7 +208,8 @@ export async function updatePartner(id: string, formData: PartnerFormData) {
   const { error, supabase } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
-  const { partner_types, contacts, departments, locations, ...partnerFields } = formData
+  const { partner_types, contacts, departments, locations } = formData
+  const partnerFields = pickFields(formData, PARTNER_FIELDS)
   const urlError = validateContactUrls(contacts)
   if (urlError) return { error: urlError }
 
@@ -399,7 +415,7 @@ export async function createContact(partnerId: string, data: ContactData) {
 
   const { data: row, error: dbError } = await supabase
     .from('partner_contacts')
-    .insert({ ...data, partner_id: partnerId })
+    .insert({ ...pickFields(data, CONTACT_FIELDS), partner_id: partnerId })
     .select('*')
     .single()
 
@@ -424,7 +440,7 @@ export async function updateContact(contactId: string, data: Partial<ContactData
 
   const { error: dbError } = await supabase
     .from('partner_contacts')
-    .update(data)
+    .update(pickFields(data, CONTACT_FIELDS))
     .eq('id', contactId)
 
   if (dbError) return { error: dbError.message }
