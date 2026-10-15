@@ -8,7 +8,7 @@ import SubmissionComments, { type CommentEntry } from "@/components/ui/Submissio
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 import { saveSubmission } from "@/lib/submission-actions";
-import { parseFileUrls, serializeFileUrls } from "@/lib/submission-files";
+import { parseFileUrls, serializeFileUrls, submissionFileHref, submissionFileName } from "@/lib/submission-files";
 import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
 import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
 import ConfidenceKudos, { type KudosDisplayItem } from "@/components/ui/ConfidenceKudos";
@@ -54,14 +54,6 @@ type HistoryEntry = {
 function isImageUrl(url: string | null): boolean {
   if (!url) return false
   return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(url)
-}
-
-function fileNameFromUrl(url: string): string {
-  try {
-    return decodeURIComponent(new URL(url).pathname.split("/").pop() || url);
-  } catch {
-    return url;
-  }
 }
 
 // Stable default -- SubmissionComments resyncs whenever this prop's identity changes
@@ -511,9 +503,9 @@ export default function SubmissionForm({
               <div className="flex flex-wrap gap-2">
                 {parseFileUrls(saved.content).map((url, i) => (
                   isImageUrl(url) ? (
-                    <a key={i} href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer" className="block w-fit">
+                    <a key={i} href={submissionFileHref(url)} target="_blank" rel="noopener noreferrer" className="block w-fit">
                       <img
-                        src={url}
+                        src={submissionFileHref(url)}
                         alt="Submitted file"
                         className="max-h-48 max-w-full rounded-lg border border-border object-contain hover:opacity-90 transition-opacity"
                       />
@@ -521,12 +513,12 @@ export default function SubmissionForm({
                   ) : (
                     <a
                       key={i}
-                      href={normalizeUrl(url)}
+                      href={submissionFileHref(url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-teal-primary underline break-all"
                     >
-                      {fileNameFromUrl(url)}
+                      {submissionFileName(url)}
                     </a>
                   )
                 ))}
@@ -584,9 +576,9 @@ export default function SubmissionForm({
                     <div className="flex flex-wrap gap-2 flex-1">
                       {parseFileUrls(entry.content).map((url, i) => (
                         isImageUrl(url) ? (
-                          <a key={i} href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer">
+                          <a key={i} href={submissionFileHref(url)} target="_blank" rel="noopener noreferrer">
                             <img
-                              src={url}
+                              src={submissionFileHref(url)}
                               alt="Submitted file"
                               className="max-h-16 max-w-full rounded border border-border object-contain hover:opacity-90 transition-opacity"
                             />
@@ -594,12 +586,12 @@ export default function SubmissionForm({
                         ) : (
                           <a
                             key={i}
-                            href={normalizeUrl(url)}
+                            href={submissionFileHref(url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-teal-primary underline break-all"
                           >
-                            {fileNameFromUrl(url)}
+                            {submissionFileName(url)}
                           </a>
                         )
                       ))}
@@ -729,15 +721,16 @@ export default function SubmissionForm({
                 bucket="lms-submissions"
                 path={`${assignmentId}/${studentId}/`}
                 multiple
-                onUpload={(url) => {
+                onUpload={(_url, _name, path) => {
                   setError(null);
+                  // Store the storage path, not a URL — the bucket is private
                   setFileUrls(prev => {
-                    if (prev.includes(url)) return prev;
+                    if (prev.includes(path)) return prev;
                     if (prev.length >= MAX_SUBMISSION_FILES) {
                       setError(`You can attach up to ${MAX_SUBMISSION_FILES} files per submission.`);
                       return prev;
                     }
-                    return [...prev, url];
+                    return [...prev, path];
                   });
                 }}
                 onError={setError}
@@ -747,16 +740,16 @@ export default function SubmissionForm({
                   {fileUrls.map((url, i) => (
                     <li key={url} className="flex items-center gap-2 text-xs">
                       {isImageUrl(url) ? (
-                        <img src={url} alt="" className="h-10 w-10 rounded border border-border object-cover shrink-0" />
+                        <img src={submissionFileHref(url)} alt="" className="h-10 w-10 rounded border border-border object-cover shrink-0" />
                       ) : null}
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="text-teal-primary truncate hover:underline flex-1">
-                        {fileNameFromUrl(url)}
+                      <a href={submissionFileHref(url)} target="_blank" rel="noopener noreferrer" className="text-teal-primary truncate hover:underline flex-1">
+                        {submissionFileName(url)}
                       </a>
                       <button
                         type="button"
                         onClick={() => setFileUrls(prev => prev.filter((_, idx) => idx !== i))}
                         className="text-muted-text hover:text-red-400 transition-colors shrink-0"
-                        aria-label={`Remove ${fileNameFromUrl(url)}`}
+                        aria-label={`Remove ${submissionFileName(url)}`}
                       >
                         Remove
                       </button>

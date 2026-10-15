@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { markCompleteNoSubmission } from "@/lib/grade-actions";
 import { normalizeUrl } from "@/lib/url";
+import { parseFileUrls, submissionFileHref, submissionFileName } from "@/lib/submission-files";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type SubmissionType = "text" | "link" | "file";
@@ -60,7 +61,22 @@ function extractUrl(content: string): string {
 
 function SubmissionPreview({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <span className="text-muted-text italic">No content</span>;
-  if (type === "link" || type === "file") {
+  if (type === "file") {
+    const entries = parseFileUrls(content);
+    return (
+      <span className="line-clamp-1 break-all">
+        {entries.map((entry, i) => (
+          <span key={i}>
+            {i > 0 && ", "}
+            <a href={submissionFileHref(entry)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline">
+              {submissionFileName(entry)}
+            </a>
+          </span>
+        ))}
+      </span>
+    );
+  }
+  if (type === "link") {
     const url = content.startsWith('<') ? extractUrl(content) : content;
     return (
       <a href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all line-clamp-1">
