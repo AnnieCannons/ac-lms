@@ -46,7 +46,9 @@ export default async function StudentCourseDetailPage({
         .filter((d: { deleted_at: string | null }) => !d.deleted_at)
         .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null }> }) => ({
           ...d,
-          assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
+          // Unpublished assignments are dropped here, not just hidden by the client accordion,
+          // so their titles/due dates never reach the student's page payload.
+          assignments: (d.assignments ?? []).filter((a: { deleted_at: string | null; published?: boolean }) => !a.deleted_at && a.published === true),
           resources: (d.resources ?? []).filter((r: { deleted_at: string | null; instructor_only?: boolean; published?: boolean }) => !r.deleted_at && !r.instructor_only && r.published !== false),
         })),
     }))
