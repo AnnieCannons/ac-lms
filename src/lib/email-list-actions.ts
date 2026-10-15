@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { pickFields } from '@/lib/pick-fields'
 import { logInteraction } from '@/lib/partner-interactions-actions'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 
@@ -119,7 +120,7 @@ export async function updateEmailList(id: string, data: { name?: string; notes?:
 
   const { error: dbError } = await supabase
     .from('email_lists')
-    .update(data)
+    .update(pickFields(data, ['name', 'notes'] as const))
     .eq('id', id)
 
   if (dbError) return { error: dbError.message }
