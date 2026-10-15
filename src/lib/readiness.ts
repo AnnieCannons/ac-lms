@@ -4,7 +4,7 @@
 
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchClassAttendanceWeekly, type ClassStudentWeekly } from '@/lib/airtable'
-import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats-actions'
+import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats'
 import {
   courseRanDuringWeek,
   getCourseStudents,

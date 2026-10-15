@@ -8,7 +8,7 @@ import { computeClassAverages, isTesterEmail, normalizeEmail, type ClassAverages
 import { EXCLUDED_STUDENT_USER_IDS, CLASS_READINESS_PINNED_TEST_STUDENT_IDS } from '@/lib/excluded-students'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { getPredecessorCourse, getReadinessChain, isEnrolledStudent } from '@/lib/readiness-chain'
-import { computeStudentAssignmentStats } from '@/lib/student-stats-actions'
+import { computeStudentAssignmentStats } from '@/lib/student-stats'
 
 export type ReadinessHistoryPoint = {
   weekStart: string
