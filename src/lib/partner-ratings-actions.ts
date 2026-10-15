@@ -129,16 +129,24 @@ export async function createRating(data: RatingFormData) {
     return { error: 'Score must be an integer between 1 and 5' }
   }
 
-  // Students may only rate a referral that belongs to them
-  if (data.reviewer_type === 'student' && data.referral_id) {
+  if (typeof data.service_category !== 'string' || data.service_category.length > 100) {
+    return { error: 'Invalid service category' }
+  }
+
+  // Students may only rate a referral that belongs to them, and only the partner that
+  // referral is for. Without a referral_id they could rate any partner, any number of times.
+  let partnerId = data.partner_id
+  if (data.reviewer_type === 'student') {
+    if (!data.referral_id) return { error: 'Not authorized' }
     const { data: referral } = await supabaseClient
       .from('student_referrals')
-      .select('student_user_id')
+      .select('student_user_id, partner_id')
       .eq('id', data.referral_id)
       .single()
-    if (!referral || referral.student_user_id !== user.id) {
+    if (!referral || referral.student_user_id !== user.id || !referral.partner_id) {
       return { error: 'Not authorized' }
     }
+    partnerId = referral.partner_id
   }
 
   // Prevent duplicate ratings for the same referral + reviewer
@@ -154,7 +162,7 @@ export async function createRating(data: RatingFormData) {
   }
 
   const { error: dbError } = await supabaseClient.from('partner_ratings').insert({
-    partner_id: data.partner_id,
+    partner_id: partnerId,
     referral_id: data.referral_id ?? null,
     service_category: data.service_category,
     score: data.score,
@@ -170,7 +178,7 @@ export async function createRating(data: RatingFormData) {
     const service = createServiceSupabaseClient()
     const [{ data: studentRow }, { data: partnerRow }] = await Promise.all([
       service.from('users').select('name').eq('id', user.id).single(),
-      service.from('partners').select('name').eq('id', data.partner_id).single(),
+      service.from('partners').select('name').eq('id', partnerId).single(),
     ])
     if (studentRow && partnerRow) {
       const categoryText = data.service_category ? ` for ${slackEscape(data.service_category)}` : ''
