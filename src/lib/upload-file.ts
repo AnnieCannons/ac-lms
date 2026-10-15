@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 
-export type UploadResult = { ok: true; url: string } | { ok: false; error: string }
+export type UploadResult = { ok: true; url: string; path: string } | { ok: false; error: string }
 
 /**
  * Upload a file to Supabase Storage directly from the browser.
@@ -39,5 +39,5 @@ export async function uploadFile(file: File, bucket: string, path: string): Prom
     return { ok: false, error: 'network error. Please check your connection and try again.' }
   }
 
-  return { ok: true, url: json.url }
+  return { ok: true, url: json.url, path: json.path }
 }

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getCourseIdForModule, getCourseIdForModuleDay } from '@/lib/course-access'
+import { SUBMISSIONS_BUCKET, submissionFileHref } from '@/lib/submission-files'
 
 const ALLOWED_BUCKETS = ['lms-submissions', 'lms-resources', 'avatars']
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
@@ -126,8 +127,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Could not prepare upload' }, { status: 500 })
   }
 
-  const { data } = admin.storage.from(bucket).getPublicUrl(storagePath)
-  return NextResponse.json({ path: signed.path, token: signed.token, url: data.publicUrl })
+  // lms-submissions is private: callers store the path and view the file through
+  // /api/submission-file. The other buckets are public.
+  const url = bucket === SUBMISSIONS_BUCKET
+    ? submissionFileHref(storagePath)
+    : admin.storage.from(bucket).getPublicUrl(storagePath).data.publicUrl
+  return NextResponse.json({ path: signed.path, token: signed.token, url })
 }
 
 /** `a/b/file.pdf` → `a/b/<random>/file.pdf` */

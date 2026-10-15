@@ -31,7 +31,9 @@ describe('/api/upload', () => {
     expect(path).toMatch(/^a1\/stu1\/[0-9a-f]{8}\/report\.pdf$/)
     expect(opts).toEqual({ upsert: false })
     const json = await res.json()
-    expect(json.url.endsWith(`/${path}`)).toBe(true)
+    // Private bucket: the link goes through the access-checked route, never a public URL
+    expect(json.url).toBe(`/api/submission-file?path=${encodeURIComponent(path)}`)
+    expect(getPublicUrl).not.toHaveBeenCalled()
   })
 
   it('a second upload of the same name gets a different path', async () => {

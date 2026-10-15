@@ -6,7 +6,8 @@ import { uploadFile } from "@/lib/upload-file";
 interface FileUploadProps {
   bucket: string;
   path: string;
-  onUpload: (url: string, fileName: string) => void;
+  /** `path` is the storage path — what private-bucket callers should store. */
+  onUpload: (url: string, fileName: string, path: string) => void;
   onError?: (msg: string) => void;
   accept?: string;
   maxSizeMB?: number;
@@ -45,7 +46,7 @@ export default function FileUpload({
 
   const isImage = uploadedName ? /\.(png|jpe?g|gif|webp|svg)$/i.test(uploadedName) : false;
 
-  const uploadOne = async (file: File): Promise<{ ok: true; url: string; name: string } | { ok: false; msg: string }> => {
+  const uploadOne = async (file: File): Promise<{ ok: true; url: string; path: string; name: string } | { ok: false; msg: string }> => {
     if (file.size > maxSizeMB * 1024 * 1024) {
       return { ok: false, msg: `${file.name} exceeds ${maxSizeMB}MB limit` };
     }
@@ -56,7 +57,7 @@ export default function FileUpload({
 
     const result = await uploadFile(file, bucket, filePath);
     if (!result.ok) return { ok: false, msg: `${file.name}: ${result.error}` };
-    return { ok: true, url: result.url, name: safeName };
+    return { ok: true, url: result.url, path: result.path, name: safeName };
   };
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,7 +74,7 @@ export default function FileUpload({
       if (result.ok) {
         setUploadedName(result.name);
         setUploadedUrl(result.url);
-        onUpload(result.url, result.name);
+        onUpload(result.url, result.name, result.path);
       } else {
         errors.push(result.msg);
       }
