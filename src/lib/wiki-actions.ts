@@ -109,7 +109,12 @@ export async function updateWiki(
   const access = await requireCourseInstructorAccess(courseId)
   if (isCourseAccessError(access)) return { error: access.error, code: access.code }
 
-  const { error } = await admin.from('wikis').update(updates).eq('id', wikiId)
+  // Only title/content: spreading `updates` would let a caller set module_id (moving the
+  // wiki into another course) or published.
+  const patch: { title?: string; content?: string } = {}
+  if (typeof updates.title === 'string') patch.title = updates.title
+  if (typeof updates.content === 'string') patch.content = updates.content
+  const { error } = await admin.from('wikis').update(patch).eq('id', wikiId)
   if (error) return { error: error.message }
   return {}
 }

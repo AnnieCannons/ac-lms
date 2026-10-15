@@ -12,6 +12,7 @@ import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import MarkdownContent, { PlainTextContent } from '@/components/ui/MarkdownContent'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { getAssignmentCourseId } from '@/lib/course-scope'
 import { normalizeUrl } from '@/lib/url'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
@@ -53,6 +54,10 @@ export default async function GradingPage({
   // Use service role for cross-user queries (bypasses RLS)
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect(`/instructor/courses/${id}`) }
+
+  // Access was checked against the URL's course id, so the assignment must actually be in
+  // that course — otherwise a TA could read (and create placeholder rows in) another course.
+  if ((await getAssignmentCourseId(admin, assignmentId)) !== id) redirect(`/instructor/courses/${id}`)
 
   const { data: assignment } = await admin
     .from('assignments')
@@ -241,6 +246,13 @@ export default async function GradingPage({
 
   // For no-submission assignments, auto-create a placeholder so grading works normally
   if (!submission && assignment?.submission_required === false) {
+    const { data: enrolled } = await admin
+      .from('course_enrollments')
+      .select('id')
+      .eq('course_id', id)
+      .eq('user_id', studentId)
+      .maybeSingle()
+    if (!enrolled) redirect(`/instructor/courses/${id}/assignments/${assignmentId}/submissions`)
     const { data: created } = await admin
       .from('submissions')
       .insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })

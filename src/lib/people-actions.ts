@@ -23,6 +23,14 @@ async function getAuthedInstructorOrAdmin() {
   return { user, supabase, callerRole: profile.role as string }
 }
 
+// Shared guard for the add/invite paths: the role must be a known value and only
+// an admin may hand out `admin` (same rule updateUserRole/updateEnrollmentRole enforce).
+function checkAssignableRole(role: Role, callerRole: string): string | null {
+  if (!VALID_ROLES.includes(role)) return 'Invalid role'
+  if (role === 'admin' && callerRole !== 'admin') return 'Only admins can assign the admin role.'
+  return null
+}
+
 export async function bulkAddPeopleToCourse(
   courseId: string,
   emails: string[],
@@ -30,6 +38,8 @@ export async function bulkAddPeopleToCourse(
 ): Promise<{ email: string; added?: boolean; invited?: boolean; error?: string }[]> {
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return emails.map(email => ({ email, error: auth.error }))
+  const roleError = checkAssignableRole(role, auth.callerRole)
+  if (roleError) return emails.map(email => ({ email, error: roleError }))
 
   const admin = createServiceSupabaseClient()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
@@ -126,6 +136,8 @@ export async function addPersonToCourse(
 ): Promise<{ added?: boolean; invited?: boolean; error?: string }> {
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return { error: auth.error }
+  const roleError = checkAssignableRole(role, auth.callerRole)
+  if (roleError) return { error: roleError }
 
   const admin = createServiceSupabaseClient()
 
@@ -372,6 +384,13 @@ export async function removeStudentUser(
   if ('error' in auth) return { error: auth.error }
 
   const admin = createServiceSupabaseClient()
+
+  // Deleting an instructor/staff/admin account is admin-only (see deleteStaffMember);
+  // without this, any instructor could delete an admin through this action.
+  const { data: target } = await admin.from('users').select('role').eq('id', targetUserId).maybeSingle()
+  if (target && target.role !== 'student' && auth.callerRole !== 'admin') {
+    return { error: 'Only admins can delete staff accounts.' }
+  }
 
   // Delete all FK-constrained rows before deleting the user row
   await Promise.all([

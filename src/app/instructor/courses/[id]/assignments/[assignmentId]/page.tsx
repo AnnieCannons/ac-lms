@@ -5,6 +5,7 @@ import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import AssignmentViewEdit from "@/components/ui/AssignmentViewEdit";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
+import { getAssignmentCourseId } from "@/lib/course-scope";
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,9 @@ export default async function InstructorAssignmentEditPage({
     .single();
 
   if (!course) redirect("/instructor/courses");
+
+  // The assignment must be in the course access was checked against (TA scoping).
+  if ((await getAssignmentCourseId(createServiceSupabaseClient(), assignmentId)) !== id) redirect(`/instructor/courses/${id}/assignments`);
 
   const { data: assignment } = await supabase
     .from("assignments")

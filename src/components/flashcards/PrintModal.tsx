@@ -21,6 +21,10 @@ const PRINT_STYLES = `
   .card-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-bottom: 4pt; }
 `
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 function getClozeBlankWord(html: string, blankIndex: number): string {
   const matches = [...html.matchAll(/<span[^>]*data-type="cloze-blank"[^>]*data-word="([^"]*)"[^>]*>/g)]
   return matches[blankIndex]?.[1] ?? ''
@@ -39,7 +43,10 @@ function renderClozeFront(html: string, blankIndex: number): string {
 export default function PrintModal({ cards, deckTitle }: { cards: Card[]; deckTitle: string }) {
   const handlePrint = () => {
     const printCards = cards.filter(c => c.card_type !== 'image_occlusion')
-    const header = `<div class="deck-header"><strong>${deckTitle}</strong><span>${printCards.length} cards</span></div>`
+    // The print window shares the app's origin, so nothing user-authored goes in unescaped
+    // (decks can be imported from other users).
+    const safeTitle = escapeHtml(deckTitle)
+    const header = `<div class="deck-header"><strong>${safeTitle}</strong><span>${printCards.length} cards</span></div>`
     const instructions = `<p style="font-size:9pt;color:#555;margin-bottom:8pt;">Cut along the dashed lines. Fold each strip down the middle (vertical solid line) to make a card.</p>`
     const colHeader = `<div class="cutout-header"><span>Front</span><span>Back</span></div>`
     const rows = printCards.map(c => {
@@ -49,7 +56,7 @@ export default function PrintModal({ cards, deckTitle }: { cards: Card[]; deckTi
         ? renderClozeFront(c.front_content, blankIndex)
         : DOMPurify.sanitize(c.front_content)
       const back = isCloze
-        ? getClozeBlankWord(c.front_content, blankIndex)
+        ? DOMPurify.sanitize(getClozeBlankWord(c.front_content, blankIndex), { ALLOWED_TAGS: [] })
         : DOMPurify.sanitize(c.back_content)
       return `
       <div class="card-row">
@@ -60,7 +67,7 @@ export default function PrintModal({ cards, deckTitle }: { cards: Card[]; deckTi
     const body = `${header}${instructions}${colHeader}${rows}`
     const win = window.open('', '_blank', 'width=800,height=600')
     if (!win) return
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${deckTitle}</title><style>${PRINT_STYLES}</style></head><body>${body}</body></html>`)
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>${PRINT_STYLES}</style></head><body>${body}</body></html>`)
     win.document.close()
     win.focus()
     win.print()

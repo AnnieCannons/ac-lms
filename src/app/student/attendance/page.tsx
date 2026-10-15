@@ -9,6 +9,7 @@ import {
   fetchStudentProfile,
   fetchStudentProfileById,
   fetchAttendanceCourses,
+  resolveAirtableStudentIdByEmail,
 } from '@/lib/airtable'
 import { filterRecordsByCourse } from '@/lib/attendance-utils'
 
@@ -38,7 +39,17 @@ export default async function StudentAttendancePage({
   // The airtable_student_id (when known) is the safe-to-use identifier — it doesn't
   // break when a student's display name collides with someone else's. previewName is
   // still used for display and as a fallback for students without one yet.
-  const airtableStudentId = previewId ?? (previewName ? undefined : profile?.airtable_student_id) ?? undefined
+  let airtableStudentId = previewId ?? (previewName ? undefined : profile?.airtable_student_id) ?? undefined
+  // users.name is self-editable, so a student without a linked id could rename
+  // themselves to a classmate's preferred name and see their attendance. Prefer the
+  // auth email (not user-editable) before ever falling back to the name.
+  if (!airtableStudentId && !previewName && user.email) {
+    try {
+      airtableStudentId = (await resolveAirtableStudentIdByEmail(user.email)) ?? undefined
+    } catch (err) {
+      console.error('Airtable email lookup failed:', err)
+    }
+  }
   const name = previewName ?? profile?.name ?? null
 
   if (!name && !airtableStudentId) {

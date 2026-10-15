@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { revalidatePath } from 'next/cache'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
-import { notifyStaff, notifyByEmail, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
+import { notifyStaff, notifyByEmail, slackEscape, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -400,9 +400,9 @@ export async function createReferral(data: ReferralFormData) {
       if (studentRow && partnerRow) {
         const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
         const ratingUrl = `${APP_URL}/student/referrals/rate/${inserted.id}`
-        const categoryText = data.service_category ? ` for ${data.service_category}` : ''
+        const categoryText = data.service_category ? ` for ${slackEscape(data.service_category)}` : ''
         const studentMsg =
-          `Hi ${studentRow.name}! We referred you to ${partnerRow.name}${categoryText} a while back. ` +
+          `Hi ${slackEscape(studentRow.name)}! We referred you to ${slackEscape(partnerRow.name)}${categoryText} a while back. ` +
           `If you had a chance to connect with them, we'd love to hear how it went: ${ratingUrl}`
 
         // DM the student
@@ -412,7 +412,7 @@ export async function createReferral(data: ReferralFormData) {
 
         // Ping staff
         await notifyStaff(
-          `${studentRow.name} has received their invitation to rate their referral to ${partnerRow.name}${categoryText}.`
+          `${slackEscape(studentRow.name)} has received their invitation to rate their referral to ${slackEscape(partnerRow.name)}${categoryText}.`
         )
         console.log(`[referral] notifyStaff done`)
 

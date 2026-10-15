@@ -7,6 +7,7 @@ import CreateButton from './CreateButton'
 import InstructorGlobalNav from './InstructorGlobalNav'
 import LaunchSetupButton from './LaunchSetupButton'
 import StudentViewButton from './StudentViewButton'
+import { emptyTrash } from '@/lib/trash-actions'
 
 interface Props {
   courseId: string
@@ -333,10 +334,13 @@ function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: stri
                 Review trash
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   setShowEmptyPrompt(false)
                   localStorage.removeItem(`trashHasItems_${courseId}`)
-                  router.push(`${href}?action=empty`)
+                  // Server action (POST), not a GET link: a permanent delete must not be
+                  // triggerable by someone sending an instructor a URL.
+                  await emptyTrash(courseId)
+                  router.push(href)
                 }}
                 className="flex-1 px-4 py-2 rounded-full bg-red-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
               >

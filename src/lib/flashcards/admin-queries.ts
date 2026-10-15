@@ -1,5 +1,15 @@
 'use server'
-import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getIsFlashcardAdmin } from './queries'
+
+// Every export here is a public server action that reads with the service client,
+// so each one re-checks the caller itself (the admin layout only guards page renders).
+async function requireFlashcardAdmin(): Promise<string> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !(await getIsFlashcardAdmin(user.id))) throw new Error('Forbidden')
+  return user.id
+}
 
 export type StudentActivityRow = {
   userId: string
@@ -14,6 +24,7 @@ export async function getStudentActivity(
   fromDate: string,
   toDate: string
 ): Promise<StudentActivityRow[]> {
+  await requireFlashcardAdmin()
   const service = createServiceSupabaseClient()
 
   // Get all students enrolled in this course
@@ -102,7 +113,10 @@ export type ImportActivity = {
 }
 
 export async function getImportActivity(deckId: string): Promise<ImportActivity> {
+  const callerId = await requireFlashcardAdmin()
   const service = createServiceSupabaseClient()
+  const { data: ownDeck } = await service.from('decks').select('id').eq('id', deckId).eq('owner_user_id', callerId).maybeSingle()
+  if (!ownDeck) throw new Error('Forbidden')
 
   // Get all imported decks (other users who imported this deck)
   const { data: importedDecks } = await service
@@ -172,6 +186,8 @@ export type DeckImportSummary = {
 }
 
 export async function getAllImportActivity(userId: string): Promise<DeckImportSummary[]> {
+  // Import activity is only ever shown for the caller's own decks.
+  if ((await requireFlashcardAdmin()) !== userId) throw new Error('Forbidden')
   const service = createServiceSupabaseClient()
 
   const { data: sharedDecks } = await service
@@ -255,6 +271,7 @@ export async function getMostStudiedDecks(
   toDate: string,
   limit: number = 5
 ): Promise<MostStudiedDeck[]> {
+  await requireFlashcardAdmin()
   const service = createServiceSupabaseClient()
 
   // Get all students enrolled in this course

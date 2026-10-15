@@ -1,7 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
-import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModuleDay } from '@/lib/course-access'
+import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModuleDay, linkedDayInCourse } from '@/lib/course-access'
 
 export async function createAssignment(params: {
   moduleDayId: string
@@ -17,6 +17,7 @@ export async function createAssignment(params: {
 
   const access = await requireCourseInstructorAccess(courseId)
   if (isCourseAccessError(access)) return { error: access.error, code: access.code }
+  if (!(await linkedDayInCourse(admin, params.linkedDayId, courseId))) return { error: 'Linked day is not in this course' }
 
   const { data, error } = await admin
     .from('assignments')

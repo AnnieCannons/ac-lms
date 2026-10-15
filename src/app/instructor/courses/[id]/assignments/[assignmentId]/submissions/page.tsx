@@ -7,6 +7,7 @@ import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsLis
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { getAssignmentCourseId } from '@/lib/course-scope'
 import { formatDueDateWithTime } from '@/lib/date-utils'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
 
@@ -27,6 +28,9 @@ export default async function InstructorSubmissionsPage({
   // Use service role for cross-user queries (bypasses RLS)
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect(`/instructor/courses/${id}`) }
+
+  // The assignment must be in the course access was checked against (TA scoping).
+  if ((await getAssignmentCourseId(admin, assignmentId)) !== id) redirect(`/instructor/courses/${id}`)
 
   const { data: assignment } = await admin
     .from('assignments')

@@ -12,7 +12,7 @@ import {
   resolveAirtableCourseName,
   type CourseRow,
 } from '@/lib/weekly-report'
-import { notifyByEmail, openGroupDM, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { notifyByEmail, openGroupDM, slackEscape, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
 import { findPredecessorCourse, getReadinessChain } from '@/lib/readiness-chain'
 import { isExcludedFromReadiness } from '@/lib/excluded-students'
 
@@ -100,7 +100,7 @@ async function notifyChannelOfStepStart(admin: AdminClient, courseId: string, st
   const startedText = step === 1 ? 'started the accountability process' : 'moved to step 2'
   await slackPostMessage(
     channel,
-    `${studentName} has ${startedText}. Once they submit their form this channel will be notified. If 48 hours passes and the form is not submitted, both the student and this channel will get a notification.`,
+    `${slackEscape(studentName)} has ${startedText}. Once they submit their form this channel will be notified. If 48 hours passes and the form is not submitted, both the student and this channel will get a notification.`,
   )
 }
 
@@ -109,7 +109,7 @@ async function sendStep1(admin: AdminClient, studentId: string, courseId: string
   if (!student) return
   await notifyByEmail(
     student.email,
-    `Hi ${student.name}! We noticed you've had a tough week or two. Please take a few minutes to fill out a quick check in. ${APP_URL}/student/readiness`,
+    `Hi ${slackEscape(student.name)}! We noticed you've had a tough week or two. Please take a few minutes to fill out a quick check in. ${APP_URL}/student/readiness`,
   )
   await notifyChannelOfStepStart(admin, courseId, student.name, 1)
 }
@@ -119,7 +119,7 @@ async function sendStep2(admin: AdminClient, studentId: string, courseId: string
   if (!student) return
   await notifyByEmail(
     student.email,
-    `Hi ${student.name}, since things haven't turned around yet, we'd like you to fill out a short goals & reflection check-in. ${APP_URL}/student/readiness`,
+    `Hi ${slackEscape(student.name)}, since things haven't turned around yet, we'd like you to fill out a short goals & reflection check-in. ${APP_URL}/student/readiness`,
   )
   await notifyChannelOfStepStart(admin, courseId, student.name, 2)
 }
@@ -127,7 +127,7 @@ async function sendStep2(admin: AdminClient, studentId: string, courseId: string
 /** Posts to the course's readiness channel and DMs the student when 2 consecutive good weeks close out the process. */
 async function sendResolved(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
   const student = await studentContactEmail(admin, studentId)
-  const name = student?.name ?? 'This student'
+  const name = slackEscape(student?.name ?? 'This student')
   const channel = await courseReadinessChannel(admin, courseId)
 
   if (channel) {
@@ -140,7 +140,7 @@ async function sendResolved(admin: AdminClient, studentId: string, courseId: str
   if (student) {
     await notifyByEmail(
       student.email,
-      `Great news, ${student.name}! You've had two solid weeks in a row and you're back in good standing. Keep up the momentum! \u{1F389}`,
+      `Great news, ${slackEscape(student.name)}! You've had two solid weeks in a row and you're back in good standing. Keep up the momentum! \u{1F389}`,
     )
   }
 }
@@ -186,7 +186,7 @@ async function sendStep3(admin: AdminClient, studentId: string, courseId: string
 
   const channel = await openGroupDM(slackIds)
   if (!channel) return
-  const greeting = student?.name ? `Hi ${student.name}!` : 'Hi!'
+  const greeting = student?.name ? `Hi ${slackEscape(student.name)}!` : 'Hi!'
   await slackPostMessage(
     channel,
     `${greeting} We wanted to get everyone together in one place. You have been in the readiness process and are now in step 3. Let's get a meeting on the calendar so we can all get on the same page and see if we can make a plan to get you back to good standing. One of us will follow up here with a few times shortly.`,
@@ -211,7 +211,7 @@ export async function notifyStaffOfCheckinCompletion(
   if (!channel) return
 
   const { data: studentRow } = await admin.from('users').select('name').eq('id', studentId).single()
-  const studentName = (studentRow as { name: string } | null)?.name ?? 'A student'
+  const studentName = slackEscape((studentRow as { name: string } | null)?.name ?? 'A student')
   const formLabel = formType === 'acknowledgment' ? 'step 1 check-in' : 'step 2 reflection'
   const link = `${APP_URL}/instructor/courses/${courseId}/roster/${studentId}`
 
@@ -637,7 +637,7 @@ export async function runEscalationReminders(admin: AdminClient, cutoffHours = 4
     const channel = await courseReadinessChannel(admin, row.course_id)
 
     const { data: studentRow } = await admin.from('users').select('name').eq('id', row.student_id).single()
-    const studentName = (studentRow as { name: string } | null)?.name ?? 'A student'
+    const studentName = slackEscape((studentRow as { name: string } | null)?.name ?? 'A student')
 
     const stepLabel = row.status === 'step1' ? '1' : '2'
 

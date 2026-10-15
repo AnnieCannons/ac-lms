@@ -77,6 +77,12 @@ export async function markCompleteNoSubmission(
   if (existing) {
     submissionId = existing.id
   } else {
+    // Only create placeholder submissions for students actually in the assignment's course.
+    const assignmentCourseId = courseId ?? await getAssignmentCourseId(admin, assignmentId)
+    const { data: enrolled } = assignmentCourseId
+      ? await admin.from('course_enrollments').select('id').eq('course_id', assignmentCourseId).eq('user_id', studentId).maybeSingle()
+      : { data: null }
+    if (!enrolled) return { error: 'Student is not enrolled in this course' }
     const { data: created, error: createError } = await admin
       .from('submissions')
       .insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })
@@ -600,8 +606,10 @@ export async function saveStudentComment(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // RLS + explicit student_id filter ensures students can only update their own submissions
-  const { error } = await supabase
+  // Service client + explicit student_id filter: students can only update their own
+  // submission's comment. (Kept off the RLS client so no student UPDATE policy on
+  // submissions is needed — such a policy would also let them set grade/status.)
+  const { error } = await createServiceSupabaseClient()
     .from('submissions')
     .update({ student_comment: comment.trim() || null })
     .eq('id', submissionId)
