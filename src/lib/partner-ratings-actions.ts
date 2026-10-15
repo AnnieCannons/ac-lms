@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { notifyStaff } from '@/lib/slack'
+import { notifyStaff, slackEscape } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -173,10 +173,10 @@ export async function createRating(data: RatingFormData) {
       service.from('partners').select('name').eq('id', data.partner_id).single(),
     ])
     if (studentRow && partnerRow) {
-      const categoryText = data.service_category ? ` for ${data.service_category}` : ''
+      const categoryText = data.service_category ? ` for ${slackEscape(data.service_category)}` : ''
       const stars = '★'.repeat(data.score) + '☆'.repeat(5 - data.score)
       await notifyStaff(
-        `${studentRow.name} has completed their rating for ${partnerRow.name}${categoryText}. ${stars}`
+        `${slackEscape(studentRow.name)} has completed their rating for ${slackEscape(partnerRow.name)}${categoryText}. ${stars}`
       )
     }
   }
