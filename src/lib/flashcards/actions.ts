@@ -629,6 +629,16 @@ export async function applyDeckUpdates(
 
   if (!deck) throw new Error('Deck not found')
 
+  // The notification (and so its snapshots) must be the caller's own update for this deck.
+  const { data: notification } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('id', notificationId)
+    .eq('user_id', user.id)
+    .eq('deck_id', deckId)
+    .maybeSingle()
+  if (!notification) throw new Error('Update not found')
+
   // Re-fetch snapshots from DB (don't trust client-side content)
   const serviceClient = createServiceSupabaseClient()
   const { data: snapshots } = await serviceClient
