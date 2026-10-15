@@ -74,7 +74,11 @@
   },
   "overrides": {
     "html-encoding-sniffer": "4.0.0",
-    "whatwg-url": "15.1.0"
+    "whatwg-url": "15.1.0",
+    "d3-color": "^3.1.0",
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "^7.1.6"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -88,7 +92,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.4.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
