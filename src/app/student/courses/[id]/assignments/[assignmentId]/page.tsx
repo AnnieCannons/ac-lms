@@ -261,6 +261,7 @@ export default async function StudentAssignmentPage({
               existingRequest={existingExtensionRequest}
               assignmentTitle={assignment.title}
               dueDate={effectiveDueDate}
+              hasSubmitted={!!existingSubmission && existingSubmission.status !== 'draft'}
             />
           </div>
         )}

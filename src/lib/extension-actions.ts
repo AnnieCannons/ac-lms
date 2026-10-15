@@ -90,6 +90,17 @@ export async function submitExtensionRequest(
   const assignmentCourseId = await getAssignmentCourseId(admin, assignmentId)
   if (assignmentCourseId !== courseId) return { error: 'Assignment not found in this course' }
 
+  // No extensions once the assignment has been turned in (a draft doesn't count).
+  const { data: submission } = await admin
+    .from('submissions')
+    .select('status')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', user.id)
+    .maybeSingle()
+  if (submission && submission.status !== 'draft') {
+    return { error: 'You already submitted this assignment, so an extension can no longer be requested' }
+  }
+
   // Cap the request at MAX_EXTENSION_DAYS past the student's current due date
   // (their override if they have one, otherwise the assignment's).
   const [{ data: assignmentDue }, { data: override }] = await Promise.all([
