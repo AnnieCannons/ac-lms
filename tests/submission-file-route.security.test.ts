@@ -55,6 +55,12 @@ describe('GET /api/submission-file', () => {
     expect(createSignedUrl).toHaveBeenCalledWith('a1/s1/shot.png', 300)
   })
 
+  it('works for paths with the random upload folder', async () => {
+    setup('s1')
+    expect((await get('a1/s1/0a1b2c3d/report.pdf')).status).toBe(302)
+    expect(createSignedUrl).toHaveBeenCalledWith('a1/s1/0a1b2c3d/report.pdf', 300)
+  })
+
   it('hides another student\'s file', async () => {
     setup('s2', { users: { data: { role: 'student' } }, course_enrollments: { data: { role: 'student' } } })
     expect((await get('a1/s1/shot.png')).status).toBe(404)

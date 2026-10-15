@@ -722,7 +722,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                     <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">File</label>
                     <FileUpload
                       bucket="lms-resources"
-                      path={`module-${moduleId || 'new'}/`}
+                      path={moduleId ? `module-${moduleId}/` : `course-${courseId}/`}
                       onUpload={(url, fileName) => {
                         setResUrl(url)
                         if (!resTitle.trim()) setResTitle(fileName)

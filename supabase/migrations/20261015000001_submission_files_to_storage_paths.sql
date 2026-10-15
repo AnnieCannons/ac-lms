@@ -8,7 +8,8 @@
 -- File-type `content` is either one URL or a JSON array of URLs, e.g.
 --   https://<project>.supabase.co/storage/v1/object/public/lms-submissions/<assignment>/<student>/shot.png
 -- becomes
---   <assignment>/<student>/shot.png
+--   <assignment>/<student>/shot.png   (newer uploads also have a random folder:
+--   <assignment>/<student>/<8 hex>/shot.png — handled the same way)
 -- Stripping the prefix handles both shapes. Rows with percent-encoding or a
 -- query string are skipped (none existed on 2026-10-15); the app still reads
 -- those as URLs.

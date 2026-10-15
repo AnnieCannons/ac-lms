@@ -12,6 +12,7 @@ import {
   resolveAirtableStudentIdByEmail,
 } from '@/lib/airtable'
 import { filterRecordsByCourse } from '@/lib/attendance-utils'
+import { getAttendanceAccess, canSeeClass } from '@/lib/attendance-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,11 +31,22 @@ export default async function StudentAttendancePage({
     .eq('id', user.id)
     .single()
 
-  const isInstructorOrAdmin = profile?.role === 'instructor' || profile?.role === 'admin'
+  const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
   const { as: previewName, studentId: previewId, course: courseParam } = await searchParams
 
-  if (isInstructorOrAdmin && !previewName && !previewId) redirect('/instructor/attendance')
-  if (!isInstructorOrAdmin && (previewName || previewId)) redirect('/student/attendance')
+  if (isStaff && !previewName && !previewId) redirect('/instructor/attendance')
+
+  // A TA may open a student from the Attendance portal, but only for a class they can
+  // see there, and only by the student's stable Airtable id (a name could match someone
+  // in another class). Whether the student is actually in that class is checked below,
+  // once their Airtable profile is loaded.
+  let isTaView = false
+  if (!isStaff && (previewName || previewId)) {
+    const access = await getAttendanceAccess()
+    if (!access || !previewId || !courseParam || !canSeeClass(access, courseParam)) redirect('/student/attendance')
+    isTaView = true
+  }
+  const isInstructorOrAdmin = isStaff || isTaView
 
   // The airtable_student_id (when known) is the safe-to-use identifier — it doesn't
   // break when a student's display name collides with someone else's. previewName is
@@ -43,21 +55,41 @@ export default async function StudentAttendancePage({
   // users.name is self-editable, so a student without a linked id could rename
   // themselves to a classmate's preferred name and see their attendance. Prefer the
   // auth email (not user-editable) before ever falling back to the name.
+  let emailLookupFailed = false
   if (!airtableStudentId && !previewName && user.email) {
     try {
       airtableStudentId = (await resolveAirtableStudentIdByEmail(user.email)) ?? undefined
     } catch (err) {
       console.error('Airtable email lookup failed:', err)
+      emailLookupFailed = true
     }
   }
-  const name = previewName ?? profile?.name ?? null
+  // Only staff previewing a student (?as=) may look attendance up by name. A student's
+  // own display name is never used: they can edit it, so it could match a classmate.
+  const name = previewName ?? null
 
   if (!name && !airtableStudentId) {
     return (
       <div className="min-h-screen bg-background">
         <StudentTopNav name={profile?.name} role={profile?.role} />
-        <main className="max-w-4xl mx-auto px-4 py-10">
-          <p className="text-muted-text">Could not load your profile. Please contact support.</p>
+        <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-10 focus:outline-none">
+          <div className="bg-surface border border-border rounded-xl p-8 text-center">
+            {emailLookupFailed ? (
+              <>
+                <p className="text-dark-text font-semibold mb-2">Attendance data unavailable</p>
+                <p className="text-muted-text text-sm">
+                  Unable to load attendance records right now. Please try again later or contact support.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-dark-text font-semibold mb-2">We couldn&apos;t find your attendance record</p>
+                <p className="text-muted-text text-sm">
+                  Your login email isn&apos;t linked to an attendance record yet. Please contact staff so they can link it for you.
+                </p>
+              </>
+            )}
+          </div>
         </main>
       </div>
     )
@@ -90,6 +122,17 @@ export default async function StudentAttendancePage({
     airtableError = true
   }
 
+  // A TA sees only the one class they opened, and only for a student in that class.
+  if (isTaView && !airtableError) {
+    const classCourse = courses?.find(c => c.name.trim() === courseParam!.trim()) ?? null
+    const inClass =
+      (!!classCourse && !!studentProfile?.enrolledCourseIds.includes(classCourse.id)) ||
+      studentProfile?.currentCourse?.trim() === courseParam!.trim()
+    if (!inClass) redirect('/instructor/attendance')
+    courses = classCourse ? [classCourse] : []
+    records = classCourse ? filterRecordsByCourse(records ?? [], classCourse) : []
+  }
+
   // Diagnostic: a student with attendance data on file but none of it landing in
   // their active course's date range usually means the course's Start/End Date is
   // wrong in Airtable, not that the student truly has no attendance yet.
@@ -110,6 +153,7 @@ export default async function StudentAttendancePage({
         <InstructorTopNav
           name={profile?.name}
           role={profile?.role}
+          isTa={isTaView}
           breadcrumbs={[
             { label: 'Attendance Portal', href: '/instructor/attendance' },
             { label: displayName },

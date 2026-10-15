@@ -31,6 +31,16 @@ function checkAssignableRole(role: Role, callerRole: string): string | null {
   return null
 }
 
+// Sync users.role for instructor/staff/admin so they appear in the Staff section.
+// Never lowers an existing admin: adding an admin to a course as instructor/staff
+// must not demote them (changing an admin's role is admin-only, via updateUserRole).
+async function syncStaffRole(admin: ReturnType<typeof createServiceSupabaseClient>, userId: string, role: Role) {
+  if (role !== 'instructor' && role !== 'staff' && role !== 'admin') return
+  const { data: current } = await admin.from('users').select('role').eq('id', userId).maybeSingle()
+  if (current?.role === 'admin' || current?.role === role) return
+  await admin.from('users').update({ role }).eq('id', userId)
+}
+
 export async function bulkAddPeopleToCourse(
   courseId: string,
   emails: string[],
@@ -67,10 +77,7 @@ export async function bulkAddPeopleToCourse(
 
       if (error) return { email, error: error.message }
 
-      // Sync users.role for instructor/staff/admin so they appear in the Staff section
-      if (role === 'instructor' || role === 'staff' || role === 'admin') {
-        await admin.from('users').update({ role }).eq('id', existingUser.id)
-      }
+      await syncStaffRole(admin, existingUser.id, role)
 
       return { email, added: true }
     }
@@ -94,9 +101,10 @@ export async function bulkAddPeopleToCourse(
       if (!userId) return { email, error: 'Could not locate existing account for this email.' }
 
       await admin.from('users').upsert(
-        { id: userId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
-        { onConflict: 'id' }
+        { id: userId, email, name: email, role: 'student' },
+        { onConflict: 'id', ignoreDuplicates: true }
       )
+      await syncStaffRole(admin, userId, role)
       const { error: enrollError } = await admin.from('course_enrollments').upsert(
         { course_id: courseId, user_id: userId, role },
         { onConflict: 'course_id,user_id' }
@@ -165,10 +173,7 @@ export async function addPersonToCourse(
 
     if (error) return { error: error.message }
 
-    // Sync users.role for instructor/staff/admin so they appear in the Staff section
-    if (role === 'instructor' || role === 'staff' || role === 'admin') {
-      await admin.from('users').update({ role }).eq('id', existingUser.id)
-    }
+    await syncStaffRole(admin, existingUser.id, role)
 
     return { added: true }
   }
@@ -192,9 +197,10 @@ export async function addPersonToCourse(
     if (!userId) return { error: 'Could not locate existing account for this email.' }
 
     await admin.from('users').upsert(
-      { id: userId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
-      { onConflict: 'id' }
+      { id: userId, email, name: email, role: 'student' },
+      { onConflict: 'id', ignoreDuplicates: true }
     )
+    await syncStaffRole(admin, userId, role)
     const { error: enrollError } = await admin.from('course_enrollments').upsert(
       { course_id: courseId, user_id: userId, role },
       { onConflict: 'course_id,user_id' }
@@ -296,6 +302,12 @@ export async function updateUserRole(
   // Only admins can assign the admin role
   if (role === 'admin' && profile?.role !== 'admin') {
     return { error: 'Only admins can assign the admin role.' }
+  }
+
+  // ...and only admins can change an existing admin's role (no demoting admins)
+  if (profile?.role !== 'admin') {
+    const { data: target } = await admin.from('users').select('role').eq('id', targetUserId).maybeSingle()
+    if (target?.role === 'admin') return { error: "Only admins can change an admin's role." }
   }
 
   const { data: updated, error } = await admin

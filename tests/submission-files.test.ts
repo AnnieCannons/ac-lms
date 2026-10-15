@@ -21,6 +21,13 @@ describe('submissionFilePath', () => {
     expect(submissionFilePath('a1/s1/shot.png')).toBe('a1/s1/shot.png')
   })
 
+  it('handles the random upload folder in newer paths', () => {
+    expect(submissionFilePath('a1/s1/0a1b2c3d/report.pdf')).toBe('a1/s1/0a1b2c3d/report.pdf')
+    expect(submissionFilePath('https://abc.supabase.co/storage/v1/object/public/lms-submissions/a1/s1/0a1b2c3d/report.pdf'))
+      .toBe('a1/s1/0a1b2c3d/report.pdf')
+    expect(submissionFileName('a1/s1/0a1b2c3d/report.pdf')).toBe('report.pdf')
+  })
+
   it('leaves URLs for other buckets and sites alone', () => {
     expect(submissionFilePath('https://abc.supabase.co/storage/v1/object/public/lms-resources/x/y.png')).toBeNull()
     expect(submissionFilePath('https://canvas.example.com/files/1/2/download')).toBeNull()
