@@ -21,7 +21,8 @@ export default async function ConductQuizPage({
     .eq("id", user.id)
     .single();
 
-  if (profile?.role === "student") redirect(`/student/courses/${id}/quizzes/${quizId}`);
+  // Allowlist, not deny-list: a missing/unknown role must not reach the service-client roster.
+  if (profile?.role !== "instructor" && profile?.role !== "staff" && profile?.role !== "admin") redirect(`/student/courses/${id}/quizzes/${quizId}`);
 
   let admin: ReturnType<typeof createServiceSupabaseClient>;
   try {
