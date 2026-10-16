@@ -43,7 +43,8 @@ export default function InlineCardEditor({ deckId, mode, card, onSaved, onAddAno
           }
         } else if (card) {
           if (cardType === 'cloze') {
-            await updateClozeCards(deckId, card.front_content, front)
+            const originalCardId = card.card_type !== 'cloze' ? card.id : undefined
+            await updateClozeCards(deckId, card.front_content, front, originalCardId)
           } else {
             await updateCard(card.id, deckId, { card_type: cardType, front_content: front, back_content: back })
           }
