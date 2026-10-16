@@ -6,6 +6,7 @@ vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 import {
   addHardwareNote,
   addToHardwareWaitlist,
+  getHardwareDropPrompt,
   recordHardwareReplacement,
   removeFromHardwareWaitlist,
   transferHardwareOwnership,
@@ -236,5 +237,34 @@ describe('ownership, replacements and waitlist', () => {
       from: (table: string) => chain(table === 'users' ? { data: { id: 's1', role: 'student' }, error: null } : { data: null, error: { code: '23505', message: 'dup' } }),
     } as never)
     expect(await addToHardwareWaitlist('s1', 'hotspot', '')).toEqual({ ok: false, error: 'This student is already waiting for one.' })
+  })
+})
+
+describe('getHardwareDropPrompt', () => {
+  it('rejects a TA', async () => {
+    signedInAs('ta')
+    expect(await getHardwareDropPrompt('s1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('returns nothing when the student has nothing on loan', async () => {
+    signedInAs('instructor')
+    serviceWith({ hardware_devices: { data: [], error: null } })
+    expect(await getHardwareDropPrompt('s1')).toEqual({ ok: true, prompt: null })
+  })
+
+  it('lists loaned items and the current courses they are still a student in', async () => {
+    signedInAs('instructor')
+    serviceWith({
+      hardware_devices: { data: [{ id: 'd1', asset_tag: 'LAP-001', kind: 'laptop', make_model: 'Dell' }], error: null },
+      users: { data: { id: 's1', name: 'Ana', email: 'a@x.org' }, error: null },
+      course_enrollments: { data: [
+        { courses: { name: 'Intro to Programming (Sept 2099)', start_date: '2099-10-05', end_date: null, archived: false, is_template: false } },
+        { courses: { name: 'Old course', start_date: '2020-01-01', end_date: '2020-04-01', archived: false, is_template: false } },
+        { courses: { name: 'Archived', start_date: '2099-01-01', end_date: null, archived: true, is_template: false } },
+      ], error: null },
+    })
+    const res = await getHardwareDropPrompt('s1')
+    expect(res).toMatchObject({ ok: true, prompt: { student: { id: 's1' }, items: [{ asset_tag: 'LAP-001' }], otherCourses: ['Intro to Programming (Sept 2099)'] } })
   })
 })

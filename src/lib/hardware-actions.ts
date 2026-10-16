@@ -524,3 +524,56 @@ export async function removeFromHardwareWaitlist(entryId: string): Promise<Resul
     .update({ removed_at: now() }).eq('id', entryId).is('fulfilled_at', null).is('removed_at', null)
   return error ? { ok: false, error: error.message } : { ok: true }
 }
+
+// ── Drop prompt (Phase 4) ─────────────────────────────────────────────────────
+
+export type DropPrompt = {
+  student: Person
+  /** Devices on loan to the student (not ones they own or that are already awaited). */
+  items: { id: string; asset_tag: string | null; kind: DeviceKind; make_model: string | null }[]
+  /** Courses they are still a current student in, e.g. moving on from TCF to ITP. */
+  otherCourses: string[]
+}
+
+/**
+ * Called by the Users page right after a student is removed from a course or changed to
+ * observer: what they still have on loan, so staff can ask for it back in one click.
+ * Returns null when they have nothing on loan.
+ */
+export async function getHardwareDropPrompt(studentId: string): Promise<Result<{ prompt: DropPrompt | null }>> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+
+  const admin = createServiceSupabaseClient()
+  const { data: rows, error } = await admin.from('hardware_devices')
+    .select('id, asset_tag, kind, make_model')
+    .eq('current_holder_id', studentId).eq('status', 'on_loan').order('asset_tag')
+  if (error) return { ok: false, error: error.message }
+  const items = (rows ?? []) as DropPrompt['items']
+  if (items.length === 0) return { ok: true, prompt: null }
+
+  const [{ data: student }, { data: enrollments }] = await Promise.all([
+    admin.from('users').select('id, name, email').eq('id', studentId).maybeSingle(),
+    admin.from('course_enrollments').select('courses(name, start_date, end_date, archived, is_template)')
+      .eq('user_id', studentId).eq('role', 'student'),
+  ])
+  if (!student) return { ok: true, prompt: null }
+
+  type CourseRow = { name: string; start_date: string | null; end_date: string | null; archived: boolean | null; is_template: boolean | null }
+  const today = new Date().toISOString().slice(0, 10)
+  const otherCourses = ((enrollments ?? []) as { courses: CourseRow | CourseRow[] | null }[])
+    .flatMap(e => (Array.isArray(e.courses) ? e.courses : e.courses ? [e.courses] : []))
+    .filter(c => !c.archived && !c.is_template && courseIsCurrent(c, today))
+    .map(c => c.name)
+
+  return { ok: true, prompt: { student: student as Person, items, otherCourses } }
+}
+
+/** A course counts as current until its end date, or start + 105 days without one (same rule as the "Current" badge). */
+function courseIsCurrent(c: { start_date: string | null; end_date: string | null }, today: string): boolean {
+  if (c.end_date) return c.end_date >= today
+  if (!c.start_date) return true
+  const end = new Date(`${c.start_date}T00:00:00Z`)
+  end.setUTCDate(end.getUTCDate() + 105)
+  return end.toISOString().slice(0, 10) >= today
+}

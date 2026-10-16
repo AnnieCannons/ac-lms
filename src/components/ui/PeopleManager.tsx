@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse, deleteStaffMember, sendInviteToEnrolledUser } from '@/lib/people-actions'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { setCourseCompleted } from '@/lib/course-completion-actions'
+import { getHardwareDropPrompt, type DropPrompt } from '@/lib/hardware-actions'
+import HardwareDropPrompt from '@/components/hardware/HardwareDropPrompt'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
@@ -26,6 +28,8 @@ interface Invitation {
 
 interface Props {
   courseId: string
+  /** Used in the hardware history when a student leaves, e.g. "Removed from …". */
+  courseName?: string
   members: Member[]
   invitations: Invitation[]
   currentUserRole: 'instructor' | 'admin'
@@ -256,7 +260,7 @@ function InstructorSection({
   )
 }
 
-export default function PeopleManager({ courseId, members, invitations, currentUserRole, instructors, allCourses, instructorCourseMap }: Props) {
+export default function PeopleManager({ courseId, courseName, members, invitations, currentUserRole, instructors, allCourses, instructorCourseMap }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -444,7 +448,16 @@ export default function PeopleManager({ courseId, members, invitations, currentU
     )
   }
 
+  // After a student leaves (removed, or changed to observer): if they still have equipment on
+  // loan, ask whether we need it back. Never blocks the change itself.
+  const [dropPrompt, setDropPrompt] = useState<{ prompt: DropPrompt; reason: string } | null>(null)
+  async function checkHardware(userId: string, reason: string) {
+    const res = await getHardwareDropPrompt(userId)
+    if (res.ok && res.prompt) setDropPrompt({ prompt: res.prompt, reason })
+  }
+
   async function handleRoleChange(userId: string, newRole: Role) {
+    const before = members.find(m => m.userId === userId)?.role
     setSavingRole(true)
     setActionStatus(null)
     const result = await updateEnrollmentRole(courseId, userId, newRole)
@@ -454,6 +467,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
       setActionStatus({ id: userId, type: 'error', message: result.error })
     } else {
       startTransition(() => router.refresh())
+      if (before === 'student' && newRole === 'observer') checkHardware(userId, `Changed to observer in ${courseName ?? 'a course'}`)
     }
   }
 
@@ -479,6 +493,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   }
 
   async function handleRemove(userId: string) {
+    const before = members.find(m => m.userId === userId)?.role
     setActionStatus(null)
     setConfirmRemove(null)
     setRemoving(true)
@@ -488,6 +503,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
       setActionStatus({ id: userId, type: 'error', message: result.error })
     } else {
       startTransition(() => { router.refresh(); setRemoving(false) })
+      if (before === 'student' || before === 'observer') checkHardware(userId, `Removed from ${courseName ?? 'a course'}`)
     }
   }
 
@@ -658,6 +674,8 @@ export default function PeopleManager({ courseId, members, invitations, currentU
       )}
 
       <InstructorSection instructors={instructors} allCourses={allCourses} instructorCourseMap={instructorCourseMap} currentUserRole={currentUserRole} />
+
+      {dropPrompt && <HardwareDropPrompt prompt={dropPrompt.prompt} reason={dropPrompt.reason} onClose={() => setDropPrompt(null)} />}
 
     </div>
   )
