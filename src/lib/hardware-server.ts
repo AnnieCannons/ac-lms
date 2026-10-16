@@ -217,3 +217,30 @@ export async function loadReplacements(admin: Admin, studentId: string): Promise
     .eq('student_id', studentId).order('created_at', { ascending: true })
   return (data as Replacement[] | null) ?? []
 }
+
+// ── Students' own view (Phase 5) ─────────────────────────────────────────────
+
+export type MyEquipment = {
+  devices: HardwareDevice[]
+  /** Devices we've asked the student to send back. */
+  awaitingIds: Set<string>
+  replacementsUsed: { laptop: number; charger: number }
+}
+
+/**
+ * A student's own equipment for their Profile page and the return banner. Callers pass the
+ * signed-in user's own id (from auth), never one from the request.
+ */
+export async function loadMyEquipment(admin: Admin, userId: string): Promise<MyEquipment> {
+  const [{ data: devices }, { data: replacements }] = await Promise.all([
+    admin.from('hardware_devices').select(DEVICE_COLUMNS).eq('current_holder_id', userId).order('asset_tag'),
+    admin.from('hardware_replacements').select('kind').eq('student_id', userId),
+  ])
+  const list = (devices as HardwareDevice[] | null) ?? []
+  const kinds = ((replacements ?? []) as { kind: string }[]).map(r => r.kind)
+  return {
+    devices: list,
+    awaitingIds: new Set(list.filter(d => d.status === 'awaiting_return').map(d => d.id)),
+    replacementsUsed: { laptop: kinds.filter(k => k === 'laptop').length, charger: kinds.filter(k => k === 'charger').length },
+  }
+}

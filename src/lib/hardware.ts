@@ -396,3 +396,14 @@ export function statusChoices(status: DeviceStatus, kind?: DeviceKind): StatusCh
     default: return []
   }
 }
+
+// ── Students' own view (Phase 5) ─────────────────────────────────────────────
+
+/** The Airtable Equipment Support Form (shipping address stays in Airtable). */
+export const EQUIPMENT_SUPPORT_FORM_URL = 'https://airtable.com/appgPVyyCMlaAtxMx/pagFG80n4f1UNQdxB/form'
+
+/** The support form with the student's email filled in (Airtable `prefill_<field name>`). */
+export function supportFormUrl(email: string | null | undefined): string {
+  if (!email) return EQUIPMENT_SUPPORT_FORM_URL
+  return `${EQUIPMENT_SUPPORT_FORM_URL}?${new URLSearchParams({ 'prefill_Student Email': email })}`
+}

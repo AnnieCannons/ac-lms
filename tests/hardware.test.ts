@@ -6,6 +6,8 @@ import {
   statusChoices,
   isReadyToTransfer,
   laptopTrackFromName,
+  supportFormUrl,
+  EQUIPMENT_SUPPORT_FORM_URL,
   validateReplacementInput,
   DEVICE_STATUSES,
   describeChanges,
@@ -186,5 +188,14 @@ describe('laptopTrackFromName', () => {
     expect(laptopTrackFromName('Winter Break ITP Exercises 2026')).toBeNull()
     expect(laptopTrackFromName('Advanced Frontend (Fall 2026)')).toBeNull()
     expect(laptopTrackFromName(null)).toBeNull()
+  })
+})
+
+describe('supportFormUrl', () => {
+  it('pre-fills the Student Email field, encoded', () => {
+    expect(supportFormUrl('ana+1@x.org')).toBe(`${EQUIPMENT_SUPPORT_FORM_URL}?prefill_Student+Email=ana%2B1%40x.org`)
+  })
+  it('falls back to the plain form without an email', () => {
+    expect(supportFormUrl(null)).toBe(EQUIPMENT_SUPPORT_FORM_URL)
   })
 })

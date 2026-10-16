@@ -1,4 +1,7 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { DEVICE_COLUMNS } from '@/lib/hardware-server'
+import type { HardwareDevice } from '@/lib/hardware'
+import ReturnBanner from '@/components/hardware/ReturnBanner'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -53,11 +56,16 @@ export default async function StudentCoursesPage() {
 
   const totalCount = sortedCourses.length
 
+  // Equipment we've asked this student to send back (their own id, from auth).
+  const { data: owed } = await createServiceSupabaseClient().from('hardware_devices').select(DEVICE_COLUMNS)
+    .eq('current_holder_id', user.id).eq('status', 'awaiting_return').order('asset_tag')
+
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
 
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 md:px-8 md:py-12 focus:outline-none">
+        <ReturnBanner devices={(owed as HardwareDevice[] | null) ?? []} />
         <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">My Courses</h1>
         <p className="text-muted-text text-sm mb-8">
           {totalCount} course{totalCount !== 1 ? 's' : ''} enrolled
