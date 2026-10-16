@@ -7,6 +7,8 @@ import {
   addHardwareNote,
   addToHardwareWaitlist,
   getHardwareDropPrompt,
+  saveHardwareSubscription,
+  deleteHardwareSubscription,
   recordHardwareReplacement,
   removeFromHardwareWaitlist,
   transferHardwareOwnership,
@@ -266,5 +268,27 @@ describe('getHardwareDropPrompt', () => {
     })
     const res = await getHardwareDropPrompt('s1')
     expect(res).toMatchObject({ ok: true, prompt: { student: { id: 's1' }, items: [{ asset_tag: 'LAP-001' }], otherCourses: ['Intro to Programming (Sept 2099)'] } })
+  })
+})
+
+describe('hotspot plans', () => {
+  const plan = { carrier: 'Mission Telecom', plan: '', startsOn: '2026-10-01', endsOn: '2027-10-01', cost: '120', accountNumber: '', lineNumber: '', notes: '' }
+
+  it.each(['student', 'ta'])('rejects a %s', async role => {
+    signedInAs(role)
+    expect(await saveHardwareSubscription('d1', null, plan)).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await deleteHardwareSubscription('p1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('only adds plans to hotspots', async () => {
+    signedInAs('staff')
+    serviceWith({ hardware_devices: { data: { kind: 'laptop' }, error: null } })
+    expect(await saveHardwareSubscription('d1', null, plan)).toEqual({ ok: false, error: 'Only hotspots have plans.' })
+  })
+
+  it('checks the dates', async () => {
+    signedInAs('staff')
+    expect(await saveHardwareSubscription('d1', null, { ...plan, endsOn: '2026-09-01' })).toEqual({ ok: false, error: 'The end date must be after the start date.' })
   })
 })

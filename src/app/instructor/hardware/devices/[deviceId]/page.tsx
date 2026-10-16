@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { loadBatch, loadDevice, loadDeviceEvents, loadOpenReturnForDevice, loadPeople, loadWaitlist } from '@/lib/hardware-server'
+import { loadBatch, loadDevice, loadDeviceEvents, loadOpenReturnForDevice, loadPeople, loadSubscriptions, loadWaitlist } from '@/lib/hardware-server'
+import { pacificToday } from '@/lib/hardware-reminders'
+import HotspotPlanCard from '@/components/hardware/HotspotPlanCard'
 import {
   CONDITION_LABELS,
   daysSince,
@@ -24,11 +26,12 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
   const device = await loadDevice(admin, deviceId)
   if (!device) notFound()
 
-  const [events, batch, openReturn, waitlist] = await Promise.all([
+  const [events, batch, openReturn, waitlist, subscriptions] = await Promise.all([
     loadDeviceEvents(admin, device.id),
     loadBatch(admin, device.purchase_batch_id),
     loadOpenReturnForDevice(admin, device.id),
     device.status === 'in_stock' ? loadWaitlist(admin, device.kind) : Promise.resolve([]),
+    device.kind === 'hotspot' ? loadSubscriptions(admin, device.id) : Promise.resolve([]),
   ])
   const people = await loadPeople(admin, [device.current_holder_id, ...events.flatMap(e => [e.actor_id, e.student_id])])
   const holder = device.current_holder_id ? people.get(device.current_holder_id) : null
@@ -75,6 +78,8 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
             )}
           </div>
         </section>
+
+        {device.kind === 'hotspot' && <HotspotPlanCard deviceId={device.id} subscriptions={subscriptions} today={pacificToday()} />}
 
         <DeviceDetails device={device} batch={batch} />
 

@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/cutting-edge-reminders",
       "schedule": "30 15,16 * * *"
+    },
+    {
+      "path": "/api/cron/hardware-reminders",
+      "schedule": "30 15,16 * * *"
     }
   ]
 }
