@@ -18,6 +18,9 @@ import {
   RECEIVE_STATUSES,
   sanitizeSearch,
   type ReceiveStatus,
+  validateReplacementInput,
+  DEVICE_KINDS,
+  type ReplacementInput,
   type BatchInput,
   type DeviceInput,
   type DeviceKind,
@@ -251,13 +254,17 @@ export async function loanHardwareDevice(deviceId: string, studentId: string, no
   const { data: updated, error } = await admin.from('hardware_devices')
     .update({ status: 'on_loan', current_holder_id: studentId, updated_at: now() })
     .eq('id', deviceId).eq('status', 'in_stock').is('current_holder_id', null)
-    .select('id')
+    .select('id, kind')
   if (error) return { ok: false, error: error.message }
   if (!updated?.length) return { ok: false, error: 'Only a device that is in stock can be loaned.' }
 
   await admin.from('hardware_events').insert({
     device_id: deviceId, student_id: studentId, type: 'loaned', notes: note.trim() || null, actor_id: staff.userId,
   })
+  // If they were on the waitlist for this kind of device, they aren't any more.
+  await admin.from('hardware_waitlist')
+    .update({ fulfilled_at: now(), fulfilled_device_id: deviceId })
+    .eq('student_id', studentId).eq('kind', updated[0].kind).is('fulfilled_at', null).is('removed_at', null)
   return { ok: true }
 }
 
@@ -390,4 +397,130 @@ async function closeReturnRequests(
   await admin.from('hardware_return_requests')
     .update({ closed_at: now(), closed_reason: reason, next_reminder_at: null })
     .in('device_id', deviceIds).is('closed_at', null)
+}
+
+// ── Ownership, replacements and waitlist (Phase 3b) ──────────────────────────
+
+/** A loaned laptop becomes the student's. Staff decide; the Ready to transfer list only suggests. */
+export async function transferHardwareOwnership(deviceId: string, note: string): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+
+  const admin = createServiceSupabaseClient()
+  const { data: updated, error } = await admin.from('hardware_devices')
+    .update({ status: 'owned_by_student', updated_at: now() })
+    .eq('id', deviceId).eq('kind', 'laptop').eq('status', 'on_loan').not('current_holder_id', 'is', null)
+    .select('id, current_holder_id')
+  if (error) return { ok: false, error: error.message }
+  if (!updated?.length) return { ok: false, error: 'Only a laptop that is on loan can be transferred.' }
+
+  await admin.from('hardware_events').insert({
+    device_id: deviceId, student_id: updated[0].current_holder_id, type: 'ownership_transferred', notes: note.trim() || null, actor_id: staff.userId,
+  })
+  return { ok: true }
+}
+
+/**
+ * Records a laptop or charger replacement. For a laptop: the new in-stock laptop goes to the
+ * student (owned if the old one was owned), and the old one is either chased back or written
+ * off. Each student gets one of each; more needs an override note.
+ */
+export async function recordHardwareReplacement(input: ReplacementInput): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+
+  const admin = createServiceSupabaseClient()
+  const { data: student } = await admin.from('users').select('id, role').eq('id', input.studentId).maybeSingle()
+  if (!student || student.role !== 'student') return { ok: false, error: 'Choose a student.' }
+
+  const { count } = await admin.from('hardware_replacements')
+    .select('id', { count: 'exact', head: true }).eq('student_id', input.studentId).eq('kind', input.kind)
+  const invalid = validateReplacementInput(input, count ?? 0)
+  if (invalid) return { ok: false, error: invalid }
+
+  let oldDevice: { id: string; status: string; kind: string; current_holder_id: string | null } | null = null
+  if (input.oldDeviceId) {
+    const { data } = await admin.from('hardware_devices').select('id, status, kind, current_holder_id').eq('id', input.oldDeviceId).maybeSingle()
+    if (!data || data.kind !== 'laptop' || data.current_holder_id !== input.studentId) {
+      return { ok: false, error: 'That laptop is not with this student.' }
+    }
+    oldDevice = data
+  }
+
+  if (input.kind === 'laptop') {
+    if (!oldDevice || !['on_loan', 'owned_by_student'].includes(oldDevice.status)) {
+      return { ok: false, error: 'Only a laptop the student has on loan or owns can be replaced.' }
+    }
+    const newStatus = oldDevice.status === 'owned_by_student' ? 'owned_by_student' : 'on_loan'
+    const { data: sent, error: sendError } = await admin.from('hardware_devices')
+      .update({ status: newStatus, current_holder_id: input.studentId, updated_at: now() })
+      .eq('id', input.newDeviceId!).eq('kind', 'laptop').eq('status', 'in_stock').is('current_holder_id', null)
+      .select('id')
+    if (sendError) return { ok: false, error: sendError.message }
+    if (!sent?.length) return { ok: false, error: 'The laptop to send must be in stock.' }
+
+    if (input.oldComingBack) {
+      await admin.from('hardware_devices').update({ status: 'awaiting_return', updated_at: now() }).eq('id', oldDevice.id)
+      const requestedAt = new Date()
+      await admin.from('hardware_return_requests').insert({
+        device_id: oldDevice.id, student_id: input.studentId, requested_at: requestedAt.toISOString(), requested_by: staff.userId,
+        next_reminder_at: new Date(requestedAt.getTime() + FIRST_RETURN_REMINDER_HOURS * 60 * 60 * 1000).toISOString(),
+      })
+    } else {
+      await admin.from('hardware_devices')
+        .update({ status: input.writeOff, current_holder_id: null, updated_at: now() }).eq('id', oldDevice.id)
+    }
+  }
+
+  const { error } = await admin.from('hardware_replacements').insert({
+    student_id: input.studentId,
+    kind: input.kind,
+    old_device_id: input.oldDeviceId,
+    new_device_id: input.kind === 'laptop' ? input.newDeviceId : null,
+    old_coming_back: input.oldComingBack,
+    write_off_reason: input.oldComingBack ? null : input.writeOffReason.trim(),
+    override_note: input.overrideNote.trim() || null,
+    notes: input.notes.trim() || null,
+    created_by: staff.userId,
+  })
+  if (error) return { ok: false, error: error.message }
+
+  const detail = [
+    input.oldComingBack ? 'Old one coming back' : `Old one not coming back: ${input.writeOffReason.trim()}`,
+    input.overrideNote.trim() ? `Extra replacement allowed: ${input.overrideNote.trim()}` : '',
+    input.notes.trim(),
+  ].filter(Boolean).join('\n')
+  const events = input.kind === 'laptop'
+    ? [
+        { device_id: input.oldDeviceId, student_id: input.studentId, type: input.oldComingBack ? 'replaced' : 'written_off', notes: detail, actor_id: staff.userId },
+        { device_id: input.newDeviceId, student_id: input.studentId, type: 'replacement_sent', notes: null, actor_id: staff.userId },
+      ]
+    : [{ device_id: input.oldDeviceId, student_id: input.studentId, type: 'charger_replaced', notes: detail, actor_id: staff.userId }]
+  await admin.from('hardware_events').insert(events)
+  return { ok: true }
+}
+
+export async function addToHardwareWaitlist(studentId: string, kind: string, note: string): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+  if (!DEVICE_KINDS.includes(kind as DeviceKind)) return { ok: false, error: 'Choose a device type.' }
+
+  const admin = createServiceSupabaseClient()
+  const { data: student } = await admin.from('users').select('id, role').eq('id', studentId).maybeSingle()
+  if (!student || student.role !== 'student') return { ok: false, error: 'Choose a student.' }
+
+  const { error } = await admin.from('hardware_waitlist').insert({
+    student_id: studentId, kind, note: note.trim() || null, added_by: staff.userId,
+  })
+  if (error?.code === '23505') return { ok: false, error: 'This student is already waiting for one.' }
+  return error ? { ok: false, error: error.message } : { ok: true }
+}
+
+export async function removeFromHardwareWaitlist(entryId: string): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+  const admin = createServiceSupabaseClient()
+  const { error } = await admin.from('hardware_waitlist')
+    .update({ removed_at: now() }).eq('id', entryId).is('fulfilled_at', null).is('removed_at', null)
+  return error ? { ok: false, error: error.message } : { ok: true }
 }

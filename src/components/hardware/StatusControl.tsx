@@ -9,6 +9,7 @@ import {
   markHardwareAwaitingReturn,
   markHardwarePrepped,
   setHardwareDeviceStatus,
+  transferHardwareOwnership,
 } from '@/lib/hardware-actions'
 import {
   STATUS_CHOICE_LABELS,
@@ -27,13 +28,14 @@ const HINTS: Partial<Record<StatusChoice, string>> = {
   awaiting_return: "For example, the student dropped or graduated. They'll be reminded to send it back.",
   back_on_loan: 'It goes back to on loan and the reminders stop. For example, the student came back.',
   lost_while_out: 'The device is marked lost and the reminders stop.',
+  transfer: 'The laptop becomes the student\'s. It still counts toward their one laptop replacement.',
 }
 
 /**
  * The device's status as a dropdown that only offers changes that make sense from here.
  * Picking one opens the small form that change needs; Cancel leaves the status as it was.
  */
-export default function StatusControl({ device }: { device: HardwareDevice }) {
+export default function StatusControl({ device, waitlist = [] }: { device: HardwareDevice; waitlist?: Person[] }) {
   const router = useRouter()
   const selectId = useId()
   const [choice, setChoice] = useState<StatusChoice | ''>('')
@@ -41,7 +43,7 @@ export default function StatusControl({ device }: { device: HardwareDevice }) {
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const choices = statusChoices(device.status)
+  const choices = statusChoices(device.status, device.kind)
 
   const reset = () => { setChoice(''); setStudent(null); setNote(''); setError(null) }
 
@@ -56,6 +58,7 @@ export default function StatusControl({ device }: { device: HardwareDevice }) {
         case 'back_on_loan': return cancelHardwareReturn(device.id, note)
         case 'lost_while_out': return confirmHardwareLost(device.id, note)
         case 'prepped': return markHardwarePrepped(device.id)
+        case 'transfer': return transferHardwareOwnership(device.id, note)
         case 'receive': return Promise.resolve({ ok: true })
         default: return setHardwareDeviceStatus(device.id, choice as DeviceStatus, note)
       }
@@ -77,6 +80,7 @@ export default function StatusControl({ device }: { device: HardwareDevice }) {
             id={selectId}
             value={choice}
             onChange={e => { reset(); setChoice(e.target.value as StatusChoice) }}
+            aria-describedby={!choice && choices.includes('loan') ? `${selectId}-hint` : undefined}
             className="px-3 py-1.5 rounded-lg border border-border bg-background text-dark-text text-sm font-semibold focus:outline-none focus:border-teal-primary"
           >
             <option value="">{STATUS_LABELS[device.status]}</option>
@@ -86,6 +90,12 @@ export default function StatusControl({ device }: { device: HardwareDevice }) {
           </select>
         )}
       </div>
+      {!choice && choices.includes('loan') && (
+        <p id={`${selectId}-hint`} className="text-sm text-muted-text">
+          To give this {device.kind === 'booster' ? 'booster' : device.kind} to a student, change the status to{' '}
+          <strong className="text-dark-text">On loan</strong> and choose who it goes to.
+        </p>
+      )}
 
       {choice === 'receive' && (
         <div className="max-w-xl">
@@ -99,6 +109,18 @@ export default function StatusControl({ device }: { device: HardwareDevice }) {
           onSubmit={e => { e.preventDefault(); save() }}
         >
           {HINTS[choice] && <p className="text-sm text-muted-text">{HINTS[choice]}</p>}
+          {choice === 'loan' && !student && waitlist.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-text mb-1">Waiting for one (first come, first served)</p>
+              <div className="flex flex-wrap gap-2">
+                {waitlist.map(p => (
+                  <button key={p.id} type="button" onClick={() => setStudent(p)} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-dark-text hover:bg-border/20">
+                    {p.name ?? p.email}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {choice === 'loan' && <StudentPicker value={student} onChange={setStudent} />}
           {choice !== 'prepped' && (
             <label className={labelCls}>

@@ -48,6 +48,85 @@ export const EVENT_LABELS: Record<string, string> = {
   received: 'Received',
   prepped: 'Wiped and checked',
   marked_lost: 'Marked lost',
+  ownership_transferred: 'Now owned by the student',
+  replaced: 'Replaced',
+  replacement_sent: 'Sent as a replacement',
+  charger_replaced: 'Charger replaced',
+  written_off: 'Written off',
+}
+
+// ── Ownership, replacements and waitlist (Phase 3b) ──────────────────────────
+
+/** Completing one course of each of these counts toward a loaned laptop becoming the student's. */
+export const LAPTOP_TRACKS = ['tcf', 'itp'] as const
+export type LaptopTrack = (typeof LAPTOP_TRACKS)[number]
+export const LAPTOP_TRACK_LABELS: Record<LaptopTrack, string> = {
+  tcf: 'Tech Career Foundations',
+  itp: 'Intro to Programming',
+}
+
+/**
+ * Which track a course counts as, from its name. Cohorts are named "Tech Career Foundations
+ * (Sept 2026)" / "Intro to Programming (Sept 2026)"; the name has to *start* that way so
+ * courses like "Winter Break ITP Exercises 2026" don't count.
+ */
+export function laptopTrackFromName(name: string | null | undefined): LaptopTrack | null {
+  const n = (name ?? '').trim().toLowerCase()
+  for (const t of LAPTOP_TRACKS) if (n.startsWith(LAPTOP_TRACK_LABELS[t].toLowerCase())) return t
+  return null
+}
+
+/** A loaned laptop becomes the student's once they have completed a TCF and an ITP course. */
+export function isReadyToTransfer(completedTracks: Iterable<string>): boolean {
+  const done = new Set(completedTracks)
+  return LAPTOP_TRACKS.every(t => done.has(t))
+}
+
+/** Each student gets this many laptop replacements and this many charger replacements. */
+export const REPLACEMENT_LIMIT = 1
+
+export const REPLACEMENT_KINDS = ['laptop', 'charger'] as const
+export type ReplacementKind = (typeof REPLACEMENT_KINDS)[number]
+
+/** What happens to an old laptop that is not coming back. */
+export const WRITE_OFF_STATUSES = ['lost', 'retired'] as const
+export type WriteOffStatus = (typeof WRITE_OFF_STATUSES)[number]
+export const WRITE_OFF_LABELS: Record<WriteOffStatus, string> = {
+  lost: 'Lost or stolen',
+  retired: 'Damaged beyond repair',
+}
+
+export type ReplacementInput = {
+  studentId: string
+  kind: ReplacementKind
+  /** The laptop being replaced (laptop), or the laptop the charger belongs to (charger, optional). */
+  oldDeviceId: string | null
+  /** An in-stock laptop to send (laptop only). */
+  newDeviceId: string | null
+  oldComingBack: boolean
+  writeOff: WriteOffStatus | ''
+  writeOffReason: string
+  /** Needed when the student already used their replacement of this kind. */
+  overrideNote: string
+  notes: string
+}
+
+/** Returns an error message, or null when the replacement can be recorded. */
+export function validateReplacementInput(input: ReplacementInput, alreadyUsed: number): string | null {
+  if (!REPLACEMENT_KINDS.includes(input.kind)) return 'Choose laptop or charger.'
+  if (input.kind === 'laptop') {
+    if (!input.oldDeviceId) return 'Choose the laptop being replaced.'
+    if (!input.newDeviceId) return 'Choose the laptop to send.'
+    if (input.oldDeviceId === input.newDeviceId) return 'The new laptop must be a different one.'
+  }
+  if (!input.oldComingBack) {
+    if (input.kind === 'laptop' && !WRITE_OFF_STATUSES.includes(input.writeOff as WriteOffStatus)) return 'Choose why the old one is not coming back.'
+    if (!input.writeOffReason.trim()) return 'Say why the old one is not coming back.'
+  }
+  if (alreadyUsed >= REPLACEMENT_LIMIT && !input.overrideNote.trim()) {
+    return `This student already used their ${input.kind} replacement. Add a note saying why this one is allowed.`
+  }
+  return null
 }
 
 /** Statuses a device can go to when it comes back from a student. */
@@ -282,7 +361,7 @@ export function formatDateOnly(value: string | null): string {
 /** A choice in the device page's status dropdown and the form it opens. */
 export type StatusChoice =
   | 'loan' | 'awaiting_return' | 'receive' | 'back_on_loan' | 'lost_while_out'
-  | 'prepped' | 'in_stock' | 'needs_prep' | 'needs_repair' | 'lost' | 'retired'
+  | 'prepped' | 'in_stock' | 'needs_prep' | 'needs_repair' | 'lost' | 'retired' | 'transfer'
 
 export const STATUS_CHOICE_LABELS: Record<StatusChoice, string> = {
   loan: 'On loan (choose a student)',
@@ -296,16 +375,17 @@ export const STATUS_CHOICE_LABELS: Record<StatusChoice, string> = {
   needs_repair: 'Needs repair',
   lost: 'Lost',
   retired: 'Retired',
+  transfer: 'Owned by student (transfer ownership)',
 }
 
 /**
  * The status changes that make sense from a device's current status, in the order the
- * dropdown lists them. Becoming the student's own laptop is a separate step (ownership).
+ * dropdown lists them. Only a loaned laptop can be transferred to the student.
  */
-export function statusChoices(status: DeviceStatus): StatusChoice[] {
+export function statusChoices(status: DeviceStatus, kind?: DeviceKind): StatusChoice[] {
   switch (status) {
     case 'in_stock': return ['loan', 'needs_prep', 'needs_repair', 'lost', 'retired']
-    case 'on_loan': return ['awaiting_return', 'receive']
+    case 'on_loan': return kind === 'laptop' ? ['awaiting_return', 'receive', 'transfer'] : ['awaiting_return', 'receive']
     case 'awaiting_return': return ['receive', 'back_on_loan', 'lost_while_out']
     case 'needs_prep': return ['prepped', 'needs_repair', 'lost', 'retired']
     case 'needs_repair': return ['in_stock', 'needs_prep', 'lost', 'retired']
@@ -313,5 +393,6 @@ export function statusChoices(status: DeviceStatus): StatusChoice[] {
     case 'lost': return ['in_stock', 'retired']
     case 'retired': return ['in_stock']
     case 'owned_by_student': return []
+    default: return []
   }
 }

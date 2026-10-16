@@ -4,6 +4,9 @@ import {
   daysSince,
   isLikelyLost,
   statusChoices,
+  isReadyToTransfer,
+  laptopTrackFromName,
+  validateReplacementInput,
   DEVICE_STATUSES,
   describeChanges,
   emptyDeviceInput,
@@ -128,6 +131,8 @@ describe('days waiting and likely lost', () => {
 describe('statusChoices', () => {
   it('only offers loan-related changes for a device with a student', () => {
     expect(statusChoices('on_loan')).toEqual(['awaiting_return', 'receive'])
+    expect(statusChoices('on_loan', 'laptop')).toEqual(['awaiting_return', 'receive', 'transfer'])
+    expect(statusChoices('on_loan', 'hotspot')).not.toContain('transfer')
     expect(statusChoices('awaiting_return')).toEqual(['receive', 'back_on_loan', 'lost_while_out'])
   })
   it('offers loaning only from in stock', () => {
@@ -135,5 +140,51 @@ describe('statusChoices', () => {
   })
   it('never offers the current status again', () => {
     for (const s of DEVICE_STATUSES) expect(statusChoices(s)).not.toContain(s)
+  })
+})
+
+describe('isReadyToTransfer', () => {
+  it('needs both TCF and ITP', () => {
+    expect(isReadyToTransfer(['tcf'])).toBe(false)
+    expect(isReadyToTransfer(['itp'])).toBe(false)
+    expect(isReadyToTransfer(['tcf', 'itp'])).toBe(true)
+  })
+})
+
+describe('validateReplacementInput', () => {
+  const base = {
+    studentId: 's1', kind: 'laptop' as const, oldDeviceId: 'a', newDeviceId: 'b', oldComingBack: true,
+    writeOff: '' as const, writeOffReason: '', overrideNote: '', notes: '',
+  }
+  it('accepts a first laptop replacement with the old one coming back', () => {
+    expect(validateReplacementInput(base, 0)).toBeNull()
+  })
+  it('needs both laptops and they must differ', () => {
+    expect(validateReplacementInput({ ...base, newDeviceId: null }, 0)).toBe('Choose the laptop to send.')
+    expect(validateReplacementInput({ ...base, newDeviceId: 'a' }, 0)).toBe('The new laptop must be a different one.')
+  })
+  it('needs a reason when the old one is not coming back', () => {
+    expect(validateReplacementInput({ ...base, oldComingBack: false }, 0)).toBe('Choose why the old one is not coming back.')
+    expect(validateReplacementInput({ ...base, oldComingBack: false, writeOff: 'lost' }, 0)).toBe('Say why the old one is not coming back.')
+    expect(validateReplacementInput({ ...base, oldComingBack: false, writeOff: 'lost', writeOffReason: 'stolen from car' }, 0)).toBeNull()
+  })
+  it('needs an override note once the one replacement is used', () => {
+    expect(validateReplacementInput(base, 1)).toMatch(/already used/)
+    expect(validateReplacementInput({ ...base, overrideNote: 'house fire' }, 1)).toBeNull()
+  })
+  it('lets a charger be replaced without any laptops chosen', () => {
+    expect(validateReplacementInput({ ...base, kind: 'charger', oldDeviceId: null, newDeviceId: null }, 0)).toBeNull()
+  })
+})
+
+describe('laptopTrackFromName', () => {
+  it('reads the track from the start of the course name, ignoring case', () => {
+    expect(laptopTrackFromName('Tech Career Foundations (Sept 2026)')).toBe('tcf')
+    expect(laptopTrackFromName('intro to programming (May 2026)')).toBe('itp')
+  })
+  it('ignores other courses, including break exercises that mention ITP', () => {
+    expect(laptopTrackFromName('Winter Break ITP Exercises 2026')).toBeNull()
+    expect(laptopTrackFromName('Advanced Frontend (Fall 2026)')).toBeNull()
+    expect(laptopTrackFromName(null)).toBeNull()
   })
 })

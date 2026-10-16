@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { loadBatch, loadDevice, loadDeviceEvents, loadOpenReturnForDevice, loadPeople } from '@/lib/hardware-server'
+import { loadBatch, loadDevice, loadDeviceEvents, loadOpenReturnForDevice, loadPeople, loadWaitlist } from '@/lib/hardware-server'
 import {
   CONDITION_LABELS,
   daysSince,
@@ -24,10 +24,11 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
   const device = await loadDevice(admin, deviceId)
   if (!device) notFound()
 
-  const [events, batch, openReturn] = await Promise.all([
+  const [events, batch, openReturn, waitlist] = await Promise.all([
     loadDeviceEvents(admin, device.id),
     loadBatch(admin, device.purchase_batch_id),
     loadOpenReturnForDevice(admin, device.id),
+    device.status === 'in_stock' ? loadWaitlist(admin, device.kind) : Promise.resolve([]),
   ])
   const people = await loadPeople(admin, [device.current_holder_id, ...events.flatMap(e => [e.actor_id, e.student_id])])
   const holder = device.current_holder_id ? people.get(device.current_holder_id) : null
@@ -41,7 +42,7 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
   const waitingDays = openReturn ? daysSince(openReturn.requested_at) : null
 
   return (
-    <HardwareShell viewer={viewer} breadcrumbs={[{ label: 'Hardware', href: '/instructor/hardware' }, { label: device.asset_tag ?? 'Device' }]}>
+    <HardwareShell viewer={viewer} active="devices" breadcrumbs={[{ label: 'Hardware', href: '/instructor/hardware' }, { label: device.asset_tag ?? 'Device' }]}>
       <div className="max-w-3xl mx-auto flex flex-col gap-6">
         <section className="bg-surface rounded-2xl border border-border">
           <div className="flex items-start justify-between gap-4 p-5">
@@ -59,7 +60,7 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
             </Link>
           </div>
           <div className="border-t border-border px-5 py-4 flex flex-col gap-2">
-            <StatusControl device={device} />
+            <StatusControl device={device} waitlist={waitlist.map(w => w.student)} />
             {(holder || waitingDays != null) && (
               <p className="text-sm text-muted-text">
                 {holder && (

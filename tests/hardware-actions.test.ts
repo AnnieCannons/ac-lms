@@ -5,6 +5,10 @@ vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 
 import {
   addHardwareNote,
+  addToHardwareWaitlist,
+  recordHardwareReplacement,
+  removeFromHardwareWaitlist,
+  transferHardwareOwnership,
   cancelHardwareReturn,
   confirmHardwareLost,
   loanHardwareDevice,
@@ -176,5 +180,61 @@ describe('loans and returns', () => {
     signedInAs('admin')
     serviceWith({ hardware_devices: { data: [], error: null } })
     expect(await confirmHardwareLost('d1', '')).toMatchObject({ ok: false })
+  })
+})
+
+describe('ownership, replacements and waitlist', () => {
+  const replacement = {
+    studentId: 's1', kind: 'laptop' as const, oldDeviceId: 'old', newDeviceId: 'new', oldComingBack: true,
+    writeOff: '' as const, writeOffReason: '', overrideNote: '', notes: '',
+  }
+
+  it.each(['student', 'ta'])('rejects a %s', async role => {
+    signedInAs(role)
+    expect(await transferHardwareOwnership('d1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await recordHardwareReplacement(replacement)).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await addToHardwareWaitlist('s1', 'hotspot', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await removeFromHardwareWaitlist('w1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('only transfers a laptop that is on loan', async () => {
+    signedInAs('staff')
+    const log = serviceWith({ hardware_devices: { data: [], error: null } })
+    expect(await transferHardwareOwnership('d1', '')).toEqual({ ok: false, error: 'Only a laptop that is on loan can be transferred.' })
+    expect(log.some(([m, a]) => m === 'eq' && a[0] === 'kind' && a[1] === 'laptop')).toBe(true)
+    expect(log.some(([m, a]) => m === 'eq' && a[0] === 'status' && a[1] === 'on_loan')).toBe(true)
+  })
+
+  it('needs an override note for a second laptop replacement', async () => {
+    signedInAs('instructor')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(
+        table === 'users' ? { data: { id: 's1', role: 'student' }, error: null }
+          : table === 'hardware_replacements' ? { count: 1, data: null, error: null }
+          : { data: null, error: null },
+      ),
+    } as never)
+    expect(await recordHardwareReplacement(replacement)).toMatchObject({ ok: false, error: expect.stringMatching(/already used their laptop replacement/) })
+  })
+
+  it('refuses to replace a laptop that is not with the student', async () => {
+    signedInAs('instructor')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(
+        table === 'users' ? { data: { id: 's1', role: 'student' }, error: null }
+          : table === 'hardware_replacements' ? { count: 0, data: null, error: null }
+          : { data: { id: 'old', status: 'on_loan', kind: 'laptop', current_holder_id: 'someone-else' }, error: null },
+      ),
+    } as never)
+    expect(await recordHardwareReplacement(replacement)).toEqual({ ok: false, error: 'That laptop is not with this student.' })
+  })
+
+  it('says so when a student is already on the waitlist', async () => {
+    signedInAs('staff')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(table === 'users' ? { data: { id: 's1', role: 'student' }, error: null } : { data: null, error: { code: '23505', message: 'dup' } }),
+    } as never)
+    expect(await addToHardwareWaitlist('s1', 'hotspot', '')).toEqual({ ok: false, error: 'This student is already waiting for one.' })
   })
 })

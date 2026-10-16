@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { confirmHardwareLost, markHardwareAwaitingReturn, markHardwarePrepped } from '@/lib/hardware-actions'
+import { confirmHardwareLost, markHardwarePrepped, transferHardwareOwnership } from '@/lib/hardware-actions'
 
 const btn = 'text-xs font-semibold px-3 py-1.5 rounded-full border border-border text-dark-text hover:bg-border/20 disabled:opacity-60 whitespace-nowrap'
 
@@ -54,18 +54,18 @@ export function ConfirmLostButton({ deviceId, tag }: { deviceId: string; tag: st
   )
 }
 
-/** Student page: mark everything they have on loan as awaiting return in one click. */
-export function MarkAllAwaitingButton({ deviceIds, name }: { deviceIds: string[]; name: string }) {
+/** Ready to transfer list: the loaned laptop becomes the student's. */
+export function TransferButton({ deviceId, tag, name }: { deviceId: string; tag: string; name: string }) {
   const { busy, error, run } = useRun()
   return (
     <>
       <button
         type="button"
         disabled={busy}
-        className="bg-teal-primary text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-60"
-        onClick={() => { if (window.confirm(`Mark everything ${name} has on loan as awaiting return?`)) run(() => markHardwareAwaitingReturn(deviceIds, '')) }}
+        className={btn}
+        onClick={() => { if (window.confirm(`Transfer ${tag} to ${name}? It becomes their laptop.`)) run(() => transferHardwareOwnership(deviceId, 'Completed TCF and ITP')) }}
       >
-        {busy ? 'Saving…' : `Mark ${deviceIds.length === 1 ? 'it' : `all ${deviceIds.length}`} awaiting return`}
+        {busy ? 'Saving…' : 'Transfer ownership'}
       </button>
       <ErrorText error={error} />
     </>
