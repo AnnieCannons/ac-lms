@@ -63,6 +63,8 @@ Cleanup for the test devices (run before real data goes in): delete `hardware_de
 - Search everywhere by student name, serial, IMEI, phone number or asset tag.
 
 ### Phase 2 — Course completion
+**Status (2026-10-16): built on `claude/feat/course-completion`; migration `20261016000002_course_completions.sql` applied and in use with real data.** If the table can't be read, the Users, Roster and Students pages still load (no badges). A "Completed" checkbox column (saves instantly, unchecking asks to confirm) lives on the course Users page only (instructors, staff and admins; TAs can't open that page), for students only. The badge shows on Users, Roster and `/instructor/students`. Action tests in `tests/course-completion-actions.test.ts`.
+
 - A "Mark completed" action for each student on the course's Users/Roster pages, with an undo. Instructors/staff/admin only.
 - A "Completed" badge next to the student's name in that course's lists and on `/instructor/students` (naming which course).
 - Useful outside hardware too, so it ships as its own small piece.

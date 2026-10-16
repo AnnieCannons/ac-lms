@@ -6,6 +6,7 @@ import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import PeopleManager from '@/components/ui/PeopleManager'
 import AddPeopleButton from '@/components/ui/AddPeopleButton'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { completionKey, loadCompletionKeys } from '@/lib/course-completion'
 
 export default async function InstructorUsersPage({
   params,
@@ -60,6 +61,8 @@ export default async function InstructorUsersPage({
 
   const invitations = (rawInvitations ?? []).filter(inv => !enrolledEmails.has(inv.email.toLowerCase()))
 
+  const completions = await loadCompletionKeys(admin, [id])
+
   // Members = non-instructor enrollments (instructors managed separately below)
   const members = (enrollments ?? [])
     .filter(e => e.role !== 'instructor')
@@ -71,7 +74,13 @@ export default async function InstructorUsersPage({
         email: u?.email ?? '',
         avatarUrl: u?.avatar_url ?? null,
         role: e.role as 'student' | 'instructor' | 'admin' | 'observer' | 'ta',
+        completed: completions.has(completionKey(id, e.user_id)),
       }
+    })
+    // Alphabetical by name (people with no name yet sort by email, at the end).
+    .sort((a, b) => {
+      if (!a.name !== !b.name) return a.name ? -1 : 1
+      return (a.name || a.email).localeCompare(b.name || b.email, undefined, { sensitivity: 'base' })
     })
 
   // Global instructors list — all users with instructor/staff/admin role

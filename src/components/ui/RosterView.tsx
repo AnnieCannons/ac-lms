@@ -7,6 +7,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { upsertAccommodation } from '@/lib/accommodation-actions'
 import DatePickerField from '@/components/ui/DatePickerField'
 import RichTextEditor from '@/components/ui/RichTextEditor'
+import CompletedBadge from '@/components/ui/CompletedBadge'
 import UserAvatar from '@/components/ui/UserAvatar'
 
 interface Accommodation {
@@ -23,6 +24,7 @@ interface Student {
   avatarUrl?: string | null
   accommodation: Accommodation | null
   enrollmentRole?: 'student' | 'observer'
+  completed?: boolean
 }
 
 interface CourseTab {
@@ -357,6 +359,7 @@ export default function RosterView({ courses, currentCourseId, students, readOnl
             <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="sm" />
             {student.name || '—'}
           </Link>
+          {student.completed && <span className="ml-2 align-middle"><CompletedBadge /></span>}
         </td>
         <td className="px-4 py-3 text-muted-text">{student.email}</td>
         <td className="px-4 py-3">
