@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getMyCuttingEdgeTaskCount } from '@/lib/cutting-edge-actions'
 import { CUTTING_EDGE_TASKS_CHANGED } from '@/lib/cutting-edge'
+import { getMyHardwareReturnCount } from '@/lib/hardware-student-actions'
 
 interface Props {
   courseId: string
@@ -15,6 +16,7 @@ interface Props {
 const TOP_ITEMS = [
   { label: 'General Info', slug: 'info' },
   { label: 'Cutting Edge Talks', slug: 'cutting-edge-talks' },
+  { label: 'My Equipment', slug: 'equipment' },
 ]
 
 const COURSE_ITEMS = [
@@ -90,6 +92,14 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
     return () => { cancelled = true; window.removeEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount) }
   }, [courseId, pathname])
 
+  // "Send back" badge on My Equipment when we've asked for something back.
+  const [returnsDue, setReturnsDue] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    getMyHardwareReturnCount().then(n => { if (!cancelled) setReturnsDue(n) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [pathname])
+
   const getLevelUpSeen = useCallback(() => readLevelUpSeen(userId), [userId])
   const levelUpSeen = useSyncExternalStore(subscribeLevelUpSeen, getLevelUpSeen, () => true)
   const onLevelUp = pathname.startsWith(`/student/courses/${courseId}/level-up`)
@@ -116,6 +126,11 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         {slug === 'cutting-edge-talks' && cuttingEdgeTasks > 0 && (
           <span className="badge-orange ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5 whitespace-nowrap">
             Tasks due
+          </span>
+        )}
+        {slug === 'equipment' && returnsDue > 0 && (
+          <span className="badge-orange ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5 whitespace-nowrap">
+            Send back
           </span>
         )}
         {isNew && (

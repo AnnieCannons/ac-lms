@@ -29,6 +29,9 @@ function relativeTime(dateStr: string): string {
 }
 
 function notificationHref(n: Notification): string | null {
+  if (n.type === 'hardware_checkin') {
+    return '/student/equipment-check-in'
+  }
   if (n.type === 'confidence_goal_what_helped') {
     return '/student/skill-confidence#what-helped'
   }

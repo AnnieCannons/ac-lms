@@ -2,13 +2,14 @@ import Link from 'next/link'
 import InstructorTopNav, { type Breadcrumb } from '@/components/ui/InstructorTopNav'
 import type { HardwareViewer } from '@/lib/hardware-access'
 
-export type HardwareSection = 'devices' | 'students' | 'attention' | 'waitlist' | 'receive'
+export type HardwareSection = 'devices' | 'students' | 'attention' | 'waitlist' | 'checkin' | 'receive'
 
 const SECTIONS: { key: HardwareSection; label: string; href: string }[] = [
   { key: 'devices', label: 'Devices', href: '/instructor/hardware' },
   { key: 'students', label: 'Students', href: '/instructor/hardware?tab=students' },
   { key: 'attention', label: 'Needs attention', href: '/instructor/hardware?tab=attention' },
   { key: 'waitlist', label: 'Waitlist', href: '/instructor/hardware?tab=waitlist' },
+  { key: 'checkin', label: 'Check-in', href: '/instructor/hardware/check-in' },
   { key: 'receive', label: 'Mark received', href: '/instructor/hardware/receive' },
 ]
 
