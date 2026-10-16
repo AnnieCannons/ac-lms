@@ -68,9 +68,10 @@ const PROSE = 'prose prose-sm max-w-none [&_code]:bg-zinc-900 [&_code]:px-1 [&_c
 type Props = {
   deck: Deck
   initialCards: Card[]
+  freeStudy?: boolean
 }
 
-export default function StudyPageClient({ deck, initialCards }: Props) {
+export default function StudyPageClient({ deck, initialCards, freeStudy = false }: Props) {
   const sessionTotal = initialCards.length
   const router = useRouter()
   const cardContentId = useId()
@@ -192,6 +193,18 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
     setQueue(rest)
     resetToFront()
   }, [queue, completed, deck.id, resetToFront])
+
+  const handleNext = useCallback(() => {
+    const [, ...rest] = queue
+    const newCompleted = completed + 1
+    setCompleted(newCompleted)
+    if (rest.length === 0) {
+      setSessionDone(true)
+      return
+    }
+    setQueue(rest)
+    resetToFront()
+  }, [queue, completed, resetToFront])
 
   const handleTypeSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -413,7 +426,11 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                 <div className={`text-sm ${PROSE}`} dangerouslySetInnerHTML={{ __html: sanitize(back) }} />
               </div>
               <div className="flex justify-center gap-3">
-                {RATINGS.map(r => (
+                {freeStudy ? (
+                  <button onClick={handleNext} className="bg-teal-primary text-white text-sm font-medium px-10 py-3 rounded-xl hover:opacity-90 transition-opacity">
+                    Next
+                  </button>
+                ) : RATINGS.map(r => (
                   <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
                     <span className="text-xs text-muted-text">{previewInterval(card.is_graduated ?? false, card.learning_step ?? 0, card.interval ?? 0, card.easiness_factor ?? 2.5, r.label)}</span>
                     <button onClick={() => handleRate(r.label)} title={r.tooltip}
@@ -433,6 +450,10 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
             <div className="flex justify-center gap-3 mt-2">
               {!clozeRevealed ? (
                 <p className="text-xs text-muted-text">Click the blank to reveal</p>
+              ) : freeStudy ? (
+                <button onClick={handleNext} className="bg-teal-primary text-white text-sm font-medium px-10 py-3 rounded-xl hover:opacity-90 transition-opacity">
+                  Next
+                </button>
               ) : (
                 RATINGS.map(r => (
                   <div key={r.label} className="flex flex-col items-center gap-1 relative group/rating">
@@ -458,6 +479,10 @@ export default function StudyPageClient({ deck, initialCards }: Props) {
                   className="bg-teal-primary text-white text-sm font-medium px-10 py-3 rounded-xl hover:opacity-90 transition-opacity"
                 >
                   Show Answer
+                </button>
+              ) : freeStudy ? (
+                <button onClick={handleNext} className="bg-teal-primary text-white text-sm font-medium px-10 py-3 rounded-xl hover:opacity-90 transition-opacity">
+                  Next
                 </button>
               ) : (
                 RATINGS.map(r => (

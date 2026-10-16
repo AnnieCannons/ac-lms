@@ -329,6 +329,19 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             {cards.length} {cards.length === 1 ? "card" : "cards"}
           </p>
           {cards.length > 0 && <PrintModal cards={cards} deckTitle={deck.title} />}
+          {cards.length > 0 && (
+            <div className="relative group/freestudy">
+              <Link
+                href={`/flashcards/study/${deckId}?mode=free`}
+                className="text-xs text-muted-text border border-border px-3 py-1.5 rounded-lg hover:text-teal-primary hover:border-teal-primary transition-colors"
+              >
+                Free Study
+              </Link>
+              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-48 text-center rounded bg-zinc-800 px-2 py-1.5 text-[11px] text-white opacity-0 group-hover/freestudy:opacity-100 transition-opacity">
+                Flip through all cards without affecting your study schedule
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && (
