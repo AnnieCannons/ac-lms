@@ -220,10 +220,16 @@ export async function createClozeCards(deckId: string, frontContent: string) {
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 
-export async function updateClozeCards(deckId: string, originalFrontContent: string, newFrontContent: string) {
+export async function updateClozeCards(deckId: string, originalFrontContent: string, newFrontContent: string, originalCardId?: string) {
   const { supabase } = await getAuthUser()
   const words = parseClozeWords(newFrontContent)
   if (words.length === 0) throw new Error('No blanks found')
+
+  // Delete the original non-cloze card if we're converting from another type
+  if (originalCardId) {
+    const { error: origDelError } = await supabase.from('cards').delete().eq('id', originalCardId)
+    if (origDelError) throw new Error(origDelError.message)
+  }
 
   // Delete all cards in this cloze group (same sentence)
   const { error: delError } = await supabase
