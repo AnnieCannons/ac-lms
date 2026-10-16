@@ -36,12 +36,48 @@ export const CONDITION_LABELS: Record<DeviceCondition, string> = {
   used: 'Used',
 }
 
-/** Event types written in Phase 1; later phases add their own. */
+/** History entry types. */
 export const EVENT_LABELS: Record<string, string> = {
   added: 'Added',
   edited: 'Details edited',
   status_changed: 'Status changed',
   note: 'Note',
+  loaned: 'Loaned',
+  awaiting_return: 'Marked awaiting return',
+  return_cancelled: 'Return no longer needed',
+  received: 'Received',
+  prepped: 'Wiped and checked',
+  marked_lost: 'Marked lost',
+}
+
+/** Statuses a device can go to when it comes back from a student. */
+export const RECEIVE_STATUSES = ['needs_prep', 'in_stock', 'needs_repair'] as const
+export type ReceiveStatus = (typeof RECEIVE_STATUSES)[number]
+
+/** After this many days awaiting return, a device shows as likely lost for staff to confirm. */
+export const LIKELY_LOST_DAYS = 60
+
+/** The first reminder to send the student goes out this long after a return is requested. */
+export const FIRST_RETURN_REMINDER_HOURS = 48
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Whole days from `iso` to `now` (never negative). */
+export function daysSince(iso: string, now: Date = new Date()): number {
+  return Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS))
+}
+
+export function isLikelyLost(requestedAt: string, now: Date = new Date()): boolean {
+  return daysSince(requestedAt, now) >= LIKELY_LOST_DAYS
+}
+
+export type ReturnRequest = {
+  id: string
+  device_id: string
+  student_id: string | null
+  requested_at: string
+  closed_at: string | null
+  closed_reason: string | null
 }
 
 export type HardwareDevice = {
@@ -241,4 +277,41 @@ export function formatDateOnly(value: string | null): string {
   if (!value) return ''
   const [y, m, d] = value.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** A choice in the device page's status dropdown and the form it opens. */
+export type StatusChoice =
+  | 'loan' | 'awaiting_return' | 'receive' | 'back_on_loan' | 'lost_while_out'
+  | 'prepped' | 'in_stock' | 'needs_prep' | 'needs_repair' | 'lost' | 'retired'
+
+export const STATUS_CHOICE_LABELS: Record<StatusChoice, string> = {
+  loan: 'On loan (choose a student)',
+  awaiting_return: 'Awaiting return',
+  receive: 'Received',
+  back_on_loan: 'Back on loan (no longer needed back)',
+  lost_while_out: 'Lost',
+  prepped: 'In stock (wiped and checked)',
+  in_stock: 'In stock',
+  needs_prep: 'Needs prep',
+  needs_repair: 'Needs repair',
+  lost: 'Lost',
+  retired: 'Retired',
+}
+
+/**
+ * The status changes that make sense from a device's current status, in the order the
+ * dropdown lists them. Becoming the student's own laptop is a separate step (ownership).
+ */
+export function statusChoices(status: DeviceStatus): StatusChoice[] {
+  switch (status) {
+    case 'in_stock': return ['loan', 'needs_prep', 'needs_repair', 'lost', 'retired']
+    case 'on_loan': return ['awaiting_return', 'receive']
+    case 'awaiting_return': return ['receive', 'back_on_loan', 'lost_while_out']
+    case 'needs_prep': return ['prepped', 'needs_repair', 'lost', 'retired']
+    case 'needs_repair': return ['in_stock', 'needs_prep', 'lost', 'retired']
+    case 'received': return ['needs_prep', 'in_stock', 'needs_repair']
+    case 'lost': return ['in_stock', 'retired']
+    case 'retired': return ['in_stock']
+    case 'owned_by_student': return []
+  }
 }

@@ -5,6 +5,8 @@ import { loadPeople, loadStudentHardware } from '@/lib/hardware-server'
 import HardwareShell from '@/components/hardware/HardwareShell'
 import DeviceTable from '@/components/hardware/DeviceTable'
 import HistoryTimeline from '@/components/hardware/HistoryTimeline'
+import ReceiveForm from '@/components/hardware/ReceiveForm'
+import { MarkAllAwaitingButton } from '@/components/hardware/AttentionButtons'
 
 export default async function StudentHardwarePage({ params }: { params: Promise<{ userId: string }> }) {
   const viewer = await getHardwareViewer()
@@ -16,16 +18,29 @@ export default async function StudentHardwarePage({ params }: { params: Promise<
   const { currentDevices, pastDevices, history } = await loadStudentHardware(admin, student.id)
   const people = await loadPeople(admin, history.map(e => e.actor_id))
   const devices = new Map([...currentDevices, ...pastDevices].map(d => [d.id, d]))
+  const loaned = currentDevices.filter(d => d.status !== 'owned_by_student')
+  const onLoan = currentDevices.filter(d => d.status === 'on_loan')
+  const displayName = student.name ?? student.email
 
   return (
     <HardwareShell viewer={viewer} breadcrumbs={[{ label: 'Hardware', href: '/instructor/hardware?tab=students' }, { label: student.name ?? student.email }]}>
       <h1 className="text-2xl font-bold text-dark-text">{student.name ?? student.email}</h1>
-      <p className="text-sm text-muted-text mb-8">{student.email}</p>
+      <p className="text-sm text-muted-text mb-6">{student.email}</p>
+      {onLoan.length > 0 && (
+        <div className="mb-6">
+          <MarkAllAwaitingButton deviceIds={onLoan.map(d => d.id)} name={displayName} />
+        </div>
+      )}
 
       <section className="mb-8">
         <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Has now</h2>
         <DeviceTable devices={currentDevices} people={people} showHolder={false} emptyText="No equipment recorded." />
       </section>
+      {loaned.length > 0 && (
+        <section id="receive" className="mb-8 max-w-2xl">
+          <ReceiveForm devices={loaned} />
+        </section>
+      )}
       {pastDevices.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Had before</h2>

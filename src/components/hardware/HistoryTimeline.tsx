@@ -14,13 +14,13 @@ export default function HistoryTimeline({
 }) {
   if (events.length === 0) return <p className="text-sm text-muted-text">Nothing yet.</p>
   return (
-    <ol className="flex flex-col gap-3">
+    <ol className="flex flex-col divide-y divide-border">
       {events.map(e => {
         const actor = e.actor_id ? people.get(e.actor_id) : null
         const student = !devices && e.student_id ? people.get(e.student_id) : null
         const device = devices && e.device_id ? devices.get(e.device_id) : null
         return (
-          <li key={e.id} className="rounded-xl border border-border bg-surface px-4 py-3">
+          <li key={e.id} className="py-3 first:pt-0 last:pb-0">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
               <span className="font-semibold text-dark-text">{EVENT_LABELS[e.type] ?? e.type}</span>
               {device && (

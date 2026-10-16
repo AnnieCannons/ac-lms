@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   batchSize,
+  daysSince,
+  isLikelyLost,
+  statusChoices,
+  DEVICE_STATUSES,
   describeChanges,
   emptyDeviceInput,
   parseIdentifierList,
@@ -105,5 +109,31 @@ describe('primaryIdentifier', () => {
     expect(primaryIdentifier({ kind: 'hotspot', serial_number: 'S', imei: 'I', phone_number: 'P' })).toBe('I')
     expect(primaryIdentifier({ kind: 'hotspot', serial_number: null, imei: null, phone_number: 'P' })).toBe('P')
     expect(primaryIdentifier({ kind: 'laptop', serial_number: 'S', imei: 'I', phone_number: null })).toBe('S')
+  })
+})
+
+describe('days waiting and likely lost', () => {
+  const now = new Date('2026-12-15T12:00:00Z')
+  it('counts whole days and never goes negative', () => {
+    expect(daysSince('2026-12-14T13:00:00Z', now)).toBe(0)
+    expect(daysSince('2026-12-05T12:00:00Z', now)).toBe(10)
+    expect(daysSince('2026-12-20T12:00:00Z', now)).toBe(0)
+  })
+  it('flags 60 days or more as likely lost', () => {
+    expect(isLikelyLost('2026-10-17T12:00:00Z', now)).toBe(false)
+    expect(isLikelyLost('2026-10-16T12:00:00Z', now)).toBe(true)
+  })
+})
+
+describe('statusChoices', () => {
+  it('only offers loan-related changes for a device with a student', () => {
+    expect(statusChoices('on_loan')).toEqual(['awaiting_return', 'receive'])
+    expect(statusChoices('awaiting_return')).toEqual(['receive', 'back_on_loan', 'lost_while_out'])
+  })
+  it('offers loaning only from in stock', () => {
+    for (const s of DEVICE_STATUSES) expect(statusChoices(s).includes('loan')).toBe(s === 'in_stock')
+  })
+  it('never offers the current status again', () => {
+    for (const s of DEVICE_STATUSES) expect(statusChoices(s)).not.toContain(s)
   })
 })

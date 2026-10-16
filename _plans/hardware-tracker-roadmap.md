@@ -70,6 +70,11 @@ Cleanup for the test devices (run before real data goes in): delete `hardware_de
 - Useful outside hardware too, so it ships as its own small piece.
 
 ### Phase 3 — Loans, returns and ownership
+Split into two PRs (decided 2026-10-16):
+- **3a — loans and returns. Committed on `claude/feat/hardware-loans` (no PR yet: Catie wants one bigger PR for 3a + 3b to save CI/compute).** Migration `20261016000003_hardware_return_requests.sql` (applied 2026-10-16) (one open request per device; first reminder time set 48 hours out for the later reminder cron). Device page: loan an in-stock device to a student (name search), mark awaiting return, "no longer needed back", mark lost, mark received. Student page: mark everything on loan awaiting return in one click, and the receive form. New **Mark received** page (`/instructor/hardware/receive`): find the student, tick what came back (all ticked by default), condition notes, next status (needs prep / in stock / needs repair). Needs attention: Likely lost (60+ days, confirm), Awaiting return (days waiting), Needs prep ("Wiped and checked"), Needs repair.
+- Device page redesign (2026-10-16): header card with model · year · condition and a **Status dropdown** that only offers valid next steps (`statusChoices`), each opening a small form; Details read-only with Edit in the card header; History card with Add note.
+- **3b — ownership, replacements and waitlist (next).** TCF/ITP is identified by a **per-course setting** (decided 2026-10-16), not by course name.
+
 - Assign a device to a student and mark it shipped. Assigning from the **waitlist** fills that waitlist entry.
 - **Mark received**: type a student name, pick the item(s), add condition notes, and choose the next status (needs prep / in stock / needs repair). One screen, a few clicks.
 - **Needs prep** list → "Wiped and checked" → in stock.

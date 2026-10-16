@@ -6,6 +6,7 @@ import {
   type DeviceStatus,
   type HardwareDevice,
   type HardwareEvent,
+  type ReturnRequest,
 } from '@/lib/hardware'
 
 // Server-only loaders for the Hardware Tracker pages. Callers must have checked access
@@ -125,4 +126,31 @@ export async function loadHolders(admin: Admin): Promise<{ person: Person; count
   return [...counts.entries()]
     .map(([id, count]) => ({ person: people.get(id) ?? { id, name: null, email: '' }, count }))
     .sort((a, b) => (a.person.name ?? '').localeCompare(b.person.name ?? ''))
+}
+
+export type OpenReturn = { request: ReturnRequest; device: HardwareDevice; student: Person | null }
+
+/** Every device we are waiting on, oldest request first. */
+export async function loadOpenReturns(admin: Admin): Promise<OpenReturn[]> {
+  const { data } = await admin.from('hardware_return_requests')
+    .select('id, device_id, student_id, requested_at, closed_at, closed_reason')
+    .is('closed_at', null).order('requested_at', { ascending: true })
+  const requests = (data as ReturnRequest[] | null) ?? []
+  if (requests.length === 0) return []
+  const [{ data: devices }, people] = await Promise.all([
+    admin.from('hardware_devices').select(DEVICE_COLUMNS).in('id', requests.map(r => r.device_id)),
+    loadPeople(admin, requests.map(r => r.student_id)),
+  ])
+  const byId = new Map(((devices as HardwareDevice[] | null) ?? []).map(d => [d.id, d]))
+  return requests
+    .filter(r => byId.has(r.device_id))
+    .map(r => ({ request: r, device: byId.get(r.device_id)!, student: r.student_id ? people.get(r.student_id) ?? null : null }))
+}
+
+/** The open return request for one device, if any. */
+export async function loadOpenReturnForDevice(admin: Admin, deviceId: string): Promise<ReturnRequest | null> {
+  const { data } = await admin.from('hardware_return_requests')
+    .select('id, device_id, student_id, requested_at, closed_at, closed_reason')
+    .eq('device_id', deviceId).is('closed_at', null).maybeSingle()
+  return (data as ReturnRequest | null) ?? null
 }

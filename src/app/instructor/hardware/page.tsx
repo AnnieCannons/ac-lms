@@ -1,17 +1,21 @@
 import Link from 'next/link'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { loadDevices, loadHolders, loadPeople, searchStudents } from '@/lib/hardware-server'
+import { loadDevices, loadHolders, loadOpenReturns, loadPeople, searchStudents } from '@/lib/hardware-server'
 import {
   DEVICE_KINDS,
   DEVICE_STATUSES,
+  daysSince,
+  isLikelyLost,
   KIND_LABELS,
+  LIKELY_LOST_DAYS,
   STATUS_LABELS,
   type DeviceKind,
   type DeviceStatus,
 } from '@/lib/hardware'
 import HardwareShell from '@/components/hardware/HardwareShell'
 import DeviceTable from '@/components/hardware/DeviceTable'
+import { ConfirmLostButton, PreppedButton } from '@/components/hardware/AttentionButtons'
 
 const TABS = [
   { key: 'devices', label: 'Devices' },
@@ -118,22 +122,86 @@ export default async function HardwarePage({
       </>
     )
   } else {
-    const [repair, prep] = await Promise.all([
+    const [returns, repair, prep] = await Promise.all([
+      loadOpenReturns(admin),
       loadDevices(admin, { status: 'needs_repair' }),
       loadDevices(admin, { status: 'needs_prep' }),
     ])
     const people = new Map()
+    const likelyLost = returns.filter(r => isLikelyLost(r.request.requested_at))
+    const waiting = returns.filter(r => !isLikelyLost(r.request.requested_at))
+    const returnRows = (list: typeof returns, lost: boolean) => (
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-surface text-muted-text text-xs uppercase tracking-wide">
+            <tr>
+              <th scope="col" className="text-left px-4 py-2 font-semibold">Device</th>
+              <th scope="col" className="text-left px-3 py-2 font-semibold">Student</th>
+              <th scope="col" className="text-left px-3 py-2 font-semibold">Waiting</th>
+              <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(({ request, device, student }) => (
+              <tr key={request.id} className="border-t border-border">
+                <td className="px-4 py-2.5 whitespace-nowrap">
+                  <Link href={`/instructor/hardware/devices/${device.id}`} className="font-semibold text-dark-text hover:text-teal-primary">{device.asset_tag}</Link>
+                  <span className="text-muted-text"> · {KIND_LABELS[device.kind]}</span>
+                </td>
+                <td className="px-3 py-2.5">
+                  {student
+                    ? <Link href={`/instructor/hardware/students/${student.id}`} className="text-dark-text hover:text-teal-primary">{student.name ?? student.email}</Link>
+                    : <span className="text-muted-text">—</span>}
+                </td>
+                <td className={`px-3 py-2.5 whitespace-nowrap ${lost ? 'text-red-600 font-semibold' : 'text-muted-text'}`}>
+                  {daysSince(request.requested_at)} days
+                </td>
+                <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                  {student && (
+                    <Link href={`/instructor/hardware/receive?student=${student.id}`} className="text-xs font-semibold text-teal-primary hover:underline mr-3">
+                      Mark received
+                    </Link>
+                  )}
+                  {lost && <ConfirmLostButton deviceId={device.id} tag={device.asset_tag ?? 'this device'} />}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
     body = (
       <>
+        {likelyLost.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-1">Likely lost</h2>
+            <p className="text-xs text-muted-text mb-3">Waiting {LIKELY_LOST_DAYS} days or more. Confirm to mark them lost.</p>
+            {returnRows(likelyLost, true)}
+          </section>
+        )}
+        <section className="mb-8">
+          <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Awaiting return</h2>
+          {waiting.length === 0 ? <p className="text-sm text-muted-text">Nothing on its way back.</p> : returnRows(waiting, false)}
+        </section>
         <section className="mb-8">
           <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Needs prep</h2>
-          <DeviceTable devices={prep} people={people} showHolder={false} emptyText="Nothing waiting to be wiped and checked." />
+          {prep.length === 0 ? <p className="text-sm text-muted-text">Nothing waiting to be wiped and checked.</p> : (
+            <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+              {prep.map(d => (
+                <li key={d.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
+                  <Link href={`/instructor/hardware/devices/${d.id}`} className="font-semibold text-dark-text hover:text-teal-primary">{d.asset_tag}</Link>
+                  <span className="text-muted-text">{KIND_LABELS[d.kind]}{d.make_model ? ` · ${d.make_model}` : ''}</span>
+                  <span className="ml-auto"><PreppedButton deviceId={d.id} /></span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section className="mb-8">
           <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Needs repair</h2>
           <DeviceTable devices={repair} people={people} showHolder={false} emptyText="Nothing waiting for repair." />
         </section>
-        <p className="text-sm text-muted-text">Returns, hotspot renewals and support tickets will show here as they are added.</p>
+        <p className="text-sm text-muted-text">Hotspot renewals and support tickets will show here as they are added.</p>
       </>
     )
   }
@@ -146,6 +214,9 @@ export default async function HardwarePage({
           <p className="text-sm text-muted-text mt-1">Loaner laptops, hotspots and wifi boosters.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/instructor/hardware/receive" className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity">
+            Mark received
+          </Link>
           <Link href="/instructor/hardware/purchases/new" className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity">
             + Add a purchase
           </Link>
