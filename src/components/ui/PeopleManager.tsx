@@ -3,6 +3,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateEnrollmentRole, resendInvite, revokeInvite, removePersonFromCourse, toggleInstructorCourse, deleteStaffMember, sendInviteToEnrolledUser } from '@/lib/people-actions'
 import UserAvatar from '@/components/ui/UserAvatar'
+import { setCourseCompleted } from '@/lib/course-completion-actions'
 
 type Role = 'student' | 'instructor' | 'admin' | 'observer' | 'ta'
 
@@ -12,6 +13,7 @@ interface Member {
   email: string
   role: Role
   avatarUrl?: string | null
+  completed?: boolean
 }
 
 interface Invitation {
@@ -288,7 +290,7 @@ export default function PeopleManager({ courseId, members, invitations, currentU
   const activeMembers = members.filter(m => m.role !== 'observer')
   const observerMembers = members.filter(m => m.role === 'observer')
 
-  function renderMemberDesktopRow(member: Member, muted = false) {
+  function renderMemberDesktopRow(member: Member, muted = false, showCompleted = false) {
     return (
       <tr key={member.userId} className={`bg-background ${muted ? 'opacity-60' : ''}`}>
         <td className="px-4 py-3 text-dark-text">
@@ -329,6 +331,11 @@ export default function PeopleManager({ courseId, members, invitations, currentU
             </button>
           )}
         </td>
+        {showCompleted && (
+          <td className="px-4 py-3 text-center">
+            {member.role === 'student' && completionCheckbox(member)}
+          </td>
+        )}
         <td className="px-4 py-3 text-right">
           <div className="flex items-center justify-end gap-3">
             {actionStatus?.id === member.userId && (
@@ -373,6 +380,12 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {member.role === 'student' && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-text">
+              {completionCheckbox(member)}
+              Completed
+            </label>
+          )}
           <button
             onClick={() => handleSendInvite(member.userId, member.name || member.email)}
             disabled={isPending || inviteState[member.userId] === 'sending'}
@@ -392,6 +405,42 @@ export default function PeopleManager({ courseId, members, invitations, currentU
           </button>
         </div>
       </div>
+    )
+  }
+
+  // Completion is shown from local state the moment it's clicked and saved in the
+  // background; it only flips back (with an error) if the save fails. No page refresh.
+  const [completedNow, setCompletedNow] = useState<Record<string, boolean>>({})
+  const [completionSaving, setCompletionSaving] = useState<Record<string, boolean>>({})
+  const isCompleted = (member: Member) => completedNow[member.userId] ?? !!member.completed
+
+  async function handleCompletion(member: Member) {
+    if (completionSaving[member.userId]) return
+    const next = !isCompleted(member)
+    if (!next && !window.confirm(`Undo the completion for ${member.name || member.email}?`)) return
+    setActionStatus(null)
+    setCompletedNow(c => ({ ...c, [member.userId]: next }))
+    setCompletionSaving(c => ({ ...c, [member.userId]: true }))
+    const result = await setCourseCompleted(courseId, member.userId, next)
+    setCompletionSaving(c => ({ ...c, [member.userId]: false }))
+    if (!result.ok) {
+      setCompletedNow(c => ({ ...c, [member.userId]: !next }))
+      setActionStatus({ id: member.userId, type: 'error', message: result.error })
+    }
+  }
+
+  function completionCheckbox(member: Member) {
+    const done = isCompleted(member)
+    return (
+      <input
+        type="checkbox"
+        checked={done}
+        onChange={() => handleCompletion(member)}
+        aria-busy={completionSaving[member.userId] || undefined}
+        aria-label={`${member.name || member.email} completed this course`}
+        title={done ? 'Completed. Uncheck to undo.' : 'Mark as completed'}
+        className="h-4 w-4 accent-teal-primary cursor-pointer"
+      />
     )
   }
 
@@ -502,11 +551,12 @@ export default function PeopleManager({ courseId, members, invitations, currentU
                     <th className="text-left px-4 py-3 font-semibold text-muted-text">Name</th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-text">Email</th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-text">Role</th>
+                    <th className="text-center px-4 py-3 font-semibold text-muted-text">Completed</th>
                     <th className="sr-only">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {activeMembers.map((member) => renderMemberDesktopRow(member))}
+                  {activeMembers.map((member) => renderMemberDesktopRow(member, false, true))}
                 </tbody>
               </table>
             </div>

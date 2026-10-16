@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import Link from 'next/link'
 import StudentsDashboard from '@/components/ui/StudentsDashboard'
+import { completionKey, loadCompletionKeys } from '@/lib/course-completion'
 
 export type CourseWithStudents = {
   id: string
@@ -11,7 +12,7 @@ export type CourseWithStudents = {
   startDate: string | null
   endDate: string | null
   airtableCourseName: string | null
-  students: { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }[]
+  students: { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null; completed: boolean }[]
 }
 
 export default async function StudentsPage() {
@@ -55,13 +56,14 @@ export default async function StudentsPage() {
   ])
 
   const studentById = new Map(students.map(s => [s.id, s]))
+  const completions = await loadCompletionKeys(admin, courseIds)
 
-  const courseStudentMap = new Map<string, { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }[]>()
+  const courseStudentMap = new Map<string, CourseWithStudents['students']>()
   for (const e of enrollments) {
     const s = studentById.get(e.user_id)
     if (!s?.name) continue
     if (!courseStudentMap.has(e.course_id)) courseStudentMap.set(e.course_id, [])
-    courseStudentMap.get(e.course_id)!.push({ id: s.id, name: s.name, avatarUrl: s.avatar_url, airtableStudentId: s.airtable_student_id })
+    courseStudentMap.get(e.course_id)!.push({ id: s.id, name: s.name, avatarUrl: s.avatar_url, airtableStudentId: s.airtable_student_id, completed: completions.has(completionKey(e.course_id, s.id)) })
   }
 
   const coursesWithStudents: CourseWithStudents[] = visibleCourses
