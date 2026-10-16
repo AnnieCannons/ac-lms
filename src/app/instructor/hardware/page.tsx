@@ -3,6 +3,8 @@ import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
 import { loadDevices, loadHolders, loadHotspotPlans, loadOpenReturns, loadPeople, loadReadyToTransfer, loadWaitlist, searchStudents } from '@/lib/hardware-server'
 import { daysBetween, pacificToday, RENEWAL_ALERT_DAYS, renewalState } from '@/lib/hardware-reminders'
+import { loadOpenTickets } from '@/lib/hardware-tickets-server'
+import { TICKET_STATUS_LABELS, ticketNeedsNudge } from '@/lib/hardware-tickets'
 import {
   DEVICE_KINDS,
   DEVICE_STATUSES,
@@ -147,13 +149,15 @@ export default async function HardwarePage({
   } else if (tab === 'waitlist') {
     body = <WaitlistManager entries={await loadWaitlist(admin)} />
   } else {
-    const [returns, repair, prep, readyToTransfer, hotspotPlans] = await Promise.all([
+    const [returns, repair, prep, readyToTransfer, hotspotPlans, tickets] = await Promise.all([
       loadOpenReturns(admin),
       loadDevices(admin, { status: 'needs_repair' }),
       loadDevices(admin, { status: 'needs_prep' }),
       loadReadyToTransfer(admin),
       loadHotspotPlans(admin),
+      loadOpenTickets(admin),
     ])
+    const now = new Date()
     const today = pacificToday()
     const renewals = hotspotPlans
       .filter(h => h.current && renewalState(h.current.ends_on, today) !== 'ok')
@@ -163,6 +167,30 @@ export default async function HardwarePage({
     const waiting = returns.filter(r => !isLikelyLost(r.request.requested_at))
 
     const sections: { id: string; title: string; hint: string; count: number; urgent?: boolean; rows: React.ReactNode }[] = [
+      {
+        id: 'tickets', title: 'Support tickets', count: tickets.length,
+        urgent: tickets.some(t => ticketNeedsNudge({ ...t.ticket, last_nudged_at: null }, now)),
+        hint: 'From the Equipment Support Form. The shipping address is in the Airtable record.',
+        rows: tickets.map(({ ticket: t, student, device }) => {
+          const days = daysSince(t.created_at, now)
+          return (
+            <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0 text-sm">
+              <div className="min-w-0 sm:w-56">
+                <Link href={`/instructor/hardware/tickets/${t.id}`} className="font-semibold text-dark-text hover:text-teal-primary">{t.equipment_type ?? 'Equipment'} issue</Link>
+                <span className="text-muted-text"> · {TICKET_STATUS_LABELS[t.status]}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                {student
+                  ? <Link href={`/instructor/hardware/students/${student.id}`} className="text-dark-text hover:text-teal-primary">{student.name ?? student.email}</Link>
+                  : <span className="text-red-600">Not matched: {t.submitted_email ?? t.submitted_name}</span>}
+                {device && <span className="text-muted-text"> · {device.asset_tag}</span>}
+              </div>
+              <span className="whitespace-nowrap text-muted-text">{days === 0 ? 'today' : `${days} ${days === 1 ? 'day' : 'days'} ago`}</span>
+              <Link href={`/instructor/hardware/tickets/${t.id}`} className="ml-auto text-xs font-semibold text-teal-primary hover:underline">Open</Link>
+            </li>
+          )
+        }),
+      },
       {
         id: 'likely-lost', title: 'Likely lost', urgent: true, count: likelyLost.length,
         hint: `Waiting ${LIKELY_LOST_DAYS} days or more. Confirm to mark them lost, or mark them received if they turned up.`,
@@ -261,7 +289,6 @@ export default async function HardwarePage({
         {withItems.length > 0 && clear.length > 0 && (
           <p className="text-sm text-muted-text">All clear: {clear.map(s => s.title).join(', ')}.</p>
         )}
-        <p className="text-xs text-muted-text">Support tickets will show here once those are added.</p>
       </div>
     )
   }

@@ -56,6 +56,8 @@ export const EVENT_LABELS: Record<string, string> = {
   plan_added: 'Plan added',
   plan_edited: 'Plan updated',
   plan_removed: 'Plan removed',
+  ticket_opened: 'Support form submitted',
+  ticket_updated: 'Ticket updated',
 }
 
 // ── Ownership, replacements and waitlist (Phase 3b) ──────────────────────────
