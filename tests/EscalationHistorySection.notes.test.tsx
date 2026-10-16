@@ -13,6 +13,7 @@ const event = (id: string, eventType: string, createdAt: string): EscalationEven
 const note = (id: string, noteDate: string, body: string): ReadinessNote => ({
   id, noteDate, body, visibleToStudent: false, authorName: 'Catie',
   createdAt: '2026-10-09T18:00:00.000Z', updatedAt: '2026-10-09T18:00:00.000Z', canEdit: false, canDelete: false,
+  replies: [], canReply: false,
 })
 
 describe('EscalationHistorySection with notes', () => {

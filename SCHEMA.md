@@ -534,7 +534,7 @@ In-app notifications for students and instructors.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `user_id` | uuid | FK → users, CASCADE DELETE |
-| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email), `readiness_note_shared` (a readiness note was shared with the student — bell only, links to `/student/readiness?course=`; removed when the note is unshared or deleted) |
+| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email), `readiness_note_shared` (a readiness note was shared with the student — bell only, links to `/student/readiness?course=`; removed when the note is unshared or deleted), `readiness_note_student_reply` (to the note's author when the student replies — bell only, links to `/instructor/students/[studentId]`), `readiness_note_staff_reply` (to the student when staff reply — bell only, links to `/student/readiness?course=`; removed when the note is unshared) |
 | `course_id` | uuid | FK → courses, nullable |
 | `assignment_id` | uuid | FK → assignments, nullable |
 | `extension_request_id` | uuid | FK → extension_requests, nullable |
@@ -544,7 +544,21 @@ In-app notifications for students and instructors.
 | `emailed_at` | timestamptz | Nullable — set when included in a daily digest email; prevents re-sending |
 | `cleared_at` | timestamptz | Nullable — set when the user clears the notification; it is then hidden from the bell but the row stays (so the digest email is unaffected) |
 | `cutting_edge_event_id` | uuid | FK → cutting_edge_events, nullable — set on `cutting_edge_new_event` / `cutting_edge_question_reminder` / `cutting_edge_thanks_reminder` (bell only, never in the digest email) |
-| `readiness_note_id` | uuid | FK → readiness_notes, CASCADE DELETE, nullable — set on `readiness_note_shared`; deleted when the note is unshared |
+| `readiness_note_id` | uuid | FK → readiness_notes, CASCADE DELETE, nullable — set on `readiness_note_shared` and both reply types; the student's are deleted when the note is unshared |
+| `readiness_note_reply_id` | uuid | FK → readiness_note_replies, CASCADE DELETE, nullable — set on both reply types |
+
+---
+
+### readiness_note_replies
+Back-and-forth replies under a readiness note shared with the student (`readiness_notes.visible_to_student`). The student and staff (instructor/staff/admin) can reply only while the note is shared; authors edit/delete their own, admins can delete any. No RLS policies — only the service client in `src/lib/readiness-notes-actions.ts`, after a role / ownership check.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `note_id` | uuid | FK → readiness_notes, CASCADE DELETE |
+| `author_id` | uuid | FK → users, SET NULL on delete |
+| `body` | text | Non-empty |
+| `created_at` / `updated_at` | timestamptz | Default: now() |
 
 ---
 

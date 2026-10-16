@@ -38,7 +38,14 @@ function notificationHref(n: Notification): string | null {
   if (n.type === 'cards_due_today') {
     return '/flashcards'
   }
-  if (n.type === 'readiness_note_shared') {
+  // Staff-facing: these go to instructors/staff, so they link into the instructor area.
+  if (n.type === 'extension_request' && n.course_id) {
+    return `/instructor/courses/${n.course_id}/extension-requests`
+  }
+  if (n.type === 'readiness_note_student_reply') {
+    return n.readiness_note_student_id ? `/instructor/students/${n.readiness_note_student_id}` : null
+  }
+  if (n.type === 'readiness_note_shared' || n.type === 'readiness_note_staff_reply') {
     return n.course_id ? `/student/readiness?course=${n.course_id}` : '/student/readiness'
   }
   if (n.type.startsWith('cutting_edge_') && n.course_id && n.cutting_edge_event_id) {

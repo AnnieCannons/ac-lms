@@ -141,7 +141,7 @@ const EVENT_ICON: Record<string, { icon: LucideIcon; color: string }> = {
   manual_note: { icon: MessageSquare, color: '#6B5D80' },
 }
 
-function formatCompactDate(iso: string): { short: string; full: string } {
+export function formatCompactDate(iso: string): { short: string; full: string } {
   const date = new Date(iso)
   const full = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const diffDays = Math.floor((Date.now() - date.getTime()) / 86_400_000)
@@ -252,12 +252,14 @@ export function noteSortKey(note: Pick<ReadinessNote, 'noteDate' | 'createdAt'>)
 }
 
 /** One note as a timeline row, styled like an escalation event. `actions` (edit/delete)
- * and the shared tag are staff-only; the student view passes neither. */
-export function NoteTimelineItem({ note, isLast, actions, showSharedTag }: {
+ * and the shared tag are staff-only; the student view passes neither. `footer` holds the
+ * reply thread. */
+export function NoteTimelineItem({ note, isLast, actions, showSharedTag, footer }: {
   note: ReadinessNote
   isLast: boolean
   actions?: React.ReactNode
   showSharedTag?: boolean
+  footer?: React.ReactNode
 }) {
   const { icon: Icon, color } = EVENT_ICON.manual_note
   const { short, full } = formatCompactDate(noteSortKey(note))
@@ -279,6 +281,7 @@ export function NoteTimelineItem({ note, isLast, actions, showSharedTag }: {
           {actions && <span className="ml-auto flex items-center gap-3">{actions}</span>}
         </div>
         <p className="text-sm text-dark-text mt-0.5 whitespace-pre-wrap break-words">{note.body}</p>
+        {footer}
       </div>
     </li>
   )
