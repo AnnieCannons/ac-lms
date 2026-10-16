@@ -5,6 +5,8 @@ import { loadMyEquipment } from '@/lib/hardware-server'
 import { supportFormUrl } from '@/lib/hardware'
 import StudentCuttingEdgeShell from '@/components/cutting-edge/StudentCuttingEdgeShell'
 import MyEquipmentCard from '@/components/hardware/MyEquipmentCard'
+import Link from 'next/link'
+import { hasUnansweredCheckin } from '@/lib/hardware-checkin-server'
 
 /** The student's own AnnieCannons equipment, from the course sidebar. Read-only. */
 export default async function StudentEquipmentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,11 +24,18 @@ export default async function StudentEquipmentPage({ params }: { params: Promise
         admin.from('users').select('email').eq('id', viewer.viewerId).maybeSingle(),
       ])
   const email = (person as { email: string } | null)?.email ?? null
+  const checkinDue = !viewer.preview && !viewer.readOnly && await hasUnansweredCheckin(admin, viewer.viewerId)
 
   return (
     <StudentCuttingEdgeShell viewer={viewer} course={course}>
       <h1 className="text-2xl font-bold text-dark-text mb-1">My Equipment</h1>
       <p className="text-sm text-muted-text mb-6">The laptop, hotspot or wifi booster AnnieCannons has given you.</p>
+      {checkinDue && (
+        <div className="badge-amber border rounded-xl px-4 py-3 mb-6 text-sm flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span><strong>Please fill out the equipment check-in</strong> so this page is up to date.</span>
+          <Link href="/student/equipment-check-in" className="font-semibold underline">Fill it out</Link>
+        </div>
+      )}
       {viewer.preview ? (
         <p className="text-sm text-muted-text">In preview there&apos;s no student, so there&apos;s no equipment to show.</p>
       ) : equipment && equipment.devices.length > 0 ? (

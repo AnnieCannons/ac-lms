@@ -94,7 +94,7 @@ export default function DeviceForm({
         )}
         <label className={labelCls}>
           Make and model
-          <input className={`${inputCls} mt-1`} value={form.makeModel} onChange={e => set('makeModel', e.target.value)} placeholder={isLaptop ? 'Dell Latitude 5420' : ''} />
+          <input className={`${inputCls} mt-1`} value={form.makeModel} onChange={e => set('makeModel', e.target.value)} placeholder={isLaptop ? 'e.g. MacBook Pro 13-inch' : ''} />
         </label>
         <label className={labelCls}>
           Year

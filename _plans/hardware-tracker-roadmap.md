@@ -96,12 +96,17 @@ Split into two PRs (decided 2026-10-16):
 - A **Report a problem** button that opens the Airtable Equipment Support Form with their email already filled in (Airtable URL prefill; they can still change it).
 
 ### Phase 6 — Launch survey
+**Status (2026-10-16): committed on `claude/feat/hardware-my-equipment`; PR opened for 5 + 6. Migration applied.** Called the **equipment check-in** in the UI. Copy is MacBook-only, and hotspots are Franklins from Mission Telecom (help uses the hotspot's own settings page: mobile.hotspot → About). Migration `20261017000000_hardware_checkin_survey.sql` (`hardware_surveys`, `hardware_survey_recipients`, `hardware_survey_responses`). Staff: **Check-in** in the hardware section bar → send (pick courses, current ones first, plus individual students) → detail page with tiles, **To review** (each answer shows what approving would do: add a new device, link an in-stock one, "already theirs", or a red conflict; laptop can be marked on loan or already theirs; past replacements recorded once), **Not answered** (Remind all / Remind one, bell + Slack), Reviewed (with "Review again"), Add people, Close. Students: bell notification `hardware_checkin` **plus a Slack DM** (via `notifyByEmail`, sent with `after()`; reminders say "Reminder:") → `/student/equipment-check-in` (yes/no per device type, serial/IMEI/phone with "where do I find it?" help, past replacements, notes), banners on My Courses and My Equipment until answered; editable until reviewed. Rules in `src/lib/hardware-checkin.ts` (`planCheckin`), tested.
+Also: Mark received now lists **"We're waiting on"** (students with open return requests, their items and days) under the search (Catie's request).
+
 - Staff create a survey, pick courses, and add extra people. Students get a bell notification and a short form: laptop serial (with "where to find it" help for Mac/Windows/Chromebook), whether they have a hotspot and its IMEI/phone number, whether they have a booster, and **whether their laptop or charger has ever been replaced** (since there's no import, this is how already-used replacements get recorded).
 - Alumni who still have a loaned hotspot or booster aren't in a current course, so add them as individual recipients.
 - Answers land in a **review queue**. Staff confirm each one, which creates or links the device and sets the holder. Clashes are flagged, such as the same serial claimed twice or a serial already linked to someone else.
 - Shows who hasn't answered, with a "nudge" button.
 
 ### Phase 7 — Hotspot subscriptions and reminders
+Hotspots are Franklin devices bought through **Mission Telecom** (on T-Mobile's network; students don't use the T-Mobile app), so the subscription's carrier/vendor defaults to Mission Telecom. Laptops are all MacBook Pros.
+
 - Subscription fields on hotspot pages, and a **Renewals** view sorted by end date.
 - Daily cron (`/api/cron/hardware-reminders`, `CRON_SECRET`, same as other crons):
   - Renewal 45 days out → bell to Catie + post in #student-hardware (once per subscription).

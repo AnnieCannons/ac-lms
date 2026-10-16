@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { DEVICE_COLUMNS, searchStudents } from '@/lib/hardware-server'
-import { KIND_LABELS, RECEIVE_STATUSES, STATUS_LABELS, type HardwareDevice, type ReceiveStatus } from '@/lib/hardware'
+import { DEVICE_COLUMNS, loadOpenReturns, searchStudents } from '@/lib/hardware-server'
+import { daysSince, isLikelyLost, KIND_LABELS, RECEIVE_STATUSES, STATUS_LABELS, type HardwareDevice, type ReceiveStatus } from '@/lib/hardware'
 import HardwareShell from '@/components/hardware/HardwareShell'
 import Card from '@/components/hardware/Card'
 import ReceiveFlow from '@/components/hardware/ReceiveFlow'
@@ -36,6 +36,21 @@ export default async function ReceivePage({
     }
   }
   const matches = !student && q ? await searchStudents(admin, q) : []
+
+  // Who we've asked for something back: the most likely senders, oldest request first.
+  const expected = new Map<string, { id: string; name: string; email: string; items: string[]; days: number; lost: boolean }>()
+  if (!student) {
+    for (const r of await loadOpenReturns(admin)) {
+      if (!r.student) continue
+      const entry = expected.get(r.student.id) ?? {
+        id: r.student.id, name: r.student.name ?? r.student.email, email: r.student.email, items: [], days: 0, lost: false,
+      }
+      entry.items.push(`${r.device.asset_tag} (${KIND_LABELS[r.device.kind].toLowerCase()})`)
+      entry.days = Math.max(entry.days, daysSince(r.request.requested_at))
+      entry.lost = entry.lost || isLikelyLost(r.request.requested_at)
+      expected.set(r.student.id, entry)
+    }
+  }
 
   // The confirmation after saving.
   const doneIds = (done ?? '').split(',').filter(id => UUID.test(id)).slice(0, 50)
@@ -120,6 +135,28 @@ export default async function ReceivePage({
                   <Link href={`/instructor/hardware/students/${student.id}`} className={secondaryBtn}>View {studentName}&apos;s hardware</Link>
                 </div>
               </div>
+            )}
+          </Card>
+        )}
+
+        {!student && (
+          <Card title={`We're waiting on · ${expected.size}`}>
+            {expected.size === 0 ? (
+              <p className="text-sm text-muted-text">No one right now. Students show up here once their equipment is marked awaiting return.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-border">
+                {[...expected.values()].map(e => (
+                  <li key={e.id} className="py-2.5 first:pt-0 last:pb-0">
+                    <Link href={`/instructor/hardware/receive?student=${e.id}`} className="group flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+                      <span className="font-medium text-dark-text group-hover:text-teal-primary">{e.name}</span>
+                      <span className="text-muted-text">{e.items.join(', ')}</span>
+                      <span className={`ml-auto whitespace-nowrap ${e.lost ? 'text-red-600 font-semibold' : 'text-muted-text'}`}>
+                        {e.days} {e.days === 1 ? 'day' : 'days'}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             )}
           </Card>
         )}

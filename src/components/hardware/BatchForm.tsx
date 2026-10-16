@@ -83,7 +83,7 @@ export default function BatchForm() {
         <div className="grid sm:grid-cols-2 gap-4">
           <label className={labelCls}>
             Make and model<span className="text-red-600" aria-hidden="true"> *</span>
-            <input className={`${inputCls} mt-1`} value={form.makeModel} onChange={e => set('makeModel', e.target.value)} placeholder="e.g. Dell Latitude 5420" required />
+            <input className={`${inputCls} mt-1`} value={form.makeModel} onChange={e => set('makeModel', e.target.value)} placeholder="e.g. MacBook Pro 13-inch" required />
           </label>
           <label className={labelCls}>
             Year<span className="text-red-600" aria-hidden="true"> *</span>
