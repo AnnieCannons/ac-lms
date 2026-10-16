@@ -5,6 +5,18 @@ vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 
 import {
   addHardwareNote,
+  addToHardwareWaitlist,
+  getHardwareDropPrompt,
+  recordHardwareReplacement,
+  removeFromHardwareWaitlist,
+  transferHardwareOwnership,
+  cancelHardwareReturn,
+  confirmHardwareLost,
+  loanHardwareDevice,
+  markHardwareAwaitingReturn,
+  markHardwarePrepped,
+  receiveHardwareDevices,
+  searchHardwareStudents,
   createHardwareDevice,
   createHardwarePurchaseBatch,
   setHardwareDeviceStatus,
@@ -107,5 +119,152 @@ describe('setHardwareDeviceStatus', () => {
     signedInAs('admin')
     serviceWith({ hardware_devices: { data: { status: 'on_loan', current_holder_id: 's1' }, error: null } })
     expect(await setHardwareDeviceStatus('d1', 'retired', '')).toMatchObject({ ok: false })
+  })
+})
+
+describe('loans and returns', () => {
+  it.each(['student', 'ta'])('rejects a %s for every loan action', async role => {
+    signedInAs(role)
+    expect(await loanHardwareDevice('d1', 's1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await markHardwareAwaitingReturn(['d1'], '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await cancelHardwareReturn('d1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await receiveHardwareDevices(['d1'], 'needs_prep', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await markHardwarePrepped('d1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await confirmHardwareLost('d1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await searchHardwareStudents('ana')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('only loans to a student', async () => {
+    signedInAs('staff')
+    serviceWith({ users: { data: { id: 'x', role: 'instructor' }, error: null } })
+    expect(await loanHardwareDevice('d1', 'x', '')).toEqual({ ok: false, error: 'Choose a student.' })
+  })
+
+  it('refuses to loan a device that is not in stock', async () => {
+    signedInAs('staff')
+    const log = serviceWith({
+      users: { data: { id: 's1', role: 'student' }, error: null },
+      hardware_devices: { data: [], error: null },
+    })
+    expect(await loanHardwareDevice('d1', 's1', '')).toEqual({ ok: false, error: 'Only a device that is in stock can be loaned.' })
+    expect(log.some(([m, a]) => m === 'eq' && a[0] === 'status' && a[1] === 'in_stock')).toBe(true)
+    expect(log.some(([m, a]) => m === 'from' && a[0] === 'hardware_events')).toBe(false)
+  })
+
+  it('opens a return request with the first reminder 48 hours out', async () => {
+    signedInAs('instructor')
+    const log = serviceWith({ hardware_devices: { data: [{ id: 'd1', current_holder_id: 's1' }], error: null } })
+    expect(await markHardwareAwaitingReturn(['d1', 'd1'], 'dropped')).toEqual({ ok: true, marked: 1 })
+    const insert = log.find(([m], i) => m === 'insert' && log[i - 1]?.[0] === 'from' && log[i - 1][1][0] === 'hardware_return_requests')!
+    const row = (insert[1][0] as Record<string, string>[])[0]
+    expect(row).toMatchObject({ device_id: 'd1', student_id: 's1', requested_by: 'me' })
+    expect(new Date(row.next_reminder_at).getTime() - new Date(row.requested_at).getTime()).toBe(48 * 60 * 60 * 1000)
+  })
+
+  it('receives a device: clears the holder, closes the request and records the student', async () => {
+    signedInAs('admin')
+    const log = serviceWith({ hardware_devices: { data: [{ id: 'd1', current_holder_id: 's1' }], error: null } })
+    expect(await receiveHardwareDevices(['d1'], 'needs_prep', 'scratched lid')).toEqual({ ok: true, received: 1 })
+    expect(log.some(([m, a]) => m === 'update' && (a[0] as Record<string, unknown>).current_holder_id === null && (a[0] as Record<string, unknown>).status === 'needs_prep')).toBe(true)
+    expect(log.some(([m, a]) => m === 'update' && (a[0] as Record<string, unknown>).closed_reason === 'received')).toBe(true)
+    const event = log.find(([m, a]) => m === 'insert' && Array.isArray(a[0]) && (a[0] as Record<string, unknown>[])[0]?.type === 'received')!
+    expect((event[1][0] as Record<string, unknown>[])[0]).toMatchObject({ device_id: 'd1', student_id: 's1', notes: 'Next: Needs prep\nscratched lid' })
+  })
+
+  it('refuses an invalid next status after receiving', async () => {
+    signedInAs('admin')
+    expect(await receiveHardwareDevices(['d1'], 'lost' as never, '')).toEqual({ ok: false, error: 'Choose what happens next.' })
+  })
+
+  it('only marks lost a device that is awaiting return', async () => {
+    signedInAs('admin')
+    serviceWith({ hardware_devices: { data: [], error: null } })
+    expect(await confirmHardwareLost('d1', '')).toMatchObject({ ok: false })
+  })
+})
+
+describe('ownership, replacements and waitlist', () => {
+  const replacement = {
+    studentId: 's1', kind: 'laptop' as const, oldDeviceId: 'old', newDeviceId: 'new', oldComingBack: true,
+    writeOff: '' as const, writeOffReason: '', overrideNote: '', notes: '',
+  }
+
+  it.each(['student', 'ta'])('rejects a %s', async role => {
+    signedInAs(role)
+    expect(await transferHardwareOwnership('d1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await recordHardwareReplacement(replacement)).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await addToHardwareWaitlist('s1', 'hotspot', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await removeFromHardwareWaitlist('w1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('only transfers a laptop that is on loan', async () => {
+    signedInAs('staff')
+    const log = serviceWith({ hardware_devices: { data: [], error: null } })
+    expect(await transferHardwareOwnership('d1', '')).toEqual({ ok: false, error: 'Only a laptop that is on loan can be transferred.' })
+    expect(log.some(([m, a]) => m === 'eq' && a[0] === 'kind' && a[1] === 'laptop')).toBe(true)
+    expect(log.some(([m, a]) => m === 'eq' && a[0] === 'status' && a[1] === 'on_loan')).toBe(true)
+  })
+
+  it('needs an override note for a second laptop replacement', async () => {
+    signedInAs('instructor')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(
+        table === 'users' ? { data: { id: 's1', role: 'student' }, error: null }
+          : table === 'hardware_replacements' ? { count: 1, data: null, error: null }
+          : { data: null, error: null },
+      ),
+    } as never)
+    expect(await recordHardwareReplacement(replacement)).toMatchObject({ ok: false, error: expect.stringMatching(/already used their laptop replacement/) })
+  })
+
+  it('refuses to replace a laptop that is not with the student', async () => {
+    signedInAs('instructor')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(
+        table === 'users' ? { data: { id: 's1', role: 'student' }, error: null }
+          : table === 'hardware_replacements' ? { count: 0, data: null, error: null }
+          : { data: { id: 'old', status: 'on_loan', kind: 'laptop', current_holder_id: 'someone-else' }, error: null },
+      ),
+    } as never)
+    expect(await recordHardwareReplacement(replacement)).toEqual({ ok: false, error: 'That laptop is not with this student.' })
+  })
+
+  it('says so when a student is already on the waitlist', async () => {
+    signedInAs('staff')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(table === 'users' ? { data: { id: 's1', role: 'student' }, error: null } : { data: null, error: { code: '23505', message: 'dup' } }),
+    } as never)
+    expect(await addToHardwareWaitlist('s1', 'hotspot', '')).toEqual({ ok: false, error: 'This student is already waiting for one.' })
+  })
+})
+
+describe('getHardwareDropPrompt', () => {
+  it('rejects a TA', async () => {
+    signedInAs('ta')
+    expect(await getHardwareDropPrompt('s1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('returns nothing when the student has nothing on loan', async () => {
+    signedInAs('instructor')
+    serviceWith({ hardware_devices: { data: [], error: null } })
+    expect(await getHardwareDropPrompt('s1')).toEqual({ ok: true, prompt: null })
+  })
+
+  it('lists loaned items and the current courses they are still a student in', async () => {
+    signedInAs('instructor')
+    serviceWith({
+      hardware_devices: { data: [{ id: 'd1', asset_tag: 'LAP-001', kind: 'laptop', make_model: 'Dell' }], error: null },
+      users: { data: { id: 's1', name: 'Ana', email: 'a@x.org' }, error: null },
+      course_enrollments: { data: [
+        { courses: { name: 'Intro to Programming (Sept 2099)', start_date: '2099-10-05', end_date: null, archived: false, is_template: false } },
+        { courses: { name: 'Old course', start_date: '2020-01-01', end_date: '2020-04-01', archived: false, is_template: false } },
+        { courses: { name: 'Archived', start_date: '2099-01-01', end_date: null, archived: true, is_template: false } },
+      ], error: null },
+    })
+    const res = await getHardwareDropPrompt('s1')
+    expect(res).toMatchObject({ ok: true, prompt: { student: { id: 's1' }, items: [{ asset_tag: 'LAP-001' }], otherCourses: ['Intro to Programming (Sept 2099)'] } })
   })
 })

@@ -59,6 +59,20 @@ describe('removeStudentUser', () => {
     expect(log.some(([m]) => m === 'delete')).toBe(false)
   })
 
+  it('refuses to delete a student who still has loaned equipment', async () => {
+    signedInAs('admin')
+    const log: [string, unknown[]][] = []
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(
+        table === 'hardware_devices' ? { count: 1, data: null, error: null } : { data: { role: 'student' }, count: 0, error: null },
+        log,
+      ),
+      auth: { admin: { deleteUser: vi.fn(async () => ({ error: null })) } },
+    } as never)
+    expect(await removeStudentUser('s1')).toEqual({ error: expect.stringMatching(/still has loaned equipment/) })
+    expect(log.some(([m]) => m === 'delete')).toBe(false)
+  })
+
   it('an instructor can still delete a student', async () => {
     signedInAs('instructor')
     const log = serviceWithTarget('student')

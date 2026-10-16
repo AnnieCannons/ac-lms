@@ -6,6 +6,9 @@ import {
   type DeviceStatus,
   type HardwareDevice,
   type HardwareEvent,
+  type ReturnRequest,
+  isReadyToTransfer,
+  laptopTrackFromName,
 } from '@/lib/hardware'
 
 // Server-only loaders for the Hardware Tracker pages. Callers must have checked access
@@ -125,4 +128,92 @@ export async function loadHolders(admin: Admin): Promise<{ person: Person; count
   return [...counts.entries()]
     .map(([id, count]) => ({ person: people.get(id) ?? { id, name: null, email: '' }, count }))
     .sort((a, b) => (a.person.name ?? '').localeCompare(b.person.name ?? ''))
+}
+
+export type OpenReturn = { request: ReturnRequest; device: HardwareDevice; student: Person | null }
+
+/** Every device we are waiting on, oldest request first. */
+export async function loadOpenReturns(admin: Admin): Promise<OpenReturn[]> {
+  const { data } = await admin.from('hardware_return_requests')
+    .select('id, device_id, student_id, requested_at, closed_at, closed_reason')
+    .is('closed_at', null).order('requested_at', { ascending: true })
+  const requests = (data as ReturnRequest[] | null) ?? []
+  if (requests.length === 0) return []
+  const [{ data: devices }, people] = await Promise.all([
+    admin.from('hardware_devices').select(DEVICE_COLUMNS).in('id', requests.map(r => r.device_id)),
+    loadPeople(admin, requests.map(r => r.student_id)),
+  ])
+  const byId = new Map(((devices as HardwareDevice[] | null) ?? []).map(d => [d.id, d]))
+  return requests
+    .filter(r => byId.has(r.device_id))
+    .map(r => ({ request: r, device: byId.get(r.device_id)!, student: r.student_id ? people.get(r.student_id) ?? null : null }))
+}
+
+/** The open return request for one device, if any. */
+export async function loadOpenReturnForDevice(admin: Admin, deviceId: string): Promise<ReturnRequest | null> {
+  const { data } = await admin.from('hardware_return_requests')
+    .select('id, device_id, student_id, requested_at, closed_at, closed_reason')
+    .eq('device_id', deviceId).is('closed_at', null).maybeSingle()
+  return (data as ReturnRequest | null) ?? null
+}
+
+// ── Ownership, replacements and waitlist (Phase 3b) ──────────────────────────
+
+export type WaitlistEntry = { id: string; kind: DeviceKind; note: string | null; added_at: string; student: Person }
+
+/** Open waitlist entries, oldest first (first come, first served). */
+export async function loadWaitlist(admin: Admin, kind?: DeviceKind): Promise<WaitlistEntry[]> {
+  let query = admin.from('hardware_waitlist').select('id, kind, note, added_at, student_id')
+    .is('fulfilled_at', null).is('removed_at', null)
+  if (kind) query = query.eq('kind', kind)
+  const { data } = await query.order('added_at', { ascending: true })
+  const rows = (data as { id: string; kind: DeviceKind; note: string | null; added_at: string; student_id: string }[] | null) ?? []
+  const people = await loadPeople(admin, rows.map(r => r.student_id))
+  return rows.map(r => ({ id: r.id, kind: r.kind, note: r.note, added_at: r.added_at, student: people.get(r.student_id) ?? { id: r.student_id, name: null, email: '' } }))
+}
+
+/** Students with a loaned laptop who have completed both a TCF and an ITP course. */
+export async function loadReadyToTransfer(admin: Admin): Promise<{ device: HardwareDevice; student: Person }[]> {
+  const { data: laptops } = await admin.from('hardware_devices').select(DEVICE_COLUMNS)
+    .eq('kind', 'laptop').eq('status', 'on_loan').not('current_holder_id', 'is', null)
+  const loaned = (laptops as HardwareDevice[] | null) ?? []
+  if (loaned.length === 0) return []
+  const studentIds = [...new Set(loaned.map(d => d.current_holder_id!))]
+
+  const [{ data: completions }, { data: trackCourses }] = await Promise.all([
+    admin.from('course_completions').select('course_id, user_id').in('user_id', studentIds),
+    // Course names decide the track (see laptopTrackFromName); the courses table is small.
+    admin.from('courses').select('id, name'),
+  ])
+  const trackByCourse = new Map<string, string>()
+  for (const c of (trackCourses ?? []) as { id: string; name: string }[]) {
+    const track = laptopTrackFromName(c.name)
+    if (track) trackByCourse.set(c.id, track)
+  }
+  const tracksByStudent = new Map<string, string[]>()
+  for (const c of (completions ?? []) as { course_id: string; user_id: string }[]) {
+    const track = trackByCourse.get(c.course_id)
+    if (track) tracksByStudent.set(c.user_id, [...(tracksByStudent.get(c.user_id) ?? []), track])
+  }
+  const ready = loaned.filter(d => isReadyToTransfer(tracksByStudent.get(d.current_holder_id!) ?? []))
+  const people = await loadPeople(admin, ready.map(d => d.current_holder_id))
+  return ready.map(d => ({ device: d, student: people.get(d.current_holder_id!) ?? { id: d.current_holder_id!, name: null, email: '' } }))
+}
+
+export type Replacement = {
+  id: string
+  kind: 'laptop' | 'charger'
+  old_device_id: string | null
+  new_device_id: string | null
+  old_coming_back: boolean
+  write_off_reason: string | null
+  override_note: string | null
+  created_at: string
+}
+
+export async function loadReplacements(admin: Admin, studentId: string): Promise<Replacement[]> {
+  const { data } = await admin.from('hardware_replacements')
+    .select('id, kind, old_device_id, new_device_id, old_coming_back, write_off_reason, override_note, created_at')
+    .eq('student_id', studentId).order('created_at', { ascending: true })
+  return (data as Replacement[] | null) ?? []
 }

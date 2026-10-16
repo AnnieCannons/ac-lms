@@ -13,7 +13,7 @@ Built as a phased rollout like Confidence Tracker v2. Each phase ships and can b
 - **Laptops:** loaned at first. Once an instructor has marked the student as having completed **both** Tech Career Foundations **and** Intro to Programming (see Course completion), the student shows up on a **Ready to transfer** list. Staff click "Transfer ownership" to change the laptop from loaned to student-owned. It's never automatic. Owned laptops are still tracked and still count toward replacements.
 - **Course completion (wanted anyway):** an instructor marks a student as having completed a course. A "Completed" badge then shows next to their name in that course and on `/instructor/students`. TCF and ITP are separate courses taught in the same trimester.
 - **Replacements:** one laptop and one charger per student, ever. The old one should be shipped back. There's an exception for lost/stolen/damaged beyond repair, which is recorded with a reason. Chargers have no serial numbers, so a charger replacement is just an event on the student (date, note, old one returned yes/no).
-- **Hotspots:** loaned, returned when the student stops or graduates, then go to the next student. Track IMEI **and** phone number/ICCID. One subscription per device, with carrier, plan, start date, end date, cost, and account/line number. Renewal alert **45 days** before end, as a bell notification to Catie plus a post in **#hardware-tracking**.
+- **Hotspots:** loaned, returned when the student stops or graduates, then go to the next student. Track IMEI **and** phone number/ICCID. One subscription per device, with carrier, plan, start date, end date, cost, and account/line number. Renewal alert **45 days** before end, as a bell notification to Catie plus a post in **#student-hardware**.
 - **Boosters:** always on loan, returned on stop/graduation, then go to the next student. No manufacturer numbers, so the LMS gives them IDs (`BOOST-014`) to print on a label.
 - **Statuses:** in stock · on loan · owned by student · awaiting return · received · **needs prep** (wipe and check before it goes out again) · needs repair · lost · retired.
 - **Awaiting return:**
@@ -21,15 +21,15 @@ Built as a phased rollout like Confidence Tracker v2. Each phase ships and can b
   - Each reminder goes to the student's **Slack DM, email and LMS bell**.
   - At **60 days** the item moves to "Likely lost", and staff **click to confirm** it as lost. Reminders stop on receipt or on confirmed lost.
 - **Student leaves:** removing someone from a course, or changing them to observer, shows a prompt listing their loaned items with a one-click "Mark as awaiting return" and a link to their tracker page.
-- **Graduation:** the LMS can't detect it reliably, so a reminder to go through and mark graduates is posted in #hardware-tracking at each trimester break. Break dates come from the existing `calendar_breaks` table (edited on the PTO page under General Info); the reminder posts on each break's start date.
-- **Slack:** every staff-facing Slack alert (renewals, new tickets, ticket nudges, graduate review) goes to one channel, **#hardware-tracking**, not to DMs. The channel name is a setting (`SLACK_HARDWARE_CHANNEL`). If the channel is private, the LMS bot has to be invited by hand or the posts fail (same as the weekly report). Reminders to *students* are DMs.
+- **Graduation:** the LMS can't detect it reliably, so a reminder to go through and mark graduates is posted in #student-hardware at each trimester break. Break dates come from the existing `calendar_breaks` table (edited on the PTO page under General Info); the reminder posts on each break's start date.
+- **Slack:** every staff-facing Slack alert (renewals, new tickets, ticket nudges, graduate review) goes to one channel, **#student-hardware**, not to DMs. The channel is **#student-hardware**, ID **`C0ABALJLBFU`** (given by Catie 2026-10-16); set `SLACK_HARDWARE_CHANNEL=C0ABALJLBFU` (Vercel + `.env.local`), posting by ID so a rename doesn't break it. If the channel is private, the LMS bot has to be invited by hand or the posts fail (same as the weekly report). Reminders to *students* are DMs.
 - **Marking received:** search by **student name** and record condition notes.
 - **Launch survey:** in the LMS, not Airtable. Staff choose which courses get it and can add individual people.
 - **Equipment Support Form (Airtable):**
   - The address stays in Airtable. The LMS gets the issue without the address and turns it into a ticket.
   - The ticket has a status and is linked to the student/device.
   - The form gets an **Email** field so the ticket can be matched to the student.
-  - An open ticket nudges #hardware-tracking after **48 hours**.
+  - An open ticket nudges #student-hardware after **48 hours**.
 - **Buying new laptops:** about 20 at a time, 3 times a year, usually all the same model, year and condition (e.g. refurbished). **Bulk-add** takes the shared details once plus a pasted list of serial numbers.
 - **Waitlist** for a hotspot/booster/laptop: staff-only for now.
 
@@ -70,6 +70,12 @@ Cleanup for the test devices (run before real data goes in): delete `hardware_de
 - Useful outside hardware too, so it ships as its own small piece.
 
 ### Phase 3 — Loans, returns and ownership
+Split into two PRs (decided 2026-10-16):
+- **3a — loans and returns. Committed on `claude/feat/hardware-loans` (no PR yet: Catie wants one bigger PR for 3a + 3b to save CI/compute).** Migration `20261016000003_hardware_return_requests.sql` (applied 2026-10-16) (one open request per device; first reminder time set 48 hours out for the later reminder cron). Device page: loan an in-stock device to a student (name search), mark awaiting return, "no longer needed back", mark lost, mark received. Student page: mark everything on loan awaiting return in one click, and the receive form. New **Mark received** page (`/instructor/hardware/receive`): find the student, tick what came back (all ticked by default), condition notes, next status (needs prep / in stock / needs repair). Needs attention: Likely lost (60+ days, confirm), Awaiting return (days waiting), Needs prep ("Wiped and checked"), Needs repair.
+- Device page redesign (2026-10-16): header card with model · year · condition and a **Status dropdown** that only offers valid next steps (`statusChoices`), each opening a small form; Details read-only with Edit in the card header; History card with Add note.
+- UX pass (2026-10-16, same branch): every hardware page has a section bar (Devices · Students · Needs attention · Waitlist · Mark received); Needs attention has count tiles and only shows non-empty sections; Mark received is a two-step page whose confirmation lives in the URL; student page has "Loan a device"; in-stock devices explain "change the status to On loan". **Labels** print on the standard 1" × 2-5/8", 30-per-sheet grid (Avery 5160 laser / 8160 inkjet / Amazon Basics equivalent), with "start at label N" for partly used sheets and buying/printing tips on the page; the Devices list has checkboxes, "Print labels for N selected" (up to 150) and "Print labels for all shown" (uses the filters).
+- **3b — ownership, replacements and waitlist. Committed on the same branch (2026-10-16); one PR planned for 3a + 3b + 4.** Migration applied. Migration `20261016000004_hardware_ownership_replacements_waitlist.sql` (`hardware_replacements`, `hardware_waitlist`). **TCF/ITP is read from the course name** (`laptopTrackFromName`: the name must *start* with "Tech Career Foundations" or "Intro to Programming", so "Winter Break ITP Exercises" doesn't count). A per-course setting was built first and dropped on 2026-10-16 after checking that every cohort is named that way; the migration now drops the unused `courses.laptop_track` column. Needs attention → **Ready to transfer** (loaned laptop + completed a TCF and an ITP course) with Transfer ownership; the status dropdown also offers "Owned by student" for any loaned laptop. Student page (now cards): Has now (Mark all awaiting return / Mark received in the header), **Replacements** (laptop 0 of 1, charger 0 of 1; laptop replacement sends an in-stock laptop, owned if the old one was owned, and the old one is chased back or written off as lost / damaged beyond repair; a second one needs an override note), Had before, History. **Waitlist** tab: add a student per device type, first come first served; loaning that type removes them automatically, and an in-stock device's loan form suggests who's waiting.
+
 - Assign a device to a student and mark it shipped. Assigning from the **waitlist** fills that waitlist entry.
 - **Mark received**: type a student name, pick the item(s), add condition notes, and choose the next status (needs prep / in stock / needs repair). One screen, a few clicks.
 - **Needs prep** list → "Wiped and checked" → in stock.
@@ -78,6 +84,8 @@ Cleanup for the test devices (run before real data goes in): delete `hardware_de
 - **Replacements**: "Replace laptop" or "Replace charger" on the student page, with "old one coming back" or a write-off reason. Warns if the student has already used their one.
 
 ### Phase 4 — Drop prompt
+**Status (2026-10-16): committed on `claude/feat/hardware-loans`; PR opened for 3a + 3b + 4.** On the course Users page, removing a student (or an observer) or changing a student to observer calls `getHardwareDropPrompt` afterwards; if they have anything **on loan**, a dialog lists it (all ticked) with "Mark awaiting return" (history note: "Removed from <course>" / "Changed to observer in <course>"), "Open their hardware page" and "Not now". If they're still a student in another current course (e.g. TCF → ITP) it says they probably still need it. The change itself is never blocked. **All Users → delete student** permanently deletes the account, so it now **refuses** while they hold loaned equipment or have an open return (an owned laptop doesn't block it).
+
 - Hook into `removePersonFromCourse`, `updateEnrollmentRole` (→ observer) and `removeStudentUser` in `src/lib/people-actions.ts`. After a successful change, the action returns the student's loaned items, and the users/roster UI shows "Laura has Laptop LAP-031 and Hotspot HOT-007 on loan. [Mark awaiting return] [Open in tracker]".
 - Skip the prompt for items the student owns, and when the student is still enrolled as a student in another current course.
 
@@ -94,10 +102,10 @@ Cleanup for the test devices (run before real data goes in): delete `hardware_de
 ### Phase 7 — Hotspot subscriptions and reminders
 - Subscription fields on hotspot pages, and a **Renewals** view sorted by end date.
 - Daily cron (`/api/cron/hardware-reminders`, `CRON_SECRET`, same as other crons):
-  - Renewal 45 days out → bell to Catie + post in #hardware-tracking (once per subscription).
+  - Renewal 45 days out → bell to Catie + post in #student-hardware (once per subscription).
   - Return reminders to students due today: Slack DM + email + bell, then schedule the next one (48h → +5 days → every 7 days). Flag requests at 60 days as likely lost (staff confirm).
-  - Open tickets with no activity for 48 hours → nudge in #hardware-tracking (repeats every 48 hours while still untouched).
-  - Trimester-break graduate review → post in #hardware-tracking on the start date of each `calendar_breaks` row.
+  - Open tickets with no activity for 48 hours → nudge in #student-hardware (repeats every 48 hours while still untouched).
+  - Trimester-break graduate review → post in #student-hardware on the start date of each `calendar_breaks` row.
 - Return reminders and ticket nudges can ship earlier, with Phases 3 and 8, if wanted; this phase is just where the shared cron lives.
 
 ### Phase 8 — Equipment Support Form tickets
@@ -108,7 +116,7 @@ Cleanup for the test devices (run before real data goes in): delete `hardware_de
 - **LMS side:** a new route `/api/webhooks/hardware-ticket` with a shared-secret header checked in constant time (same as the existing `airtable-form-webhook`).
   - The ticket is matched to the student by email. If that email doesn't match an LMS user (e.g. a personal address), the name is tried. If that's unsure, it goes to a "Match this ticket" queue.
   - The form's equipment type (Laptop / Laptop Charger / Wifi Unit / Other) picks the student's matching device when there's only one. "Wifi Unit" covers both hotspots and boosters.
-- New ticket → bell to Catie + post in #hardware-tracking with a direct link to the ticket. The ticket page shows the student, the device and its history, plus a link to the Airtable record for the address.
+- New ticket → bell to Catie + post in #student-hardware with a direct link to the ticket. The ticket page shows the student, the device and its history, plus a link to the Airtable record for the address.
 - Ticket statuses. Resolving a ticket can record a replacement (Phase 3) in the same step.
 
 ### No import from Airtable

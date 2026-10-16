@@ -1,26 +1,62 @@
 import Link from 'next/link'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { loadDevices, loadHolders, loadPeople, searchStudents } from '@/lib/hardware-server'
+import { loadDevices, loadHolders, loadOpenReturns, loadPeople, loadReadyToTransfer, loadWaitlist, searchStudents } from '@/lib/hardware-server'
 import {
   DEVICE_KINDS,
   DEVICE_STATUSES,
+  daysSince,
+  isLikelyLost,
   KIND_LABELS,
+  LIKELY_LOST_DAYS,
   STATUS_LABELS,
   type DeviceKind,
   type DeviceStatus,
+  type HardwareDevice,
 } from '@/lib/hardware'
+import type { Person } from '@/lib/hardware-server'
 import HardwareShell from '@/components/hardware/HardwareShell'
-import DeviceTable from '@/components/hardware/DeviceTable'
+import Card from '@/components/hardware/Card'
+import { ConfirmLostButton, PreppedButton, TransferButton } from '@/components/hardware/AttentionButtons'
+import WaitlistManager from '@/components/hardware/WaitlistManager'
+import SelectableDevices from '@/components/hardware/SelectableDevices'
 
-const TABS = [
-  { key: 'devices', label: 'Devices' },
-  { key: 'students', label: 'Students' },
-  { key: 'attention', label: 'Needs attention' },
-] as const
-type Tab = (typeof TABS)[number]['key']
+const TABS = {
+  devices: { title: 'Devices', subtitle: 'Every laptop, hotspot and wifi booster.' },
+  students: { title: 'Students', subtitle: 'Find a student to see or update their equipment.' },
+  attention: { title: 'Needs attention', subtitle: 'Things waiting on you.' },
+  waitlist: { title: 'Waitlist', subtitle: 'Students waiting for a device, first come, first served.' },
+} as const
+type Tab = keyof typeof TABS
 
 const inputCls = 'px-3 py-2 rounded-lg border border-border bg-background text-dark-text text-sm focus:outline-none focus:border-teal-primary'
+
+/** One line in a Needs attention card: device on the left, student in the middle, action on the right. */
+function AttentionRow({ device, student, meta, metaTone, action }: {
+  device: HardwareDevice
+  student?: Person | null
+  meta?: string
+  metaTone?: 'urgent'
+  action?: React.ReactNode
+}) {
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0 text-sm">
+      <div className="min-w-0 sm:w-56">
+        <Link href={`/instructor/hardware/devices/${device.id}`} className="font-semibold text-dark-text hover:text-teal-primary">{device.asset_tag}</Link>
+        <span className="text-muted-text"> · {KIND_LABELS[device.kind]}{device.make_model ? ` · ${device.make_model}` : ''}</span>
+      </div>
+      {student !== undefined && (
+        <div className="min-w-0 flex-1">
+          {student
+            ? <Link href={`/instructor/hardware/students/${student.id}`} className="text-dark-text hover:text-teal-primary">{student.name ?? student.email}</Link>
+            : <span className="text-muted-text">—</span>}
+        </div>
+      )}
+      {meta && <span className={`whitespace-nowrap ${metaTone === 'urgent' ? 'text-red-600 font-semibold' : 'text-muted-text'}`}>{meta}</span>}
+      {action && <div className="ml-auto flex items-center gap-3 whitespace-nowrap">{action}</div>}
+    </li>
+  )
+}
 
 export default async function HardwarePage({
   searchParams,
@@ -29,7 +65,7 @@ export default async function HardwarePage({
 }) {
   const viewer = await getHardwareViewer()
   const params = await searchParams
-  const tab: Tab = TABS.some(t => t.key === params.tab) ? (params.tab as Tab) : 'devices'
+  const tab: Tab = params.tab && params.tab in TABS ? (params.tab as Tab) : 'devices'
   const kind = DEVICE_KINDS.includes(params.kind as DeviceKind) ? (params.kind as DeviceKind) : undefined
   const status = DEVICE_STATUSES.includes(params.status as DeviceStatus) ? (params.status as DeviceStatus) : undefined
   const q = (params.q ?? '').slice(0, 80)
@@ -64,19 +100,30 @@ export default async function HardwarePage({
           <button type="submit" className="text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:bg-border/20">Filter</button>
           {(q || kind || status) && <Link href="/instructor/hardware" className="text-sm text-teal-primary hover:underline py-2">Clear</Link>}
         </form>
-        <p className="text-xs text-muted-text mb-2">{devices.length} {devices.length === 1 ? 'device' : 'devices'}</p>
-        <DeviceTable
+        <SelectableDevices
           devices={devices}
-          people={people}
+          people={[...people.values()]}
           emptyText={q || kind || status ? 'No devices match.' : 'No devices yet. Add a purchase to get started.'}
+          filterQuery={new URLSearchParams(Object.entries({ kind, status, q }).filter(([, v]) => v) as [string, string][]).toString()}
         />
+        <p className="text-xs text-muted-text mt-2">Tick devices to print their labels. To print a whole type (like every booster), filter by it first.</p>
       </>
     )
   } else if (tab === 'students') {
     const [matches, holders] = await Promise.all([searchStudents(admin, q), loadHolders(admin)])
+    const personList = (list: { person: Person; extra: string }[]) => (
+      <ul className="flex flex-col divide-y divide-border">
+        {list.map(({ person, extra }) => (
+          <li key={person.id} className="py-2.5 first:pt-0 last:pb-0 text-sm flex flex-wrap gap-x-3">
+            <Link href={`/instructor/hardware/students/${person.id}`} className="font-medium text-dark-text hover:text-teal-primary">{person.name ?? person.email}</Link>
+            <span className="text-muted-text">{extra}</span>
+          </li>
+        ))}
+      </ul>
+    )
     body = (
-      <>
-        <form method="get" className="flex flex-wrap items-end gap-3 mb-6" role="search">
+      <div className="flex flex-col gap-6">
+        <form method="get" className="flex flex-wrap items-end gap-3" role="search">
           <input type="hidden" name="tab" value="students" />
           <label className="text-xs font-semibold text-muted-text flex flex-col gap-1">
             Find a student
@@ -85,87 +132,131 @@ export default async function HardwarePage({
           <button type="submit" className="text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:bg-border/20">Search</button>
         </form>
         {q && (
-          <section className="mb-8">
-            <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Search results</h2>
-            {matches.length === 0 ? <p className="text-sm text-muted-text">No students match.</p> : (
-              <ul className="flex flex-col gap-1">
-                {matches.map(p => (
-                  <li key={p.id}>
-                    <Link href={`/instructor/hardware/students/${p.id}`} className="text-sm text-dark-text hover:text-teal-primary">
-                      {p.name ?? p.email} <span className="text-muted-text">· {p.email}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <Card title={`Search results · ${matches.length}`}>
+            {matches.length === 0 ? <p className="text-sm text-muted-text">No students match.</p> : personList(matches.map(p => ({ person: p, extra: p.email })))}
+          </Card>
         )}
-        <section>
-          <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Students with equipment</h2>
-          {holders.length === 0 ? <p className="text-sm text-muted-text">No one has equipment recorded yet.</p> : (
-            <ul className="flex flex-col gap-1">
-              {holders.map(({ person, count }) => (
-                <li key={person.id}>
-                  <Link href={`/instructor/hardware/students/${person.id}`} className="text-sm text-dark-text hover:text-teal-primary">
-                    {person.name ?? person.email}
-                  </Link>
-                  <span className="text-xs text-muted-text"> · {count} {count === 1 ? 'item' : 'items'}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </>
+        <Card title={`Students with equipment · ${holders.length}`}>
+          {holders.length === 0
+            ? <p className="text-sm text-muted-text">No one has equipment recorded yet.</p>
+            : personList(holders.map(({ person, count }) => ({ person, extra: `${count} ${count === 1 ? 'item' : 'items'}` })))}
+        </Card>
+      </div>
     )
+  } else if (tab === 'waitlist') {
+    body = <WaitlistManager entries={await loadWaitlist(admin)} />
   } else {
-    const [repair, prep] = await Promise.all([
+    const [returns, repair, prep, readyToTransfer] = await Promise.all([
+      loadOpenReturns(admin),
       loadDevices(admin, { status: 'needs_repair' }),
       loadDevices(admin, { status: 'needs_prep' }),
+      loadReadyToTransfer(admin),
     ])
-    const people = new Map()
+    const likelyLost = returns.filter(r => isLikelyLost(r.request.requested_at))
+    const waiting = returns.filter(r => !isLikelyLost(r.request.requested_at))
+
+    const sections: { id: string; title: string; hint: string; count: number; urgent?: boolean; rows: React.ReactNode }[] = [
+      {
+        id: 'likely-lost', title: 'Likely lost', urgent: true, count: likelyLost.length,
+        hint: `Waiting ${LIKELY_LOST_DAYS} days or more. Confirm to mark them lost, or mark them received if they turned up.`,
+        rows: likelyLost.map(({ request, device, student }) => (
+          <AttentionRow key={request.id} device={device} student={student} meta={`${daysSince(request.requested_at)} days`} metaTone="urgent"
+            action={<>
+              {student && <Link href={`/instructor/hardware/receive?student=${student.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Mark received</Link>}
+              <ConfirmLostButton deviceId={device.id} tag={device.asset_tag ?? 'this device'} />
+            </>} />
+        )),
+      },
+      {
+        id: 'awaiting-return', title: 'Awaiting return', count: waiting.length,
+        hint: 'Devices we asked students to send back. They get reminders until it arrives.',
+        rows: waiting.map(({ request, device, student }) => (
+          <AttentionRow key={request.id} device={device} student={student}
+            meta={`${daysSince(request.requested_at)} ${daysSince(request.requested_at) === 1 ? 'day' : 'days'}`}
+            action={student && <Link href={`/instructor/hardware/receive?student=${student.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Mark received</Link>} />
+        )),
+      },
+      {
+        id: 'ready-to-transfer', title: 'Ready to transfer', count: readyToTransfer.length,
+        hint: 'Loaned laptops whose student is marked completed in a Tech Career Foundations course and an Intro to Programming course.',
+        rows: readyToTransfer.map(({ device, student }) => (
+          <AttentionRow key={device.id} device={device} student={student}
+            action={<TransferButton deviceId={device.id} tag={device.asset_tag ?? 'this laptop'} name={student.name ?? student.email} />} />
+        )),
+      },
+      {
+        id: 'needs-prep', title: 'Needs prep', count: prep.length,
+        hint: 'Came back and needs to be wiped and checked before the next student.',
+        rows: prep.map(d => <AttentionRow key={d.id} device={d} action={<PreppedButton deviceId={d.id} />} />),
+      },
+      {
+        id: 'needs-repair', title: 'Needs repair', count: repair.length,
+        hint: 'Change the status on the device once it is fixed.',
+        rows: repair.map(d => <AttentionRow key={d.id} device={d} />),
+      },
+    ]
+    const withItems = sections.filter(s => s.count > 0)
+    const clear = sections.filter(s => s.count === 0 && s.id !== 'likely-lost')
+
     body = (
-      <>
-        <section className="mb-8">
-          <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Needs prep</h2>
-          <DeviceTable devices={prep} people={people} showHolder={false} emptyText="Nothing waiting to be wiped and checked." />
-        </section>
-        <section className="mb-8">
-          <h2 className="text-sm font-bold text-muted-text uppercase tracking-widest mb-3">Needs repair</h2>
-          <DeviceTable devices={repair} people={people} showHolder={false} emptyText="Nothing waiting for repair." />
-        </section>
-        <p className="text-sm text-muted-text">Returns, hotspot renewals and support tickets will show here as they are added.</p>
-      </>
+      <div className="flex flex-col gap-6">
+        <ul className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {sections.map(s => {
+            const tile = (
+              <>
+                <span className={`block text-2xl font-bold ${s.count === 0 ? 'text-muted-text' : s.urgent ? 'text-red-600' : 'text-dark-text'}`}>{s.count}</span>
+                <span className="block text-xs font-semibold text-muted-text mt-0.5">{s.title}</span>
+              </>
+            )
+            return (
+              <li key={s.id}>
+                {s.count > 0 ? (
+                  <a href={`#${s.id}`} className="block h-full rounded-xl border border-border bg-surface px-4 py-3 hover:border-teal-primary">{tile}</a>
+                ) : (
+                  <div className="h-full rounded-xl border border-border px-4 py-3">{tile}</div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+
+        {withItems.length === 0 && <p className="text-sm text-muted-text">All clear. Nothing is waiting on you.</p>}
+
+        {withItems.map(s => (
+          <div key={s.id} id={s.id} className="scroll-mt-24">
+            <Card title={`${s.title} · ${s.count}`}>
+              <p className="text-xs text-muted-text mb-4">{s.hint}</p>
+              <ul className="flex flex-col divide-y divide-border">{s.rows}</ul>
+            </Card>
+          </div>
+        ))}
+
+        {withItems.length > 0 && clear.length > 0 && (
+          <p className="text-sm text-muted-text">All clear: {clear.map(s => s.title).join(', ')}.</p>
+        )}
+        <p className="text-xs text-muted-text">Hotspot renewals and support tickets will show here once those are added.</p>
+      </div>
     )
   }
 
   return (
-    <HardwareShell viewer={viewer} breadcrumbs={[{ label: 'Hardware' }]}>
+    <HardwareShell viewer={viewer} breadcrumbs={[{ label: 'Hardware' }]} active={tab}>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-dark-text">Hardware</h1>
-          <p className="text-sm text-muted-text mt-1">Loaner laptops, hotspots and wifi boosters.</p>
+          <h1 className="text-2xl font-bold text-dark-text">{TABS[tab].title}</h1>
+          <p className="text-sm text-muted-text mt-1">{TABS[tab].subtitle}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/instructor/hardware/purchases/new" className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity">
-            + Add a purchase
-          </Link>
-          <Link href="/instructor/hardware/devices/new" className="text-sm font-semibold px-5 py-2 rounded-full border border-border text-dark-text hover:bg-border/20">
-            + Add one device
-          </Link>
-        </div>
+        {tab === 'devices' && (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/instructor/hardware/purchases/new" className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity">
+              + Add a purchase
+            </Link>
+            <Link href="/instructor/hardware/devices/new" className="text-sm font-semibold px-5 py-2 rounded-full border border-border text-dark-text hover:bg-border/20">
+              + Add one device
+            </Link>
+          </div>
+        )}
       </div>
-      <nav aria-label="Hardware sections" className="flex gap-1 border-b border-border mb-6">
-        {TABS.map(t => (
-          <Link
-            key={t.key}
-            href={t.key === 'devices' ? '/instructor/hardware' : `/instructor/hardware?tab=${t.key}`}
-            aria-current={tab === t.key ? 'page' : undefined}
-            className={`px-4 py-2 text-sm font-semibold -mb-px border-b-2 ${tab === t.key ? 'border-teal-primary text-teal-primary' : 'border-transparent text-muted-text hover:text-dark-text'}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
       {body}
     </HardwareShell>
   )

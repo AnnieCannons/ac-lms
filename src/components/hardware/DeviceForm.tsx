@@ -16,7 +16,20 @@ export const inputCls = 'w-full px-3 py-2 rounded-lg border border-border bg-bac
 export const labelCls = 'block text-sm font-semibold text-dark-text'
 
 /** Add a single device (deviceId null) or edit one. The type is fixed once a device exists. */
-export default function DeviceForm({ deviceId, initial }: { deviceId: string | null; initial: DeviceInput }) {
+export default function DeviceForm({
+  deviceId,
+  initial,
+  onCancel,
+  onSaved,
+  bare = false,
+}: {
+  deviceId: string | null
+  initial: DeviceInput
+  onCancel?: () => void
+  onSaved?: () => void
+  /** Drop the form's own card styling when it sits inside another card. */
+  bare?: boolean
+}) {
   const router = useRouter()
   const [form, setForm] = useState<DeviceInput>(initial)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +48,7 @@ export default function DeviceForm({ deviceId, initial }: { deviceId: string | n
     if (!res.ok) { setError(res.error); return }
     if (!deviceId && 'id' in res) { router.push(`/instructor/hardware/devices/${res.id}`); return }
     setSaved(true)
+    onSaved?.()
     router.refresh()
   }
 
@@ -42,7 +56,7 @@ export default function DeviceForm({ deviceId, initial }: { deviceId: string | n
   const isHotspot = form.kind === 'hotspot'
 
   return (
-    <form onSubmit={onSubmit} className="bg-surface rounded-2xl border border-border p-6 flex flex-col gap-4">
+    <form onSubmit={onSubmit} className={bare ? 'flex flex-col gap-4' : 'bg-surface rounded-2xl border border-border p-6 flex flex-col gap-4'}>
       {!deviceId && (
         <fieldset>
           <legend className={labelCls}>Type</legend>
@@ -106,6 +120,11 @@ export default function DeviceForm({ deviceId, initial }: { deviceId: string | n
         <button type="submit" disabled={saving} className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-60">
           {saving ? 'Saving…' : deviceId ? 'Save changes' : 'Add device'}
         </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="text-sm font-semibold px-4 py-2 rounded-full border border-border text-dark-text hover:bg-border/20">
+            Cancel
+          </button>
+        )}
         {saved && <span role="status" className="text-sm text-muted-text">Saved.</span>}
       </div>
     </form>

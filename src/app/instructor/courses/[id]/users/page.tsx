@@ -153,6 +153,7 @@ export default async function InstructorUsersPage({
 
             <PeopleManager
               courseId={id}
+              courseName={course.name}
               members={members}
               invitations={invitations ?? []}
               currentUserRole={profile?.role as 'instructor' | 'admin'}

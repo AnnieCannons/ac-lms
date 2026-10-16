@@ -404,6 +404,17 @@ export async function removeStudentUser(
     return { error: 'Only admins can delete staff accounts.' }
   }
 
+  // Deleting the account would leave loaned devices "on loan" to no one and strip their name
+  // from the hardware history, so loaned equipment has to be dealt with first (a laptop they
+  // own is theirs and doesn't block this).
+  const [{ count: holding }, { count: awaited }] = await Promise.all([
+    admin.from('hardware_devices').select('id', { count: 'exact', head: true }).eq('current_holder_id', targetUserId).neq('status', 'owned_by_student'),
+    admin.from('hardware_return_requests').select('id', { count: 'exact', head: true }).eq('student_id', targetUserId).is('closed_at', null),
+  ])
+  if ((holding ?? 0) > 0 || (awaited ?? 0) > 0) {
+    return { error: 'This student still has loaned equipment in Hardware. Mark it received or lost there before deleting their account.' }
+  }
+
   // Delete all FK-constrained rows before deleting the user row
   await Promise.all([
     admin.from('course_enrollments').delete().eq('user_id', targetUserId),
