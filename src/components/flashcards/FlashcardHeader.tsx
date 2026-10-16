@@ -1,6 +1,6 @@
 'use client'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import SmartBackLink from '@/components/ui/SmartBackLink'
 
 export default function FlashcardHeader() {
   const searchParams = useSearchParams()
@@ -8,12 +8,11 @@ export default function FlashcardHeader() {
 
   return (
     <div className="bg-surface border-b border-border px-6 py-3 flex items-center gap-3">
-      <Link
-        href={from ?? '/student/courses'}
+      <SmartBackLink
+        fallbackHref={from ?? '/student/courses'}
+        fallbackLabel={from ? 'Back to Course' : 'Back to Home'}
         className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1"
-      >
-        {from ? '← Back to Course' : '← Back to Home'}
-      </Link>
+      />
     </div>
   )
 }

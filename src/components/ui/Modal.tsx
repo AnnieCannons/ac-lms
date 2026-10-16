@@ -12,11 +12,13 @@ export default function Modal({ title, onClose, children, maxWidth = 'max-w-sm' 
   const backdropRef = useRef<HTMLDivElement>(null)
   const mouseDownOnBackdrop = useRef(false)
   const titleId = useId()
-  useFocusTrap(dialogRef, onClose)
+  // Declared before useFocusTrap on purpose: effects run in order, and the trap moves focus into
+  // the dialog, so reading activeElement after it would remember the Close button, not the trigger.
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
     return () => prev?.focus()
   }, [])
+  useFocusTrap(dialogRef, onClose)
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" aria-hidden="true" />

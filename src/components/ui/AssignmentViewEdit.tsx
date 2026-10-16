@@ -33,6 +33,7 @@ interface Assignment {
   submission_required: boolean
   skill_tags: string[] | null
   is_bonus: boolean
+  is_optional: boolean
 }
 
 interface Props {
@@ -65,11 +66,14 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
   const [assignment, setAssignment] = useState(initialAssignment)
   const [checklist, setChecklist] = useState(initialChecklist)
 
+  // Previous/Next replace the history entry, so "← Back" (and the browser back
+  // button) return to wherever the instructor opened the first assignment from.
   const navBar = (prevAssignment || nextAssignment) && (
     <div className="flex items-center justify-between gap-8 pt-6 mt-6 border-t border-border">
       <div className="w-[45%] min-w-0">
         {prevAssignment && (
           <Link
+            replace
             href={`/instructor/courses/${courseId}/assignments/${prevAssignment.id}${editing ? '?edit=1' : ''}`}
             className="group flex flex-col gap-0.5"
           >
@@ -81,6 +85,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
       <div className="w-[45%] min-w-0 text-right">
         {nextAssignment && (
           <Link
+            replace
             href={`/instructor/courses/${courseId}/assignments/${nextAssignment.id}${editing ? '?edit=1' : ''}`}
             className="group flex flex-col gap-0.5 items-end"
           >
@@ -127,6 +132,9 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             )}
             {assignment.is_bonus && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-purple-primary/40 text-purple-primary bg-purple-light">★ Bonus</span>
+            )}
+            {assignment.is_optional && (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light">Optional</span>
             )}
             <InlineDueDatePicker
               assignmentId={assignment.id}

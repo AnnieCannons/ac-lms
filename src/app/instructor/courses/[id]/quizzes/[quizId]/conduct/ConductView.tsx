@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import SmartBackLink from "@/components/ui/SmartBackLink";
 import { getConductSubmissions } from "@/lib/quiz-actions";
 
 type Student = { id: string; name: string; email?: string | null };
@@ -125,12 +125,11 @@ export default function ConductView({ quizId, courseId, students, initialSubmiss
           >
             Stop Moderating
           </button>
-          <Link
-            href={`/instructor/courses/${courseId}/quizzes`}
+          <SmartBackLink
+            fallbackHref={`/instructor/courses/${courseId}/quizzes`}
+            fallbackLabel="Back to Quizzes"
             className="text-xs font-medium text-muted-text hover:text-dark-text border border-border px-2.5 py-1 rounded-lg hover:bg-border/20 transition-colors"
-          >
-            ← Back to Quizzes
-          </Link>
+          />
         </div>
       </div>
 

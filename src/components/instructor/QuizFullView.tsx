@@ -120,6 +120,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
   const [maxAttemptsDraft, setMaxAttemptsDraft] = useState<number | null>(quiz.max_attempts ?? null);
   const [moduleTitleDraft, setModuleTitleDraft] = useState(quiz.module_title ?? "");
   const [dayTitleDraft, setDayTitleDraft] = useState(quiz.day_title ?? "");
+  const [isPracticeDraft, setIsPracticeDraft] = useState(!!quiz.is_practice);
 
   // Attempts popover
   const [showAttemptsPopover, setShowAttemptsPopover] = useState(false);
@@ -171,7 +172,8 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
     setMaxAttemptsDraft(quiz.max_attempts ?? null);
     setModuleTitleDraft(quiz.module_title ?? "");
     setDayTitleDraft(quiz.day_title ?? "");
-  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts, quiz.module_title, quiz.day_title]);
+    setIsPracticeDraft(!!quiz.is_practice);
+  }, [quiz.id, quiz.title, quiz.due_at, quiz.max_attempts, quiz.module_title, quiz.day_title, quiz.is_practice]);
 
   // Close attempts popover on outside click
   useEffect(() => {
@@ -196,6 +198,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
     max_attempts?: number | null;
     module_title?: string;
     day_title?: string | null;
+    is_practice?: boolean;
   }) => {
     setError(null);
     setSaving(true);
@@ -211,9 +214,12 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
         });
         if (saved) {
           onSaved?.(saved as QuizRow);
-          // day_title not in upsertQuizFromJson — save separately after we have a real id
+          // day_title / is_practice aren't in upsertQuizFromJson — save separately after we have a real id
           if ("day_title" in updates) {
             await updateQuizDay((saved as QuizRow).id, courseId, updates.day_title ?? null);
+          }
+          if (updates.is_practice !== undefined) {
+            await updateQuizMeta((saved as QuizRow).id, courseId, { is_practice: updates.is_practice });
           }
         }
       } else {
@@ -684,6 +690,23 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
                       </div>
                     </div>
                   </div>
+
+                  {/* Practice: ungraded, unlimited retakes, shown under Level Up instead of Quizzes */}
+                  <label className="flex items-start gap-2 text-xs text-dark-text cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isPracticeDraft}
+                      onChange={(e) => {
+                        setIsPracticeDraft(e.target.checked);
+                        void autoSave({ is_practice: e.target.checked });
+                      }}
+                      className="mt-0.5 accent-teal-primary"
+                    />
+                    <span>
+                      <span className="font-semibold">Practice quiz</span>
+                      <span className="text-muted-text"> — ungraded, unlimited retakes, and shown under Level Up Your Skills instead of Quizzes (the attempts limit is ignored)</span>
+                    </span>
+                  </label>
 
                   {saving && <p className="text-xs text-muted-text animate-pulse">Saving…</p>}
                   {error && <p className="text-xs text-red-500 mt-1">{error}</p>}

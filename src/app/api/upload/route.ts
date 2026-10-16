@@ -1,5 +1,8 @@
+import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getCourseIdForModule, getCourseIdForModuleDay } from '@/lib/course-access'
+import { SUBMISSIONS_BUCKET, submissionFileHref } from '@/lib/submission-files'
 
 const ALLOWED_BUCKETS = ['lms-submissions', 'lms-resources', 'avatars']
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
@@ -13,6 +16,12 @@ const ALLOWED_MIME_EXACT = new Set([
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/zip',
+])
+
+// Student submissions take raster images only: an SVG can carry script. Keep in sync
+// with lms-submissions' allowed_mime_types (migration 20261015000000).
+const SUBMISSION_IMAGE_TYPES = new Set([
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/avif',
 ])
 
 function isAllowedMimeType(mimeType: string): boolean {
@@ -29,13 +38,24 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   const isStaff = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 
-  const formData = await request.formData()
-  const file = formData.get('file') as File | null
-  const bucket = formData.get('bucket') as string | null
-  const path = formData.get('path') as string | null
+  // The file itself never passes through this route: Vercel rejects function
+  // request bodies over 4.5 MB before our code runs. The client sends only the
+  // file's metadata, we authorize it, and hand back a signed URL the browser
+  // uploads to directly. Bucket-level file_size_limit / allowed_mime_types
+  // (see migration 20260922000000) enforce the real size and type at storage.
+  let body: { bucket?: unknown; path?: unknown; size?: unknown; type?: unknown }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+  const bucket = typeof body.bucket === 'string' ? body.bucket : null
+  const path = typeof body.path === 'string' ? body.path : null
+  const size = typeof body.size === 'number' ? body.size : null
+  const mimeType = typeof body.type === 'string' ? body.type : ''
 
-  if (!file || !bucket || !path) {
-    return NextResponse.json({ error: 'Missing file, bucket, or path' }, { status: 400 })
+  if (!bucket || !path || size === null) {
+    return NextResponse.json({ error: 'Missing bucket, path, or size' }, { status: 400 })
   }
 
   // Reject unknown buckets for everyone
@@ -49,14 +69,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Enforce file size limit
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+  if (size > MAX_FILE_SIZE_BYTES) {
     return NextResponse.json({ error: 'File exceeds 20 MB limit' }, { status: 413 })
   }
 
   // Validate MIME type
-  const mimeType = file.type || ''
   if (!isAllowedMimeType(mimeType)) {
     return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
+  }
+  if (bucket === 'lms-submissions' && mimeType.startsWith('image/') && !SUBMISSION_IMAGE_TYPES.has(mimeType)) {
+    return NextResponse.json({ error: 'Images must be PNG, JPG, GIF, WebP or HEIC.' }, { status: 415 })
   }
 
   // Anyone may upload their own avatar, under their own user ID
@@ -64,6 +86,14 @@ export async function POST(request: NextRequest) {
     const segments = path.split('/')
     // Expected path format: userId/filename
     if (segments[0] !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  } else if (!isStaff && bucket === 'lms-resources') {
+    // A TA may attach course files, but only for a course they TA. The course is
+    // worked out from the path, never taken from the client as a separate field.
+    const admin = createServiceSupabaseClient()
+    const courseId = await courseIdForResourcePath(admin, path)
+    if (!courseId || !(await isTaOf(admin, user.id, courseId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   } else if (!isStaff) {
@@ -81,13 +111,62 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const admin = createServiceSupabaseClient()
-  const { error } = await admin.storage.from(bucket).upload(path, file, { upsert: true })
+  // Submission and resource files each get their own random folder and are never
+  // overwritten: with upsert, a student could re-upload a same-named file after the
+  // deadline (or after grading) and silently replace what was graded. The folder keeps
+  // the file name itself unchanged, since the UI shows the URL's last segment.
+  // Avatars keep their fixed, already-unique paths.
+  const storagePath = bucket === 'avatars' ? path : uniqueUploadPath(path)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  const admin = createServiceSupabaseClient()
+  const { data: signed, error } = await admin.storage
+    .from(bucket)
+    .createSignedUploadUrl(storagePath, { upsert: bucket === 'avatars' })
+
+  if (error || !signed) {
+    return NextResponse.json({ error: error?.message ?? 'Could not prepare upload' }, { status: 500 })
   }
 
-  const { data } = admin.storage.from(bucket).getPublicUrl(path)
-  return NextResponse.json({ url: data.publicUrl })
+  // lms-submissions is private: callers store the path and view the file through
+  // /api/submission-file. The other buckets are public.
+  const url = bucket === SUBMISSIONS_BUCKET
+    ? submissionFileHref(storagePath)
+    : admin.storage.from(bucket).getPublicUrl(storagePath).data.publicUrl
+  return NextResponse.json({ path: signed.path, token: signed.token, url })
+}
+
+/** `a/b/file.pdf` → `a/b/<random>/file.pdf` */
+function uniqueUploadPath(path: string): string {
+  const slash = path.lastIndexOf('/')
+  const dir = slash === -1 ? '' : path.slice(0, slash + 1)
+  return `${dir}${randomUUID().slice(0, 8)}/${path.slice(slash + 1)}`
+}
+
+type Admin = ReturnType<typeof createServiceSupabaseClient>
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The course an lms-resources upload belongs to, from the path the Course Editor builds:
+ * `module-day-<dayId>/…`, `module-<moduleId>/…`, `course-<courseId>/…` or
+ * `quizzes/<courseId>/…`. Anything else (including `module-new/`) has no course.
+ */
+async function courseIdForResourcePath(admin: Admin, path: string): Promise<string | null> {
+  const [first, second] = path.split('/')
+  let m: RegExpMatchArray | null
+  if ((m = first.match(/^module-day-(.+)$/)) && UUID.test(m[1])) return getCourseIdForModuleDay(admin, m[1])
+  if ((m = first.match(/^module-(.+)$/)) && UUID.test(m[1])) return getCourseIdForModule(admin, m[1])
+  if ((m = first.match(/^course-(.+)$/)) && UUID.test(m[1])) return m[1]
+  if (first === 'quizzes' && second && UUID.test(second)) return second
+  return null
+}
+
+async function isTaOf(admin: Admin, userId: string, courseId: string): Promise<boolean> {
+  const { data } = await admin
+    .from('course_enrollments')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .eq('role', 'ta')
+    .maybeSingle()
+  return !!data
 }

@@ -3,8 +3,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { saveGrade } from '@/lib/grade-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
+import { CommentsPreview } from '@/components/ui/StudentStatsWidgets'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { localDate, formatDueDateWithTime } from '@/lib/date-utils'
+import { ReadinessTrendChart, ReadinessZoneBadge, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
+import type { ReadinessHistoryPoint, EscalationEventRecord, PriorCourseMissing } from '@/lib/readiness-actions'
+import ReadinessNotesSection from '@/components/ui/ReadinessNotesSection'
 
 export type CategorizedAssignment = {
   id: string
@@ -15,6 +19,7 @@ export type CategorizedAssignment = {
   isLate: boolean
   lateCurrentStatus?: 'needsGrading' | 'needsRevision' | 'complete'
   submissionId: string | null
+  commentCount?: number
   type?: 'assignment' | 'quiz'
   score?: number | null
 }
@@ -32,6 +37,9 @@ interface Props {
   complete: CategorizedAssignment[]
   incomplete: CategorizedAssignment[]
   totalPublished: number
+  readinessHistory?: ReadinessHistoryPoint[]
+  escalationHistory?: EscalationEventRecord[]
+  priorCourseMissing?: PriorCourseMissing | null
 }
 
 const STAT_CONFIG: Record<StatCategory, {
@@ -56,6 +64,29 @@ const LATE_STATUS_CLASS: Record<string, string> = {
   complete:      'bg-green-100 text-green-700',
 }
 
+function CommentsToggle({ count, open, onToggle }: { count: number; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="flex items-center gap-1 text-xs text-teal-primary hover:underline"
+    >
+      {count} comment{count === 1 ? '' : 's'}
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+  )
+}
+
 function formatDate(iso: string) {
   return localDate(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -78,9 +109,20 @@ export default function StudentDetailView({
   complete,
   incomplete,
   totalPublished,
+  readinessHistory = [],
+  escalationHistory = [],
+  priorCourseMissing = null,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null)
   const [lateOpen, setLateOpen] = useState(false)
+  // Keyed by `${list}:${assignmentId}` so the same assignment can be expanded independently in each list
+  const [openComments, setOpenComments] = useState<Set<string>>(new Set())
+  const toggleComments = (key: string) => setOpenComments(prev => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  })
 
   // Mutable local state for speed grading
   const [lists, setLists] = useState<Record<StatCategory, CategorizedAssignment[]>>({
@@ -93,6 +135,9 @@ export default function StudentDetailView({
 
   const grade = async (assignment: CategorizedAssignment, result: 'complete' | 'incomplete') => {
     if (!assignment.submissionId || grading[assignment.id]) return
+    if (result === 'incomplete' && !confirm(
+      "Mark this as Needs Revisions? Every time a submission is returned this way counts toward the student's weekly readiness score, so only use it when you actually want the student to redo the work."
+    )) return
     setGrading(prev => ({ ...prev, [assignment.id]: true }))
 
     const { error } = await saveGrade(assignment.submissionId, result, courseId)
@@ -189,6 +234,33 @@ export default function StudentDetailView({
         </div>
       </div>
 
+      {/* ── Readiness score + notes + escalation history (always shown so staff can leave notes before a first score) ── */}
+        <>
+        <HowThisWorksSection audience="staff" />
+        <div className="bg-surface rounded-2xl border border-border p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide">Weekly Readiness</h2>
+            {(() => {
+              const latest = readinessHistory[readinessHistory.length - 1]
+              return latest?.score != null ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold" style={{ color: '#6D2B5E' }}>{latest.score.toFixed(1)}<span className="text-xs text-muted-text font-normal">/5</span></span>
+                  <ReadinessZoneBadge zone={latest.zone} />
+                </div>
+              ) : null
+            })()}
+          </div>
+          <PriorCourseMissingNote prior={priorCourseMissing} href={`/instructor/courses/${priorCourseMissing?.courseId}/roster/${student.id}`} />
+          {readinessHistory.length > 0
+            ? <ReadinessTrendChart history={readinessHistory} />
+            : <p className="text-sm text-muted-text py-2">Not scored yet.</p>}
+
+          <div className="mt-4">
+            <ReadinessNotesSection studentId={student.id} courseId={courseId} events={escalationHistory} />
+          </div>
+        </div>
+        </>
+
       {/* ── Stat cards ── */}
       <div>
         <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide mb-3">Breakdown</h2>
@@ -241,64 +313,74 @@ export default function StudentDetailView({
                   const isGrading = grading[a.id]
                   const isQuiz = a.type === 'quiz'
                   const canSpeedGrade = !isQuiz && (activeCategory === 'submitted' || activeCategory === 'incomplete') && a.submissionId
+                  const commentsKey = `cat:${a.id}`
+                  const hasComments = !isQuiz && !!a.submissionId && (a.commentCount ?? 0) > 0
                   return (
-                    <li key={a.id} className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-surface transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                          {isQuiz && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">Quiz</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-muted-text">
-                            {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
-                          </span>
-                          {a.due_date && (
-                            <span className="text-xs text-muted-text">· Due {formatDueDateWithTime(a.due_date)}</span>
-                          )}
-                          {a.isLate && (
-                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border status-late-badge">
-                              Late
+                    <li key={a.id} className="bg-background hover:bg-surface transition-colors">
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                            {isQuiz && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">Quiz</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-xs text-muted-text">
+                              {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
                             </span>
+                            {a.due_date && (
+                              <span className="text-xs text-muted-text">· Due {formatDueDateWithTime(a.due_date)}</span>
+                            )}
+                            {a.isLate && (
+                              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border status-late-badge">
+                                Late
+                              </span>
+                            )}
+                            {isQuiz && a.score != null && (
+                              <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {hasComments && (
+                            <CommentsToggle count={a.commentCount ?? 0} open={openComments.has(commentsKey)} onToggle={() => toggleComments(commentsKey)} />
                           )}
-                          {isQuiz && a.score != null && (
-                            <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
+                          {canSpeedGrade && activeCategory === 'submitted' && (
+                            <button
+                              type="button"
+                              disabled={isGrading}
+                              onClick={() => grade(a, 'incomplete')}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg border status-revision-btn disabled:opacity-50 transition-colors"
+                            >
+                              {isGrading ? '…' : '✗ Revision'}
+                            </button>
+                          )}
+                          {isQuiz ? (
+                            <Link
+                              href={`/instructor/courses/${courseId}/quiz-submissions`}
+                              className="text-xs font-medium text-teal-primary hover:underline"
+                            >
+                              View →
+                            </Link>
+                          ) : (
+                            <Link
+                              href={
+                                activeCategory === 'missing'
+                                  ? `/instructor/courses/${courseId}/assignments/${a.id}`
+                                  : `/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`
+                              }
+                              className="text-xs font-medium text-teal-primary hover:underline"
+                            >
+                              {canSpeedGrade ? 'View' : activeCategory === 'missing' ? 'View →' : 'Grade →'}
+                            </Link>
                           )}
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {canSpeedGrade && activeCategory === 'submitted' && (
-                          <button
-                            type="button"
-                            disabled={isGrading}
-                            onClick={() => grade(a, 'incomplete')}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg border status-revision-btn disabled:opacity-50 transition-colors"
-                          >
-                            {isGrading ? '…' : '✗ Revision'}
-                          </button>
-                        )}
-                        {isQuiz ? (
-                          <Link
-                            href={`/instructor/courses/${courseId}/quiz-submissions`}
-                            className="text-xs font-medium text-teal-primary hover:underline"
-                          >
-                            View →
-                          </Link>
-                        ) : (
-                          <Link
-                            href={
-                              activeCategory === 'missing'
-                                ? `/instructor/courses/${courseId}/assignments/${a.id}`
-                                : `/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`
-                            }
-                            className="text-xs font-medium text-teal-primary hover:underline"
-                          >
-                            {canSpeedGrade ? 'View' : activeCategory === 'missing' ? 'View →' : 'Grade →'}
-                          </Link>
-                        )}
-                      </div>
+                      {hasComments && openComments.has(commentsKey) && (
+                        <CommentsPreview submissionId={a.submissionId!} courseId={courseId} />
+                      )}
                     </li>
                   )
                 })}
@@ -325,49 +407,59 @@ export default function StudentDetailView({
                   const isQuiz = a.type === 'quiz'
                   const statusLabel = a.lateCurrentStatus ? LATE_STATUS_LABEL[a.lateCurrentStatus] : null
                   const statusClass = a.lateCurrentStatus ? LATE_STATUS_CLASS[a.lateCurrentStatus] : ''
+                  const commentsKey = `late:${a.id}`
+                  const hasComments = !isQuiz && !!a.submissionId && (a.commentCount ?? 0) > 0
                   return (
-                    <li key={a.id} className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-surface transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-sm font-medium text-dark-text">{a.title}</p>
-                          {isQuiz && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">Quiz</span>
-                          )}
-                          {statusLabel && (
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${statusClass}`}>
-                              {statusLabel}
+                    <li key={a.id} className="bg-background hover:bg-surface transition-colors">
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-medium text-dark-text">{a.title}</p>
+                            {isQuiz && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">Quiz</span>
+                            )}
+                            {statusLabel && (
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${statusClass}`}>
+                                {statusLabel}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-xs text-muted-text">
+                              {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
                             </span>
-                          )}
+                            {a.due_date && (
+                              <span className="text-xs text-muted-text">· Due {formatDueDateWithTime(a.due_date)}</span>
+                            )}
+                            {isQuiz && a.score != null && (
+                              <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-muted-text">
-                            {a.moduleTitle}{a.weekNumber != null ? ` · Week ${a.weekNumber}` : ''}
-                          </span>
-                          {a.due_date && (
-                            <span className="text-xs text-muted-text">· Due {formatDueDateWithTime(a.due_date)}</span>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {hasComments && (
+                            <CommentsToggle count={a.commentCount ?? 0} open={openComments.has(commentsKey)} onToggle={() => toggleComments(commentsKey)} />
                           )}
-                          {isQuiz && a.score != null && (
-                            <span className="text-xs font-semibold text-teal-primary">{Math.round(a.score)}%</span>
+                          {isQuiz ? (
+                            <Link
+                              href={`/instructor/courses/${courseId}/quiz-submissions`}
+                              className="text-xs font-medium text-teal-primary hover:underline"
+                            >
+                              View →
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
+                              className="text-xs font-medium text-teal-primary hover:underline"
+                            >
+                              View →
+                            </Link>
                           )}
                         </div>
                       </div>
-                      <div className="shrink-0">
-                        {isQuiz ? (
-                          <Link
-                            href={`/instructor/courses/${courseId}/quiz-submissions`}
-                            className="text-xs font-medium text-teal-primary hover:underline"
-                          >
-                            View →
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}`}
-                            className="text-xs font-medium text-teal-primary hover:underline"
-                          >
-                            View →
-                          </Link>
-                        )}
-                      </div>
+                      {hasComments && openComments.has(commentsKey) && (
+                        <CommentsPreview submissionId={a.submissionId!} courseId={courseId} />
+                      )}
                     </li>
                   )
                 })}

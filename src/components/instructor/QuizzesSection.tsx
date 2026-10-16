@@ -529,7 +529,12 @@ const [navigating, setNavigating] = useState(false);
                                             <p className="text-sm font-medium text-dark-text group-hover:text-teal-primary transition-colors">
                                               {displayTitle}
                                             </p>
-                                            {quiz.max_attempts && (
+                                            {quiz.is_practice && (
+                                              <span className="text-xs bg-teal-light text-teal-primary border border-teal-primary/30 px-1.5 py-0.5 rounded-full">
+                                                Practice
+                                              </span>
+                                            )}
+                                            {quiz.max_attempts && !quiz.is_practice && (
                                               <span className="text-xs bg-border/40 text-muted-text px-1.5 py-0.5 rounded-full">
                                                 Up to {quiz.max_attempts} attempts
                                               </span>

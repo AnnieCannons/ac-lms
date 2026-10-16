@@ -46,7 +46,7 @@ export default async function InstructorGeneralInfoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id)
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/info`)
   const supabase = await createServerSupabaseClient()
 
   const { data: course } = await supabase
@@ -98,7 +98,7 @@ export default async function InstructorGeneralInfoPage({
 
             {!isTa && <PaidLearnersToggle courseId={id} initialValue={course.paid_learners ?? false} />}
             <div className="mt-6">
-              <GeneralInfoEditor courseId={id} initialSections={sections ?? []} readOnly={isTa} />
+              <GeneralInfoEditor courseId={id} initialSections={sections ?? []} readOnly={false} />
             </div>
           </main>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { addSubmissionComment, editSubmissionComment, deleteSubmissionComment } from "@/lib/grade-actions";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import MarkdownContent from "@/components/ui/MarkdownContent";
@@ -26,6 +27,17 @@ function insertAtCursor(
   });
 }
 
+// Emoji-only comments (e.g. a quick 👍 or 🎉) render large so they read as a
+// reaction rather than a stray character.
+const EMOJI_ONLY = /^[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}\u200d\ufe0f\s]+$/u;
+function emojiOnlyText(content: string): string | null {
+  const text = content
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+  return text && EMOJI_ONLY.test(text) ? text : null;
+}
+
 export type CommentEntry = {
   id: string;
   content: string;
@@ -42,6 +54,7 @@ export default function SubmissionComments({
   currentUserName,
   currentUserRole,
   isObserver,
+  readOnly,
   isTa,
   courseId,
   text: externalText,
@@ -53,12 +66,38 @@ export default function SubmissionComments({
   currentUserName: string;
   currentUserRole: string;
   isObserver?: boolean;
+  /** View only: no comment box and no edit/delete (an admin viewing as a student) */
+  readOnly?: boolean;
   isTa?: boolean;
   courseId?: string;
   text?: string;
   onTextChange?: (t: string) => void;
 }) {
   const [comments, setComments] = useState<CommentEntry[]>(initialComments);
+  // Comments are server-rendered, so a tab left open would never show a new
+  // reply -- while the notification bell (which polls) already announces it.
+  // Re-fetch the page's server data when the user comes back to the tab, and
+  // take the fresh list whenever it arrives.
+  const router = useRouter();
+  const [prevInitial, setPrevInitial] = useState(initialComments);
+  if (initialComments !== prevInitial) {
+    setPrevInitial(initialComments);
+    setComments(initialComments);
+  }
+  useEffect(() => {
+    let last = Date.now();
+    const onReturn = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 30_000) return;
+      last = Date.now();
+      router.refresh();
+    };
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
+  }, [router]);
   const [localText, setLocalText] = useState('');
   const text = externalText !== undefined ? externalText : localText;
   const setText = (t: string) => { onTextChange ? onTextChange(t) : setLocalText(t); };
@@ -145,8 +184,8 @@ export default function SubmissionComments({
       {comments.length > 0 && (
         <ul role="list" className="flex flex-col gap-4 mb-4">
           {comments.map((c) => {
-            const canEdit = c.author_id === currentUserId;
-            const canDelete = c.author_id === currentUserId || isInstructor(currentUserRole);
+            const canEdit = !readOnly && c.author_id === currentUserId;
+            const canDelete = !readOnly && (c.author_id === currentUserId || isInstructor(currentUserRole));
             const isEditing = editingId === c.id;
             const isConfirmingDelete = deletingId === c.id;
 
@@ -232,6 +271,8 @@ export default function SubmissionComments({
                           className="w-full bg-background border border-teal-primary rounded-xl p-3 text-sm text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary resize-none"
                         />
                         <EmojiPickerButton
+                          label="Add emoji"
+                          showLabel
                           onEmojiSelect={(emoji) =>
                             insertAtCursor(editTextareaRef.current, editText, setEditText, emoji)
                           }
@@ -265,7 +306,12 @@ export default function SubmissionComments({
                     </div>
                   </div>
                 ) : (
-                  <MarkdownContent content={c.content} />
+                  (() => {
+                    const emoji = emojiOnlyText(c.content);
+                    return emoji
+                      ? <p className="text-4xl leading-tight">{emoji}</p>
+                      : <MarkdownContent content={c.content} />;
+                  })()
                 )}
               </li>
             );
@@ -274,7 +320,7 @@ export default function SubmissionComments({
       )}
       {deleteError && <p role="alert" className="text-xs text-red-500 mb-2">{deleteError}</p>}
 
-      {!isObserver && (
+      {!isObserver && !readOnly && (
         <div className={comments.length > 0 ? "border-t border-border pt-4" : ""}>
           {isStudent ? (
             <>
@@ -295,6 +341,8 @@ export default function SubmissionComments({
               />
               <div className="mt-1">
                 <EmojiPickerButton
+                  label="Add emoji"
+                  showLabel
                   onEmojiSelect={(emoji) =>
                     insertAtCursor(composeTextareaRef.current, text, setText, emoji)
                   }

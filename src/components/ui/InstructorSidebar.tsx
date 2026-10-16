@@ -5,6 +5,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { getPendingExtensionCount } from '@/lib/extension-actions'
 import { getNeedsGradingCount } from '@/lib/grading-count-actions'
+import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
 
 export default async function InstructorSidebar({ courseId, courseName, precomputedNeedsGrading }: { courseId: string; courseName?: string; precomputedNeedsGrading?: number }) {
   noStore()
@@ -186,6 +187,7 @@ export default async function InstructorSidebar({ courseId, courseName, precompu
         isTa={isTa}
         otherCurrentCourses={otherCurrentCourses}
         pendingExtensions={pendingExtensions}
+        showSkillConfidence={isConfidenceRatingsEnabled()}
       />
     </ResizableSidebar>
   )

@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
+import { formatDueDateWithTime, localDate } from '@/lib/date-utils'
+import { getAssignmentStatus } from '@/lib/assignment-status'
+import SharedStatusBadge from './AssignmentStatusBadge'
 import { createClient } from '@/lib/supabase/client'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import { trashResource } from '@/lib/trash-actions'
@@ -34,6 +36,7 @@ interface Assignment {
   due_date: string | null
   published: boolean
   is_bonus?: boolean
+  is_optional?: boolean
   submission_required?: boolean
 }
 
@@ -73,6 +76,8 @@ interface Props {
   editable?: boolean
   instructorView?: boolean
   submissionMap?: Record<string, SubmissionInfo>
+  /** Viewing as a student: show their stars/completions but don't change anything */
+  readOnly?: boolean
   initialStarredIds?: string[]
   initialCompletedIds?: string[]
 }
@@ -84,36 +89,20 @@ function isLevelUpAssignment(isBonus?: boolean, moduleCategory?: string | null) 
   return !!isBonus || moduleCategory === 'level_up'
 }
 
-function AssignmentStatusBadge({ info, dueDate, title, isBonus, submissionRequired }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean }) {
-  if (info?.excused) return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-muted-text shrink-0">Excused</span>
-  // Once turned in, use the server-computed is_late flag (accounts for the student's own
-  // timezone at submission time) rather than re-deriving it from date strings here — comparing
-  // a UTC submitted_at timestamp's date slice against a local due date is off by a day in the
-  // evening for timezones behind UTC.
-  const isLate = info?.submitted_at
-    ? !!info?.is_late
-    : !!dueDate && localDate(dueDate) < todayLocal()
-  if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
-  if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
-  if (info?.status === 'submitted') return (
-    <span className="flex items-center gap-1.5 shrink-0">
-      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border">Late</span>}
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary">Turned In</span>
-    </span>
-  )
-  // Level Up assignments: no status badge
-  if (isLevelUpAssignment(isBonus)) return null
-  // No submission required: show Not Started but never Late (instructor marks complete manually)
-  if (submissionRequired === false) {
-    return <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
-  }
-  // not started (no submission or draft) — show both Late + Not Started if past due
-  return (
-    <div className="flex items-center gap-1.5">
-      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>}
-      <span className="status-badge text-xs font-semibold px-2.5 py-1 rounded-full bg-surface border border-muted-text text-dark-text shrink-0">Not Started</span>
-    </div>
-  )
+function statusOf(info: SubmissionInfo | undefined, dueDate?: string | null, submissionRequired?: boolean, isOptional?: boolean) {
+  return getAssignmentStatus({
+    status: info?.status,
+    grade: info?.grade,
+    excused: info?.excused,
+    submittedIsLate: info?.is_late,
+    dueDate,
+    submissionRequired,
+    isOptional,
+  })
+}
+
+function AssignmentStatusBadge({ info, dueDate, isBonus, submissionRequired, isOptional }: { info: SubmissionInfo | undefined; dueDate?: string | null; title?: string; isBonus?: boolean; submissionRequired?: boolean; isOptional?: boolean }) {
+  return <SharedStatusBadge status={statusOf(info, dueDate, submissionRequired, isOptional)} isLevelUp={isLevelUpAssignment(isBonus)} />
 }
 
 function StarButton({ starred, onToggle }: { starred: boolean; onToggle: () => void }) {
@@ -366,7 +355,7 @@ function LinkResource({
   )
 }
 
-type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete' | 'level-up'
+type AssignmentFilter = 'all' | 'not-started' | 'late' | 'turned-in' | 'needs-revision' | 'complete' | 'optional' | 'level-up'
 
 const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -375,6 +364,7 @@ const FILTERS: { key: AssignmentFilter; label: string }[] = [
   { key: 'late', label: 'Late' },
   { key: 'turned-in', label: 'Turned In' },
   { key: 'complete', label: 'Complete ✓' },
+  { key: 'optional', label: 'Optional' },
   { key: 'level-up', label: 'Level Up' },
 ]
 
@@ -385,10 +375,11 @@ const FILTER_STYLES: Record<AssignmentFilter, { inactive: string; active: string
   'turned-in':      { inactive: 'bg-teal-light text-teal-primary border border-teal-primary hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
   'needs-revision': { inactive: 'bg-red-500/20 text-red-500 border border-red-500 hover:opacity-80', active: 'bg-red-500 text-white border border-red-500' },
   'complete':       { inactive: 'bg-green-600/20 text-green-700 border border-green-600 hover:opacity-80', active: 'bg-green-600 text-white border border-green-600' },
+  'optional':       { inactive: 'bg-teal-light text-teal-primary border border-teal-primary/40 hover:opacity-80', active: 'bg-teal-primary text-white border border-teal-primary' },
   'level-up':       { inactive: 'bg-purple-light text-purple-primary border border-purple-primary hover:opacity-80', active: 'bg-purple-primary text-white border border-purple-primary' },
 }
 
-function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean, moduleCategory?: string | null, submissionRequired?: boolean): boolean {
+function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string, SubmissionInfo>, dueDate?: string | null, title?: string, isBonus?: boolean, moduleCategory?: string | null, submissionRequired?: boolean, isOptional?: boolean): boolean {
   const info = map[id]
   const levelUp = isLevelUpAssignment(isBonus, moduleCategory)
   // Level Up tab: only level_up module or bonus assignments
@@ -396,14 +387,15 @@ function matchesFilter(id: string, filter: AssignmentFilter, map: Record<string,
   // All other filters: exclude level up assignments
   if (levelUp) return false
   if (filter === 'all') return true
-  if (filter === 'complete') return info?.grade === 'complete'
-  if (filter === 'turned-in') return (info?.status === 'submitted' || info?.status === 'graded') && !info?.grade
-  const isLate = !!dueDate && localDate(dueDate) < todayLocal()
-  const notStarted = !info || (info.status === 'draft' && !info.grade)
-  if (filter === 'needs-revision') return info?.grade === 'incomplete'
-  if (submissionRequired === false && filter === 'late') return false
-  if (filter === 'late') return isLate && notStarted && !info?.excused
-  if (filter === 'not-started') return notStarted && !info?.excused
+  if (filter === 'optional') return !!isOptional
+  const status = statusOf(info, dueDate, submissionRequired, isOptional)
+  if (filter === 'complete') return status.kind === 'complete'
+  if (filter === 'needs-revision') return status.kind === 'needs-revision'
+  if (filter === 'turned-in') return status.kind === 'turned-in'
+  // Optional: never late or "not started" — they live under the Optional filter
+  if (isOptional) return false
+  if (filter === 'late') return status.isOutstanding && status.isLate
+  if (filter === 'not-started') return status.isOutstanding
   return true
 }
 
@@ -422,7 +414,7 @@ function SortableModuleRow({ id, canDrag, children }: {
 
 export default function ResourceOutline({
   modules, courseId, mode, editable, instructorView, submissionMap,
-  initialStarredIds, initialCompletedIds,
+  initialStarredIds, initialCompletedIds, readOnly,
 }: Props) {
   const supabase = createClient()
   const router = useRouter()
@@ -434,37 +426,44 @@ export default function ResourceOutline({
   const moduleKey = `outline-modules-${courseId}-${mode}`
   const dayKey = `outline-days-${courseId}-${mode}`
 
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(moduleKey)
-      if (saved !== null) return new Set(JSON.parse(saved))
-    } catch {}
-    return new Set(modules.map(m => m.id))
-  })
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(dayKey)
-      if (saved !== null) return new Set(JSON.parse(saved))
-    } catch {}
-    return new Set()
-  })
+  // Start from fixed defaults so the server and the first browser render match, then
+  // restore the saved expand/collapse state after mount (reading localStorage during
+  // render caused a hydration mismatch on the Expand/Collapse All button)
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(modules.map(m => m.id)))
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => new Set())
+  const [collapseRestored, setCollapseRestored] = useState(false)
   const searchParams = useSearchParams()
   const [filter, setFilter] = useState<AssignmentFilter>(() => {
     const p = searchParams.get('filter') as AssignmentFilter | null
     return (p && FILTERS.some(f => f.key === p)) ? p : 'all'
   })
   const [search, setSearch] = useState('')
+  const [starredOnly, setStarredOnly] = useState(false)
   const [collapsedPastDue, setCollapsedPastDue] = useState(false)
   const [collapsedUpcoming, setCollapsedUpcoming] = useState(false)
 
-  // Save whenever collapse state changes
+  /* eslint-disable react-hooks/set-state-in-effect -- browser-only saved state can only be read after hydration */
   useEffect(() => {
+    try {
+      const savedModules = localStorage.getItem(moduleKey)
+      if (savedModules !== null) setCollapsedModules(new Set(JSON.parse(savedModules)))
+      const savedDays = localStorage.getItem(dayKey)
+      if (savedDays !== null) setCollapsedDays(new Set(JSON.parse(savedDays)))
+    } catch {}
+    setCollapseRestored(true)
+  }, [moduleKey, dayKey])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Save whenever collapse state changes — but not before the saved state has been restored
+  useEffect(() => {
+    if (!collapseRestored) return
     try { localStorage.setItem(moduleKey, JSON.stringify([...collapsedModules])) } catch {}
-  }, [collapsedModules])
+  }, [collapsedModules, collapseRestored, moduleKey])
 
   useEffect(() => {
+    if (!collapseRestored) return
     try { localStorage.setItem(dayKey, JSON.stringify([...collapsedDays])) } catch {}
-  }, [collapsedDays])
+  }, [collapsedDays, collapseRestored, dayKey])
 
   const allExpanded = collapsedModules.size === 0
   const expandAll = () => {
@@ -487,6 +486,7 @@ export default function ResourceOutline({
   }
 
   const toggleStar = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceStar(id, courseId, isStarred)
@@ -497,6 +497,7 @@ export default function ResourceOutline({
   }
 
   const toggleComplete = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceComplete(id, courseId, isDone)
@@ -517,9 +518,9 @@ export default function ResourceOutline({
     setCollapsedModules(prev => { const next = new Set(prev); isCollapsed ? next.delete(moduleId) : next.add(moduleId); return next })
     // When expanding a module, also expand all its days
     if (isCollapsed) {
-      const module = modules.find(m => m.id === moduleId)
-      if (module) {
-        const dayIds = module.module_days.map((d: { id: string }) => d.id)
+      const mod = modules.find(m => m.id === moduleId)
+      if (mod) {
+        const dayIds = mod.module_days.map((d: { id: string }) => d.id)
         setCollapsedDays(prev => { const next = new Set(prev); dayIds.forEach((id: string) => next.delete(id)); return next })
       }
     }
@@ -554,6 +555,10 @@ export default function ResourceOutline({
   }
 
   const searchQ = search.trim().toLowerCase()
+  const resourceVisible = (r: Resource) =>
+    !deletedIds.has(r.id) &&
+    (!searchQ || r.title.toLowerCase().includes(searchQ)) &&
+    (!starredOnly || starredIds.has(r.id))
 
   const allPublishedAssignments = orderedModules.flatMap(m =>
     m.module_days.flatMap(d => (d.assignments ?? []).filter(a => a.published).map(a => ({
@@ -570,7 +575,7 @@ export default function ResourceOutline({
     ? Object.fromEntries(FILTERS.map(f => [
         f.key,
         allPublishedAssignments.filter(a =>
-          matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title, a.isBonus, a.moduleCategory, a.submission_required) &&
+          matchesFilter(a.id, f.key, submissionMap, a.due_date, a.title, a.isBonus, a.moduleCategory, a.submission_required, a.is_optional) &&
           (!searchQ || a.title.toLowerCase().includes(searchQ))
         ).length,
       ])) as Record<AssignmentFilter, number>
@@ -588,13 +593,12 @@ export default function ResourceOutline({
   const notStartedFlat = (!instructorView && filter === 'not-started' && submissionMap)
     ? (() => {
         const base = allPublishedAssignments.filter(a => {
-          if (a.isLevelUp) return false
-          const info = submissionMap[a.id]
-          const notStarted = !info || (info.status === 'draft' && !info.grade)
-          return notStarted && !info?.excused && (!searchQ || a.title.toLowerCase().includes(searchQ))
+          if (a.isLevelUp || a.is_optional) return false
+          return statusOf(submissionMap[a.id], a.due_date, a.submission_required).isOutstanding && (!searchQ || a.title.toLowerCase().includes(searchQ))
         })
-        const pastDue = sortByDue(base.filter(a => a.submission_required !== false && !!a.due_date && localDate(a.due_date) < todayLocal()))
-        const upcoming = sortByDue(base.filter(a => a.submission_required === false || !a.due_date || localDate(a.due_date) >= todayLocal()))
+        const isPastDue = (a: typeof base[number]) => statusOf(submissionMap[a.id], a.due_date, a.submission_required).isLate
+        const pastDue = sortByDue(base.filter(isPastDue))
+        const upcoming = sortByDue(base.filter(a => !isPastDue(a)))
         return { pastDue, upcoming }
       })()
     : null
@@ -610,9 +614,7 @@ export default function ResourceOutline({
   const modulesWithContent = orderedModules.filter(m =>
     m.module_days.some(d => {
       if (skipDays.has(d.day_name)) return false
-      if (mode === 'resources') return (d.resources ?? []).some(r =>
-        !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
-      )
+      if (mode === 'resources') return (d.resources ?? []).some(resourceVisible)
       if (instructorView) return searchQ
         ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
         : true
@@ -620,7 +622,7 @@ export default function ResourceOutline({
         a.published && (!searchQ || a.title.toLowerCase().includes(searchQ))
       )
       if (!submissionMap || filter === 'all') return pub.length > 0
-      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, m.category, a.submission_required))
+      return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, m.category, a.submission_required, a.is_optional))
     })
   )
 
@@ -641,8 +643,15 @@ export default function ResourceOutline({
 
   const studentActions = !editable && !instructorView
 
+  const starredCount = mode === 'resources'
+    ? orderedModules.reduce((n, m) => n + m.module_days.reduce((k, d) =>
+        skipDays.has(d.day_name) ? k : k + (d.resources ?? []).filter(r => !deletedIds.has(r.id) && starredIds.has(r.id)).length, 0), 0)
+    : 0
+  const showStarredToggle = mode === 'resources' && studentActions
+
   const searchBar = (
-    <div className="relative mb-4">
+    <div className="flex items-center gap-2 mb-4">
+    <div className="relative flex-1">
       <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
@@ -653,6 +662,22 @@ export default function ResourceOutline({
         placeholder={mode === 'resources' ? 'Search resources…' : 'Search assignments…'}
         className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-dark-text placeholder:text-muted-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
       />
+    </div>
+    {showStarredToggle && (
+      <button
+        type="button"
+        onClick={() => { const next = !starredOnly; setStarredOnly(next); if (next) expandAll() }}
+        aria-pressed={starredOnly}
+        aria-label={`Show only starred resources (${starredCount})`}
+        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+          starredOnly ? 'bg-teal-primary text-white border-teal-primary' : 'bg-surface text-dark-text border-border hover:border-teal-primary'
+        }`}
+      >
+        <span aria-hidden="true">{starredOnly ? '★' : '☆'}</span>
+        Starred
+        <span className={`font-normal ${starredOnly ? 'opacity-80' : 'text-muted-text'}`}>{starredCount}</span>
+      </button>
+    )}
     </div>
   )
 
@@ -686,9 +711,13 @@ export default function ResourceOutline({
         {filterBar}
         <div className="bg-surface rounded-2xl border border-border p-12 text-center">
           <p className="text-muted-text">
-            {searchQ ? `No results for "${search}".` : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
+            {searchQ ? `No results for "${search}"${starredOnly ? ' in your starred resources' : ''}.`
+              : starredOnly ? 'No starred resources yet. Tap ☆ on any resource to save it here.'
+              : filter !== 'all' ? `No assignments match this filter.` : 'No content available yet.'}
           </p>
-          {searchQ ? (
+          {starredOnly && !searchQ ? (
+            <button type="button" onClick={() => setStarredOnly(false)} className="mt-3 text-sm text-teal-primary hover:underline">Show all resources</button>
+          ) : searchQ ? (
             <button type="button" onClick={() => setSearch('')} className="mt-3 text-sm text-teal-primary hover:underline">Clear search</button>
           ) : filter !== 'all' && (
             <button type="button" onClick={() => setFilter('all')} className="mt-3 text-sm text-teal-primary hover:underline">View all assignments</button>
@@ -711,7 +740,7 @@ export default function ResourceOutline({
             <div
               role="listitem"
               key={a.id}
-              className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors gap-4"
+              className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
             >
               <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-dark-text">{a.title}</p>
@@ -763,7 +792,7 @@ export default function ResourceOutline({
                               {a.due_date ? ` · Due ${formatDueDateWithTime(a.due_date)}` : ''}
                             </p>
                           </Link>
-                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
+                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} isOptional={a.is_optional} />
                         </div>
                       ))}
                     </div>
@@ -792,7 +821,7 @@ export default function ResourceOutline({
                               {a.due_date ? ` · Due ${formatDueDateWithTime(a.due_date)}` : ''}
                             </p>
                           </Link>
-                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
+                          <AssignmentStatusBadge info={submissionMap?.[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} isOptional={a.is_optional} />
                         </div>
                       ))}
                     </div>
@@ -822,9 +851,7 @@ export default function ResourceOutline({
             .sort((a, b) => a.order - b.order)
             .filter(d => {
               if (skipDays.has(d.day_name)) return false
-              if (mode === 'resources') return (d.resources ?? []).some(r =>
-                !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ))
-              )
+              if (mode === 'resources') return (d.resources ?? []).some(resourceVisible)
               if (instructorView) return searchQ
                 ? (d.assignments ?? []).some(a => a.title.toLowerCase().includes(searchQ))
                 : true
@@ -833,7 +860,7 @@ export default function ResourceOutline({
               )
               if (!submissionMap) return pub.length > 0
               if (filter === 'all') return pub.length > 0
-              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, module.category, a.submission_required))
+              return pub.some(a => matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, module.category, a.submission_required, a.is_optional))
             })
 
           if (days.length === 0) return null
@@ -878,13 +905,13 @@ export default function ResourceOutline({
                           ? (!searchQ || a.title.toLowerCase().includes(searchQ))
                           : (a.published &&
                              (!searchQ || a.title.toLowerCase().includes(searchQ)) &&
-                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, module.category, a.submission_required)))
+                             (!submissionMap || filter === 'all' || matchesFilter(a.id, filter, submissionMap, a.due_date, a.title, a.is_bonus, module.category, a.submission_required, a.is_optional)))
                       )
                       .sort((a, b) => {
                         // In not-started view, sort late assignments first
                         if (!instructorView && filter === 'not-started') {
-                          const aLate = !!a.due_date && localDate(a.due_date) < todayLocal()
-                          const bLate = !!b.due_date && localDate(b.due_date) < todayLocal()
+                          const aLate = statusOf(submissionMap?.[a.id], a.due_date, a.submission_required, a.is_optional).isLate
+                          const bLate = statusOf(submissionMap?.[b.id], b.due_date, b.submission_required, b.is_optional).isLate
                           if (aLate && !bLate) return -1
                           if (!aLate && bLate) return 1
                         }
@@ -906,7 +933,7 @@ export default function ResourceOutline({
                         {!dayCollapsed && mode === 'resources' && (
                           <div className="flex flex-col gap-2 pl-3">
                             {[...(day.resources ?? [])]
-                              .filter(r => !deletedIds.has(r.id) && (!searchQ || r.title.toLowerCase().includes(searchQ)))
+                              .filter(resourceVisible)
                               .sort((a, b) => a.order - b.order)
                               .map(r => {
                                 const resolved = editedResources.get(r.id) ?? r
@@ -983,16 +1010,15 @@ export default function ResourceOutline({
                               <div
                                 role="listitem"
                                 key={a.id}
-                                className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
+                                className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
                               >
                                 <Link href={assignmentHref(a.id)} prefetch={true} className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-dark-text">{a.title}</p>
                                   {a.due_date && (() => {
-                                    const isPast = localDate(a.due_date) < todayLocal()
-                                    const info = submissionMap?.[a.id]
-                                    const isResolved = info?.grade === 'complete' || info?.grade === 'incomplete' || info?.status === 'submitted'
+                                    // No submissionMap (instructor view): every outstanding assignment is "not started"
+                                    const status = statusOf(submissionMap?.[a.id], a.due_date, a.submission_required, a.is_optional)
                                     return (
-                                      <p className={`text-xs font-medium mt-0.5 ${isPast && !isResolved ? 'text-amber-600' : 'text-muted-text'}`}>
+                                      <p className={`text-xs font-medium mt-0.5 ${status.isOutstanding && status.isLate ? 'text-amber-600' : 'text-muted-text'}`}>
                                         Due {formatDueDateWithTime(a.due_date)}
                                       </p>
                                     )
@@ -1012,7 +1038,7 @@ export default function ResourceOutline({
                                     </Link>
                                   )}
                                   {submissionMap && (
-                                    <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} />
+                                    <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} title={a.title} submissionRequired={a.submission_required} isOptional={a.is_optional} />
                                   )}
                                 </div>
                               </div>

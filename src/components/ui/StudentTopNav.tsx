@@ -6,9 +6,11 @@ import NavMobileMenu from '@/components/ui/NavMobileMenu'
 import DocsHelpLink from '@/components/ui/DocsHelpLink'
 import NotificationBell from '@/components/ui/NotificationBell'
 import CurrentUserAvatar from '@/components/ui/CurrentUserAvatar'
+import { useSkillConfidenceNavEnabled } from '@/components/ui/SkillConfidenceNavContext'
 
 function ToolsDropdown() {
   const [open, setOpen] = useState(false)
+  const showSkillConfidence = useSkillConfidenceNavEnabled()
   return (
     <div className="relative">
       <button
@@ -26,11 +28,11 @@ function ToolsDropdown() {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-lg z-50 py-2">
             <Link
-              href="/student/confidence"
+              href="/student/readiness"
               className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
               onClick={() => setOpen(false)}
             >
-              Confidence Tracker
+              Weekly Readiness
             </Link>
             <Link
               href="/student/attendance"
@@ -39,13 +41,15 @@ function ToolsDropdown() {
             >
               Attendance Portal
             </Link>
-            <Link
-              href="/flashcards"
-              className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              Flashcard App
-            </Link>
+            {showSkillConfidence && (
+              <Link
+                href="/student/skill-confidence"
+                className="block px-4 py-2.5 text-sm font-medium text-dark-text hover:bg-background hover:text-teal-primary transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                Skill Confidence
+              </Link>
+            )}
           </div>
         </>
       )}

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { fetchStudentAttendance } from '@/lib/airtable'
+import { fetchStudentAttendance, fetchStudentAttendanceById } from '@/lib/airtable'
 
 async function isInstructorOrAdmin(): Promise<boolean> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  return profile?.role === 'instructor' || profile?.role === 'admin'
+  return profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
 }
 
 function formatDateStr(d: Date): string {
@@ -27,15 +27,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const id = req.nextUrl.searchParams.get('id')
   const name = req.nextUrl.searchParams.get('name')
-  if (!name) return NextResponse.json({ error: 'Missing name' }, { status: 400 })
+  if (!id && !name) return NextResponse.json({ error: 'Missing id or name' }, { status: 400 })
 
   const since = req.nextUrl.searchParams.get('since') ?? undefined
   const until = req.nextUrl.searchParams.get('until') ?? undefined
   const courseName = req.nextUrl.searchParams.get('courseName') ?? undefined
 
   try {
-    const records = await fetchStudentAttendance(name, since, until, courseName)
+    // Prefer the stable airtable_student_id — safe even if this student's display
+    // name collides with someone else's. Fall back to name for students without one yet.
+    const records = id
+      ? await fetchStudentAttendanceById(id, since, until)
+      : await fetchStudentAttendance(name!, since, until, courseName)
 
     let absences = 0
     let tardies = 0

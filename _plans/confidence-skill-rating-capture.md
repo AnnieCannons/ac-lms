@@ -1,0 +1,69 @@
+# Confidence Skill Rating Capture (confidence-tracker-v2, Phase 2)
+
+## Context
+This is Phase 2 of the confidence-tracker-v2 initiative (see [`_plans/confidence-tracker-v2-roadmap.md`](./confidence-tracker-v2-roadmap.md) and the spec [`_specs/confidence-skill-rating-capture.md`](../_specs/confidence-skill-rating-capture.md)). Phase 1 (merged, [PR #151](https://github.com/AnnieCannons/ac-lms/pull/151)) gave instructors a way to tag assignments with a shared, canonical "Confidence Skill" taxonomy (`confidence_tracker_skills` / `confidence_tracker_assignment_skills`), with no student-facing behavior. This phase adds the first student-facing piece: an optional, 1–10 rating prompt per tagged skill, shown in the submission form on a student's first-ever submission of an assignment, saved only when they actually click Submit. It's a plain data-capture step — no goals, target dates, study plans, trend pages, or celebration logic yet (those are later roadmap phases, and the schema/RLS choices below are made to not block them).
+
+## Key existing code to reuse (found during exploration)
+- `listAssignmentSkills(assignmentId)` in [`src/lib/skill-actions.ts:39-53`](../src/lib/skill-actions.ts) already returns `{id, name}[]` for an assignment's tagged skills, using the RLS-respecting client with **no staff gate** — it already works for a plain authenticated student today because of Phase 1's open-read RLS policy. No new read action is needed.
+- `src/app/student/courses/[id]/assignments/[assignmentId]/page.tsx` is the server component that renders `<SubmissionForm />`. It already fetches `initialHistory` (from `submission_history`, RLS client) and `existingSubmission` (service-role) and passes them as props — this is where we'll add one more fetch (`listAssignmentSkills`) and pass it down the same way.
+- `saveSubmission()` in `src/lib/submission-actions.ts` internally computes an `isFirstSubmission` boolean (line 41) but doesn't return it, and only inserts into `submission_history` on an actual submit (never on draft). We will **not** modify this function — see "First-submission & duplicate-write safety" below for why the new table's own invariant makes this unnecessary.
+- No toast/snackbar system exists anywhere in the app (confirmed — no library in `package.json`, no shared component). The established pattern is a component-local `<p role="alert" aria-live="assertive">` banner (already used twice in `SubmissionForm.tsx`, lines 503 and 616). We'll add a second, separate banner state for the rating-specific "submitted, but rating didn't save" case rather than reusing the blocking `error` state or inventing a toast system.
+- Migration/RLS conventions to mirror exactly: `supabase/migrations/20260922000000_confidence_tracker_skills.sql` (open `SELECT` policy for any `authenticated` user, explicit per-operation write policies gated on `EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('admin','instructor','staff'))`, `GRANT ALL ... TO anon/authenticated/service_role` for PostgREST).
+- Test conventions to mirror: `tests/normalizeSkillName.test.ts` (flat file, pure-function unit tests, no mocking) and `tests/ConfidenceSkillsField.test.tsx` (`vi.mock('@/lib/...')` stubbing only the functions the component under test calls, a `Harness` wrapper owning controlled state, RTL async queries, explicit "does NOT call X" assertions).
+
+## Database
+New migration `supabase/migrations/20260923000000_confidence_tracker_ratings.sql`:
+- **`confidence_tracker_ratings`**: `id uuid PK default gen_random_uuid()`, `student_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE` (matches `submissions.student_id`'s convention — FK to `public.users`, not `auth.users` like the old unrelated `confidence_entries` — since this table is assignment-submission-scoped, not a general per-student tracker), `assignment_id uuid NOT NULL REFERENCES assignments(id) ON DELETE CASCADE`, `skill_id uuid NOT NULL REFERENCES confidence_tracker_skills(id) ON DELETE CASCADE`, `rating int NOT NULL CHECK (rating BETWEEN 1 AND 10)` (matches `confidence_entries.score`'s 1–10 convention, per the answered spec open question), `created_at timestamptz NOT NULL DEFAULT now()`.
+- `UNIQUE (student_id, assignment_id, skill_id)`.
+- Indexes on `student_id` and `assignment_id` (Phase 1's migration skipped indexes; the older `confidence_tracker` migration did add them on FK columns — worth doing here since Phase 4's trend pages will query by both).
+- RLS: enable on the table.
+  - `SELECT`: `USING (auth.uid() = student_id OR EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('admin','instructor','staff')))` — a student reads their own ratings; staff/instructor/admin (not TA, matching Phase 1's precedent) can read all, anticipating Phase 4's instructor trend page the same way Phase 1's open-read policy anticipated this phase.
+  - `INSERT`: `WITH CHECK (auth.uid() = student_id)` — a student can only insert their own rows. No `UPDATE`/`DELETE` policy (ratings aren't edited or removed in this phase, mirroring Phase 1's join table having no `UPDATE` policy).
+  - `GRANT ALL ... TO anon, authenticated, service_role` (actual access still gated by the policies above, per repo convention).
+- Update `SCHEMA.md`: add a `### confidence_tracker_ratings` section (same table format as the other entries) and an entry in the recommended-index map near the bottom of the file.
+
+## Server logic — new `src/lib/confidence-tracker-actions.ts`
+A new file (distinct from `skill-actions.ts`, which manages the shared skill taxonomy/tagging — this one manages a student's own rating data, a different concern with a different access pattern, and the natural home for Phase 3/5/6's later additions to the same rating record).
+
+- `saveConfidenceRatings(assignmentId: string, ratings: {skillId: string; rating: number}[]): Promise<{error: string | null}>`:
+  1. Auth via the RLS-respecting client (`createServerSupabaseClient()`), reject if not logged in.
+  2. Filter out any entries with a missing/out-of-range rating (defense-in-depth; the client should already only send filled-in, valid values). If nothing remains, return `{error: null}` (no-op — this is the "left everything blank" path, and no network call should even be made from the client in that case, see below).
+  3. **First-submission / duplicate-write safety, without touching `saveSubmission`**: query for any existing row in `confidence_tracker_ratings` for `(student_id, assignment_id)`. If any exist, return `{error: null}` as a silent no-op — this single check is sufficient to guarantee "at most one rating-capture event per student per assignment, ever," which is the actual invariant the spec needs (not a literal re-derivation of `saveSubmission`'s internal submission-status transition logic). It also correctly prevents a hypothetical later bug from "backfilling" a skill the student deliberately left blank on their real first submission.
+  4. Validate that every `skillId` given is actually tagged to `assignmentId` (query `confidence_tracker_assignment_skills`) — rejects an attempt to rate an untagged/arbitrary skill.
+  5. Insert all rows in a single batched `.insert([...])` call (atomic — a single multi-row INSERT statement doesn't partially apply), each row `{student_id: user.id, assignment_id, skill_id, rating}`.
+  6. Return `{error: null}` on success, `{error: '<message>'}` on a genuine failure (network/db error, invalid skill id) — this distinction matters because the client needs to tell a real failure (show the "rating didn't save" banner) apart from a harmless no-op (show nothing extra).
+
+## UI — new `src/components/ui/ConfidenceRatingPrompt.tsx`
+Small presentational client component: given the assignment's tagged skills and a controlled `Record<skillId, number | undefined>` value, renders one row per skill with a 1–10 selectable rating control (no value selected = "left blank"), calling `onChange(skillId, rating)`. Accepts a `disabled` prop (used for Student Preview/Observer — see below) so the control is visibly non-interactive rather than silently doing nothing.
+
+## Wiring into `SubmissionForm.tsx` and its page
+- `src/app/student/courses/[id]/assignments/[assignmentId]/page.tsx`: add `const { skills: confidenceSkills } = await listAssignmentSkills(assignmentId)` alongside the existing data-fetching, default to `[]` on error, pass `confidenceSkills` as a new prop into `<SubmissionForm />` (same pattern as the existing `checklistItems` prop).
+- `SubmissionForm.tsx`:
+  - New prop `confidenceSkills: ConfidenceSkill[]`.
+  - `const showRatingPrompt = confidenceSkills.length > 0 && initialHistory.length === 0 && (!saved || saved.status === 'draft')` — reuses props already available (no new query), and correctly evaluates `false` for every case that matters: a real resubmission, a "needs revision" resubmit, and an assignment that already had a first submission before this feature shipped (all of those already have `initialHistory.length > 0` or a non-draft `saved`).
+  - New state: `ratings: Record<string, number>` and a separate `ratingError: string | null` (kept distinct from the existing blocking `error` state, since a rating-save failure must never look like an assignment-submission failure).
+  - Persistence across in-app navigation (but not a closed tab): hydrate `ratings` from `sessionStorage` on mount (key scoped by student + assignment, e.g. `confidence-ratings:${studentId}:${assignmentId}`) when `showRatingPrompt` is true, and write to it on every change — `sessionStorage` is the right primitive here since it survives client-side navigation within the tab but clears on tab/window close, matching the spec's exact requirement.
+  - Render `<ConfidenceRatingPrompt />` before the Submit/Save-draft button row (~line 618), gated only on `showRatingPrompt` — **not** nested inside the existing `!isObserver && mode === "edit"` wrapper (line 508), since Observer must now see it too. Concretely: split that block so the tabs/content-inputs/button-row stay under `!isObserver`, while the new rating section sits in the same `mode === "edit"` block but outside the `!isObserver` check. Pass `disabled={isObserver || isStudentPreview}` into `ConfidenceRatingPrompt` — Student Preview's Submit button is already disabled today (line 622, `!!isStudentPreview`) and Observer has no Submit button in their view at all, so this `disabled` prop is purely about not showing false interactivity, not an additional access-control layer (nothing new could ever be saved from either view regardless).
+  - In `handleSubmit`, after `doSave("submitted", ...)` returns a truthy result: if `showRatingPrompt` was true and at least one rating was entered, call `saveConfidenceRatings(assignmentId, entries)`. On its error, set `ratingError` to a message like "Your assignment was submitted, but we couldn't save your confidence ratings — please let your instructor know." (clearly not the student's fault, clearly distinguishing submission success from rating failure, per the spec). On success (or if nothing was rated), clear the `sessionStorage` key — the rating window has closed either way once the real submission succeeds.
+  - `handleDraft` is untouched — it never calls `saveConfidenceRatings`, satisfying "captured/saved as data only after submission."
+
+## Testing
+New `tests/ConfidenceRatingPrompt.test.tsx` (in isolation, mirrors `ConfidenceSkillsField.test.tsx`'s style) for the presentational component, plus a new `tests/SubmissionForm.confidenceRatings.test.tsx` mocking `saveSubmission` and `saveConfidenceRatings` via `vi.mock`, covering:
+- No rating UI when `confidenceSkills` is empty.
+- No rating UI when `initialHistory` is non-empty (simulating a resubmission-eligible assignment), even with tagged skills.
+- Rating prompt renders one 1–10 control per tagged skill, positioned before Submit, on a true first-visit.
+- Rating one skill and leaving another blank, then submitting, calls `saveConfidenceRatings` with only the rated skill.
+- Leaving every rating blank still lets the assignment submit successfully, and `saveConfidenceRatings` is never called.
+- Saving a Draft with ratings entered never calls `saveConfidenceRatings`.
+- Student Preview and Observer both render the rating prompt, but neither can trigger a save (no working Submit path exists in either view).
+- When `saveConfidenceRatings` rejects, after `saveSubmission` succeeds, the component shows the rating-specific `ratingError` banner while still reflecting the submission's success — not the blocking `error` state.
+
+## Verification
+1. `npm test` — new and existing tests pass.
+2. Apply the new migration manually via the Supabase Dashboard SQL Editor (per this repo's environment — no CLI/DB connection string available), matching how Phase 1's migration was applied.
+3. `npm run dev`; as an instructor, tag an assignment with 1–2 Confidence Skills (Phase 1 UI); as a student who has never submitted that assignment, open it and confirm the 1–10 rating prompt appears above the Submit button.
+4. Rate one skill, leave another blank, save as Draft — confirm no rating row was written (check via Supabase Dashboard) and the ratings are still visible in the form.
+5. Navigate to a different page and back (same tab) — confirm the entered rating is still shown; then actually submit and confirm both the submission and exactly one rating row are persisted.
+6. Trigger "Needs Revision" on that submission as an instructor, then resubmit as the student — confirm the rating prompt does not reappear.
+7. View the same never-yet-submitted assignment as an instructor in Student Preview and as an Observer — confirm the rating prompt is visible in both, and confirm no rating rows are created from either view.
+8. Confirm the existing Confidence Tracker (`/student/confidence`) and "Level Up Your Skills" pages are unaffected.

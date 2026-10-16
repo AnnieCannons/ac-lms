@@ -14,6 +14,7 @@ export interface GradebookAssignment {
   weekNumber: number | null
   graderId?: string | null
   submission_required?: boolean
+  is_optional?: boolean
 }
 export interface GradebookSubmission {
   assignment_id: string
@@ -338,10 +339,10 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
   const toggleStatus = (s: StatusFilter) => setSelectedStatuses(prev => {
     const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next
   })
-  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean): StatusFilter {
+  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean, isOptional?: boolean): StatusFilter {
     const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
     if (!sub || sub.status === 'draft') {
-      if (submissionRequired === false) return 'not_yet_due'
+      if (submissionRequired === false || isOptional) return 'not_yet_due'
       return isPastDue ? 'late_missing' : 'not_yet_due'
     }
     if (sub.status === 'submitted') return 'ungraded'
@@ -432,7 +433,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     ? filteredStudents
     : filteredStudents.filter(student =>
         filteredAssignments.some(a =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required, a.is_optional))
         )
       )
 
@@ -440,7 +441,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     ? filteredAssignments
     : filteredAssignments.filter(a =>
         filteredStudents.some(student =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required, a.is_optional))
         )
       )
 
@@ -529,10 +530,13 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs font-normal tracking-tight text-dark-text block break-words hover:text-teal-primary hover:underline"
-                          title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
+                          title={`${a.title}${a.is_optional ? ' · Optional' : ''}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
                         >
                           {a.title}
                         </Link>
+                        {a.is_optional && (
+                          <span className="text-[10px] text-teal-primary font-semibold block leading-none mt-1">Optional</span>
+                        )}
                       </div>
                       <div
                         onMouseDown={(e) => startResize(a.id, e)}
@@ -568,6 +572,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
                       dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
                       submissionRequired={a.submission_required}
+                      isOptional={a.is_optional}
                       currentUserId={currentUserId}
                     />
                   ))}
@@ -641,10 +646,13 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-dark-text break-words hover:text-teal-primary hover:underline"
-                      title={`${a.title}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
+                      title={`${a.title}${a.is_optional ? ' · Optional' : ''}${a.due_date ? ` · Due ${new Date(a.due_date).toLocaleDateString()}` : ''} · Click to edit`}
                     >
                       {a.title}
                     </Link>
+                    {a.is_optional && (
+                      <span className="text-[10px] text-teal-primary font-semibold block leading-none mt-0.5">Optional</span>
+                    )}
                   </td>
                   {statusFilteredStudents.map(student => (
                     <GradebookCell
@@ -655,6 +663,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       submission={submissionMap.get(`${a.id}_${student.id}`) ?? null}
                       dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
                       submissionRequired={a.submission_required}
+                      isOptional={a.is_optional}
                       currentUserId={currentUserId}
                     />
                   ))}

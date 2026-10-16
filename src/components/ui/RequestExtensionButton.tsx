@@ -4,6 +4,7 @@ import { DayPicker } from 'react-day-picker'
 import { format } from 'date-fns'
 import { submitExtensionRequest, cancelExtensionRequest } from '@/lib/extension-actions'
 import type { ExtensionRequest } from '@/lib/extension-actions'
+import { maxExtensionDate, MAX_EXTENSION_DAYS } from '@/lib/extension-limits'
 
 const REASONS = [
   { value: 'not_enough_time', label: 'I did not have enough time to complete the assignment' },
@@ -77,14 +78,20 @@ export default function RequestExtensionButton({
   courseId,
   existingRequest,
   assignmentTitle,
+  dueDate,
+  hasSubmitted = false,
 }: {
   assignmentId: string
   courseId: string
   existingRequest: ExtensionRequest | null
   assignmentTitle: string
+  dueDate: string | null
+  // Once the student has turned the assignment in, they can't ask for (more) time.
+  // An existing request still shows its status.
+  hasSubmitted?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const [step, setStep] = useState<'form' | 'confirm'>('form')
+  const [step, setStep] = useState<'intro' | 'form' | 'confirm'>('intro')
   const [reason, setReason] = useState('')
   const [reasonOther, setReasonOther] = useState('')
   const [plan, setPlan] = useState<string[]>([])
@@ -95,7 +102,11 @@ export default function RequestExtensionButton({
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [localRequest, setLocalRequest] = useState<ExtensionRequest | null>(existingRequest)
+  // True while a student whose last request was denied is filling in a new one.
+  const [requestingAgain, setRequestingAgain] = useState(false)
+  const showRequestFlow = !localRequest || requestingAgain
   const modalRef = useRef<HTMLDivElement>(null)
+  const latestDate = maxExtensionDate(dueDate)
 
   useEffect(() => {
     if (!open) return
@@ -157,6 +168,7 @@ export default function RequestExtensionButton({
       reviewed_at: null,
       created_at: new Date().toISOString(),
     })
+    setRequestingAgain(false)
     setStep('confirm')
   }
 
@@ -168,13 +180,49 @@ export default function RequestExtensionButton({
     if (result.error) { setError(result.error); return }
     setLocalRequest(null)
     setOpen(false)
-    // Reset form
+    resetForm()
+    setStep('intro')
+  }
+
+  function resetForm() {
     setReason(''); setReasonOther(''); setPlan([]); setPlanOther(''); setSelectedDate(undefined); setNotes('')
-    setStep('form')
   }
 
   function openFresh() {
-    setStep('form'); setError(null); setOpen(true)
+    setStep('intro'); setError(null); setOpen(true)
+  }
+
+  function startNewRequest() {
+    resetForm()
+    setError(null)
+    setRequestingAgain(true)
+    setStep('intro')
+  }
+
+  // No request on file and no way to make one: show the button greyed out with
+  // a tooltip so the student knows why. aria-disabled (not disabled) keeps it
+  // focusable, so keyboard users get the tooltip too.
+  if (hasSubmitted && !localRequest) {
+    return (
+      <div className="group relative inline-block">
+        <button
+          type="button"
+          aria-disabled="true"
+          aria-describedby="extension-submitted-tooltip"
+          onClick={e => e.preventDefault()}
+          className="text-sm font-medium text-muted-text border border-border bg-surface rounded-full px-4 py-1.5 opacity-60 cursor-not-allowed"
+        >
+          Request Extension
+        </button>
+        <div
+          id="extension-submitted-tooltip"
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 w-56 scale-95 rounded-lg bg-dark-text px-2.5 py-1.5 text-xs [color:var(--color-background)] opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100"
+        >
+          This assignment has already been submitted, so an extension can no longer be requested.
+        </div>
+      </div>
+    )
   }
 
   const statusColors = {
@@ -195,31 +243,43 @@ export default function RequestExtensionButton({
           Request Extension
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={() => { setStep(localRequest.status === 'pending' ? 'form' : 'confirm'); setOpen(true) }}
-          className={`text-sm font-medium border rounded-full px-4 py-1.5 transition-colors ${statusColors[localRequest.status]}`}
-        >
-          Extension: {localRequest.status === 'pending' ? 'Pending' : localRequest.status === 'approved' ? 'Approved' : 'Not Approved'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setRequestingAgain(false); setError(null); setStep('confirm'); setOpen(true) }}
+            className={`text-sm font-medium border rounded-full px-4 py-1.5 transition-colors ${statusColors[localRequest.status]}`}
+          >
+            Extension: {localRequest.status === 'pending' ? 'Pending' : localRequest.status === 'approved' ? 'Approved' : 'Not Approved'}
+          </button>
+          {localRequest.status === 'denied' && !hasSubmitted && (
+            <button
+              type="button"
+              onClick={() => { startNewRequest(); setOpen(true) }}
+              className="text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
+            >
+              Request another extension
+            </button>
+          )}
+        </div>
       )}
 
       {/* Modal backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-8"
           onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false) }}
         >
           <div
             ref={modalRef}
-            className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Request Extension"
           >
-            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border">
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border shrink-0">
               <h2 className="text-base font-semibold text-dark-text">
-                {localRequest?.status === 'approved' ? 'Extension Approved' :
+                {showRequestFlow ? 'Request Extension' :
+                 localRequest?.status === 'approved' ? 'Extension Approved' :
                  localRequest?.status === 'denied' ? 'Extension Request' :
                  localRequest ? 'Extension Pending' :
                  'Request Extension'}
@@ -229,9 +289,9 @@ export default function RequestExtensionButton({
               </button>
             </div>
 
-            <div className="px-6 py-5">
+            <div className="px-6 py-5 overflow-y-auto min-h-0">
               {/* ── Status view (after submit or existing non-pending) ── */}
-              {localRequest && step === 'confirm' && (
+              {localRequest && !requestingAgain && step === 'confirm' && (
                 <div className="flex flex-col gap-4">
                   {localRequest.status === 'pending' && (
                     <>
@@ -280,15 +340,46 @@ export default function RequestExtensionButton({
                           <p className="text-sm text-dark-text">{localRequest.instructor_comment}</p>
                         </div>
                       )}
+                      {!hasSubmitted && (
+                        <button
+                          type="button"
+                          onClick={startNewRequest}
+                          className="self-start text-sm font-medium text-teal-primary border border-teal-primary/30 bg-teal-light hover:bg-teal-primary hover:[color:var(--color-background)] rounded-full px-4 py-1.5 transition-colors"
+                        >
+                          Request another extension
+                        </button>
+                      )}
                     </>
                   )}
                   {error && <p className="text-sm text-red-500">{error}</p>}
                 </div>
               )}
 
+              {/* ── Expectations, read before the form ── */}
+              {showRequestFlow && step === 'intro' && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm font-semibold text-dark-text">Before you request an extension</p>
+                  <ul className="flex flex-col gap-3 text-sm text-dark-text list-disc pl-5">
+                    <li>
+                      Extensions give you a little breathing room, but try to catch up as soon as you can. Each
+                      day&rsquo;s work builds on the day before, so falling behind on one assignment makes the next
+                      one harder.
+                    </li>
+                    <li>
+                      Longer extensions (up to {MAX_EXTENSION_DAYS} days) are for extenuating circumstances, or for
+                      assignments that aren&rsquo;t about coding.
+                    </li>
+                    <li>
+                      Aim to have everything caught up by Sunday night, so you&rsquo;re ready for the new
+                      week&rsquo;s material on Monday.
+                    </li>
+                  </ul>
+                </div>
+              )}
+
               {/* ── Request form ── */}
-              {!localRequest && step === 'form' && (
-                <form onSubmit={e => { e.preventDefault(); handleSubmit() }} className="flex flex-col gap-5">
+              {showRequestFlow && step === 'form' && (
+                <form id="extension-request-form" onSubmit={e => { e.preventDefault(); handleSubmit() }} className="flex flex-col gap-5">
                   {/* Reason */}
                   <fieldset>
                     <legend className="text-sm font-semibold text-dark-text mb-2">
@@ -357,12 +448,16 @@ export default function RequestExtensionButton({
                     <p className="text-sm font-semibold text-dark-text mb-2">
                       When will the assignment be done? <span className="text-red-500">*</span>
                     </p>
+                    <p className="text-xs text-muted-text mb-2">
+                      You can request up to {MAX_EXTENSION_DAYS} days past the due date (latest: {format(latestDate, 'EEE, MMM d')}).
+                    </p>
                     <div className="border border-border rounded-xl overflow-hidden bg-surface">
                       <DayPicker
                         mode="single"
                         selected={selectedDate}
                         onSelect={handleDateSelect}
-                        disabled={{ before: new Date() }}
+                        disabled={[{ before: new Date() }, { after: latestDate }]}
+                        endMonth={latestDate}
                         defaultMonth={new Date()}
                         components={{
                           Chevron: ({ orientation }: { orientation?: string }) => (
@@ -372,7 +467,7 @@ export default function RequestExtensionButton({
                           ),
                         }}
                         classNames={{
-                          root: 'text-sm p-2', months: 'flex', month: 'relative space-y-2',
+                          root: 'relative text-sm p-2', months: 'flex', month: 'relative space-y-2',
                           month_caption: 'flex items-center justify-center px-8 py-1',
                           caption_label: 'text-sm font-semibold text-dark-text',
                           nav: 'absolute top-0 left-0 right-0 flex items-center justify-between z-10',
@@ -411,26 +506,48 @@ export default function RequestExtensionButton({
                   </div>
 
                   {error && <p className="text-sm text-red-500">{error}</p>}
-
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      type="submit"
-                      disabled={!canSubmit || submitting}
-                      className="flex-1 bg-teal-primary text-white text-sm font-semibold py-2 rounded-full hover:bg-teal-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {submitting ? 'Submitting…' : 'Submit Request'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOpen(false)}
-                      className="px-5 text-sm text-muted-text hover:text-dark-text transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
                 </form>
               )}
             </div>
+
+            {showRequestFlow && step === 'intro' && (
+              <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setStep('form')}
+                  className="flex-1 bg-teal-primary text-white text-sm font-semibold py-2 rounded-full hover:bg-teal-primary/90 transition-colors"
+                >
+                  Next &rarr;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-5 text-sm text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {showRequestFlow && step === 'form' && (
+              <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+                <button
+                  type="submit"
+                  form="extension-request-form"
+                  disabled={!canSubmit || submitting}
+                  className="flex-1 bg-teal-primary text-white text-sm font-semibold py-2 rounded-full hover:bg-teal-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submitting ? 'Submitting…' : 'Submit Request'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-5 text-sm text-muted-text hover:text-dark-text transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

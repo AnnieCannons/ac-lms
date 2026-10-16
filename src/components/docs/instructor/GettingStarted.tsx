@@ -176,7 +176,6 @@ export default function GettingStarted() {
             <li><strong>Grades</strong> — course-wide submission overview and speed grader; a yellow badge shows how many submissions need grading</li>
             <li><strong>Gradebook</strong> — full spreadsheet of every student&apos;s status on every published assignment</li>
             <li><strong>Quiz Submissions</strong> — table of student quiz attempts and scores</li>
-            <li><strong>Confidence Tracker</strong> — students&apos; self-reported confidence check-ins</li>
             <li><strong>Launch Grader →</strong> — opens a modal to jump straight into grading: By Student, By Assignment, Grade All Ungraded, or Grade for My Group</li>
             <li><strong>Grading Groups</strong> — assign students to specific graders; rotate groups weekly (hidden for TAs)</li>
             <li><strong>Extension Requests</strong> — review students&apos; due-date extension requests, with a badge for pending requests</li>
@@ -220,7 +219,7 @@ export default function GettingStarted() {
             <li>A logout button</li>
           </DocList>
           <DocP>
-            On mobile, the right-hand items collapse into a hamburger menu with Confidence Tracker, Attendance Portal,
+            On mobile, the right-hand items collapse into a hamburger menu with Attendance Portal,
             your account link, and logout (the Help link is desktop-only).
           </DocP>
           <DocP>Your account settings page (click your name) has three sections:</DocP>

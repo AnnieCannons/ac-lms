@@ -16,12 +16,8 @@ export default function Flashcards() {
 
       <DocH2>Finding the Flashcard App</DocH2>
       <DocP>
-        You can open the Flashcard App two ways:
+        Open <strong>Level Up Your Skills</strong> in your course sidebar, then click the <strong>Flashcards</strong> card under Study tools.
       </DocP>
-      <DocList>
-        <li>Click the <strong>Tools</strong> dropdown in the top navigation bar and select <strong>Flashcard App</strong>.</li>
-        <li>In your course sidebar, scroll to the <strong>Level Up Your Skills</strong> section — <strong>Flashcard App</strong> appears just below it as its own link.</li>
-      </DocList>
       <DocP>
         Your <strong>My Decks</strong> page shows all your decks. Each card shows how many cards are <strong>New</strong>, <strong>In Progress</strong>, or ready to <strong>Review</strong>.
       </DocP>

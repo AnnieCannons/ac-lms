@@ -6,6 +6,8 @@ import CourseEditor from "@/components/layout/CourseEditor";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import BonusAssignmentList from "@/components/ui/BonusAssignmentList";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
+import LevelUpLinksEditor from "@/components/ui/LevelUpLinksEditor";
+import { getLevelUpLinks } from "@/lib/level-up-links";
 
 export default async function InstructorLevelUpPage({
   params,
@@ -13,7 +15,7 @@ export default async function InstructorLevelUpPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile, isTa } = await getInstructorOrTaAccess(id);
+  const { user, profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}/level-up`);
   const supabase = await createServerSupabaseClient();
   const admin = createServiceSupabaseClient();
 
@@ -24,6 +26,8 @@ export default async function InstructorLevelUpPage({
     .single();
 
   if (!course) redirect("/instructor/courses");
+
+  const levelUpLinks = await getLevelUpLinks(id, { includeHidden: true });
 
   const [{ data: modulesRaw }, { data: bonusAssignmentsRaw }] = await Promise.all([
     admin
@@ -90,17 +94,29 @@ export default async function InstructorLevelUpPage({
         <InstructorSidebar courseId={id} courseName={course.name} />
 
         <div className="flex-1 min-w-0">
-          <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-10 focus:outline-none">
+          <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
             <Link href="/instructor/courses" className="text-muted-text hover:text-teal-primary text-sm">
               ← Courses
             </Link>
-            <h2 className="text-xl font-bold text-dark-text mt-6 mb-6">Level Up Your Skills</h2>
+            {/* Laid out like the student page, so what you edit here is what students see */}
+            <div className="mt-6 mb-8">
+              <h1 className="text-2xl font-bold text-dark-text mb-1">Level Up Your Skills</h1>
+              <p className="text-muted-text text-sm">{course.code}</p>
+              <p className="text-sm text-muted-text mt-3">
+                This is the page students see. To add, hide or reorder recommended courses, open the list on a platform card.
+              </p>
+            </div>
 
-            <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" readOnly={isTa} />
+            <LevelUpLinksEditor courseId={id} initialLinks={levelUpLinks} canEditShared={!isTa} />
 
-            {bonusAssignments.length > 0 && (
-              <BonusAssignmentList assignments={bonusAssignments} courseId={id} />
-            )}
+            <div className="flex flex-col gap-10 mt-10">
+              <h2 className="text-sm font-semibold text-muted-text uppercase tracking-wide -mb-6">From your instructors</h2>
+              <CourseEditor course={course} initialModules={modules || []} filterCategory="level_up" readOnly={false} />
+
+              {bonusAssignments.length > 0 && (
+                <BonusAssignmentList assignments={bonusAssignments} courseId={id} />
+              )}
+            </div>
           </main>
         </div>
       </div>

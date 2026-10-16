@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import MarkdownContent, { PlainTextContent } from "@/components/ui/MarkdownContent";
 import FileUpload from "@/components/ui/FileUpload";
 import { toggleStudentChecklistItem } from "@/lib/checklist-actions";
@@ -8,6 +8,18 @@ import SubmissionComments, { type CommentEntry } from "@/components/ui/Submissio
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { normalizeUrl } from "@/lib/url";
 import { saveSubmission } from "@/lib/submission-actions";
+import { parseFileUrls, serializeFileUrls, submissionFileHref, submissionFileName } from "@/lib/submission-files";
+import { saveConfidenceRatings } from "@/lib/confidence-tracker-actions";
+import ConfidenceRatingPrompt from "@/components/ui/ConfidenceRatingPrompt";
+import ConfidenceKudos, { type KudosDisplayItem } from "@/components/ui/ConfidenceKudos";
+import GoalMetCelebration, { type CelebrationDisplayItem } from "@/components/ui/GoalMetCelebration";
+import type { ConfidenceSkillWithStatus } from "@/lib/confidence-tracker-actions";
+import type { GoalState, StudyPlan, ConfidenceGoalInput } from "@/lib/confidence-tracker-validation";
+import { isOptionalClosed } from "@/lib/date-utils";
+
+const MAX_SUBMISSION_FILES = 10;
+
+const noopSubscribe = () => () => {};
 
 
 
@@ -44,38 +56,55 @@ function isImageUrl(url: string | null): boolean {
   return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(url)
 }
 
+// Stable default -- SubmissionComments resyncs whenever this prop's identity changes
+const NO_COMMENTS: CommentEntry[] = [];
+
 export default function SubmissionForm({
   assignmentId,
   studentId,
   courseId,
   existingSubmission,
   initialHistory,
+  confidenceSkills,
   checklistItems,
   initialChecked,
   instructorResponseMap,
   isObserver,
   isStudentPreview,
-  initialComments = [],
+  viewingAs,
+  initialComments = NO_COMMENTS,
   currentUserName = 'Student',
   currentUserRole = 'student',
+  optionalClosesOn = null,
 }: {
   assignmentId: string;
   studentId: string;
   courseId: string;
   existingSubmission: Submission | null;
   initialHistory: HistoryEntry[];
+  confidenceSkills: ConfidenceSkillWithStatus[];
   checklistItems?: ChecklistItem[];
   initialChecked?: Record<string, boolean>;
   instructorResponseMap?: Map<string, boolean>;
   isObserver?: boolean;
   isStudentPreview?: boolean;
+  /** Set while an admin views a student's pages: shows the student's work, read-only */
+  viewingAs?: string;
   initialComments?: CommentEntry[];
   currentUserName?: string;
   currentUserRole?: string;
+  /** Effective due date of an optional assignment; submissions close after it passes. */
+  optionalClosesOn?: string | null;
 }) {
   const [saved, setSaved] = useState<Submission | null>(existingSubmission);
   const [mode, setMode] = useState<Mode>(existingSubmission ? "view" : "edit");
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
+
+  // Browser timezone on the client; null during SSR/hydration, where isOptionalClosed falls back
+  // to the latest timezone on earth so the server never shows it closed early
+  const browserTz = useSyncExternalStore(noopSubscribe, () => Intl.DateTimeFormat().resolvedOptions().timeZone, () => null);
+  const closed = isOptionalClosed(optionalClosesOn, browserTz);
+  const locked = !!isObserver || !!viewingAs || closed;
 
   const hasChecklist = !!checklistItems && checklistItems.length > 0;
   const [checked, setChecked] = useState<Record<string, boolean>>(initialChecked ?? {});
@@ -95,23 +124,93 @@ export default function SubmissionForm({
   const [tab, setTab] = useState<SubmissionType>(existingSubmission?.submission_type ?? "link");
   const [linkContent, setLinkContent] = useState("");
   const [textContent, setTextContent] = useState("");
-  const [fileUrl, setFileUrl] = useState("");
+  const [fileUrls, setFileUrls] = useState<string[]>([]);
 
   const [previewMd, setPreviewMd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const showRatingPrompt = confidenceSkills.length > 0 && initialHistory.length === 0 && (!saved || saved.status === 'draft');
+  const ratingStorageKey = `confidence-ratings:${studentId}:${assignmentId}`;
+  const goalStorageKey = `confidence-goals:${studentId}:${assignmentId}`;
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [goals, setGoals] = useState<Record<string, GoalState>>({});
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  // One-time Phase 5 kudos for this submission; component-local on purpose (never persisted).
+  const [kudos, setKudos] = useState<KudosDisplayItem[]>([]);
+  // One-time Phase 6 celebration (goal reached, or a skill rated 10); likewise component-local and never replayed.
+  const [celebrations, setCelebrations] = useState<CelebrationDisplayItem[]>([]);
+
+  // Hydrate from sessionStorage after mount, not during the initial render — reading it
+  // in a lazy useState initializer would make the client's first render diverge from the
+  // server-rendered HTML (which has no access to sessionStorage), causing a hydration
+  // mismatch on whichever rating was previously selected.
+  useEffect(() => {
+    if (!showRatingPrompt) return;
+    try {
+      const stored = sessionStorage.getItem(ratingStorageKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from an external system (sessionStorage) on mount, not deriving state from props
+      if (stored) setRatings(JSON.parse(stored));
+      const storedGoals = sessionStorage.getItem(goalStorageKey);
+      if (storedGoals) setGoals(JSON.parse(storedGoals));
+    } catch { /* sessionStorage unavailable — ratings/goals just won't survive navigation */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally mount-only
+  }, []);
+
+  const handleRatingChange = (skillId: string, rating: number | null) => {
+    setRatings(prev => {
+      const next = { ...prev };
+      if (rating === null) {
+        delete next[skillId];
+      } else {
+        next[skillId] = rating;
+      }
+      try { sessionStorage.setItem(ratingStorageKey, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const handleGoalChange = (skillId: string, patch: Partial<GoalState> | null) => {
+    setGoals(prev => {
+      const next = { ...prev };
+      if (patch === null) {
+        delete next[skillId];
+      } else {
+        const defaults: GoalState = { goal: null, targetDate: '', studyPlan: [], studyPlanOther: '' };
+        next[skillId] = { ...(next[skillId] ?? defaults), ...patch };
+      }
+      try { sessionStorage.setItem(goalStorageKey, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  // The one place in this feature where something blocks Submit — every other
+  // confidence-tracker input (Phase 2's ratings, a goal itself) is best-effort/optional,
+  // but once a numeric goal is set, its target date + study plan are required alongside
+  // it.
+  const isGoalIncomplete = Object.values(goals).some(g =>
+    g.goal != null &&
+    (!g.targetDate || g.studyPlan.length === 0 || (g.studyPlan.includes('other') && !g.studyPlanOther.trim()))
+  );
+
+  const clearStoredConfidenceData = () => {
+    try {
+      sessionStorage.removeItem(ratingStorageKey);
+      sessionStorage.removeItem(goalStorageKey);
+    } catch { /* ignore */ }
+  };
+
   const getContent = () => {
     if (tab === "link") return linkContent.trim();
     if (tab === "text") return textContent.trim();
-    return fileUrl;
+    return fileUrls.length > 0 ? serializeFileUrls(fileUrls) : "";
   };
 
   const hasContent = tab === "link"
     ? linkContent.trim().length > 0
     : tab === "text"
       ? textContent.trim().length > 0
-      : fileUrl.length > 0;
+      : fileUrls.length > 0;
 
   const [commentText, setCommentText] = useState('');
   useUnsavedChanges((mode === 'edit' && hasContent) || commentText.trim().length > 0);
@@ -119,7 +218,7 @@ export default function SubmissionForm({
   const clearForm = () => {
     setLinkContent("");
     setTextContent("");
-    setFileUrl("");
+    setFileUrls([]);
     setError(null);
   };
 
@@ -128,7 +227,7 @@ export default function SubmissionForm({
       setTab(saved.submission_type)
       if (saved.submission_type === "link") setLinkContent(saved.content ?? "")
       else if (saved.submission_type === "text") setTextContent(saved.content ?? "")
-      else setFileUrl(saved.content ?? "")
+      else setFileUrls(parseFileUrls(saved.content))
     }
     setError(null)
     setMode("edit")
@@ -148,37 +247,80 @@ export default function SubmissionForm({
     setError(null);
     setSubmitting(true);
 
-    const result = await saveSubmission(
-      assignmentId,
-      status,
-      content,
-      type,
-      saved?.id ?? null,
-      saved?.submitted_at ?? null,
-      status === 'submitted' ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? null) : null,
-    );
+    try {
+      const result = await saveSubmission(
+        assignmentId,
+        status,
+        content,
+        type,
+        saved?.id ?? null,
+        saved?.submitted_at ?? null,
+        status === 'submitted' ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? null) : null,
+      );
 
-    setSubmitting(false);
+      if (result.error) {
+        setError(`Failed to save: ${result.error}`);
+        return null;
+      }
 
-    if (result.error) {
-      setError(`Failed to save: ${result.error}`);
+      const newSaved = result.data as Submission;
+      setSaved(newSaved);
+
+      if (status === "submitted" && result.historyEntry) {
+        setHistory(prev => [result.historyEntry as HistoryEntry, ...prev]);
+      }
+
+      return newSaved;
+    } catch {
+      setError("Failed to save: network error. Please check your connection and try again.");
       return null;
+    } finally {
+      setSubmitting(false);
     }
-
-    const newSaved = result.data as Submission;
-    setSaved(newSaved);
-
-    if (status === "submitted" && result.historyEntry) {
-      setHistory(prev => [result.historyEntry as HistoryEntry, ...prev]);
-    }
-
-    return newSaved;
   };
 
   const handleSubmit = async () => {
     const content = getContent();
     const newSaved = await doSave("submitted", content, tab);
     if (newSaved) {
+      if (showRatingPrompt) {
+        const entries = Object.entries(ratings).map(([skillId, rating]) => {
+          const g = goals[skillId];
+          const goal: ConfidenceGoalInput | undefined =
+            g?.goal == null
+              ? undefined
+              : {
+                  goal: g.goal,
+                  targetDate: g.targetDate,
+                  studyPlan: g.studyPlan as StudyPlan[],
+                  studyPlanOther: g.studyPlan.includes('other') ? g.studyPlanOther : undefined,
+                };
+          return { skillId, rating, goal };
+        });
+        if (entries.length > 0) {
+          const { error: ratingSaveError, kudos: kudosItems, celebrations: celebrationItems } = await saveConfidenceRatings(assignmentId, entries);
+          if (ratingSaveError) {
+            setRatingError("Your assignment was submitted, but we couldn't save your confidence rating(s) or goal due to an error — please let your instructor know.");
+          } else {
+            // A rise to 10 is celebrated instead (the server leaves it out of the kudos), so each skill gets one message.
+            setKudos(
+              (kudosItems ?? []).flatMap(k => {
+                const skill = confidenceSkills.find(s => s.id === k.skillId);
+                return skill ? [{ skillName: skill.name, from: k.from, to: k.to }] : [];
+              })
+            );
+          }
+          if (!ratingSaveError && celebrationItems && celebrationItems.length > 0) {
+            setCelebrations(
+              celebrationItems.flatMap(c => {
+                const skill = confidenceSkills.find(s => s.id === c.skillId);
+                return skill ? [{ ...c, skillName: skill.name }] : [];
+              })
+            );
+          }
+        }
+        clearStoredConfidenceData();
+      }
       clearForm();
       setMode("view");
     }
@@ -215,9 +357,19 @@ export default function SubmissionForm({
         Assignment submission is disabled in Student View.
       </div>
     )}
-    {isObserver && (
+    {viewingAs && (
+      <div className="bg-surface border border-border rounded-xl px-4 py-3 text-sm text-muted-text">
+        Viewing as {viewingAs} — read-only. You&apos;re seeing their submission and comments exactly as they do.
+      </div>
+    )}
+    {isObserver && !viewingAs && (
       <div className="status-late-badge border rounded-xl px-4 py-3 text-sm">
         You&apos;re currently on leave. Your submitted work is visible below, but submissions are paused.
+      </div>
+    )}
+    {closed && !isObserver && !viewingAs && (
+      <div className="bg-surface border border-border rounded-xl px-4 py-3 text-sm text-muted-text">
+        This optional assignment is closed — the due date has passed{saved?.status === 'submitted' || saved?.status === 'graded' ? '' : ', so it no longer accepts submissions'}.
       </div>
     )}
     {hasChecklist && (
@@ -246,8 +398,8 @@ export default function SubmissionForm({
                     type="button"
                     role="checkbox"
                     aria-checked={!!checked[item.id]}
-                    onClick={() => !isObserver && toggleCheck(item.id)}
-                    className={`flex items-start gap-3 flex-1 text-left group ${isObserver ? 'pointer-events-none opacity-60' : ''}`}
+                    onClick={() => !locked && toggleCheck(item.id)}
+                    className={`flex items-start gap-3 flex-1 text-left group ${locked ? 'pointer-events-none opacity-60' : ''}`}
                   >
                     <span aria-hidden="true" className={`w-4 h-4 mt-0.5 rounded border shrink-0 flex items-center justify-center transition-colors ${
                       checked[item.id]
@@ -323,6 +475,16 @@ export default function SubmissionForm({
         )}
       </div>
 
+      {ratingError && (
+        <p role="alert" aria-live="assertive" className="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+          {ratingError}
+        </p>
+      )}
+
+      <GoalMetCelebration items={celebrations} onDismiss={() => setCelebrations([])} />
+
+      <ConfidenceKudos items={kudos} onDismiss={() => setKudos([])} />
+
       {/* ── VIEW MODE: show submitted content ── */}
       {mode === "view" && saved && (
         <>
@@ -337,15 +499,31 @@ export default function SubmissionForm({
             </p>
             {!saved.content ? (
               <p className="text-sm text-muted-text italic">No submission content — graded by instructor.</p>
-            ) : saved.submission_type === "file" && isImageUrl(saved.content) ? (
-              <a href={normalizeUrl(saved.content)} target="_blank" rel="noopener noreferrer" className="block w-fit">
-                <img
-                  src={saved.content ?? ""}
-                  alt="Submitted file"
-                  className="max-h-48 max-w-full rounded-lg border border-border object-contain hover:opacity-90 transition-opacity"
-                />
-              </a>
-            ) : saved.submission_type === "file" || saved.submission_type === "link" ? (
+            ) : saved.submission_type === "file" ? (
+              <div className="flex flex-wrap gap-2">
+                {parseFileUrls(saved.content).map((url, i) => (
+                  isImageUrl(url) ? (
+                    <a key={i} href={submissionFileHref(url)} target="_blank" rel="noopener noreferrer" className="block w-fit">
+                      <img
+                        src={submissionFileHref(url)}
+                        alt="Submitted file"
+                        className="max-h-48 max-w-full rounded-lg border border-border object-contain hover:opacity-90 transition-opacity"
+                      />
+                    </a>
+                  ) : (
+                    <a
+                      key={i}
+                      href={submissionFileHref(url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-teal-primary underline break-all"
+                    >
+                      {submissionFileName(url)}
+                    </a>
+                  )
+                ))}
+              </div>
+            ) : saved.submission_type === "link" ? (
               <a
                 href={normalizeUrl(saved.content)}
                 target="_blank"
@@ -364,7 +542,7 @@ export default function SubmissionForm({
               Your instructor has requested revisions. Review their feedback and resubmit when ready.
             </p>
           )}
-          {!isObserver && canResubmit && (
+          {!locked && canResubmit && (
             <button
               type="button"
               onClick={() => saved?.status === 'draft' || saved?.submission_type !== 'link' ? editDraft() : setMode("confirm-resubmit")}
@@ -394,15 +572,31 @@ export default function SubmissionForm({
                       hour: "numeric", minute: "2-digit",
                     })}
                   </span>
-                  {entry.submission_type === "file" && isImageUrl(entry.content) ? (
-                    <a href={normalizeUrl(entry.content)} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <img
-                        src={entry.content ?? ""}
-                        alt="Submitted file"
-                        className="max-h-16 max-w-full rounded border border-border object-contain hover:opacity-90 transition-opacity"
-                      />
-                    </a>
-                  ) : entry.submission_type === "file" || entry.submission_type === "link" ? (
+                  {entry.submission_type === "file" ? (
+                    <div className="flex flex-wrap gap-2 flex-1">
+                      {parseFileUrls(entry.content).map((url, i) => (
+                        isImageUrl(url) ? (
+                          <a key={i} href={submissionFileHref(url)} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={submissionFileHref(url)}
+                              alt="Submitted file"
+                              className="max-h-16 max-w-full rounded border border-border object-contain hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            key={i}
+                            href={submissionFileHref(url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-primary underline break-all"
+                          >
+                            {submissionFileName(url)}
+                          </a>
+                        )
+                      ))}
+                    </div>
+                  ) : entry.submission_type === "link" ? (
                     <a
                       href={normalizeUrl(entry.content)}
                       target="_blank"
@@ -422,7 +616,7 @@ export default function SubmissionForm({
       )}
 
       {/* ── CONFIRM RESUBMIT MODE ── */}
-      {!isObserver && mode === "confirm-resubmit" && saved && (
+      {!locked && mode === "confirm-resubmit" && saved && (
         <div className="bg-background rounded-xl border border-border p-4 flex flex-col gap-4">
           <p className="text-sm font-medium text-dark-text">
             Is your {saved.submission_type === "link" ? "link" : saved.submission_type === "file" ? "file" : "response"} the same as before?
@@ -457,7 +651,7 @@ export default function SubmissionForm({
       )}
 
       {/* ── EDIT MODE: submission form ── */}
-      {!isObserver && mode === "edit" && (
+      {mode === "edit" && !locked && (
         <>
           {/* Tab selector */}
           <div role="tablist" aria-label="Submission type" className="flex gap-1 bg-background rounded-lg p-1 border border-border w-fit">
@@ -522,55 +716,118 @@ export default function SubmissionForm({
           )}
 
           {tab === "file" && (
-            <FileUpload
-              bucket="lms-submissions"
-              path={`${assignmentId}/${studentId}/`}
-              onUpload={(url) => setFileUrl(url)}
-              onError={setError}
-            />
+            <div className="flex flex-col gap-2">
+              <FileUpload
+                bucket="lms-submissions"
+                path={`${assignmentId}/${studentId}/`}
+                multiple
+                onUpload={(_url, _name, path) => {
+                  setError(null);
+                  // Store the storage path, not a URL — the bucket is private
+                  setFileUrls(prev => {
+                    if (prev.includes(path)) return prev;
+                    if (prev.length >= MAX_SUBMISSION_FILES) {
+                      setError(`You can attach up to ${MAX_SUBMISSION_FILES} files per submission.`);
+                      return prev;
+                    }
+                    return [...prev, path];
+                  });
+                }}
+                onError={setError}
+              />
+              {fileUrls.length > 0 && (
+                <ul className="flex flex-col gap-1">
+                  {fileUrls.map((url, i) => (
+                    <li key={url} className="flex items-center gap-2 text-xs">
+                      {isImageUrl(url) ? (
+                        <img src={submissionFileHref(url)} alt="" className="h-10 w-10 rounded border border-border object-cover shrink-0" />
+                      ) : null}
+                      <a href={submissionFileHref(url)} target="_blank" rel="noopener noreferrer" className="text-teal-primary truncate hover:underline flex-1">
+                        {submissionFileName(url)}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setFileUrls(prev => prev.filter((_, idx) => idx !== i))}
+                        className="text-muted-text hover:text-red-400 transition-colors shrink-0"
+                        aria-label={`Remove ${submissionFileName(url)}`}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
-
-          <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting || !allChecked || !hasContent || !!isStudentPreview}
-              className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-            >
-              {submitting ? "Submitting…" : "Submit"}
-            </button>
-            {(!allChecked || !hasContent) && (
-              <p className="text-xs text-amber-700">
-                {!hasContent && !allChecked
-                  ? "Add your submission and complete all checklist items to submit."
-                  : !hasContent
-                    ? "Add your submission to submit."
-                    : "Complete all checklist items to submit."}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleDraft}
-              disabled={submitting}
-              className="text-sm text-muted-text hover:text-dark-text disabled:opacity-50 transition-colors"
-            >
-              Save draft
-            </button>
-            {saved && (
-              <button
-                type="button"
-                onClick={() => { clearForm(); setMode("view"); }}
-                className="text-sm text-muted-text hover:text-dark-text transition-colors"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
         </>
       )}
     </div>
+
+    {/* Confidence check — its own section, separate from Turn In, still appears
+        before the Submit button below. */}
+    {mode === "edit" && showRatingPrompt && (
+      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-4">
+        <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Confidence Check (Optional)</p>
+        <ConfidenceRatingPrompt
+          skills={confidenceSkills}
+          value={ratings}
+          onChange={handleRatingChange}
+          goals={goals}
+          onGoalChange={handleGoalChange}
+          // Student View can rate and set goals to see the real experience; it still can't submit or save
+          // (Submit is disabled and doSave returns early in preview). Observers stay read-only.
+          disabled={isObserver}
+        />
+        {isGoalIncomplete && (
+          <p className="text-xs text-muted-text">
+            Finish setting your skill goal(s) above before submitting.
+          </p>
+        )}
+      </div>
+    )}
+
+    {mode === "edit" && !locked && (
+      <div className="bg-surface rounded-2xl border border-border p-4 sm:p-6 flex flex-col gap-3">
+        <p role="alert" aria-live="assertive" className="text-xs text-red-400 min-h-[1rem]">{error ?? ''}</p>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || !allChecked || !hasContent || !!isStudentPreview || (showRatingPrompt && isGoalIncomplete)}
+            className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          >
+            {submitting ? "Submitting…" : "Submit"}
+          </button>
+          {(!allChecked || !hasContent) && (
+            <p className="text-xs text-amber-700">
+              {!hasContent && !allChecked
+                ? "Add your submission and complete all checklist items to submit."
+                : !hasContent
+                  ? "Add your submission to submit."
+                  : "Complete all checklist items to submit."}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleDraft}
+            disabled={submitting}
+            className="text-sm text-muted-text hover:text-dark-text disabled:opacity-50 transition-colors"
+          >
+            Save draft
+          </button>
+          {saved && (
+            <button
+              type="button"
+              onClick={() => { clearForm(); setMode("view"); }}
+              className="text-sm text-muted-text hover:text-dark-text transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    )}
 
     {/* Threaded comments — always visible below the form (student and instructor can message back and forth) */}
     {!isStudentPreview && (
@@ -581,6 +838,7 @@ export default function SubmissionForm({
         currentUserName={currentUserName}
         currentUserRole={currentUserRole}
         isObserver={isObserver}
+        readOnly={!!viewingAs}
         text={commentText}
         onTextChange={setCommentText}
       />

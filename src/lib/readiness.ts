@@ -1,0 +1,683 @@
+// Server-side only — weekly readiness score + escalation state machine for the
+// student-accountability feature. Reuses the Mon–Thu week/course/attendance
+// plumbing already built for the Friday instructor digest (see weekly-report.ts).
+
+import type { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { fetchClassAttendanceWeekly, type ClassStudentWeekly } from '@/lib/airtable'
+import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats'
+import {
+  courseRanDuringWeek,
+  getCourseStudents,
+  getWeekRanges,
+  resolveAirtableCourseName,
+  type CourseRow,
+} from '@/lib/weekly-report'
+import { notifyByEmail, openGroupDM, slackEscape, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { findPredecessorCourse, getReadinessChain } from '@/lib/readiness-chain'
+import { isExcludedFromReadiness } from '@/lib/excluded-students'
+
+type AdminClient = ReturnType<typeof createServiceSupabaseClient>
+
+export type Zone = 'red' | 'yellow' | 'green'
+
+/**
+ * score = 5, minus 1 whole point per every full 2 blocks missed that week,
+ * minus 1 whole point per every full 3 missing assignments, minus 1 whole
+ * point per every full 2 times a submission was returned as Needs Revision
+ * *during* that week (Mon-Sun, so weekend grading counts) -- every return counts (from grade_history), not just
+ * whatever is still sitting in that state when this runs, so resubmitting
+ * unfinished work just to clear the current-state count no longer helps.
+ * Stepped, not continuous -- e.g. 1 needs-revision return costs nothing, 2
+ * cost exactly 1 point, 3 still only cost 1 point. Weights and the 0-5 scale
+ * were set directly by the program (student-accountability feature), not
+ * inferred from data.
+ */
+export function computeReadinessScore(
+  missingCount: number,
+  needsRevisionCount: number,
+  blocksMissed: number,
+): number {
+  const raw = 5
+    - Math.floor(blocksMissed / 2)
+    - Math.floor(missingCount / 3)
+    - Math.floor(needsRevisionCount / 2)
+  return Math.max(0, Math.min(5, raw))
+}
+
+export function zoneForScore(score: number): Zone {
+  if (score >= 4) return 'green'
+  if (score >= 2) return 'yellow'
+  return 'red'
+}
+
+const ZONE_RANK: Record<Zone, number> = { red: 0, yellow: 1, green: 2 }
+
+function isBetterZone(zone: Zone, than: Zone): boolean {
+  return ZONE_RANK[zone] > ZONE_RANK[than]
+}
+
+export type EscalationStatus = 'none' | 'step1' | 'step2' | 'step3' | 'resolved'
+
+type EscalationStateRow = {
+  id: string
+  status: EscalationStatus
+  zone_at_step_start: Zone | null
+  consecutive_good_weeks: number
+  grace_week_used: boolean
+}
+
+type EscalationEventType =
+  | 'step1_started' | 'step1_reminder' | 'step1_completed'
+  | 'step2_started' | 'step2_reminder' | 'step2_completed'
+  | 'step3_started'
+  | 'reset' | 'manual_note'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.anniecannons.com'
+
+async function studentContactEmail(admin: AdminClient, studentId: string): Promise<{ name: string; email: string } | null> {
+  const { data } = await admin.from('users').select('name, email, slack_email').eq('id', studentId).single()
+  type Row = { name: string; email: string; slack_email: string | null }
+  const row = data as Row | null
+  return row ? { name: row.name, email: row.slack_email ?? row.email } : null
+}
+
+/** The course's readiness Slack channel, as set in course setup / Edit Course Settings. */
+async function courseReadinessChannel(admin: AdminClient, courseId: string): Promise<string | null> {
+  const { data: courseRow } = await admin
+    .from('courses')
+    .select('readiness_slack_channel')
+    .eq('id', courseId)
+    .single()
+  const channel = (courseRow as { readiness_slack_channel: string | null } | null)?.readiness_slack_channel ?? null
+  if (!channel) console.warn(`readiness: no Slack channel set for course ${courseId} -- channel post skipped`)
+  return channel
+}
+
+/** Posts to the course's readiness channel when a student starts step 1 or advances to step 2. */
+async function notifyChannelOfStepStart(admin: AdminClient, courseId: string, studentName: string, step: 1 | 2): Promise<void> {
+  const channel = await courseReadinessChannel(admin, courseId)
+  if (!channel) return
+  const startedText = step === 1 ? 'started the accountability process' : 'moved to step 2'
+  await slackPostMessage(
+    channel,
+    `${slackEscape(studentName)} has ${startedText}. Once they submit their form this channel will be notified. If 48 hours passes and the form is not submitted, both the student and this channel will get a notification.`,
+  )
+}
+
+async function sendStep1(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
+  const student = await studentContactEmail(admin, studentId)
+  if (!student) return
+  await notifyByEmail(
+    student.email,
+    `Hi ${slackEscape(student.name)}! We noticed you've had a tough week or two. Please take a few minutes to fill out a quick check in. ${APP_URL}/student/readiness`,
+  )
+  await notifyChannelOfStepStart(admin, courseId, student.name, 1)
+}
+
+async function sendStep2(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
+  const student = await studentContactEmail(admin, studentId)
+  if (!student) return
+  await notifyByEmail(
+    student.email,
+    `Hi ${slackEscape(student.name)}, since things haven't turned around yet, we'd like you to fill out a short goals & reflection check-in. ${APP_URL}/student/readiness`,
+  )
+  await notifyChannelOfStepStart(admin, courseId, student.name, 2)
+}
+
+/** Posts to the course's readiness channel and DMs the student when 2 consecutive good weeks close out the process. */
+async function sendResolved(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
+  const student = await studentContactEmail(admin, studentId)
+  const name = slackEscape(student?.name ?? 'This student')
+  const channel = await courseReadinessChannel(admin, courseId)
+
+  if (channel) {
+    await slackPostMessage(
+      channel,
+      `${name} has completed the accountability process after two consecutive weeks in good standing. Please follow up and congratulate them!`,
+    )
+  }
+
+  if (student) {
+    await notifyByEmail(
+      student.email,
+      `Great news, ${slackEscape(student.name)}! You've had two solid weeks in a row and you're back in good standing. Keep up the momentum! \u{1F389}`,
+    )
+  }
+}
+
+/** Always in step 3 group DMs, on top of the student and the course's accountability instructors. */
+const STEP3_ALWAYS_EMAILS = ['cmh@anniecannons.com', 'robyn@anniecannons.com', 'dawn@anniecannons.com']
+
+/**
+ * The course's actual instructors as picked in course setup / Edit Course
+ * Settings (courses.readiness_instructor_ids) -- not every role='instructor'
+ * enrollment, which also holds staff who self-enrolled to edit content.
+ */
+async function readinessInstructorEmails(admin: AdminClient, courseId: string): Promise<string[]> {
+  const { data: courseRow } = await admin
+    .from('courses')
+    .select('readiness_instructor_ids')
+    .eq('id', courseId)
+    .single()
+  const ids = (courseRow as { readiness_instructor_ids: string[] | null } | null)?.readiness_instructor_ids ?? []
+  if (ids.length === 0) return []
+  const { data: userRows } = await admin.from('users').select('email, slack_email').in('id', ids)
+  type Row = { email: string; slack_email: string | null }
+  return ((userRows as Row[] | null) ?? [])
+    .map(u => u.slack_email ?? u.email)
+    .filter((e): e is string => !!e)
+}
+
+/** Slack user ids for a list of emails, skipping blanks and duplicates. */
+async function slackIdsForEmails(emails: (string | null | undefined)[]): Promise<string[]> {
+  const unique = [...new Set(emails.filter((e): e is string => !!e).map(e => e.toLowerCase()))]
+  const ids = (await Promise.all(unique.map(slackLookupByEmail))).filter((id): id is string => !!id)
+  return [...new Set(ids)]
+}
+
+async function sendStep3(admin: AdminClient, studentId: string, courseId: string): Promise<void> {
+  const student = await studentContactEmail(admin, studentId)
+  const instructorEmails = await readinessInstructorEmails(admin, courseId)
+  const slackIds = await slackIdsForEmails([student?.email, ...STEP3_ALWAYS_EMAILS, ...instructorEmails])
+  if (slackIds.length < 2) {
+    console.warn(`readiness: could not resolve enough Slack IDs for step3 group DM (student ${studentId})`)
+    return
+  }
+
+  const channel = await openGroupDM(slackIds)
+  if (!channel) return
+  const greeting = student?.name ? `Hi ${slackEscape(student.name)}!` : 'Hi!'
+  await slackPostMessage(
+    channel,
+    `${greeting} We wanted to get everyone together in one place. You have been in the readiness process and are now in step 3. Let's get a meeting on the calendar so we can all get on the same page and see if we can make a plan to get you back to good standing. One of us will follow up here with a few times shortly.`,
+  )
+}
+
+const FOLLOW_UP_PROMPT =
+  "Who will follow up with the student regarding this? If there is a staff member already working with the student, it should be them. Otherwise the instructor should follow up unless they are feeling like they need more support. If you would like more support, please let us know here."
+
+/**
+ * Posts to the course's readiness channel when they complete a step1/step2
+ * check-in, linking straight to the staff roster view where the full response
+ * is readable (via "View response" in the accountability history).
+ */
+export async function notifyStaffOfCheckinCompletion(
+  admin: AdminClient,
+  studentId: string,
+  courseId: string,
+  formType: 'acknowledgment' | 'reflection',
+): Promise<void> {
+  const channel = await courseReadinessChannel(admin, courseId)
+  if (!channel) return
+
+  const { data: studentRow } = await admin.from('users').select('name').eq('id', studentId).single()
+  const studentName = slackEscape((studentRow as { name: string } | null)?.name ?? 'A student')
+  const formLabel = formType === 'acknowledgment' ? 'step 1 check-in' : 'step 2 reflection'
+  const link = `${APP_URL}/instructor/courses/${courseId}/roster/${studentId}`
+
+  await slackPostMessage(
+    channel,
+    `*${studentName}* just completed their ${formLabel}: ${link}\n\n${FOLLOW_UP_PROMPT}`,
+  )
+}
+
+async function countYellowWeeksInWindow(
+  admin: AdminClient,
+  studentId: string,
+  chain: string[],
+  uptoWeekStart: string,
+): Promise<number> {
+  // Across the whole readiness chain, so TCF weeks count toward an ITP
+  // student's 4-week window.
+  const { data } = await admin
+    .from('student_stats_snapshots')
+    .select('readiness_score')
+    .eq('student_id', studentId)
+    .in('course_id', chain)
+    .lte('week_start', uptoWeekStart)
+    .order('week_start', { ascending: false })
+    .limit(4)
+
+  type Row = { readiness_score: number | null }
+  return ((data as Row[]) ?? []).filter(
+    r => r.readiness_score != null && zoneForScore(r.readiness_score) === 'yellow',
+  ).length
+}
+
+type WeeklyResult = { score: number; zone: Zone }
+
+const STATE_COLUMNS = 'id, status, zone_at_step_start, consecutive_good_weeks, grace_week_used'
+
+/**
+ * This course's escalation state for the student. On an ITP student's first
+ * scored week, there's no ITP row yet -- their TCF row (if any) is moved onto
+ * the ITP course so the process continues exactly where it left off (step,
+ * grace week, good-week streak, step start, reminder). Moved rather than
+ * copied so the reminder cron never sees two live rows for one student.
+ * Safe to do here: ITP is only scored once TCF's final week is behind it
+ * (see courseRanDuringWeek).
+ */
+async function loadEscalationStateCarryingOver(
+  admin: AdminClient,
+  studentId: string,
+  courseId: string,
+  chain: string[],
+): Promise<EscalationStateRow | null> {
+  const { data: existing } = await admin
+    .from('escalation_states')
+    .select(STATE_COLUMNS)
+    .eq('student_id', studentId)
+    .eq('course_id', courseId)
+    .maybeSingle()
+  if (existing) return existing as EscalationStateRow
+
+  const earlierCourseIds = chain.filter(id => id !== courseId)
+  if (earlierCourseIds.length === 0) return null
+
+  const { data: earlier } = await admin
+    .from('escalation_states')
+    .select(STATE_COLUMNS)
+    .eq('student_id', studentId)
+    .in('course_id', earlierCourseIds)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!earlier) return null
+
+  const row = earlier as EscalationStateRow
+  const { error } = await admin.from('escalation_states').update({ course_id: courseId }).eq('id', row.id)
+  if (error) {
+    console.warn(`readiness: could not carry escalation state over to course ${courseId} for student ${studentId}:`, error)
+    return null
+  }
+  return row
+}
+
+/**
+ * Runs the escalation trigger/advance/reset rules for one student for the week
+ * that was just scored. See the "Escalation State Machine" section of the
+ * student-accountability plan for the exact rules — they were specified
+ * directly by the program, not inferred.
+ */
+async function evaluateEscalationForStudent(
+  admin: AdminClient,
+  studentId: string,
+  courseId: string,
+  chain: string[],
+  weekStart: string,
+  result: WeeklyResult,
+): Promise<void> {
+  // Guard against reprocessing a week that's already been evaluated (e.g. a
+  // manual re-run, a retry, or the cron firing twice within its self-gated
+  // hour) -- without this, re-running the same week_start would advance the
+  // escalation state a second time for no new data.
+  const { data: alreadyProcessed } = await admin
+    .from('escalation_events')
+    .select('id')
+    .eq('student_id', studentId)
+    .eq('course_id', courseId)
+    .eq('week_start', weekStart)
+    .limit(1)
+  if (alreadyProcessed && alreadyProcessed.length > 0) return
+
+  const state = await loadEscalationStateCarryingOver(admin, studentId, courseId, chain)
+  const nowIso = new Date().toISOString()
+
+  const logEvent = async (event_type: EscalationEventType, note?: string) => {
+    await admin.from('escalation_events').insert({
+      student_id: studentId,
+      course_id: courseId,
+      week_start: weekStart,
+      event_type,
+      score: result.score,
+      note: note ?? null,
+    })
+  }
+
+  // No active process -- check whether this week's score should start one.
+  if (!state || state.status === 'none') {
+    if (result.zone === 'red') {
+      await admin.from('escalation_states').upsert({
+        student_id: studentId,
+        course_id: courseId,
+        status: 'step1',
+        step_started_at: nowIso,
+        zone_at_step_start: result.zone,
+        trigger_reason: 'red_zone',
+        consecutive_good_weeks: 0,
+        grace_week_used: false,
+        reminder_sent_at: null,
+      }, { onConflict: 'student_id,course_id' })
+      await logEvent('step1_started', 'red zone')
+      await sendStep1(admin, studentId, courseId)
+      return
+    }
+
+    if (result.zone === 'yellow') {
+      const yellowWeeks = await countYellowWeeksInWindow(admin, studentId, chain, weekStart)
+      if (yellowWeeks >= 2) {
+        await admin.from('escalation_states').upsert({
+          student_id: studentId,
+          course_id: courseId,
+          status: 'step1',
+          step_started_at: nowIso,
+          zone_at_step_start: result.zone,
+          trigger_reason: 'yellow_zone_pattern',
+          consecutive_good_weeks: 0,
+          grace_week_used: false,
+          reminder_sent_at: null,
+        }, { onConflict: 'student_id,course_id' })
+        await logEvent('step1_started', `${yellowWeeks} of last 4 weeks in yellow zone`)
+        await sendStep1(admin, studentId, courseId)
+      }
+    }
+    return
+  }
+
+  if (state.status === 'resolved') return // manually closed -- don't auto-reopen
+
+  // Active process: update the good-standing streak first; 2 consecutive green
+  // weeks resets regardless of which step the student is on.
+  const goodStreak = result.zone === 'green' ? state.consecutive_good_weeks + 1 : 0
+
+  if (goodStreak >= 2) {
+    await admin.from('escalation_states').update({
+      status: 'none',
+      consecutive_good_weeks: 0,
+      grace_week_used: false,
+      step_started_at: null,
+      reminder_sent_at: null,
+      zone_at_step_start: null,
+      trigger_reason: null,
+    }).eq('id', state.id)
+    await logEvent('reset', '2 consecutive weeks in good standing')
+    await sendResolved(admin, studentId, courseId)
+    return
+  }
+
+  await admin.from('escalation_states').update({ consecutive_good_weeks: goodStreak }).eq('id', state.id)
+
+  // A green week never advances a step on its own -- it only counts toward the
+  // 2-consecutive-week reset handled above. Only a non-green week is evaluated
+  // for advancement here.
+  if (result.zone === 'green') return
+
+  const madeProgress = isBetterZone(result.zone, state.zone_at_step_start ?? 'red')
+
+  if (state.status === 'step1') {
+    if (madeProgress && !state.grace_week_used) {
+      // Some progress, but not yet green -- give one more week before advancing.
+      await admin.from('escalation_states').update({ grace_week_used: true }).eq('id', state.id)
+      return
+    }
+    await admin.from('escalation_states').update({
+      status: 'step2',
+      step_started_at: nowIso,
+      zone_at_step_start: result.zone,
+      grace_week_used: false,
+      reminder_sent_at: null,
+    }).eq('id', state.id)
+    await logEvent('step2_started')
+    await sendStep2(admin, studentId, courseId)
+    return
+  }
+
+  if (state.status === 'step2') {
+    // No grace week for step2 -> step3: any non-green result advances.
+    await admin.from('escalation_states').update({
+      status: 'step3',
+      step_started_at: nowIso,
+      zone_at_step_start: result.zone,
+      grace_week_used: false,
+      reminder_sent_at: null,
+    }).eq('id', state.id)
+    await logEvent('step3_started')
+    await sendStep3(admin, studentId, courseId)
+    return
+  }
+
+  // step3: no further automated advancement -- stays until a staff member resolves it.
+}
+
+/** The Sunday ending the week that starts on this Monday ('YYYY-MM-DD'). */
+export function sundayAfter(mondayStr: string): string {
+  const d = new Date(`${mondayStr}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 6)
+  return d.toISOString().slice(0, 10)
+}
+
+export type ReadinessJobResult = { courses: string[]; skippedBreak?: string }
+
+/**
+ * True when the given Mon-Thu scoring window falls entirely inside a
+ * calendar_holidays entry (e.g. Thanksgiving Week). A single-day holiday that
+ * only covers the Monday (MLK Day, Labor Day, etc.) does NOT count -- classes
+ * still meet the rest of that week, so it should still be scored normally.
+ * We deliberately do not score a break week at all (rather than scoring it
+ * and getting an all-green result) -- a quiet week with no assignments due
+ * and no attendance taken would otherwise look like real progress and could
+ * incorrectly count toward the 2-consecutive-good-weeks reset in the
+ * escalation state machine, pulling a student out of the process for a week
+ * where nothing was actually demonstrated.
+ */
+async function isWeekOnFullBreak(admin: AdminClient, weekStart: string, weekEnd: string): Promise<boolean> {
+  const { data } = await admin
+    .from('calendar_holidays')
+    .select('date, end_date')
+    .lte('date', weekStart)
+
+  return ((data as { date: string; end_date: string | null }[]) ?? []).some(
+    h => (h.end_date ?? h.date) >= weekEnd,
+  )
+}
+
+/**
+ * Monday-morning job: scores every student in every current course for the
+ * week that just ended (Mon-Thu). Missing-assignment count is *live* (as of
+ * when this runs) so weekend catch-up counts in the student's favor, but the
+ * needs-revision count is a historical tally of every return that happened
+ * during that week -- it can't be "caught up" by resubmitting. Upserts
+ * student_stats_snapshots and runs the escalation state machine.
+ */
+export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseId?: string): Promise<ReadinessJobResult> {
+  const weekRanges = getWeekRanges(now)
+  // Returns are counted Mon-Sun, not Mon-Thu like attendance: there's no class
+  // on Fridays but a lot of grading happens Fri-Sun, and those returns belong
+  // to the week just scored.
+  const returnsWindowEnd = sundayAfter(weekRanges.lastWeek.start)
+  if (await isWeekOnFullBreak(admin, weekRanges.lastWeek.start, weekRanges.lastWeek.end)) {
+    return { courses: [], skippedBreak: weekRanges.lastWeek.start }
+  }
+
+  const { data: courses } = await admin
+    .from('courses')
+    .select('id, name, start_date, end_date, is_template, archived, airtable_course_name, readiness_enabled')
+
+  type CourseRecord = CourseRow & { id: string; start_date: string | null; end_date: string | null; readiness_enabled: boolean | null }
+  const allCourses = (courses as CourseRecord[]) ?? []
+
+  const scoredCourses: string[] = []
+
+  for (const course of allCourses) {
+    if (onlyCourseId && (course as unknown as { id: string }).id !== onlyCourseId) continue
+    if (course.is_template || course.archived) continue
+    if (!courseRanDuringWeek(course.start_date, course.end_date, weekRanges.lastWeek)) continue
+    if (!course.readiness_enabled) continue
+
+    const airtableCourseName = resolveAirtableCourseName(course, allCourses)
+    // Instructors' fake student accounts never enter the process (see isExcludedFromReadiness).
+    const students = (await getCourseStudents(admin, (course as unknown as { id: string }).id, { excludeTestAccounts: false }))
+      .filter(s => !isExcludedFromReadiness(s.id))
+    if (students.length === 0) continue
+
+    const courseId = (course as unknown as { id: string }).id
+
+    // ITP continues from its cohort's TCF course: the escalation process and
+    // history carry over, and TCF assignments still unfinished keep counting
+    // as missing (until turned in) for students who were in TCF.
+    const predecessor = findPredecessorCourse(course, allCourses)
+    const chain = predecessor ? [predecessor.id, courseId] : [courseId]
+    const predecessorStudentIds = new Set(
+      predecessor ? (await getCourseStudents(admin, predecessor.id, { excludeTestAccounts: false })).map(s => s.id) : [],
+    )
+
+    // Keyed by airtable_student_id when known (safe even if two students share a
+    // display name); also indexed by normalized name as a fallback for
+    // enrollments not yet backfilled with airtable_student_id -- see the same
+    // pattern in buildCourseReport (weekly-report.ts).
+    const attendanceMap = new Map<string, ClassStudentWeekly>()
+    if (airtableCourseName) {
+      try {
+        const weekly = await fetchClassAttendanceWeekly(airtableCourseName, weekRanges.thisWeek, weekRanges.lastWeek)
+        for (const w of weekly) {
+          if (w.airtableStudentId) attendanceMap.set(w.airtableStudentId, w)
+          const nameKey = w.preferredName.trim().toLowerCase()
+          if (!attendanceMap.has(nameKey)) attendanceMap.set(nameKey, w)
+        }
+      } catch (e) {
+        console.warn(`readiness-score: attendance fetch failed for ${course.name}:`, e)
+      }
+    }
+
+    for (const student of students) {
+      const stats = await computeStudentAssignmentStats(admin, student.id, courseId)
+      const attendance = (student.airtableStudentId && attendanceMap.get(student.airtableStudentId))
+        || attendanceMap.get(student.name.trim().toLowerCase())
+      const attendancePctMissed = attendance && attendance.blocksLastWeek > 0
+        ? (attendance.absencesLastWeek / attendance.blocksLastWeek) * 100
+        : 0
+
+      let missingCount = stats.missing.length
+      let needsRevisionCount = await countNeedsRevisionEvents(
+        admin, student.id, courseId, weekRanges.lastWeek.start, returnsWindowEnd,
+      )
+      if (predecessor && predecessorStudentIds.has(student.id)) {
+        const priorStats = await computeStudentAssignmentStats(admin, student.id, predecessor.id)
+        missingCount += priorStats.missing.length
+        needsRevisionCount += await countNeedsRevisionEvents(
+          admin, student.id, predecessor.id, weekRanges.lastWeek.start, returnsWindowEnd,
+        )
+      }
+      const blocksMissed = attendance?.absencesLastWeek ?? 0
+      const score = computeReadinessScore(missingCount, needsRevisionCount, blocksMissed)
+      const zone = zoneForScore(score)
+
+      await admin.from('student_stats_snapshots').upsert({
+        student_id: student.id,
+        course_id: courseId,
+        week_start: weekRanges.lastWeek.start,
+        missing_count: missingCount,
+        needs_revision_count: needsRevisionCount,
+        attendance_pct_missed: attendancePctMissed,
+        blocks_missed: attendance?.absencesLastWeek ?? 0,
+        blocks_total: attendance?.blocksLastWeek ?? 0,
+        readiness_score: score,
+      }, { onConflict: 'student_id,course_id,week_start' })
+
+      await evaluateEscalationForStudent(admin, student.id, courseId, chain, weekRanges.lastWeek.start, { score, zone })
+    }
+
+    scoredCourses.push(course.name)
+  }
+
+  return { courses: scoredCourses }
+}
+
+async function hasCompletedCheckin(
+  admin: AdminClient,
+  studentId: string,
+  courseId: string,
+  status: 'step1' | 'step2',
+  sinceIso: string,
+): Promise<boolean> {
+  const formType = status === 'step1' ? 'acknowledgment' : 'reflection'
+  // A check-in submitted under TCF still counts once the state has moved to ITP.
+  const chain = await getReadinessChain(admin, courseId)
+  const { data } = await admin
+    .from('accountability_checkins')
+    .select('id')
+    .eq('student_id', studentId)
+    .in('course_id', chain)
+    .eq('form_type', formType)
+    .gte('created_at', sinceIso)
+    .limit(1)
+  return !!(data && data.length > 0)
+}
+
+export type EscalationReminderResult = { reminded: number }
+
+/**
+ * Checks for step1/step2 students who haven't completed their check-in within
+ * 48 hours and haven't already been reminded. Posts a staff-visibility nudge
+ * to the course's readiness channel, and separately opens a group Slack
+ * DM with the student and that course's instructors so the student is
+ * addressed directly with the instructor already looped in -- falling back to
+ * an individual DM to the student alone if the group DM can't be formed (e.g.
+ * a course with no enrolled instructor, or an unresolvable Slack account).
+ */
+export async function runEscalationReminders(admin: AdminClient, cutoffHours = 48, onlyCourseId?: string): Promise<EscalationReminderResult> {
+  const cutoff = new Date(Date.now() - cutoffHours * 60 * 60 * 1000).toISOString()
+  let query = admin
+    .from('escalation_states')
+    .select('id, student_id, course_id, status, step_started_at')
+    .in('status', ['step1', 'step2'])
+    .lte('step_started_at', cutoff)
+    .is('reminder_sent_at', null)
+  if (onlyCourseId) query = query.eq('course_id', onlyCourseId)
+  const { data } = await query
+
+  type Row = { id: string; student_id: string; course_id: string; status: 'step1' | 'step2'; step_started_at: string }
+  let reminded = 0
+
+  for (const row of (data as Row[]) ?? []) {
+    if (isExcludedFromReadiness(row.student_id)) continue
+    const completed = await hasCompletedCheckin(admin, row.student_id, row.course_id, row.status, row.step_started_at)
+    if (completed) continue
+
+    const channel = await courseReadinessChannel(admin, row.course_id)
+
+    const { data: studentRow } = await admin.from('users').select('name').eq('id', row.student_id).single()
+    const studentName = slackEscape((studentRow as { name: string } | null)?.name ?? 'A student')
+
+    const stepLabel = row.status === 'step1' ? '1' : '2'
+
+    if (channel) {
+      await slackPostMessage(
+        channel,
+        `Heads up: *${studentName}* hasn't completed their step ${stepLabel} accountability check-in yet (sent 48h+ ago).`,
+      )
+    }
+
+    // Also nudge the student directly, in a group DM with the course's
+    // accountability instructors so they see it land and can follow up
+    // without a second hop.
+    const instructorEmails = await readinessInstructorEmails(admin, row.course_id)
+
+    const student = await studentContactEmail(admin, row.student_id)
+    const reminderText = `Reminder: ${studentName}, your step ${stepLabel} form is overdue. Please fill it out as soon as possible, and let your instructor know if you need support. ${APP_URL}/student/readiness`
+
+    const reminderSlackIds = await slackIdsForEmails([student?.email, ...instructorEmails])
+    const reminderChannel = reminderSlackIds.length >= 2 ? await openGroupDM(reminderSlackIds) : null
+
+    if (reminderChannel) {
+      await slackPostMessage(reminderChannel, reminderText)
+    } else {
+      // Couldn't form the group DM (missing instructor, unresolvable Slack
+      // account, etc.) -- fall back to the staff channel (already notified
+      // above via the "Heads up" post) plus the student individually, so a
+      // lookup failure never means the student hears nothing.
+      console.warn(`readiness: could not open 48h reminder group DM for student ${row.student_id} -- falling back to individual DM`)
+      if (student) await notifyByEmail(student.email, reminderText)
+    }
+
+    await admin.from('escalation_states').update({ reminder_sent_at: new Date().toISOString() }).eq('id', row.id)
+    await admin.from('escalation_events').insert({
+      student_id: row.student_id,
+      course_id: row.course_id,
+      event_type: row.status === 'step1' ? 'step1_reminder' : 'step2_reminder',
+    })
+    reminded++
+  }
+
+  return { reminded }
+}

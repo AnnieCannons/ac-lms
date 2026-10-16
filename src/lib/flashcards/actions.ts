@@ -1,4 +1,5 @@
 'use server'
+import { randomBytes } from 'crypto'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
@@ -74,7 +75,7 @@ export async function checkAndCreateDueCardsNotification(): Promise<boolean> {
   await service.from('notifications').insert({
     user_id: user.id,
     type: 'cards_due_today',
-    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} due today across ${deckLabel}.`,
+    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} to study today across ${deckLabel}. Ready when you are!`,
     read: false,
   })
   return true
@@ -284,7 +285,7 @@ export async function deleteCard(cardId: string, deckId: string) {
 export async function enableSharing(deckId: string): Promise<string> {
   const { supabase, user } = await getAuthUser()
 
-  const token = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
+  const token = randomBytes(12).toString('base64url')
 
   const { error } = await supabase
     .from('decks')
@@ -381,7 +382,9 @@ export async function importDeck(sourceDeckId: string) {
     supabase.from('decks').select('id').eq('owner_user_id', user.id).eq('original_deck_id', sourceDeckId).maybeSingle(),
   ])
 
-  if (!sourceDeck) throw new Error('Source deck not found')
+  // The service client bypasses RLS, so enforce RLS's own rule here: only a shared
+  // deck (or one of your own) can be copied.
+  if (!sourceDeck || (!sourceDeck.is_shared && sourceDeck.owner_user_id !== user.id)) throw new Error('Source deck not found')
   const cards = sourceCards ?? []
 
   if (existing) {
@@ -631,6 +634,16 @@ export async function applyDeckUpdates(
     .single()
 
   if (!deck) throw new Error('Deck not found')
+
+  // The notification (and so its snapshots) must be the caller's own update for this deck.
+  const { data: notification } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('id', notificationId)
+    .eq('user_id', user.id)
+    .eq('deck_id', deckId)
+    .maybeSingle()
+  if (!notification) throw new Error('Update not found')
 
   // Re-fetch snapshots from DB (don't trust client-side content)
   const serviceClient = createServiceSupabaseClient()

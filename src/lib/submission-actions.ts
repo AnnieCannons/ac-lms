@@ -1,6 +1,11 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
-import { isLateInTimezone } from '@/lib/date-utils'
+import { isLateInTimezone, isOptionalClosed } from '@/lib/date-utils'
+import { getAssignmentCourseId } from '@/lib/course-scope'
+
+// Most lenient zone (UTC-12), same fallback isOptionalClosed uses — so a missing
+// timezone can no longer skip the lateness check entirely.
+const FALLBACK_TIMEZONE = 'Etc/GMT+12'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -23,6 +28,24 @@ export async function saveSubmission(
 
   const admin = createServiceSupabaseClient()
 
+  // The assignment must be in a course the caller is enrolled in (or staff previewing).
+  const courseId = await getAssignmentCourseId(admin, assignmentId)
+  if (!courseId) return { error: 'Assignment not found' }
+  const [{ data: enrollment }, { data: profile }] = await Promise.all([
+    admin.from('course_enrollments').select('id').eq('course_id', courseId).eq('user_id', user.id).maybeSingle(),
+    admin.from('users').select('role').eq('id', user.id).maybeSingle(),
+  ])
+  if (!enrollment && !['instructor', 'staff', 'admin'].includes(profile?.role ?? '')) return { error: 'Not authorized' }
+
+  // Optional assignments stop taking submissions (including drafts) once the due date passes
+  const [{ data: assignmentRow }, { data: overrideRow }] = await Promise.all([
+    admin.from('assignments').select('due_date, is_optional').eq('id', assignmentId).single(),
+    admin.from('assignment_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
+  ])
+  if (assignmentRow?.is_optional && isOptionalClosed((overrideRow?.due_date ?? assignmentRow.due_date) as string | null, studentTimezone)) {
+    return { error: 'This optional assignment is closed — the due date has passed.' }
+  }
+
   // Determine is_late on the first real submission (draft → submitted or brand new)
   let isLatePayload: Record<string, unknown> = {}
   let existingStatus: string | null = null
@@ -31,25 +54,23 @@ export async function saveSubmission(
     // Fetch ownership + current status together
     const { data: existing } = await admin
       .from('submissions')
-      .select('student_id, status')
+      .select('student_id, status, assignment_id')
       .eq('id', existingSubmissionId)
       .single()
-    if (!existing || existing.student_id !== user.id) return { error: 'Not authorized' }
+    // assignment_id must match too: due date / lateness / optional-closed are all
+    // computed from assignmentId, so a mismatched pair would dodge them.
+    if (!existing || existing.student_id !== user.id || existing.assignment_id !== assignmentId) return { error: 'Not authorized' }
     existingStatus = existing.status
   }
 
   const isFirstSubmission = status === 'submitted' && (!existingSubmissionId || existingStatus === 'draft')
 
-  if (isFirstSubmission && studentTimezone) {
+  if (isFirstSubmission) {
     const now = new Date().toISOString()
-    const [{ data: assignment }, { data: override }] = await Promise.all([
-      admin.from('assignments').select('due_date').eq('id', assignmentId).single(),
-      admin.from('assignment_overrides').select('due_date').eq('assignment_id', assignmentId).eq('student_id', user.id).maybeSingle(),
-    ])
-    const effectiveDueDate = (override?.due_date ?? assignment?.due_date) as string | null
+    const effectiveDueDate = (overrideRow?.due_date ?? assignmentRow?.due_date) as string | null
     isLatePayload = {
-      student_timezone: studentTimezone,
-      is_late: isLateInTimezone(now, effectiveDueDate, studentTimezone),
+      student_timezone: studentTimezone || FALLBACK_TIMEZONE,
+      is_late: assignmentRow?.is_optional ? false : isLateInTimezone(now, effectiveDueDate, studentTimezone || FALLBACK_TIMEZONE),
     }
   }
 

@@ -1,18 +1,13 @@
-// Server-side only — builds the weekly attendance + assignment Slack report for instructors.
+// Server-side only — shared track/week/course helpers, originally built for the
+// Friday instructor digest (removed) and now used by the Monday readiness-score job.
 
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { fetchClassAttendanceWeekly, type WeekRange } from '@/lib/airtable'
-import { computeStudentAssignmentStats } from '@/lib/student-stats-actions'
+import type { WeekRange } from '@/lib/airtable'
+import { EXCLUDED_STUDENT_USER_IDS } from '@/lib/excluded-students'
 
 type AdminClient = ReturnType<typeof createServiceSupabaseClient>
 
 export type Track = 'backend' | 'frontend' | 'itp_tcf'
-
-export const TRACK_CHANNELS: Record<Track, string> = {
-  backend: 'C09DC5MAQ4Q',
-  frontend: 'C09C551E7DM',
-  itp_tcf: 'C09C56VL25D',
-}
 
 export function detectTrack(name: string, airtableCourseName: string | null): Track | null {
   const haystack = `${name} ${airtableCourseName ?? ''}`.toLowerCase()
@@ -82,18 +77,23 @@ export function isCurrentCourse(startDate: string | null | undefined, endDate?: 
   return now >= start && now <= end
 }
 
-type Zone = 'red' | 'yellow' | 'green'
-
-export function getZone(totalAbsences: number): Zone {
-  if (totalAbsences >= 23) return 'red'
-  if (totalAbsences >= 12) return 'yellow'
-  return 'green'
-}
-
-function zoneLabel(zone: Zone): string {
-  if (zone === 'red') return '🔴 Red'
-  if (zone === 'yellow') return '🟡 Yellow'
-  return '🟢 Green'
+/**
+ * Whether a course was in session for any part of the given Mon–Thu week. The
+ * readiness job uses this instead of isCurrentCourse so a course's final week
+ * still gets scored on the Monday after it ends (e.g. TCF ending on a
+ * Saturday), and a course isn't scored for the week before it starts.
+ */
+export function courseRanDuringWeek(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  week: WeekRange,
+): boolean {
+  if (!startDate) return false
+  const start = startDate.slice(0, 10)
+  const end = endDate
+    ? endDate.slice(0, 10)
+    : formatDateStr(new Date(new Date(`${start}T00:00:00`).getTime() + 105 * 24 * 60 * 60 * 1000))
+  return start <= week.end && end >= week.start
 }
 
 /** Gets the current hour (0–23) in America/New_York, DST-safe. */
@@ -124,10 +124,18 @@ function formatDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+// Converts a timestamp (e.g. a timestamptz column read back as a Date) to its
+// America/New_York calendar date, for comparing against the 'YYYY-MM-DD'
+// strings getWeekRanges() returns.
+export function toEtDateStr(d: Date): string {
+  const { year, month, day } = getEtDateParts(d)
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 /**
  * "This week" / "last week" are Mon–Thu (no attendance is taken on Fridays).
  * "This week" is the Mon–Thu containing "now" (in America/New_York), so a
- * Friday-morning cron run covers the school week that just finished.
+ * Monday-morning cron run covers the school week that just finished.
  */
 export function getWeekRanges(now: Date): { thisWeek: WeekRange; lastWeek: WeekRange } {
   const { year, month, day } = getEtDateParts(now)
@@ -151,191 +159,30 @@ export function getWeekRanges(now: Date): { thisWeek: WeekRange; lastWeek: WeekR
   }
 }
 
-function dateInRange(dateStr: string, range: WeekRange): boolean {
-  const d = dateStr.slice(0, 10)
-  return d >= range.start && d <= range.end
-}
-
-function normalizeName(name: string): string {
-  return name.trim().toLowerCase()
-}
-
-export type CourseInput = {
-  id: string
-  name: string
-  airtableCourseName: string | null
-}
+export type CourseStudent = { id: string; name: string; airtableStudentId: string | null }
 
 /**
- * Staff/QA accounts enrolled with role='student' for testing purposes — not
- * real students, so they're excluded from the weekly attendance/assignment
- * report regardless of course.
+ * Enrolled students for a course. By default excludes staff/QA test accounts
+ * (EXCLUDED_STUDENT_USER_IDS) -- that list exists to keep the
+ * Airtable-matching script's "still unmatched" list clean, so callers outside
+ * that purpose (e.g. the readiness-score job, which needs to score its own
+ * dedicated test account) should pass `excludeTestAccounts: false`.
  */
-const EXCLUDED_STUDENT_USER_IDS = new Set([
-  'f2736067-f31b-4c8c-adaf-aeb8b225e260', // RaiStudent (rai+1@anniecannons.com)
-  '378e107f-5a14-4de5-ac20-bb34ce0b936c', // HaniyaStudent (haniya+1@anniecannons.com)
-])
-
-export type AttendanceRow = {
-  name: string
-  thisWeek: number
-  lastWeek: number
-  total: number
-  zone: Zone
-}
-
-export type AssignmentRow = {
-  name: string
-  thisWeek: number
-  lastWeek: number
-  total: number
-}
-
-export type Highlight = {
-  name: string
-  perfectAttendance: boolean
-  perfectAssignments: boolean
-}
-
-export type CourseReport = {
-  attendanceRows: AttendanceRow[]
-  assignmentRows: AssignmentRow[]
-  highlights: Highlight[]
-}
-
-export async function buildCourseReport(
+export async function getCourseStudents(
   admin: AdminClient,
-  course: CourseInput,
-  weekRanges: { thisWeek: WeekRange; lastWeek: WeekRange },
-): Promise<CourseReport> {
+  courseId: string,
+  opts: { excludeTestAccounts?: boolean } = {},
+): Promise<CourseStudent[]> {
+  const { excludeTestAccounts = true } = opts
   const { data: enrollments } = await admin
     .from('course_enrollments')
-    .select('user_id, users(id, name)')
-    .eq('course_id', course.id)
+    .select('user_id, users(id, name, airtable_student_id)')
+    .eq('course_id', courseId)
     .eq('role', 'student')
 
-  type EnrollmentRow = { user_id: string; users: { id: string; name: string } | null }
-  const students = ((enrollments as unknown as EnrollmentRow[]) ?? [])
-    .filter(e => e.users?.name && !EXCLUDED_STUDENT_USER_IDS.has(e.user_id))
-    .map(e => ({ id: e.user_id, name: e.users!.name }))
-
-  if (students.length === 0) {
-    return { attendanceRows: [], assignmentRows: [], highlights: [] }
-  }
-
-  const attendanceMap = new Map<string, Awaited<ReturnType<typeof fetchClassAttendanceWeekly>>[number]>()
-  if (course.airtableCourseName) {
-    try {
-      const weekly = await fetchClassAttendanceWeekly(
-        course.airtableCourseName,
-        weekRanges.thisWeek,
-        weekRanges.lastWeek,
-      )
-      for (const w of weekly) attendanceMap.set(normalizeName(w.preferredName), w)
-    } catch (e) {
-      console.warn(`weekly-report: attendance fetch failed for ${course.name}:`, e)
-    }
-  }
-
-  const attendanceRows: AttendanceRow[] = []
-  const assignmentRows: AssignmentRow[] = []
-  const highlights: Highlight[] = []
-
-  for (const student of students) {
-    const stats = await computeStudentAssignmentStats(admin, student.id, course.id)
-
-    await admin.from('student_stats_snapshots').upsert({
-      student_id: student.id,
-      course_id: course.id,
-      week_start: weekRanges.thisWeek.start,
-      missing_count: stats.missing.length,
-      needs_revision_count: stats.needsRevision.length,
-    }, { onConflict: 'student_id,course_id,week_start' })
-
-    const missingThisWeek = stats.missing.filter(a => a.due_date && dateInRange(a.due_date, weekRanges.thisWeek)).length
-    const missingLastWeek = stats.missing.filter(a => a.due_date && dateInRange(a.due_date, weekRanges.lastWeek)).length
-    const missingTotal = stats.missing.length
-
-    const attendance = attendanceMap.get(normalizeName(student.name))
-
-    if (attendance && attendance.absencesThisWeek > 0) {
-      attendanceRows.push({
-        name: student.name,
-        thisWeek: attendance.absencesThisWeek,
-        lastWeek: attendance.absencesLastWeek,
-        total: attendance.totalAbsences,
-        zone: getZone(attendance.totalAbsences),
-      })
-    }
-
-    if (missingTotal >= 5) {
-      assignmentRows.push({
-        name: student.name,
-        thisWeek: missingThisWeek,
-        lastWeek: missingLastWeek,
-        total: missingTotal,
-      })
-    }
-
-    const perfectAttendance = !!attendance && attendance.blocksThisWeek > 0 && attendance.absencesThisWeek === 0
-    const perfectAssignments = missingThisWeek === 0
-    if (perfectAttendance || perfectAssignments) {
-      highlights.push({ name: student.name, perfectAttendance, perfectAssignments })
-    }
-  }
-
-  attendanceRows.sort((a, b) => b.total - a.total)
-  assignmentRows.sort((a, b) => b.total - a.total)
-  highlights.sort((a, b) => a.name.localeCompare(b.name))
-
-  return { attendanceRows, assignmentRows, highlights }
+  type EnrollmentRow = { user_id: string; users: { id: string; name: string; airtable_student_id: string | null } | null }
+  return ((enrollments as unknown as EnrollmentRow[]) ?? [])
+    .filter(e => e.users?.name && (!excludeTestAccounts || !EXCLUDED_STUDENT_USER_IDS.has(e.user_id)))
+    .map(e => ({ id: e.user_id, name: e.users!.name, airtableStudentId: e.users!.airtable_student_id }))
 }
 
-export function formatReportMessage(className: string, report: CourseReport): string {
-  const lines: string[] = []
-
-  lines.push(`Here is the weekly attendance and assignment report for *${className}*:`)
-  lines.push('')
-  lines.push('*Attendance:*')
-  if (report.attendanceRows.length === 0) {
-    lines.push('No students missed class this week. 🎉')
-  } else {
-    for (const row of report.attendanceRows) {
-      lines.push(`• *${row.name}*`)
-      lines.push(`   - This week: ${row.thisWeek}`)
-      lines.push(`   - Last week: ${row.lastWeek}`)
-      lines.push(`   - Total absences: ${row.total}`)
-      lines.push(`   - Attendance Zone: ${zoneLabel(row.zone)}`)
-    }
-  }
-
-  lines.push('')
-  lines.push('*Assignments:*')
-  if (report.assignmentRows.length === 0) {
-    lines.push('No students with 5 or more missing assignments. 🎉')
-  } else {
-    for (const row of report.assignmentRows) {
-      lines.push(`• *${row.name}*`)
-      lines.push(`   - This week: ${row.thisWeek}`)
-      lines.push(`   - Last week: ${row.lastWeek}`)
-      lines.push(`   - Total: ${row.total}`)
-    }
-  }
-
-  lines.push('')
-  lines.push('*Student Highlights*')
-  if (report.highlights.length === 0) {
-    lines.push('No highlights this week.')
-  } else {
-    for (const h of report.highlights) {
-      const label = h.perfectAttendance && h.perfectAssignments
-        ? 'Perfect attendance + assignments!'
-        : h.perfectAttendance
-          ? 'Perfect attendance!'
-          : 'Perfect assignments!'
-      lines.push(`• ${h.name}: ${label}`)
-    }
-  }
-
-  return lines.join('\n')
-}

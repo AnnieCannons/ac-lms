@@ -6,6 +6,15 @@
 const SLACK_BOT_TOKEN    = process.env.SLACK_BOT_TOKEN
 const STAFF_NOTIFY_EMAIL = process.env.STAFF_NOTIFY_EMAIL
 
+/**
+ * Escape user-controlled text for Slack mrkdwn. Slack only treats &, < and > as
+ * control characters; escaping them stops a display name like
+ * "<!channel> <https://evil.example|View>" from pinging a channel or planting a link.
+ */
+export function slackEscape(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 // Cache the staff Slack ID within a single process lifetime
 let _staffSlackId: string | null | undefined = undefined
 
@@ -68,6 +77,36 @@ export async function notifyByEmail(email: string, text: string): Promise<boolea
   const slackId = await slackLookupByEmail(email)
   if (!slackId) return false
   return slackPostMessage(slackId, text)
+}
+
+/**
+ * Opens (or reuses) a private multi-person Slack conversation among the given
+ * user IDs — used for the accountability escalation's step-3 group ping
+ * (student + instructor + staff together). Returns the conversation's channel
+ * ID, which can then be passed to slackPostMessage. Requires the bot to have
+ * im:write/mpim:write scope.
+ */
+export async function openGroupDM(userIds: string[]): Promise<string | null> {
+  if (!SLACK_BOT_TOKEN || userIds.length === 0) return null
+  try {
+    const res = await fetch('https://slack.com/api/conversations.open', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ users: userIds.join(',') }),
+    })
+    const json = (await res.json()) as { ok: boolean; channel?: { id: string }; error?: string }
+    if (!json.ok) {
+      console.warn(`Slack conversations.open error: ${json.error}`)
+      return null
+    }
+    return json.channel?.id ?? null
+  } catch (e) {
+    console.warn('Slack conversations.open failed:', e)
+    return null
+  }
 }
 
 // Slack's chat.scheduleMessage rejects timestamps in the past or more than ~120 days out.

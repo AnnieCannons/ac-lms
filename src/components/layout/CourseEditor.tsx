@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, createContext, useContext } from "react";
-import { localDate, formatDueDate } from "@/lib/date-utils";
+import { localDate, formatDueDate, getCourseWeekNumber } from "@/lib/date-utils";
 import InlineDueDatePicker from "@/components/ui/InlineDueDatePicker";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -40,6 +40,9 @@ import { DuplicateAssignmentPopup, DuplicateModulePopup, DuplicateResourcePopup,
 import WikiBlock from "@/components/ui/WikiBlock";
 import { createWiki } from "@/lib/wiki-actions";
 import AnswerKeyField from "@/components/ui/AnswerKeyField";
+import { titleWeekMismatch } from "@/lib/module-week";
+import { quizBelongsToDay, moduleTitleSet } from "@/lib/quiz-day-match";
+import { arrivedViaHistory } from "@/lib/nav-trail";
 
 
 type Assignment = {
@@ -481,6 +484,7 @@ function AssignmentFullView({
   onTogglePublished,
   onToggleBonus,
   defaultTemplateId,
+  onDirtyChange,
 }: {
   view: ActiveView;
   courseId: string;
@@ -491,6 +495,7 @@ function AssignmentFullView({
   onTogglePublished: (id: string, current: boolean) => void;
   onToggleBonus: (id: string, current: boolean) => void;
   defaultTemplateId?: string;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const supabase = createClient();
   const ctx = useContext(RelocateContext);
@@ -593,6 +598,8 @@ function AssignmentFullView({
     editHowToTurnIn !== (assignment?.how_to_turn_in ?? "") ||
     editDueDate !== (assignment?.due_date ? assignment.due_date.slice(0, 16) : "")
   );
+
+  useEffect(() => { onDirtyChange(isDirty); }, [isDirty]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -1704,7 +1711,9 @@ function SortableDay({
   onDuplicatedAssignment,
   courseId,
   quizzesForDay,
-  forceOpen,
+  open,
+  onToggleOpen,
+  isToday,
   onWikiCreated,
   onWikiUpdated,
   onWikiPublishToggled,
@@ -1724,7 +1733,9 @@ function SortableDay({
   onDuplicatedAssignment: (assignment: DuplicatedAssignment, targetDayId: string) => void;
   courseId: string;
   quizzesForDay: QuizEntry[];
-  forceOpen?: number;
+  open: boolean;
+  onToggleOpen: () => void;
+  isToday: boolean;
   onWikiCreated: (wiki: Wiki) => void;
   onWikiUpdated: (wikiId: string, title: string, content: string) => void;
   onWikiPublishToggled: (wikiId: string, published: boolean) => void;
@@ -1742,11 +1753,6 @@ function SortableDay({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const readOnly = useContext(ReadOnlyContext);
   const ctx = useContext(RelocateContext);
-  const [open, setOpen] = useState(true);
-
-  useEffect(() => {
-    if (forceOpen) setOpen(true);
-  }, [forceOpen]);
   const assignments = day.assignments ?? [];
   const supabase = createClient();
 
@@ -1873,10 +1879,10 @@ function SortableDay({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="bg-background rounded-lg">
+    <div ref={setNodeRef} style={style} id={`day-${day.id}`} className={`bg-background rounded-lg scroll-mt-16 ${isToday ? "ring-1 ring-teal-primary" : ""}`}>
       <div
-        className="flex items-center gap-2 sm:gap-3 px-4 py-2 cursor-pointer"
-        onClick={() => !editingDayName && setOpen((v) => !v)}
+        className={`flex items-center gap-2 sm:gap-3 px-4 py-2 cursor-pointer rounded-lg ${isToday ? "bg-teal-light" : ""}`}
+        onClick={() => !editingDayName && onToggleOpen()}
       >
         {!readOnly && (
           <button
@@ -1916,6 +1922,7 @@ function SortableDay({
               >
                 {dayNameDraft}
               </span>
+              {isToday && <span className="text-xs font-semibold text-teal-primary">Today</span>}
               <span className="text-xs text-muted-text">
                 ({assignments.length + crossPostedAssignments.length + resources.length + quizzes.length})
               </span>
@@ -2204,7 +2211,10 @@ function SortableModule({
   dayRefreshTriggers,
   isDraggingOverlay = false,
   allQuizzes,
-  expandDays,
+  courseModuleTitles,
+  closedDays,
+  onToggleDay,
+  todayDayId,
   onWikiCreated,
   onWikiUpdated,
   onWikiPublishToggled,
@@ -2232,7 +2242,10 @@ function SortableModule({
   dayRefreshTriggers: Record<string, number>;
   isDraggingOverlay?: boolean;
   allQuizzes: QuizEntry[];
-  expandDays?: number;
+  courseModuleTitles: ReadonlySet<string>;
+  closedDays: ReadonlySet<string>;
+  onToggleDay: (dayId: string) => void;
+  todayDayId: string | null;
   onWikiCreated: (wiki: Wiki) => void;
   onWikiUpdated: (wikiId: string, title: string, content: string) => void;
   onWikiPublishToggled: (wikiId: string, published: boolean) => void;
@@ -2290,6 +2303,8 @@ function SortableModule({
     setEditingTitle(false);
   };
 
+  const mismatchTitleWeek = titleWeekMismatch(module.title, module.week_number);
+
   const saveWeek = () => {
     const n = parseInt(weekDraft, 10);
     if (!isNaN(n) && n > 0 && n !== module.week_number) onUpdateWeekNumber(module.id, n);
@@ -2302,7 +2317,8 @@ function SortableModule({
       ref={setNodeRef}
       style={style}
       id={module.week_number ? `week-${module.week_number}` : undefined}
-      className={`bg-surface rounded-2xl border border-border transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
+      data-module-id={module.id}
+      className={`scroll-mt-16 bg-surface rounded-2xl border border-border transition-opacity ${isDraggingOverlay ? 'opacity-30' : ''}`}
     >
       <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4 cursor-pointer select-none" onClick={onToggleExpand}>
         {!readOnly && (
@@ -2345,6 +2361,52 @@ function SortableModule({
                 </button>
               )}
             </div>
+          )}
+          {mismatchTitleWeek !== null && (
+            !readOnly && editingWeek ? (
+              <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                <span className="text-xs text-muted-text">Week</span>
+                <input
+                  autoFocus
+                  type="number"
+                  min="1"
+                  value={weekDraft}
+                  onChange={e => setWeekDraft(e.target.value)}
+                  onBlur={saveWeek}
+                  onKeyDown={e => { if (e.key === 'Enter') saveWeek(); if (e.key === 'Escape') { setWeekDraft(String(module.week_number ?? '')); setEditingWeek(false); } }}
+                  aria-label="Week number"
+                  className="w-14 text-xs text-dark-text bg-background border border-teal-primary rounded px-1.5 py-0.5 focus:outline-none"
+                />
+              </div>
+            ) : (
+              <div
+                role="status"
+                className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 text-xs text-amber-700 bg-amber-500/10 border border-amber-500/40 rounded-md px-2 py-1 cursor-default"
+                onClick={e => e.stopPropagation()}
+              >
+                <span>
+                  ⚠ Title says Week {mismatchTitleWeek}, but this module is scheduled for week {module.week_number} — that&apos;s the week students see it as current.
+                </span>
+                {!readOnly && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateWeekNumber(module.id, mismatchTitleWeek)}
+                      className="font-semibold underline hover:no-underline"
+                    >
+                      Schedule for week {mismatchTitleWeek}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setWeekDraft(String(module.week_number ?? '')); setEditingWeek(true); }}
+                      className="underline hover:no-underline"
+                    >
+                      Pick another week
+                    </button>
+                  </>
+                )}
+              </div>
+            )
           )}
         </div>
         {!readOnly && (
@@ -2460,19 +2522,15 @@ function SortableModule({
                   onTogglePublished={onTogglePublished}
                   onDuplicatedAssignment={onDuplicatedAssignment}
                   courseId={courseId}
-                  forceOpen={expandDays}
+                  open={!closedDays.has(day.id)}
+                  onToggleOpen={() => onToggleDay(day.id)}
+                  isToday={day.id === todayDayId}
                   onWikiCreated={onWikiCreated}
                   onResourceCreated={onResourceCreated}
                   onWikiUpdated={onWikiUpdated}
                   onWikiPublishToggled={onWikiPublishToggled}
                   onWikiDeleted={onWikiDeleted}
-                  quizzesForDay={allQuizzes.filter(q => {
-                    if (q.linked_day_id === day.id) return true;
-                    if (q.day_title?.trim() !== day.day_name?.trim()) return false;
-                    if (q.module_title?.trim() === module.title?.trim()) return true;
-                    const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1];
-                    return !!(quizWeek && module.week_number === parseInt(quizWeek, 10));
-                  })}
+                  quizzesForDay={allQuizzes.filter(q => quizBelongsToDay(q, day, module, courseModuleTitles))}
                   moduleTitle={module.title}
                   onRegisterResources={onRegisterResources}
                 />
@@ -2776,9 +2834,36 @@ export default function CourseEditor({
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleWeek, setNewModuleWeek] = useState("");
   const [isMounted, setIsMounted] = useState(false);
-  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => new Set(initialModules.map(m => m.id)));
-  const [expandDaysTriggers, setExpandDaysTriggers] = useState<Record<string, number>>({});
+  // Today's week and day, by the same rule as the student Course Outline. Only
+  // used after mount (the outline isn't server-rendered), so the server's clock
+  // and timezone never matter.
+  const [today] = useState(() => {
+    const week = getCourseWeekNumber(course.start_date ?? null);
+    const mod = week !== null ? initialModules.find(m => m.week_number === week) : undefined;
+    const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+    const day = mod?.module_days.find(d => d.day_name === todayName);
+    return { moduleId: mod?.id ?? null, dayId: day?.id ?? null };
+  });
+  // Coming back to the outline (back button, a "← Back" link, or a reload)
+  // restores exactly what was open and where the page was scrolled; any other
+  // arrival opens the current week with only today's day expanded.
+  const OUTLINE_KEY = `outline-state-${course.id}`;
+  const [restored] = useState<{ collapsedModules: string[]; closedDays: string[]; scrollY: number } | null>(() => {
+    if (typeof window === "undefined" || !arrivedViaHistory()) return null;
+    try { return JSON.parse(sessionStorage.getItem(OUTLINE_KEY) ?? "null"); } catch { return null; }
+  });
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() =>
+    restored ? new Set(restored.collapsedModules) : new Set(initialModules.filter(m => m.id !== today.moduleId).map(m => m.id))
+  );
+  // Days are open unless listed here, so expanding any other week shows all its days.
+  const [closedDays, setClosedDays] = useState<Set<string>>(() => {
+    if (restored) return new Set(restored.closedDays);
+    const mod = initialModules.find(m => m.id === today.moduleId);
+    if (!mod || !today.dayId) return new Set();
+    return new Set(mod.module_days.filter(d => d.id !== today.dayId).map(d => d.id));
+  });
   const [allQuizzes, setAllQuizzes] = useState<QuizEntry[]>(courseQuizzes);
+  const courseModuleTitles = moduleTitleSet(modules);
   // Registry for resource state in each SortableDay, used by outer DnD for cross-day moves
   const resourceRegistryRef = useRef<Map<string, { getResources: () => Resource[]; setResources: React.Dispatch<React.SetStateAction<Resource[]>> }>>(new Map());
   const handleRegisterResources = (dayId: string, getResources: () => Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>) => {
@@ -2786,30 +2871,33 @@ export default function CourseEditor({
   };
 
   const isModuleExpanded = (id: string) => !collapsedModules.has(id);
-  const toggleModuleExpand = (id: string) => {
-    setCollapsedModules(prev => {
+  const openAllDaysIn = (moduleIds: string[]) =>
+    setClosedDays(prev => {
       const next = new Set(prev);
-      const wasCollapsed = next.has(id);
-      if (wasCollapsed) {
-        next.delete(id);
-        // expanding: also expand all days in this module
-        setExpandDaysTriggers(t => ({ ...t, [id]: (t[id] ?? 0) + 1 }));
-      } else {
-        next.add(id);
-      }
+      modules.filter(m => moduleIds.includes(m.id)).forEach(m => m.module_days.forEach(d => next.delete(d.id)));
       return next;
     });
+  const toggleModuleExpand = (id: string) => {
+    const wasCollapsed = collapsedModules.has(id);
+    setCollapsedModules(prev => {
+      const next = new Set(prev);
+      if (wasCollapsed) next.delete(id); else next.add(id);
+      return next;
+    });
+    // expanding: also expand all days in this module
+    if (wasCollapsed) openAllDaysIn([id]);
   };
   const expandAllModules = () => {
     setCollapsedModules(new Set());
-    // expand all days in all modules
-    setExpandDaysTriggers(prev => {
-      const next = { ...prev };
-      modules.forEach(m => { next[m.id] = (next[m.id] ?? 0) + 1; });
-      return next;
-    });
+    openAllDaysIn(modules.map(m => m.id));
   };
   const collapseAllModules = (ids: string[]) => setCollapsedModules(new Set(ids));
+  const toggleDay = (dayId: string) =>
+    setClosedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dayId)) next.delete(dayId); else next.add(dayId);
+      return next;
+    });
   const supabase = createClient();
 
   const usesCodePenRubric = [course.name, course.code].some(
@@ -2819,12 +2907,79 @@ export default function CourseEditor({
   const defaultTemplateId = usesCodePenRubric ? "frontend-codepen" : undefined;
 
   const [activeView, setActiveView] = useState<ActiveView | null>(null);
+  const activeViewRef = useRef<ActiveView | null>(null);
+  useEffect(() => { activeViewRef.current = activeView; }, [activeView]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dayRefreshTriggers, setDayRefreshTriggers] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Remember what's open and the scroll position for this tab, so coming back
+  // to the outline lands exactly where the instructor left it.
+  const scrollYRef = useRef(restored?.scrollY ?? 0);
+  const saveOutlineState = () => {
+    try {
+      sessionStorage.setItem(OUTLINE_KEY, JSON.stringify({
+        collapsedModules: [...collapsedModules],
+        closedDays: [...closedDays],
+        scrollY: scrollYRef.current,
+      }));
+    } catch { /* ignore */ }
+  };
+  const saveOutlineStateRef = useRef(saveOutlineState);
+  useEffect(() => {
+    saveOutlineStateRef.current = saveOutlineState;
+    if (isMounted) saveOutlineState();
+  }, [isMounted, collapsedModules, closedDays]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    // Wait until the restore/jump below has happened before recording scroll,
+    // or the initial scroll-to-top would overwrite the saved position.
+    let tracking = false;
+    const onScroll = () => {
+      if (!tracking || activeViewRef.current) return;
+      scrollYRef.current = window.scrollY;
+      saveOutlineStateRef.current();
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const stop = () => { cancelled = true; tracking = true; };
+    const userEvents = ["wheel", "touchstart", "keydown", "mousedown"] as const;
+    userEvents.forEach(ev => window.addEventListener(ev, stop, { once: true, passive: true }));
+
+    if (restored) {
+      // Resources load client-side after mount, so the page may not be tall
+      // enough to reach the saved position yet -- keep retrying briefly.
+      const target = restored.scrollY;
+      let tries = 0;
+      const tick = () => {
+        if (cancelled) return;
+        window.scrollTo(0, target);
+        if (Math.abs(window.scrollY - target) > 2 && tries++ < 20) timers.push(setTimeout(tick, 100));
+        else tracking = true;
+      };
+      tick();
+    } else if (today.moduleId) {
+      const el = today.dayId
+        ? document.getElementById(`day-${today.dayId}`)
+        : document.querySelector(`[data-module-id="${today.moduleId}"]`);
+      el?.scrollIntoView({ block: "start" });
+      timers.push(setTimeout(() => { tracking = true; }, 100));
+    } else {
+      tracking = true;
+    }
+
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener("scroll", onScroll);
+      userEvents.forEach(ev => window.removeEventListener(ev, stop));
+    };
+  }, [isMounted]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -3230,8 +3385,10 @@ export default function CourseEditor({
     }
     const resolvedDay = targetDay;
     const newOrder = (resolvedDay.assignments ?? []).length;
-    const { error } = await supabase.from("assignments").update({ module_day_id: resolvedDay.id, order: newOrder }).eq("id", assignmentId);
-    if (error) { console.error("relocateAssignmentToModule failed:", error.message); return; }
+    const { data: updated, error } = await supabase.from("assignments").update({ module_day_id: resolvedDay.id, order: newOrder }).eq("id", assignmentId).select("id");
+    if (error) { console.error("relocateAssignmentToModule failed:", error.message); alert(`Move failed: ${error.message}`); return; }
+    // RLS denials don't error — they just update zero rows
+    if (!updated?.length) { alert("Move failed: you don't have permission to edit this assignment."); return; }
     setModules((prev) =>
       prev.map((m) => ({
         ...m,
@@ -3288,9 +3445,17 @@ export default function CourseEditor({
       );
     }
     const resolvedResourceDay = targetDay;
-    const { error } = await supabase.from("resources").update({ module_day_id: resolvedResourceDay.id }).eq("id", resourceId);
-    if (error) { console.error("relocateResourceToModule failed:", error.message); return; }
-    setDayRefreshTriggers(prev => ({ ...prev, [resolvedResourceDay.id]: (prev[resolvedResourceDay.id] ?? 0) + 1 }));
+    const { data: before } = await supabase.from("resources").select("module_day_id").eq("id", resourceId).maybeSingle();
+    const sourceDayId = before?.module_day_id as string | undefined;
+    const { data: updated, error } = await supabase.from("resources").update({ module_day_id: resolvedResourceDay.id }).eq("id", resourceId).select("id");
+    if (error) { console.error("relocateResourceToModule failed:", error.message); alert(`Move failed: ${error.message}`); return; }
+    // RLS denials don't error — they just update zero rows
+    if (!updated?.length) { alert("Move failed: you don't have permission to edit this resource."); return; }
+    setDayRefreshTriggers(prev => {
+      const next = { ...prev, [resolvedResourceDay.id]: (prev[resolvedResourceDay.id] ?? 0) + 1 };
+      if (sourceDayId) next[sourceDayId] = (prev[sourceDayId] ?? 0) + 1;
+      return next;
+    });
     onMoved?.();
   };
 
@@ -3557,9 +3722,28 @@ export default function CourseEditor({
 
   const PERSIST_KEY = `active-assignment-${course.id}`;
 
-  const openAssignment = (assignment: Assignment, dayId: string) => {
+  // The assignment view is an overlay, not a page, so it gets a ?assignment=
+  // history entry of its own: the browser back button then closes it (instead
+  // of leaving the course), and returning from a page opened inside it --
+  // e.g. "Edit →" -- reopens it.
+  const pushedAssignmentRef = useRef(false);
+  const assignmentDirtyRef = useRef(false);
+
+  const findAssignment = (assignmentId: string) => {
+    for (const m of modulesRef.current) for (const d of m.module_days)
+      for (const a of d.assignments ?? []) if (a.id === assignmentId) return { assignment: a, dayId: d.id };
+    return null;
+  };
+
+  const openAssignment = (assignment: Assignment, dayId: string, fromHistory = false) => {
+    if (!fromHistory) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("assignment", assignment.id);
+      window.history.pushState(null, "", url);
+      pushedAssignmentRef.current = true;
+    }
     localStorage.setItem(PERSIST_KEY, JSON.stringify({ assignmentId: assignment.id, dayId }));
-    const mod = modules.find((m) => m.module_days.some((d) => d.id === dayId));
+    const mod = modulesRef.current.find((m) => m.module_days.some((d) => d.id === dayId));
     const day = mod?.module_days.find((d) => d.id === dayId);
     setActiveView({
       mode: "view",
@@ -3574,7 +3758,48 @@ export default function CourseEditor({
   const openAdd = (dayId: string) =>
     setActiveView({ mode: "add", dayId });
 
-  const closeView = () => { localStorage.removeItem(PERSIST_KEY); setActiveView(null); };
+  const closeView = () => {
+    localStorage.removeItem(PERSIST_KEY);
+    assignmentDirtyRef.current = false;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("assignment")) {
+      if (pushedAssignmentRef.current) {
+        pushedAssignmentRef.current = false;
+        window.history.back(); // popstate below clears the view
+        return;
+      }
+      url.searchParams.delete("assignment");
+      window.history.replaceState(null, "", url);
+    }
+    setActiveView(null);
+  };
+
+  useEffect(() => {
+    const syncFromUrl = (fromPop: boolean) => {
+      const id = new URLSearchParams(window.location.search).get("assignment");
+      const current = activeViewRef.current;
+      if (!id) {
+        if (current?.mode !== "view") return;
+        if (fromPop && assignmentDirtyRef.current && !window.confirm("You have unsaved changes. Leave without saving?")) {
+          const url = new URL(window.location.href);
+          url.searchParams.set("assignment", current.assignment.id);
+          window.history.pushState(null, "", url);
+          return;
+        }
+        assignmentDirtyRef.current = false;
+        localStorage.removeItem(PERSIST_KEY);
+        setActiveView(null);
+        return;
+      }
+      if (current?.mode === "view" && current.assignment.id === id) return;
+      const found = findAssignment(id);
+      if (found) openAssignment(found.assignment, found.dayId, true);
+    };
+    syncFromUrl(false);
+    const onPop = () => { pushedAssignmentRef.current = false; syncFromUrl(true); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const visibleModules = filterCategory
     ? modules.filter((m) => m.category === filterCategory)
@@ -3594,12 +3819,13 @@ export default function CourseEditor({
       .ilike("title", `%${q}%`)
       .then(({ data }) => {
         if (cancelled || !data) return;
-        const enriched = data.map((r: { id: string; title: string; type: string; url: string | null; module_day_id: string }) => {
+        // The query isn't course-scoped, so drop resources whose day isn't in this course
+        const enriched = data.flatMap((r: { id: string; title: string; type: string; url: string | null; module_day_id: string }) => {
           for (const m of modules) {
             const d = m.module_days.find(d => d.id === r.module_day_id);
-            if (d) return { ...r, moduleTitle: m.title, dayName: d.day_name, moduleId: m.id, weekNumber: m.week_number };
+            if (d) return [{ ...r, moduleTitle: m.title, dayName: d.day_name, moduleId: m.id, weekNumber: m.week_number }];
           }
-          return { ...r, moduleTitle: null, dayName: "", moduleId: "", weekNumber: null };
+          return [];
         });
         setResourceResults(enriched);
       });
@@ -3626,7 +3852,11 @@ export default function CourseEditor({
     id: m.id,
     week: m.week_number ?? null,
     title: m.title ?? null,
-    days: m.module_days.map(d => d.day_name),
+    // Sort weekdays Mon→Fri regardless of stored order; non-weekday days keep their relative order after
+    days: m.module_days.map(d => d.day_name).sort((a, b) => {
+      const ia = DAY_OPTIONS.indexOf(a), ib = DAY_OPTIONS.indexOf(b);
+      return (ia === -1 ? DAY_OPTIONS.length : ia) - (ib === -1 ? DAY_OPTIONS.length : ib);
+    }),
   }));
 
   return (
@@ -3644,6 +3874,7 @@ export default function CourseEditor({
           onTogglePublished={togglePublished}
           onToggleBonus={toggleBonus}
           defaultTemplateId={defaultTemplateId}
+          onDirtyChange={dirty => { assignmentDirtyRef.current = dirty; }}
         />
       )}
       {isMounted && (
@@ -3749,7 +3980,10 @@ export default function CourseEditor({
                   dayRefreshTriggers={dayRefreshTriggers}
                   isDraggingOverlay={activeDragId === `module-${module.id}`}
                   allQuizzes={allQuizzes}
-                  expandDays={expandDaysTriggers[module.id]}
+                  courseModuleTitles={courseModuleTitles}
+                  closedDays={closedDays}
+                  onToggleDay={toggleDay}
+                  todayDayId={today.dayId}
                   onRegisterResources={handleRegisterResources}
                   onWikiCreated={handleWikiCreated}
                   onResourceCreated={handleResourceCreated}

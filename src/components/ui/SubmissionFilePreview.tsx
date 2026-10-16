@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { normalizeUrl } from '@/lib/url'
+import { parseFileUrls, submissionFileHref, submissionFileName } from '@/lib/submission-files'
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i
 
@@ -8,9 +8,10 @@ interface Props {
   content: string
 }
 
-export default function SubmissionFilePreview({ content }: Props) {
+function SingleFilePreview({ url }: { url: string }) {
   const [open, setOpen] = useState(false)
-  const isImage = IMAGE_RE.test(content)
+  const isImage = IMAGE_RE.test(url)
+  const href = submissionFileHref(url)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -23,9 +24,9 @@ export default function SubmissionFilePreview({ content }: Props) {
 
   if (!isImage) {
     return (
-      <a href={normalizeUrl(content)} target="_blank" rel="noopener noreferrer"
+      <a href={href} target="_blank" rel="noopener noreferrer"
         className="text-teal-primary underline break-all text-sm">
-        {content}
+        {submissionFileName(url)}
       </a>
     )
   }
@@ -38,7 +39,7 @@ export default function SubmissionFilePreview({ content }: Props) {
         className="block rounded-lg overflow-hidden border border-border hover:opacity-90 transition-opacity focus-visible:ring-2 focus-visible:ring-teal-primary focus-visible:outline-none"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={content} alt="Submission" className="max-h-48 object-contain bg-background" />
+        <img src={href} alt="Submission" className="max-h-48 object-contain bg-background" />
       </button>
       {open && (
         <div
@@ -58,10 +59,24 @@ export default function SubmissionFilePreview({ content }: Props) {
           </button>
           <div onClick={e => e.stopPropagation()} className="max-w-[90vw] max-h-[90vh]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={content} alt="Submission" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+            <img src={href} alt="Submission" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
           </div>
         </div>
       )}
     </>
+  )
+}
+
+export default function SubmissionFilePreview({ content }: Props) {
+  const urls = parseFileUrls(content)
+
+  if (urls.length <= 1) {
+    return <SingleFilePreview url={urls[0] ?? content} />
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {urls.map((url, i) => <SingleFilePreview key={i} url={url} />)}
+    </div>
   )
 }

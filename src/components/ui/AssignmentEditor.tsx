@@ -9,7 +9,11 @@ import { RUBRIC_TEMPLATES } from '@/data/rubric-templates'
 import DatePicker from './DatePicker'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { trashAssignment } from '@/lib/trash-actions'
-import { upsertAssignmentOverride, removeAssignmentOverride } from '@/lib/override-actions'
+import { removeAssignmentOverride } from '@/lib/override-actions'
+import BulkOverridePaste from '@/components/ui/BulkOverridePaste'
+import OverrideStudentChecklist from '@/components/ui/OverrideStudentChecklist'
+import { listAssignmentSkills, setAssignmentSkills, type ConfidenceSkill } from '@/lib/skill-actions'
+import ConfidenceSkillsField from './ConfidenceSkillsField'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -51,11 +55,12 @@ interface Props {
     submission_required: boolean
     skill_tags: string[] | null
     is_bonus: boolean
+    is_optional: boolean
   }
   initialChecklist: ChecklistItem[]
   enrolledStudents: { id: string; name: string }[]
   initialOverrides: Override[]
-  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; skill_tags: string[]; answer_key_url: string | null }, updatedChecklist: ChecklistItem[]) => void
+  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; is_optional: boolean; skill_tags: string[]; answer_key_url: string | null }, updatedChecklist: ChecklistItem[]) => void
 }
 
 export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides, onSaved }: Props) {
@@ -69,6 +74,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [published, setPublished] = useState(assignment.published)
   const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
   const [isBonus, setIsBonus] = useState(assignment.is_bonus)
+  const [isOptional, setIsOptional] = useState(assignment.is_optional)
   const [skillTags, setSkillTags] = useState<string[]>(assignment.skill_tags ?? [])
   const [customSkillTags, setCustomSkillTags] = useState<string[]>(
     (assignment.skill_tags ?? []).filter(t => !PRESET_SKILL_TAGS.includes(t))
@@ -76,6 +82,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [showCustomTag, setShowCustomTag] = useState(false)
   const [customTagInput, setCustomTagInput] = useState('')
   const [answerKeyUrl, setAnswerKeyUrl] = useState(assignment.answer_key_url ?? '')
+  const [confidenceSkills, setConfidenceSkills] = useState<ConfidenceSkill[]>([])
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist)
   const checklistSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const [newItemText, setNewItemText] = useState('')
@@ -103,6 +110,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
       if (data) setCustomTemplates(data as CustomTemplate[])
     })
   }, [])
+
+  useEffect(() => {
+    listAssignmentSkills(assignment.id).then(({ error, skills }) => {
+      if (error) { alert(error); return }
+      setConfidenceSkills(skills)
+    })
+  }, [assignment.id])
 
   const saveAsTemplate = async () => {
     if (!templateName.trim() || checklist.length === 0) return
@@ -192,9 +206,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
 
   const [overrides, setOverrides] = useState<Override[]>(initialOverrides)
   const [showAddOverride, setShowAddOverride] = useState(false)
-  const [newStudentId, setNewStudentId] = useState('')
-  const [newDueDate, setNewDueDate] = useState('')
-  const [savingOverride, setSavingOverride] = useState(false)
+  const [showPasteOverrides, setShowPasteOverrides] = useState(false)
 
   const toggleSkillTag = (tag: string) => {
     setSkillTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
@@ -223,16 +235,19 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         published,
         submission_required: submissionRequired,
         is_bonus: isBonus,
+        is_optional: isOptional,
         skill_tags: skillTags,
         answer_key_url: answerKeyUrl.trim() || null,
       })
       .eq('id', assignment.id)
+    if (error) { setSaving(false); alert(error.message); return }
+    const { error: skillsError } = await setAssignmentSkills(assignment.id, confidenceSkills.map(s => s.id))
     setSaving(false)
-    if (error) { alert(error.message); return }
+    if (skillsError) { alert(skillsError); return }
     setIsDirty(false)
     if (onSaved) {
       onSaved(
-        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
+        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, is_optional: isOptional, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
         checklist
       )
     }
@@ -313,34 +328,9 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setChecklist(prev => prev.map(i => i.id === item.id ? { ...i, text, description: desc || null } : i))
   }
 
-  const commitOverride = async (studentId: string, dueDate: string | null, excused: boolean) => {
-    setSavingOverride(true)
-    const { id: newId, error } = await upsertAssignmentOverride(
-      assignment.id, studentId, courseId, dueDate, excused
-    )
-    if (error) { alert(error); setSavingOverride(false); return }
-    const student = enrolledStudents.find(s => s.id === studentId)
-    setOverrides(prev => [...prev.filter(o => o.student_id !== studentId), {
-      id: newId!,
-      student_id: studentId,
-      student_name: student?.name ?? 'Unknown',
-      due_date: dueDate,
-      excused,
-    }])
-    setNewStudentId('')
-    setNewDueDate('')
-    setShowAddOverride(false)
-    setSavingOverride(false)
-  }
-
-  const saveOverride = () => {
-    if (!newStudentId || !newDueDate) return
-    commitOverride(newStudentId, newDueDate, false)
-  }
-
-  const saveExcused = () => {
-    if (!newStudentId) return
-    commitOverride(newStudentId, null, true)
+  const addSavedOverrides = (saved: Override[]) => {
+    const savedIds = new Set(saved.map(o => o.student_id))
+    setOverrides(prev => [...prev.filter(o => !savedIds.has(o.student_id)), ...saved])
   }
 
   const deleteOverride = async (overrideId: string) => {
@@ -421,6 +411,18 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         </button>
         <button
           type="button"
+          onClick={() => { setIsOptional(o => !o); setIsDirty(true) }}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+            isOptional
+              ? 'bg-teal-light text-teal-primary border-teal-primary/30'
+              : 'bg-background text-muted-text border-border hover:border-muted-text'
+          }`}
+        >
+          {isOptional && <span className="w-2 h-2 rounded-full bg-teal-primary" />}
+          {isOptional ? 'Optional' : 'Optional?'}
+        </button>
+        <button
+          type="button"
           onClick={deleteAssignment}
           className="ml-auto flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:border-red-400 hover:text-red-500 transition-colors"
         >
@@ -464,6 +466,16 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         )}
       </div>
 
+      {/* Confidence Skills */}
+      <div>
+        <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Confidence Skills</label>
+        <p className="text-xs text-muted-text mb-2">Separate from the Skills field above — these feed the confidence tracker, not Level Up.</p>
+        <ConfidenceSkillsField
+          value={confidenceSkills}
+          onChange={skills => { setConfidenceSkills(skills); setIsDirty(true) }}
+        />
+      </div>
+
       {/* Due date */}
       <div>
         <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Due Date</label>
@@ -471,6 +483,13 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           <DatePicker value={dueDate} onChange={v => { setDueDate(v); setIsDirty(true) }} />
           <span className="text-sm text-muted-text">11:59pm (student&apos;s timezone)</span>
         </div>
+        {isOptional && (
+          <p className="text-xs text-teal-primary mt-2">
+            {dueDate
+              ? 'Optional — closes at the due date and is never counted as missing if skipped.'
+              : 'Optional — never counted as missing. Set a due date to close submissions.'}
+          </p>
+        )}
       </div>
 
       {/* Answer Key URL */}
@@ -739,14 +758,23 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         <div>
           <div className="flex items-center justify-between mb-3">
             <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide">Student Overrides</label>
-            {!showAddOverride && (
-              <button
-                type="button"
-                onClick={() => setShowAddOverride(true)}
-                className="text-xs text-teal-primary hover:underline"
-              >
-                + Add override
-              </button>
+            {!showAddOverride && !showPasteOverrides && (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPasteOverrides(true)}
+                  className="text-xs text-teal-primary hover:underline"
+                >
+                  Paste names
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddOverride(true)}
+                  className="text-xs text-teal-primary hover:underline"
+                >
+                  + Add override
+                </button>
+              </div>
             )}
           </div>
 
@@ -775,61 +803,27 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           )}
 
           {showAddOverride && (
-            <div className="bg-surface rounded-lg border border-border p-3 flex flex-col gap-3">
-              <select
-                value={newStudentId}
-                onChange={e => setNewStudentId(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
-              >
-                <option value="">Select student…</option>
-                {enrolledStudents
-                  .filter(s => !overrides.some(o => o.student_id === s.id))
-                  .map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))
-                }
-              </select>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={newDueDate}
-                  onChange={e => setNewDueDate(e.target.value)}
-                  className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text"
-                  placeholder="Custom due date (optional)"
-                />
-                <span className="text-xs text-muted-text shrink-0">or</span>
-                <button
-                  type="button"
-                  onClick={saveExcused}
-                  disabled={!newStudentId || savingOverride}
-                  className="badge-amber text-xs font-medium px-3 py-2 rounded-lg border transition-colors whitespace-nowrap disabled:opacity-40"
-                >
-                  + Excuse
-                </button>
-              </div>
-              <div className="flex gap-2">
-                {newDueDate && (
-                  <button
-                    type="button"
-                    onClick={saveOverride}
-                    disabled={!newStudentId || savingOverride}
-                    className="px-4 py-1.5 text-sm font-semibold bg-teal-primary text-white rounded-lg hover:bg-teal-600 disabled:opacity-50"
-                  >
-                    {savingOverride ? 'Saving…' : 'Save due date'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => { setShowAddOverride(false); setNewStudentId(''); setNewDueDate('') }}
-                  className="px-4 py-1.5 text-sm text-muted-text hover:text-dark-text"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            <OverrideStudentChecklist
+              assignmentId={assignment.id}
+              courseId={courseId}
+              students={enrolledStudents.filter(s => !overrides.some(o => o.student_id === s.id))}
+              onSaved={saved => { addSavedOverrides(saved); setShowAddOverride(false) }}
+              onCancel={() => setShowAddOverride(false)}
+            />
           )}
 
-          {overrides.length === 0 && !showAddOverride && (
+          {showPasteOverrides && (
+            <BulkOverridePaste
+              assignmentId={assignment.id}
+              courseId={courseId}
+              students={enrolledStudents}
+              existingStudentIds={new Set(overrides.map(o => o.student_id))}
+              onSaved={saved => { addSavedOverrides(saved); setShowPasteOverrides(false) }}
+              onCancel={() => setShowPasteOverrides(false)}
+            />
+          )}
+
+          {overrides.length === 0 && !showAddOverride && !showPasteOverrides && (
             <p className="text-sm text-muted-text">No overrides. All students see the default due date.</p>
           )}
         </div>

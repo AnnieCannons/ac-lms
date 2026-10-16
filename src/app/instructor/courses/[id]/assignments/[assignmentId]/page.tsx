@@ -1,10 +1,11 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import SmartBackLink from "@/components/ui/SmartBackLink";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import AssignmentViewEdit from "@/components/ui/AssignmentViewEdit";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
+import { getAssignmentCourseId } from "@/lib/course-scope";
 
 export const dynamic = 'force-dynamic'
 
@@ -25,9 +26,12 @@ export default async function InstructorAssignmentEditPage({
 
   if (!course) redirect("/instructor/courses");
 
+  // The assignment must be in the course access was checked against (TA scoping).
+  if ((await getAssignmentCourseId(createServiceSupabaseClient(), assignmentId)) !== id) redirect(`/instructor/courses/${id}/assignments`);
+
   const { data: assignment } = await supabase
     .from("assignments")
-    .select("id, title, description, how_to_turn_in, due_date, published, answer_key_url, submission_required, skill_tags, is_bonus")
+    .select("id, title, description, how_to_turn_in, due_date, published, answer_key_url, submission_required, skill_tags, is_bonus, is_optional")
     .eq("id", assignmentId)
     .single();
 
@@ -104,9 +108,7 @@ export default async function InstructorAssignmentEditPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 focus:outline-none">
             <div className="mb-6">
-              <Link href={`/instructor/courses/${id}/assignments`} className="text-sm text-muted-text hover:text-teal-primary transition-colors">
-                ← Back
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${id}/assignments`} fallbackLabel="Assignments" />
             </div>
 
             <AssignmentViewEdit

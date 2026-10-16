@@ -28,7 +28,7 @@ export default async function StudyPage({
     return (
       <div className="max-w-xl mx-auto px-6 py-16 text-center">
         <p className="text-muted-text text-sm mb-4">
-          {freeStudy ? 'This deck has no cards yet.' : 'No cards due for this deck.'}
+          {freeStudy ? 'This deck has no cards yet.' : 'Nothing to study in this deck right now.'}
         </p>
         <Link href="/flashcards" className="text-sm text-teal-primary hover:underline">← Back to My Decks</Link>
       </div>

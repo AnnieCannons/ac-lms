@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
+import { linkedDayInCourse } from "@/lib/course-access";
 import type { QuizQuestion } from "@/data/quizzes";
 
 async function getAuthedInstructorOrTa(courseId: string): Promise<{ error?: string; code?: string }> {
@@ -22,6 +23,12 @@ async function getAuthedInstructorOrTa(courseId: string): Promise<{ error?: stri
   return { error: 'Unauthorized', code: 'NOT_STAFF' };
 }
 
+function pickDefined<T extends object, K extends keyof T>(obj: T, keys: K[]): Partial<Pick<T, K>> {
+  const out: Partial<Pick<T, K>> = {};
+  for (const k of keys) if (obj[k] !== undefined) out[k] = obj[k];
+  return out;
+}
+
 function throwAuthError(auth: { error?: string; code?: string }): never {
   const e = new Error(auth.error) as Error & { code?: string }
   e.code = auth.code
@@ -39,6 +46,7 @@ export async function createQuizWithQuestions(
   const auth = await getAuthedInstructorOrTa(courseId)
   if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient()
+  if (!(await linkedDayInCourse(admin, linkedDayId, courseId))) throw new Error('Linked day is not in this course')
   const identifier = `paste-${Date.now()}`
   const { data, error } = await admin
     .from('quizzes')
@@ -86,14 +94,19 @@ export async function createQuiz(courseId: string) {
 export async function updateQuizMeta(
   quizId: string,
   courseId: string,
-  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null }
+  updates: { title?: string; due_at?: string | null; max_attempts?: number | null; module_title?: string; day_title?: string | null; is_practice?: boolean }
 ) {
   const auth = await getAuthedInstructorOrTa(courseId)
   if (auth.error) throwAuthError(auth)
   const admin = createServiceSupabaseClient();
   const { error } = await admin
     .from("quizzes")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    // Explicit columns only: spreading `updates` would let a caller write course_id,
+    // linked_day_id, published, etc. (a TA could move the quiz into another course).
+    .update({
+      ...pickDefined(updates, ['title', 'due_at', 'max_attempts', 'module_title', 'day_title', 'is_practice']),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", quizId)
     .eq("course_id", courseId);
   if (error) throw new Error(error.message);
@@ -192,7 +205,14 @@ export async function upsertQuizFromJson(
   const { data, error } = await admin
     .from("quizzes")
     .upsert(
-      { course_id: courseId, identifier, ...fields, updated_at: new Date().toISOString() },
+      {
+        // Build the row from known columns only, so a
+        // `fields.course_id` can't redirect the upsert into a course the caller doesn't TA.
+        ...pickDefined(fields, ['title', 'due_at', 'module_title', 'published', 'questions', 'max_attempts']),
+        course_id: courseId,
+        identifier,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "course_id,identifier" }
     )
     .select("*")

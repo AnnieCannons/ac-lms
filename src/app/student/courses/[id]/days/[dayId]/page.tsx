@@ -1,13 +1,15 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { ExcusedBadge } from '@/components/ui/AssignmentDueStatus'
 import StudentTopNav from '@/components/ui/StudentTopNav'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import DayResourceList from '@/components/ui/DayResourceList'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import WikiView from '@/components/ui/WikiView'
+import { quizBelongsToDay, moduleTitleSet } from '@/lib/quiz-day-match'
 
 function stripHtml(html: string): string {
   return html
@@ -31,32 +33,8 @@ export default async function StudentDayDetailPage({
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!UUID_RE.test(id) || !UUID_RE.test(dayId)) redirect('/student/courses')
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  // Verify enrollment
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id, role')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb, readOnly } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -82,8 +60,8 @@ export default async function StudentDayDetailPage({
   const admin2 = createServiceSupabaseClient()
   const [{ data: resources }, { data: stars }, { data: completions }, { data: dayWikis }] = await Promise.all([
     supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').or(`module_day_id.eq.${dayId},linked_day_id.eq.${dayId}`).is('deleted_at', null).eq('instructor_only', false).eq('published', true).order('order', { ascending: true }),
-    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
-    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
+    studentDb.from('resource_stars').select('resource_id').eq('user_id', viewer.viewerId),
+    studentDb.from('resource_completions').select('resource_id').eq('user_id', viewer.viewerId),
     admin2.from('wikis').select('id, title, content').eq('module_day_id', dayId).eq('published', true).order('order', { ascending: true }),
   ])
 
@@ -102,7 +80,7 @@ export default async function StudentDayDetailPage({
     ...((crossAssignments ?? []).map(a => ({ ...a, careerDev: true })) as DayAssignment[]),
   ]
 
-  const module = Array.isArray(day.modules) ? day.modules[0] : day.modules
+  const parentModule = Array.isArray(day.modules) ? day.modules[0] : day.modules
 
   let quizzes: Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; careerDev?: boolean }> = []
   let quizSubmissions: Array<{ quiz_id: string; score_percent: number | null; attempt_count: number | null }> = []
@@ -114,27 +92,30 @@ export default async function StudentDayDetailPage({
     ? await admin
         .from('assignment_overrides')
         .select('assignment_id, due_date, excused')
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .in('assignment_id', assignmentIds)
     : { data: [] }
   const dayOverrideMap = new Map((dayOverrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
-  const weekMatch = module?.title?.match(/^Week\s+(\d+)/i)
+  const weekMatch = parentModule?.title?.match(/^Week\s+(\d+)/i)
   const weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null
 
-  const [{ data: dayQuizData }, { data: crossQuizData }] = await Promise.all([
+  const [{ data: dayQuizData }, { data: crossQuizData }, { data: courseModules }] = await Promise.all([
     day.day_name
-      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).is('deleted_at', null)
+      ? admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('course_id', id).eq('day_title', day.day_name).eq('published', true).eq('is_practice', false).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
-    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).is('deleted_at', null),
+    admin.from('quizzes').select('id, title, questions, max_attempts, due_at, module_title').eq('linked_day_id', dayId).eq('published', true).eq('is_practice', false).is('deleted_at', null),
+    admin.from('modules').select('title').eq('course_id', id).is('deleted_at', null),
   ])
 
   if (day.day_name) {
     const allDayQuizzes = (dayQuizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>
-    quizzes = allDayQuizzes.filter(q => {
-      if (q.module_title?.trim() === module?.title?.trim()) return true
-      const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
-      return !!(quizWeek && weekNumber !== null && parseInt(quizWeek, 10) === weekNumber)
-    })
+    const courseModuleTitles = moduleTitleSet(courseModules ?? [])
+    quizzes = allDayQuizzes.filter(q => quizBelongsToDay(
+      { module_title: q.module_title, day_title: day.day_name, linked_day_id: null },
+      { id: dayId, day_name: day.day_name },
+      { title: parentModule?.title ?? null, week_number: weekNumber },
+      courseModuleTitles,
+    ))
   }
 
   const crossQuizzes = ((crossQuizData ?? []) as Array<{ id: string; title: string; questions: unknown[]; max_attempts: number | null; due_at: string | null; module_title: string }>)
@@ -144,18 +125,18 @@ export default async function StudentDayDetailPage({
 
   if (quizzes.length > 0) {
     const quizIds = quizzes.map(q => q.id)
-    const { data: subData } = await supabase
+    const { data: subData } = await studentDb
       .from('quiz_submissions')
       .select('quiz_id, score_percent, attempt_count')
-      .eq('student_id', user.id)
+      .eq('student_id', viewer.viewerId)
       .in('quiz_id', quizIds)
     quizSubmissions = (subData ?? []) as typeof quizSubmissions
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
       <div className="flex">
         <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
@@ -168,15 +149,15 @@ export default async function StudentDayDetailPage({
           <span className="text-border">/</span>
           <Link href={`/student/courses/${id}`} className="hover:text-teal-primary">{course.name}</Link>
           <span className="text-border">/</span>
-          {module && <span className="text-muted-text">{module.title}</span>}
+          {parentModule && <span className="text-muted-text">{parentModule.title}</span>}
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium">{day.day_name}</span>
         </div>
 
         <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-1">{day.day_name}</h1>
-        {module && (
+        {parentModule && (
           <p className="text-muted-text text-sm mb-8">
-            {module.title}{module.week_number ? ` · Week ${module.week_number}` : ''}
+            {parentModule.title}{parentModule.week_number ? ` · Week ${parentModule.week_number}` : ''}
           </p>
         )}
 
@@ -202,6 +183,7 @@ export default async function StudentDayDetailPage({
                 courseId={id}
                 initialStarredIds={starredIds}
                 initialCompletedIds={completedIds}
+                readOnly={readOnly}
               />
             ) : (
               <p className="text-muted-text text-sm">No resources for this day.</p>
@@ -216,7 +198,7 @@ export default async function StudentDayDetailPage({
                 {assignments.map(assignment => (
                   <div
                     key={assignment.id}
-                    className="bg-surface rounded-xl border border-border px-4 py-4"
+                    className={`bg-surface rounded-xl border border-border px-4 py-4 ${dayOverrideMap.get(assignment.id)?.excused ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -246,7 +228,7 @@ export default async function StudentDayDetailPage({
                           return (
                             <>
                               {excused && (
-                                <span className="badge-amber text-xs font-medium border rounded-full px-2 py-0.5">Excused</span>
+                                <div className="mt-2"><ExcusedBadge /></div>
                               )}
                               {!excused && effectiveDue && (
                                 <p className="text-xs text-muted-text mt-2">

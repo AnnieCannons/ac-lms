@@ -1,11 +1,11 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import StudentTopNav from "@/components/ui/StudentTopNav";
 import ResizableSidebar from "@/components/ui/ResizableSidebar";
 import StudentCourseNav from "@/components/ui/StudentCourseNav";
-import { isStudentPreview } from "@/lib/student-preview";
-import StudentViewBanner from "@/components/ui/StudentViewBanner";
+import StudentPageBanner from "@/components/ui/StudentPageBanner";
+import { getStudentCourseViewer } from "@/lib/student-course-viewer";
 
 function formatDueDate(dueAt: string | null): string {
   if (!dueAt || !dueAt.trim()) return "No due date";
@@ -27,35 +27,10 @@ export default async function StudentQuizzesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-
-  const preview = await isStudentPreview(id);
-
-  if (!preview && (profile?.role === "instructor" || profile?.role === "admin")) {
-    redirect(`/instructor/courses/${id}`);
-  }
-
-  let isObserver = false;
-  if (!preview) {
-    const { data: enrollment } = await supabase
-      .from("course_enrollments")
-      .select("id, role")
-      .eq("user_id", user.id)
-      .eq("course_id", id)
-      .in("role", ["student", "observer", "ta"])
-      .maybeSingle();
-
-    if (!enrollment) redirect("/student/courses");
-    isObserver = enrollment.role === "observer";
-  }
+  const viewer = await getStudentCourseViewer(id);
+  const { supabase } = viewer;
+  // Observers (on leave) and admins viewing as a student see results but can't take quizzes
+  const isObserver = viewer.enrollmentRole === "observer" || viewer.readOnly;
 
   const { data: course } = await supabase
     .from("courses")
@@ -72,6 +47,7 @@ export default async function StudentQuizzesPage({
     .select("id, title, due_at, module_title, questions, max_attempts")
     .eq("course_id", id)
     .eq("published", true)
+    .eq("is_practice", false)
     .is("deleted_at", null)
     .order("module_title", { ascending: true })
     .order("title", { ascending: true });
@@ -84,7 +60,7 @@ export default async function StudentQuizzesPage({
       ? await admin
           .from("quiz_submissions")
           .select("quiz_id, score_percent, attempt_count")
-          .eq("student_id", user.id)
+          .eq("student_id", viewer.viewerId)
           .in("quiz_id", quizIds)
       : { data: [] };
 
@@ -94,8 +70,8 @@ export default async function StudentQuizzesPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
       <div className="flex">
         <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
@@ -144,7 +120,7 @@ export default async function StudentQuizzesPage({
                         <p className="text-sm text-muted-text mt-2">
                           Due: {formatDueDate(quiz.due_at)} · {questionCount} question{questionCount !== 1 ? "s" : ""}
                         </p>
-                        <p className="text-sm text-muted-text font-medium mt-3">Not available (on leave)</p>
+                        <p className="text-sm text-muted-text font-medium mt-3">{viewer.readOnly ? "Not taken yet" : "Not available (on leave)"}</p>
                       </div>
                     );
                   }

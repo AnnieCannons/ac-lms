@@ -22,11 +22,11 @@
   --color-border: #E2D9EF;
   --color-dark-text: #1a1030;
   --color-muted-text: #6B5D80;
-  --color-placeholder-text: #B0A3C0;
+  --color-placeholder-text: #766a8a;
   --font-sans: 'Inter', sans-serif;
 }
 
-/* Global placeholder color — lighter than muted-text so it's clearly distinct from typed text */
+/* Global placeholder color — a touch lighter than muted-text, but still at least 4.5:1 against the field background in every theme */
 ::placeholder {
   color: var(--color-placeholder-text) !important;
   opacity: 1;
@@ -45,6 +45,23 @@ a, button, select, [role="button"], [role="tab"], [role="switch"], label {
 }
 button:disabled, input:disabled, select:disabled {
   cursor: not-allowed;
+}
+
+/* Native dropdowns: draw our own chevron with breathing room from the edge (the browser's
+   sits flush against the border). Unlayered, so the right padding wins over Tailwind px-*
+   utilities everywhere. Selects that already draw a custom chevron opt out with
+   .appearance-none; list boxes ([multiple]/[size]) have no arrow. */
+select:not([multiple]):not([size]):not(.appearance-none) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%236B5D80' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px 8px;
+}
+html.theme-dark select:not([multiple]):not([size]):not(.appearance-none) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23a898c0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 body {
@@ -82,7 +99,7 @@ html.theme-dark {
   --color-surface: #1e1530;
   --color-dark-text: #f0eaf8;
   --color-muted-text: #a898c0;
-  --color-placeholder-text: #7a6890;
+  --color-placeholder-text: #9d8fb5;
   --color-border: #2e2245;
   --color-teal-primary: #c870b0;
   --color-teal-light: #2a1530;
@@ -198,6 +215,7 @@ html.high-contrast {
   --color-surface: #ffffff;
   --color-dark-text: #000000;
   --color-muted-text: #111111;
+  --color-placeholder-text: #595959;
   --color-border: #000000;
   --color-teal-primary: #4a0040;
   --color-teal-light: #edd5e8;
@@ -215,6 +233,7 @@ html.theme-dark.high-contrast {
   --color-surface:    #0f0820;
   --color-dark-text:  #ffffff;
   --color-muted-text: #e8deff;
+  --color-placeholder-text: #b8aad2;
   --color-border:     #887098;
   --color-teal-primary:   #ff90f0;
   --color-teal-light:     #1c0a34;
@@ -320,6 +339,31 @@ html.theme-dark .badge-count {
   color: #d4a017;
 }
 
+/* "New" skill badge — Confidence Tracker Phase 3. Reuses the teal accent vars (already
+   theme/high-contrast-aware, same approach as .status-grading-card below) rather than
+   hardcoded hex + a separate dark-mode override block like the badges above use. */
+.badge-new {
+  background-color: var(--color-teal-light);
+  color: var(--color-teal-primary);
+  border-color: var(--color-teal-primary);
+}
+
+/* Confidence Tracker Phase 5 kudos card. Same theme-aware teal approach as .badge-new and
+   .status-grading-card, so light/dark/high-contrast need no separate overrides. */
+.kudos-card {
+  background-color: var(--color-teal-light);
+  border-color: color-mix(in srgb, var(--color-teal-primary) 40%, transparent);
+  color: var(--color-teal-primary);
+}
+
+/* Confidence Tracker Phase 6 goal-met / mastery celebration card. Same theme-aware teal
+   approach as .kudos-card, slightly stronger border so it reads as a bigger moment. */
+.celebration-card {
+  background-color: var(--color-teal-light);
+  border-color: color-mix(in srgb, var(--color-teal-primary) 60%, transparent);
+  color: var(--color-teal-primary);
+}
+
 /* Status colors — used in StudentDetailView cards, buttons, badges.
    Always use these classes instead of hardcoded bg-red-50 etc. so dark mode works globally. */
 .status-missing-card  { background-color: #fef2f2; border-color: #fecaca; color: #dc2626; }
@@ -372,6 +416,16 @@ html.theme-dark .status-complete-text  { color: #4ade80 !important; }
 /* Amber/yellow badge or button — use .badge-amber instead of bg-amber-50 so dark mode works */
 .badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }
 html.theme-dark .badge-amber { background-color: #2a1800; color: #fbbf24; border-color: #78350f; }
+
+/* Orange "Tasks due" badge (Cutting Edge Talks in the student nav) — theme-aware */
+.badge-orange { background-color: #fff7ed; color: #c2410c; border-color: #fdba74; }
+html.theme-dark .badge-orange { background-color: #2a1205; color: #fb923c; border-color: #9a3412; }
+
+/* Ongoing escalation cycle card — use instead of bg-orange-50/border-orange-200 so dark mode works */
+.escalation-ongoing-card { background-color: #fff7ed; border-color: #fed7aa; }
+html.theme-dark .escalation-ongoing-card { background-color: #1f1005; border-color: #4a2000; }
+.escalation-ongoing-badge { background-color: #ffedd5; color: #9a3412; }
+html.theme-dark .escalation-ongoing-badge { background-color: #3d1f00; color: #fb923c; }
 
 /* Error alert banner — use .alert-error instead of bg-red-50 so dark mode works */
 .alert-error { background-color: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 0.5rem; }

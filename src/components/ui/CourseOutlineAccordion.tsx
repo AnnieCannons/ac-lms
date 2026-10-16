@@ -1,10 +1,13 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { formatDueDateWithTime, localDate, todayLocal } from '@/lib/date-utils'
+import { formatDueDateWithTime } from '@/lib/date-utils'
+import { getAssignmentStatus } from '@/lib/assignment-status'
+import SharedStatusBadge from './AssignmentStatusBadge'
 import { toggleResourceStar, toggleResourceComplete } from '@/lib/resource-actions'
 import HtmlContent from '@/components/ui/HtmlContent'
 import WikiView from '@/components/ui/WikiView'
+import { quizBelongsToDay, moduleTitleSet } from '@/lib/quiz-day-match'
 
 const RESOURCE_ICONS: Record<string, string> = {
   video: '▶',
@@ -112,6 +115,8 @@ interface Assignment {
   order?: number | null
   skill_tags?: string[] | null
   is_bonus?: boolean
+  is_optional?: boolean
+  submission_required?: boolean
   careerDev?: boolean
 }
 
@@ -149,20 +154,18 @@ interface Module {
   wikis?: WikiItem[]
 }
 
-type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null }
+type SubmissionInfo = { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; is_late?: boolean | null; excused?: boolean }
 
-function AssignmentStatusBadge({ info, dueDate }: { info: SubmissionInfo | undefined; dueDate?: string | null }) {
-  const isLate = !!dueDate && localDate(dueDate) < todayLocal()
-  if (info?.grade === 'complete') return <span className="status-complete-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Complete ✓</span>
-  if (info?.grade === 'incomplete') return <span className="status-revision-btn text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Needs Revision</span>
-  if (info?.status === 'submitted') return <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-light text-teal-primary border border-teal-primary shrink-0">Turned In</span>
-  // not started (no submission or draft) — show both Late + Not Started if past due
-  return (
-    <div className="flex items-center gap-1.5">
-      {isLate && <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">Late</span>}
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background border border-border text-muted-text shrink-0">Not Started</span>
-    </div>
-  )
+function AssignmentStatusBadge({ info, dueDate, isOptional, submissionRequired }: { info: SubmissionInfo | undefined; dueDate?: string | null; isOptional?: boolean; submissionRequired?: boolean }) {
+  return <SharedStatusBadge status={getAssignmentStatus({
+    status: info?.status,
+    grade: info?.grade,
+    excused: info?.excused,
+    submittedIsLate: info?.is_late,
+    dueDate,
+    isOptional,
+    submissionRequired,
+  })} />
 }
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -173,6 +176,8 @@ interface Props {
   currentWeek: number | null
   submissionMap?: Record<string, SubmissionInfo>
   initialStarredIds?: string[]
+  /** Viewing as a student: show their stars/completions but don't change anything */
+  readOnly?: boolean
   initialCompletedIds?: string[]
   hideLevelUpBanner?: boolean
   showBonusAssignments?: boolean
@@ -271,7 +276,7 @@ function DayContent({
             {publishedAssignments.map(a => (
               <div
                 key={a.id}
-                className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4"
+                className={`flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-teal-primary/40 hover:bg-teal-light/40 transition-colors gap-4 ${submissionMap?.[a.id]?.excused ? 'opacity-60' : ''}`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -296,7 +301,7 @@ function DayContent({
                     </p>
                   )}
                 </div>
-                {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} />}
+                {submissionMap && <AssignmentStatusBadge info={submissionMap[a.id]} dueDate={a.due_date} isOptional={a.is_optional} submissionRequired={a.submission_required} />}
                 <Link
                   href={`/student/courses/${courseId}/assignments/${a.id}`}
                   className="text-sm text-teal-primary font-semibold hover:underline shrink-0"
@@ -358,10 +363,11 @@ type SearchResult =
 
 export default function CourseOutlineAccordion({
   modules, courseId, currentWeek, submissionMap,
-  initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes,
+  initialStarredIds, initialCompletedIds, hideLevelUpBanner, showBonusAssignments, quizzes, readOnly,
   showSearch = true,
 }: Props) {
   const todayName = DAY_NAMES[new Date().getDay()]
+  const courseModuleTitles = moduleTitleSet(modules)
   const [search, setSearch] = useState('')
   const [openDayIds, setOpenDayIds] = useState<Set<string>>(new Set())
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(() => {
@@ -389,6 +395,7 @@ export default function CourseOutlineAccordion({
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(initialCompletedIds ?? []))
 
   const toggleStar = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isStarred = starredIds.has(id)
     setStarredIds(prev => { const next = new Set(prev); isStarred ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceStar(id, courseId, isStarred)
@@ -399,6 +406,7 @@ export default function CourseOutlineAccordion({
   }
 
   const toggleComplete = async (id: string) => {
+    if (readOnly) return // viewing as a student: never change anyone's stars
     const isDone = completedIds.has(id)
     setCompletedIds(prev => { const next = new Set(prev); isDone ? next.delete(id) : next.add(id); return next })
     const result = await toggleResourceComplete(id, courseId, isDone)
@@ -411,15 +419,15 @@ export default function CourseOutlineAccordion({
   const query = search.trim().toLowerCase()
   const searchResults: SearchResult[] | null = query ? (() => {
     const results: SearchResult[] = []
-    for (const module of modules) {
-      if (module.title.toLowerCase().includes(query)) results.push({ kind: 'module', module })
-      for (const day of [...(module.module_days ?? [])].sort((a, b) => a.order - b.order)) {
-        if (day.day_name.toLowerCase().includes(query)) results.push({ kind: 'day', module, day })
+    for (const mod of modules) {
+      if (mod.title.toLowerCase().includes(query)) results.push({ kind: 'module', module: mod })
+      for (const day of [...(mod.module_days ?? [])].sort((a, b) => a.order - b.order)) {
+        if (day.day_name.toLowerCase().includes(query)) results.push({ kind: 'day', module: mod, day })
         for (const a of day.assignments ?? []) {
-          if (a.published && a.title.toLowerCase().includes(query)) results.push({ kind: 'assignment', module, day, assignment: a })
+          if (a.published && a.title.toLowerCase().includes(query)) results.push({ kind: 'assignment', module: mod, day, assignment: a })
         }
         for (const r of day.resources ?? []) {
-          if (r.title.toLowerCase().includes(query)) results.push({ kind: 'resource', module, day, resource: r })
+          if (r.title.toLowerCase().includes(query)) results.push({ kind: 'resource', module: mod, day, resource: r })
         }
       }
     }
@@ -584,14 +592,10 @@ export default function CourseOutlineAccordion({
                     const isToday = isCurrentWeek && day.day_name === todayName
                     const publishedAssignments = [...(day.assignments?.filter(a => a.published && (showBonusAssignments || !a.is_bonus)) ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                     const resources = day.resources ?? []
-                    const dayQuizzes = (quizzes ?? []).filter(q => {
-                      if (q.linked_day_id === day.id) return true
-                      if (q.day_title?.trim() !== day.day_name?.trim()) return false
-                      if (q.module_title?.trim() === module.title?.trim()) return true
-                      const quizWeek = q.module_title?.match(/^Week\s+(\d+)/i)?.[1]
-                      return !!(quizWeek && module.week_number === parseInt(quizWeek, 10))
-                    })
-                    const total = publishedAssignments.length + resources.length + dayQuizzes.length
+                    const dayQuizzes = (quizzes ?? []).filter(q => quizBelongsToDay(q, day, module, courseModuleTitles))
+                    // Excused work is still listed (greyed out) but isn't counted as something to do
+                    const assignmentCount = publishedAssignments.filter(a => !submissionMap?.[a.id]?.excused).length
+                    const total = assignmentCount + resources.length + dayQuizzes.length
                     const isDayOpen = openDayIds.has(day.id)
 
                     return (
@@ -613,7 +617,7 @@ export default function CourseOutlineAccordion({
                             {total > 0 && !isDayOpen && (
                               <span className="text-xs text-muted-text">
                                 {[
-                                  publishedAssignments.length > 0 && `${publishedAssignments.length} assignment${publishedAssignments.length !== 1 ? 's' : ''}`,
+                                  assignmentCount > 0 && `${assignmentCount} assignment${assignmentCount !== 1 ? 's' : ''}`,
                                   resources.length > 0 && `${resources.length} resource${resources.length !== 1 ? 's' : ''}`,
                                   dayQuizzes.length > 0 && `${dayQuizzes.length} quiz${dayQuizzes.length !== 1 ? 'zes' : ''}`,
                                 ].filter(Boolean).join(' · ')}

@@ -150,12 +150,6 @@ export function AttendanceTrendChart({ history }: { history: AttendanceHistoryPo
   )
 }
 
-export function ZoneBadge({ absences }: { absences: number }) {
-  if (absences >= 23) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-900">Red zone</span>
-  if (absences >= 12) return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-900">Yellow zone</span>
-  return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Green zone</span>
-}
-
 export function StatCard({
   label,
   count,
@@ -185,7 +179,7 @@ export function StatCard({
   )
 }
 
-function CommentsPreview({ submissionId, courseId }: { submissionId: string; courseId: string }) {
+export function CommentsPreview({ submissionId, courseId }: { submissionId: string; courseId: string }) {
   const [comments, setComments] = useState<SubmissionCommentPreview[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -46,6 +46,8 @@ A course offered on the platform.
 | `is_template` | boolean | Default: false |
 | `paid_learners` | boolean | Default: false — enables Benefits & PTO sidebar |
 | `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
+| `readiness_instructor_ids` | uuid[] | Default: `{}` — the course's actual instructors ("Accountability Instructors"), set in course setup / Edit Course Settings; readiness step 3 group DMs and 48h check-in reminders go to them, not to every `role='instructor'` enrollment |
+| `readiness_slack_channel` | text | Nullable — Slack channel id for this course's readiness posts (step 1/2 started, check-in completed, 48h overdue, process completed); options in `src/lib/readiness-channels.ts`. Null skips those posts |
 | `created_at` | timestamptz | Default: now() |
 
 ---
@@ -505,7 +507,7 @@ Student requests for a due date extension on a specific assignment.
 | `reviewed_at` | timestamptz | Nullable |
 | `created_at` | timestamptz | Default: now() |
 
-Unique constraint on `(assignment_id, student_id)` — one request per student per assignment.
+Partial unique index on `(assignment_id, student_id) WHERE status <> 'denied'` — at most one pending or approved request per student per assignment. Denied requests are kept as history, so a student who was denied can request again (`20261009000000_extension_rerequest.sql`).
 
 ---
 
@@ -532,7 +534,7 @@ In-app notifications for students and instructors.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `user_id` | uuid | FK → users, CASCADE DELETE |
-| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment` |
+| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email), `readiness_note_shared` (a readiness note was shared with the student — bell only, links to `/student/readiness?course=`; removed when the note is unshared or deleted) |
 | `course_id` | uuid | FK → courses, nullable |
 | `assignment_id` | uuid | FK → assignments, nullable |
 | `extension_request_id` | uuid | FK → extension_requests, nullable |
@@ -540,32 +542,172 @@ In-app notifications for students and instructors.
 | `read` | boolean | Default: false |
 | `created_at` | timestamptz | Default: now() |
 | `emailed_at` | timestamptz | Nullable — set when included in a daily digest email; prevents re-sending |
+| `cleared_at` | timestamptz | Nullable — set when the user clears the notification; it is then hidden from the bell but the row stays (so the digest email is unaffected) |
+| `cutting_edge_event_id` | uuid | FK → cutting_edge_events, nullable — set on `cutting_edge_new_event` / `cutting_edge_question_reminder` / `cutting_edge_thanks_reminder` (bell only, never in the digest email) |
+| `readiness_note_id` | uuid | FK → readiness_notes, CASCADE DELETE, nullable — set on `readiness_note_shared`; deleted when the note is unshared |
 
 ---
 
-### confidence_skills
-Skills a student is personally tracking in the Confidence Tracker.
+### cutting_edge_events
+Global Cutting Edge Talks (guest speakers), shared by every course. Each event owns its two checkbox assignments as columns — they are not rows in `assignments` and never touch gradebooks, missing/late or readiness. Written only by server actions (`src/lib/cutting-edge-actions.ts`) with the service client.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
-| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
-| `name` | text | Skill name (e.g. `React`, `CSS Flexbox`) |
-| `created_at` | timestamptz | Default: now() |
+| `title` | text | Required |
+| `speaker` | text | Nullable |
+| `starts_at` | timestamptz | Entered in the creator's timezone, shown in each viewer's local timezone (bell/Slack text and due-date/reminder logic use Pacific) |
+| `location_text` / `location_url` | text | Usually the Focus Friday Zoom; never a physical address |
+| `about_html` | text | Rich HTML (sanitized on render) |
+| `audience_all` | boolean | true = students in every course active at the event (or now, while upcoming); false = only `cutting_edge_event_courses` |
+| `block` | text | Nullable — `A`/`B`/`C`/`D`, the part of the day; a label only |
+| `status` | text | `draft` / `published` — students only see published; publishing can skip the RSVP notification ("publish quietly") |
+| `first_published_at` | timestamptz | Set on first publish; the "new event" RSVP prompt is sent only then |
+| `question_due_date` / `thanks_due_date` | date | Pacific calendar dates; default 7 days before / after the event |
+| `question_html` / `thanks_html` | text | Assignment instructions |
+| `question_padlet_url` / `thanks_padlet_url` | text | Per-event Padlet links; nullable (can be added later) |
+| `created_by` | uuid | FK → users |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | Soft-deletable |
+
+### cutting_edge_event_courses
+Course limits for events with `audience_all = false`. PK `(event_id, course_id)`.
+
+### cutting_edge_rsvps
+One row per student per event. PK `(event_id, user_id)`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `response` | text | `yes` / `no` / null — changeable until `starts_at` |
+| `question_done_at` | timestamptz | Submit Your Question checked off (required only for yes) |
+| `thanks_done_at` | timestamptz | Say Thank You checked off (required only for yes, after the event) |
+| `missed_at` | timestamptz | "I did not make it" — excuses the thank-you; mutually exclusive with `thanks_done_at` |
+| `updated_by` | uuid | Unused (staff overrides were dropped before launch) |
+
+### cutting_edge_notifications_sent
+Sent-log making each notification once per student per event. PK `(event_id, user_id, kind)`; `kind` is `new_event` / `question_reminder` / `thanks_reminder`; `slack_sent` records whether the Slack DM went through.
 
 ---
 
-### confidence_entries
-Individual score log entries per tracked skill.
+### confidence_tracker_skills
+Canonical, shared skill taxonomy for Confidence Tracker v2 (Phase 1: assignment tagging). Deliberately separate from `assignments.skill_tags`/`modules.skill_tags` (the unrelated "Level Up Your Skills" preset+free-text tags).
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
-| `skill_id` | uuid | FK → confidence_skills, CASCADE DELETE |
-| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
-| `score` | int | 1–10 self-rating |
-| `goal_points` | int | Nullable, 1–5 — optional effort/goal points |
+| `name` | text | Display name, preserves the instructor's original casing |
+| `normalized_name` | text | Unique — lowercased with whitespace/punctuation stripped, so "JS", "js", and "J.S." all resolve to the same row |
 | `created_at` | timestamptz | Default: now() |
+
+---
+
+### confidence_tracker_assignment_skills
+Join table: which confidence-tracker skills are tagged on which assignment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `created_at` | timestamptz | Default: now() |
+
+Unique on `(assignment_id, skill_id)`. Removing a tag deletes only this join row — never the underlying skill.
+
+---
+
+### confidence_tracker_ratings
+Confidence Tracker v2, Phase 2: a student's self-rating on a tagged skill, captured once per student/assignment on their first-ever submission. Fully separate from `assignments.skill_tags`/`modules.skill_tags`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `rating` | int | 1–10 self-rating |
+| `created_at` | timestamptz | Default: now() |
+
+Unique on `(student_id, assignment_id, skill_id)`. RLS: a student can read/insert only their own rows; staff/instructor/admin can read all (TAs excluded, matching Phase 1). No UPDATE/DELETE policy — ratings aren't edited or removed in this phase.
+
+---
+
+### confidence_tracker_skill_progress
+Confidence Tracker v2, Phase 3: one row per student/skill, tracking goal/target-date/study-plan for a skill. **Growing and Maintaining skills:** `ten_rating_count`, `is_mastered`, `mastered_at`, `reactivated_at`, `goal_is_maintain` and (for new skills) `is_new_pending` are no longer read or written — a skill is Maintaining when its latest rating is 10, worked out from `confidence_tracker_ratings`, and an old `goal_is_maintain` row is treated as no goal. The columns and `confidence_tracker_skill_events` stay in place, unused. Deliberately a separate, mutable table from the append-only, immutable `confidence_tracker_ratings` audit trail (which has no UPDATE/DELETE policy) — a later "reactivate" action needs a plain UPDATE to reset mastery state, which an insert-only table can't support.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `is_new_pending` | boolean | Default: true — false once this skill's first rating is captured; a later reactivate action flips it back to true |
+| `goal` | int | Nullable, 2–10 — the current numeric goal. Set with a rating on any occasion while none exists yet, or later by the student (after a goal is met, or for a skill that never had one). Kept after it is met; a new goal replaces it here (the old one stays in `confidence_tracker_goal_history`) |
+| `goal_is_maintain` | boolean | Default: false — true when the rating that set the goal was already 10 (no numeric goal possible above the scale max) |
+| `target_date` | date | Nullable — required whenever `goal` is set, must be null when `goal_is_maintain` is true (maintaining isn't working toward anything). "Strictly in the future, any date" is enforced in application code when a goal is set, not by a CHECK (a CHECK failed every later rating once the date had passed) |
+| `study_plan` | text[] | Nullable — one or more of `practice_alone`, `review_lessons`, `ta_help`, `outside_tutorials`, `flashcards`, `review_notes`, `other` (a student may pick more than one); required (non-empty) whenever `goal` is set, must be null when `goal_is_maintain` is true |
+| `study_plan_other` | text | Nullable — free text, required (non-blank) iff `study_plan` includes `'other'`, otherwise must be null |
+| `ten_rating_count` | int | Default: 0 — count of ratings of exactly 10 recorded for this student/skill, across every assignment |
+| `is_mastered` | boolean | Default: false — true once `ten_rating_count` reaches 2; a mastered skill is excluded from future rating prompts |
+| `mastered_at` | timestamptz | Nullable — set when `is_mastered` first becomes true |
+| `reactivated_at` | timestamptz | Nullable — set when the student reactivates a mastered skill (latest only; every event is kept in `confidence_tracker_skill_events`) |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+Unique on `(student_id, skill_id)`. RLS: a student can read/insert/update only their own row; staff/instructor/admin can read all (TAs excluded, matching Phase 1/2). CHECK constraints enforce the "goal set → target date + study plan required" rule, the `study_plan_other` iff `study_plan` includes `'other'` rule, and a coarse bound on `goal` (the relative `goal ≥ rating + 1` rule and the future target date are enforced in application code, since `rating` lives on a different table and a date CHECK breaks once the date passes).
+
+---
+
+### confidence_tracker_goal_history
+Confidence Tracker v2, Phase 4: append-only history of every goal a student has captured for a skill, so a later goal (e.g. after a reactivation) never overwrites an earlier one. Written only by the `record_confidence_tracker_history` trigger on `confidence_tracker_skill_progress` (a `SECURITY DEFINER` function) — there are no insert/update/delete policies. The "current" goal is still the one on `confidence_tracker_skill_progress`; this table is the record of all of them.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `goal` | int | Nullable, 2–10 — null when `goal_is_maintain` is true |
+| `goal_is_maintain` | boolean | Default: false — true for a "maintaining this rating" snapshot |
+| `target_date` | date | Nullable — no future-date CHECK here (snapshots are historical; the date is expected to pass) |
+| `study_plan` | text[] | Nullable — same allowed values as `confidence_tracker_skill_progress.study_plan` |
+| `study_plan_other` | text | Nullable — free text for the "other" study-plan choice |
+| `created_at` | timestamptz | Default: now() — when the goal was captured |
+
+RLS: a student can read only their own rows; staff/instructor/admin can read all (TAs excluded, matching Phases 1–3).
+
+---
+
+### confidence_tracker_skill_events
+Confidence Tracker v2, Phase 4: append-only log of each time a student's skill was mastered or reactivated, so a skill that goes through more than one cycle keeps every dated event (`mastered_at`/`reactivated_at` on `confidence_tracker_skill_progress` only hold the latest). Written only by the same trigger as `confidence_tracker_goal_history`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `event_type` | text | `mastered` or `reactivated` |
+| `created_at` | timestamptz | Default: now() — the mastery/reactivation time |
+
+RLS: same read rules as `confidence_tracker_goal_history`; no insert/update/delete policies.
+
+---
+
+### confidence_tracker_goal_outcomes
+Confidence Tracker v2, Phase 6: one row per goal a student has **met** (rating at or above a numeric goal), or per time they got back to 10 with no goal to meet (Growing and Maintaining skills; `goal_history_id` is null then), holding the optional "what helped" answer and a link to its reminder in the bell. Hangs off `confidence_tracker_goal_history` so that table stays append-only; `UNIQUE (goal_history_id)` guarantees a goal is met at most once (it still allows any number of null rows), and goals met before Phase 6 shipped simply have no row. Written only by server actions using the service-role client (there are no insert/update/delete policies): `saveConfidenceRatings` inserts the row and creates its bell reminder, and `answerWhatHelped` fills the answer (add-only) and clears the reminder. A first-ever 10 is celebrated but is not stored here.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `goal_history_id` | uuid | FK → confidence_tracker_goal_history, CASCADE DELETE, UNIQUE, nullable — the goal that was met; null for a return to 10 with no goal (made nullable by `20261005000000_confidence_tracker_goal_outcomes_standalone.sql`) |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `skill_id` | uuid | FK → confidence_tracker_skills, CASCADE DELETE |
+| `met_at` | timestamptz | Default: now() |
+| `met_rating` | int | 1–10 — the rating that met the goal (10 for a return to 10) |
+| `met_assignment_id` | uuid | FK → assignments, SET NULL on delete, nullable |
+| `what_helped` | text[] | Nullable — one or more of `practice_alone`, `review_lessons`, `ta_help`, `outside_tutorials`, `flashcards`, `review_notes`, `own_plan` (the student's own study-plan "Other" text for that goal), `other`; null until answered |
+| `what_helped_other` | text | Nullable — write-in, required (non-blank, at most 200 characters) iff `what_helped` includes `'other'` |
+| `answered_at` | timestamptz | Nullable — set with `what_helped` (null together); once set the answer is never changed |
+| `reminder_notification_id` | uuid | FK → notifications, SET NULL on delete, nullable — the reminder in the bell, created the moment the goal is reached; cleared (hidden from the bell) when the question is answered |
+| `created_at` | timestamptz | Default: now() |
+
+RLS: a student can read only their own rows; staff/instructor/admin can read all (TAs excluded, matching Phases 1–4).
 
 ---
 
@@ -652,3 +794,8 @@ RLS: Instructors and admins can read, insert, and delete their own templates.
 | `checklist_responses` | `submission_id` | All responses for a submission |
 | `quizzes` | `course_id`, `(course_id, published)` | Quizzes per course; student list by published |
 | `quiz_submissions` | `quiz_id`, `student_id` | Lookup by quiz or by student |
+| `confidence_tracker_ratings` | `student_id`, `assignment_id` | Per-student and per-assignment lookups for trend pages |
+| `confidence_tracker_skill_progress` | `student_id`, `skill_id` | Per-student new/existing/mastery lookups when rendering an assignment's tagged skills |
+| `confidence_tracker_goal_history` | `student_id`, `skill_id` | Per-student, per-skill goal history for the trend pages |
+| `confidence_tracker_skill_events` | `student_id`, `skill_id` | Per-student, per-skill mastery/reactivation history for the trend pages |
+| `confidence_tracker_goal_outcomes` | `(student_id, skill_id)` | Per-student met goals for the trend pages |

@@ -10,6 +10,7 @@ interface Assignment {
   title: string
   due_date: string | null
   submission_required: boolean
+  is_optional?: boolean
   moduleTitle: string
 }
 
@@ -107,6 +108,8 @@ export default function CourseGradesView({
         if (!sub || sub.status === 'draft') {
           // No-submission assignments are never "missing" — instructor marks them complete manually
           if (a.submission_required === false) continue
+          // Optional assignments are never "missing" either
+          if (a.is_optional) continue
           if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) missing.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)
@@ -247,6 +250,9 @@ function SpeedGrader({
 
   const grade = async (submissionId: string, result: 'complete' | 'incomplete') => {
     if (grading[submissionId]) return
+    if (result === 'incomplete' && !confirm(
+      "Mark this as Needs Revisions? Every time a submission is returned this way counts toward the student's weekly readiness score, so only use it when you actually want the student to redo the work."
+    )) return
     setGrading(prev => ({ ...prev, [submissionId]: true }))
     const { error } = await saveGrade(submissionId, result, courseId)
     if (error) {

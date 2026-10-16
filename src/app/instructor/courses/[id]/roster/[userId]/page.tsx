@@ -1,12 +1,13 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import SmartBackLink from '@/components/ui/SmartBackLink'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import StudentDetailView, { type CategorizedAssignment } from '@/components/ui/StudentDetailView'
 import ViewAsStudentButton from '@/components/ui/ViewAsStudentButton'
 import { localDate, todayLocal } from '@/lib/date-utils'
+import { getReadinessHistory, getEscalationHistory, getPriorCourseMissing } from '@/lib/readiness-actions'
 
 export default async function StudentDetailPage({
   params,
@@ -15,7 +16,7 @@ export default async function StudentDetailPage({
 }) {
   const { id: courseId, userId } = await params
 
-  const { profile } = await getInstructorOrTaAccess(courseId)
+  const { profile } = await getInstructorOrTaAccess(courseId, `/student/courses/${courseId}`)
 
   const admin = createServiceSupabaseClient()
 
@@ -55,7 +56,7 @@ export default async function StudentDetailPage({
     admin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null }, error: null })),
     admin
       .from('modules')
-      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, canvas_assignment_id, deleted_at))')
+      .select('id, title, week_number, order, module_days(id, order, assignments!module_day_id(id, title, due_date, published, is_optional, canvas_assignment_id, deleted_at))')
       .eq('course_id', courseId)
       .eq('published', true)
       .eq('category', 'syllabus')
@@ -68,7 +69,7 @@ export default async function StudentDetailPage({
     (authResult as { data: { user: { last_sign_in_at?: string } | null } }).data?.user?.last_sign_in_at ?? null
 
   // Flatten to all published assignments with module context
-  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; canvas_assignment_id: number | null; deleted_at: string | null }
+  type RawAssignment = { id: string; title: string; due_date: string | null; published: boolean; is_optional: boolean | null; canvas_assignment_id: number | null; deleted_at: string | null }
   const allAssignments: (Omit<CategorizedAssignment, 'isLate'> & { canvasAssignmentId: number | null })[] = (rawModules ?? []).flatMap(m => {
     const days = (m.module_days ?? []) as { id: string; assignments: RawAssignment[] }[]
     return days.flatMap(d =>
@@ -87,6 +88,11 @@ export default async function StudentDetailPage({
   })
 
   const assignmentIds = allAssignments.map(a => a.id)
+  // Optional assignments are never missing or late
+  const optionalIds = new Set(
+    (rawModules ?? []).flatMap(m => ((m.module_days ?? []) as { assignments: RawAssignment[] }[])
+      .flatMap(d => (d.assignments ?? []).filter(a => a.is_optional).map(a => a.id)))
+  )
 
   const [
     { data: submissions },
@@ -105,6 +111,8 @@ export default async function StudentDetailPage({
       .select('id, title, module_title, due_at')
       .eq('course_id', courseId)
       .eq('published', true)
+      // Practice quizzes are ungraded, so never missing or incomplete
+      .eq('is_practice', false)
       .is('deleted_at', null),
     assignmentIds.length > 0
       ? admin
@@ -116,13 +124,31 @@ export default async function StudentDetailPage({
   ])
 
   const quizIds = (quizzes ?? []).map(q => q.id)
-  const { data: quizSubmissions } = quizIds.length > 0
-    ? await admin
-        .from('quiz_submissions')
-        .select('quiz_id, submitted_at, score_percent')
-        .eq('student_id', userId)
-        .in('quiz_id', quizIds)
-    : { data: [] }
+  const [{ data: quizSubmissions }, readinessHistory, escalationHistory, priorCourseMissing] = await Promise.all([
+    quizIds.length > 0
+      ? admin
+          .from('quiz_submissions')
+          .select('quiz_id, submitted_at, score_percent')
+          .eq('student_id', userId)
+          .in('quiz_id', quizIds)
+      : Promise.resolve({ data: [] }),
+    getReadinessHistory(userId, courseId),
+    getEscalationHistory(userId, courseId),
+    getPriorCourseMissing(userId, courseId),
+  ])
+
+  // Comment counts per submission, for the expandable comments toggle
+  const submissionIds = (submissions ?? []).map(s => s.id)
+  const commentCountMap = new Map<string, number>()
+  if (submissionIds.length > 0) {
+    const { data: commentRows } = await admin
+      .from('submission_comments')
+      .select('submission_id')
+      .in('submission_id', submissionIds)
+    for (const c of (commentRows as { submission_id: string }[] ?? [])) {
+      commentCountMap.set(c.submission_id, (commentCountMap.get(c.submission_id) ?? 0) + 1)
+    }
+  }
 
   // Categorize assignments
   const subMap = new Map((submissions ?? []).map(s => [s.assignment_id, s as { id: string; assignment_id: string; status: string; grade: string | null; submitted_at: string | null; is_late: boolean }]))
@@ -140,16 +166,17 @@ export default async function StudentDetailPage({
     if (override?.excused) continue
     const effectiveDueDate = override?.due_date ?? a.due_date
     const duePassed = effectiveDueDate ? localDate(effectiveDueDate) < todayLocal() : false
-    const isLate = sub?.is_late ?? false
+    const isOptional = optionalIds.has(a.id)
+    const isLate = !isOptional && (sub?.is_late ?? false)
     let lateCurrentStatus: CategorizedAssignment['lateCurrentStatus']
     if (isLate) {
       if (sub?.status === 'submitted') lateCurrentStatus = 'needsGrading'
       else if (sub?.status === 'graded') lateCurrentStatus = sub.grade === 'complete' ? 'complete' : 'needsRevision'
     }
-    const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, type: 'assignment' }
+    const entry: CategorizedAssignment = { ...a, isLate, lateCurrentStatus, submissionId: sub?.id ?? null, commentCount: sub ? (commentCountMap.get(sub.id) ?? 0) : 0, type: 'assignment' }
 
     if (!sub || sub.status === 'draft') {
-      if (duePassed) missing.push(entry)
+      if (duePassed && !isOptional) missing.push(entry)
     } else if (sub.status === 'submitted') {
       submitted.push(entry)
       if (isLate) late.push(entry)
@@ -204,12 +231,7 @@ export default async function StudentDetailPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
             <div className="mb-6 flex items-center justify-between gap-4">
-              <Link
-                href={`/instructor/courses/${courseId}/roster`}
-                className="text-sm text-muted-text hover:text-teal-primary"
-              >
-                ← Roster
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${courseId}/roster`} fallbackLabel="Roster" className="text-sm text-muted-text hover:text-teal-primary" />
               {profile?.role === 'admin' && (
                 <ViewAsStudentButton
                   studentId={student.id}
@@ -240,6 +262,9 @@ export default async function StudentDetailPage({
               complete={complete}
               incomplete={incomplete}
               totalPublished={missing.length + submitted.length + complete.length + incomplete.length}
+              readinessHistory={readinessHistory}
+              escalationHistory={escalationHistory}
+              priorCourseMissing={priorCourseMissing}
             />
           </main>
         </div>

@@ -1,20 +1,11 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentWorkList, { type WorkAssignment } from '@/components/ui/StudentWorkList'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
-
-function getCurrentWeek(startDate: string | null, endDate: string | null): number | null {
-  if (!startDate) return null
-  const start = new Date(startDate)
-  const today = new Date()
-  if (endDate && today > new Date(endDate)) return null // course has ended
-  const diffMs = today.getTime() - start.getTime()
-  if (diffMs < 0) return null
-  return Math.floor(Math.floor(diffMs / (1000 * 60 * 60 * 24)) / 7) + 1
-}
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
+import { getCourseWeekNumber } from '@/lib/date-utils'
 
 export default async function MyWorkPage({
   params,
@@ -22,31 +13,8 @@ export default async function MyWorkPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -58,7 +26,7 @@ export default async function MyWorkPage({
 
   const { data: rawModulesWork } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, deleted_at, published))')
+    .select('id, title, week_number, order, module_days(id, deleted_at, assignments!module_day_id(id, title, due_date, is_bonus, is_optional, deleted_at, published))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .order('order', { ascending: true })
@@ -69,10 +37,10 @@ export default async function MyWorkPage({
     return { ...m, module_days: days }
   })
 
-  const { data: submissions } = await supabase
+  const { data: submissions } = await studentDb
     .from('submissions')
     .select('assignment_id, status, grade, submitted_at, is_late')
-    .eq('student_id', user.id)
+    .eq('student_id', viewer.viewerId)
 
   const submissionMap = new Map(
     (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null, is_late: s.is_late ?? null }])
@@ -86,16 +54,16 @@ export default async function MyWorkPage({
     ? await adminClient
         .from('assignment_overrides')
         .select('assignment_id, due_date, excused')
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .in('assignment_id', allAssignmentIds)
     : { data: [] }
   const overrideMap = new Map((overrideRows ?? []).map((o: { assignment_id: string; due_date: string | null; excused: boolean }) => [o.assignment_id, o]))
 
-  const currentWeek = getCurrentWeek(course.start_date, course.end_date ?? null)
+  const currentWeek = getCourseWeekNumber(course.start_date, course.end_date ?? null)
 
   const assignments: WorkAssignment[] = (modules ?? []).flatMap(module =>
     (module.module_days ?? []).flatMap(
-      (day: { id: string; assignments?: { id: string; title: string; due_date: string | null; is_bonus?: boolean }[] }) =>
+      (day: { id: string; assignments?: { id: string; title: string; due_date: string | null; is_bonus?: boolean; is_optional?: boolean }[] }) =>
         (day.assignments ?? [])
           .map(a => {
           const sub = submissionMap.get(a.id) ?? null
@@ -114,6 +82,7 @@ export default async function MyWorkPage({
             submittedIsLate,
             isExcused,
             isBonus: a.is_bonus ?? false,
+            isOptional: a.is_optional ?? false,
             moduleTitle: module.title,
             weekNumber: module.week_number,
             isCurrentWeek: currentWeek !== null && module.week_number === currentWeek,
@@ -125,8 +94,8 @@ export default async function MyWorkPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
 
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-8 py-12 focus:outline-none">
         <div className="flex items-start justify-between gap-4 mb-2">

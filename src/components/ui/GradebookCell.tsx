@@ -15,10 +15,11 @@ interface Props {
   submission: Submission | null
   dueDate: string | null
   submissionRequired?: boolean
+  isOptional?: boolean
   currentUserId?: string
 }
 
-export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate, submissionRequired, currentUserId }: Props) {
+export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate, submissionRequired, isOptional, currentUserId }: Props) {
   const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
   const isComplete = submission?.grade === 'complete'
   const [optimisticComplete, setOptimisticComplete] = useState<boolean | null>(null)
@@ -91,6 +92,8 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
       cellClass = 'status-needs-grading-btn'
       cellLabel = 'Submitted – needs grading'
     }
+  } else if (isOptional) {
+    cellLabel = isPastDue ? 'Optional — closed, not submitted' : 'Optional — not submitted'
   } else if (isPastDue) {
     icon = '–'
     cellClass = 'status-late-badge'

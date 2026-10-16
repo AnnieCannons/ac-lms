@@ -4,12 +4,26 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 
 type ItemType = 'module' | 'day' | 'assignment' | 'resource' | 'quiz'
 
-async function getAuthedAdmin(courseId: string) {
+// TAs can trash and restore (they have full Course Editor access), but the permanent,
+// irreversible actions stay with globally trusted staff, matching the Trash page,
+// which redirects TAs.
+async function getAuthedAdmin(courseId: string, { allowTa = true }: { allowTa?: boolean } = {}) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' as const }
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' as const }
+  const isGloballyTrusted = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
+  if (!isGloballyTrusted) {
+    if (!allowTa) return { error: 'Not authorized' as const }
+    const { data: taEnrollment } = await supabase
+      .from('course_enrollments')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .eq('role', 'ta')
+      .maybeSingle()
+    if (!taEnrollment) return { error: 'Not authorized' as const }
+  }
   const admin = createServiceSupabaseClient()
   return { user, admin, courseId }
 }
@@ -303,7 +317,7 @@ export async function restoreItem(type: ItemType, id: string, courseId: string):
 
 /** Permanently delete a single item from trash */
 export async function permanentlyDeleteItem(type: ItemType, id: string, courseId: string): Promise<{ error?: string }> {
-  const auth = await getAuthedAdmin(courseId)
+  const auth = await getAuthedAdmin(courseId, { allowTa: false })
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
   if (!await verifyCourseItem(admin, type, id, courseId)) return { error: 'Not authorized' }
@@ -321,7 +335,7 @@ export async function permanentlyDeleteItem(type: ItemType, id: string, courseId
 
 /** Permanently delete ALL trashed items for a course */
 export async function emptyTrash(courseId: string): Promise<{ error?: string }> {
-  const auth = await getAuthedAdmin(courseId)
+  const auth = await getAuthedAdmin(courseId, { allowTa: false })
   if ('error' in auth) return { error: auth.error }
   const { admin } = auth
 

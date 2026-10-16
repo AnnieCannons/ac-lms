@@ -1,4 +1,5 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -6,10 +7,7 @@ import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import ResourceOutline from '@/components/ui/ResourceOutline'
 import PageRefresher from '@/components/ui/PageRefresher'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
-import { getImpersonation } from '@/lib/impersonate'
-import ImpersonateBanner from '@/components/ui/ImpersonateBanner'
+import { getStudentOverrides } from '@/lib/student-overrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,37 +17,8 @@ export default async function StudentAssignmentsPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const impersonation = await getImpersonation()
-  const preview = await isStudentPreview(id)
-
-  // Admins/instructors bypass to instructor view — unless previewing or impersonating
-  if (!preview && !impersonation && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  const effectiveUserId = impersonation?.userId ?? user.id
-
-  // Enrollment check (bypassed when previewing or impersonating)
-  if (!preview && !impersonation) {
-    const { data: enrollment } = await supabase
-      .from('course_enrollments')
-      .select('id, role')
-      .eq('user_id', effectiveUserId)
-      .eq('course_id', id)
-      .in('role', ['student', 'observer', 'ta'])
-      .maybeSingle()
-    if (!enrollment) redirect('/student/courses')
-  }
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb, viewerId } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -61,14 +30,14 @@ export default async function StudentAssignmentsPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('id, title, week_number, order, category, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, submission_required, deleted_at))')
+    .select('id, title, week_number, order, category, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, is_bonus, is_optional, submission_required, deleted_at))')
     .eq('course_id', id)
     .eq('published', true)
     .is('deleted_at', null)
     .order('order', { ascending: true })
 
   // Filter bonus assignments out — they belong to Level Up only; also filter trashed items
-  const modules = (rawModules ?? [])
+  const publishedModules = (rawModules ?? [])
     .filter(m => !m.title?.includes('DO NOT PUBLISH'))
     .map(m => ({
       ...m,
@@ -80,34 +49,33 @@ export default async function StudentAssignmentsPage({
         })),
     }))
 
-  // Use service role when impersonating to bypass RLS
-  const fetchClient = impersonation ? createServiceSupabaseClient() : supabase
 
-  const allAssignmentIds = modules.flatMap(m =>
+  const allAssignmentIds = publishedModules.flatMap(m =>
     m.module_days.flatMap((d: { assignments: Array<{ id: string }> }) => d.assignments.map((a: { id: string }) => a.id))
   )
 
-  const [{ data: submissions }, { data: overrideRows }] = await Promise.all([
-    fetchClient
+  const [{ data: submissions }, overrides] = await Promise.all([
+    studentDb
       .from('submissions')
       .select('id, assignment_id, status, grade, submitted_at, is_late')
-      .eq('student_id', effectiveUserId),
-    allAssignmentIds.length > 0
-      ? fetchClient
-          .from('assignment_overrides')
-          .select('assignment_id, excused')
-          .eq('student_id', effectiveUserId)
-          .in('assignment_id', allAssignmentIds)
-      : Promise.resolve({ data: [] }),
+      .eq('student_id', viewerId),
+    getStudentOverrides(viewerId, allAssignmentIds),
   ])
 
-  const excusedSet = new Set(
-    (overrideRows ?? []).filter((o: { excused: boolean }) => o.excused).map((o: { assignment_id: string }) => o.assignment_id)
-  )
+  const excusedSet = new Set([...overrides].filter(([, o]) => o.excused).map(([id]) => id))
+
+  // Show the student's own (extended) due date, so Late / Past Due / filters all use it
+  const modules = publishedModules.map(m => ({
+    ...m,
+    module_days: m.module_days.map((d: { assignments: Array<{ id: string; due_date: string | null }> }) => ({
+      ...d,
+      assignments: d.assignments.map(a => ({ ...a, due_date: overrides.get(a.id)?.due_date ?? a.due_date })),
+    })),
+  }))
 
   const submissionIds = (submissions ?? []).map(s => s.id)
   const { data: commentedSubs } = submissionIds.length > 0
-    ? await fetchClient
+    ? await studentDb
         .from('submission_comments')
         .select('submission_id')
         .in('submission_id', submissionIds)
@@ -133,18 +101,11 @@ export default async function StudentAssignmentsPage({
     }
   }
 
-  const displayName = impersonation?.studentName ?? profile?.name
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={displayName} role={profile?.role} />
-      {impersonation && (
-        <ImpersonateBanner
-          studentName={impersonation.studentName}
-          returnPath={`/instructor/courses/${id}/roster`}
-        />
-      )}
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
 
       <div className="flex">
         <ResizableSidebar>

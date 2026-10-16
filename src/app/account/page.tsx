@@ -37,7 +37,6 @@ export default async function AccountPage() {
           userId={user.id}
           initialName={profile?.name ?? ''}
           initialEmail={user.email ?? ''}
-          role={profile?.role ?? 'student'}
           initialAvatarUrl={profile?.avatar_url ?? null}
         />
         <div className="mt-6">
