@@ -10,6 +10,7 @@ import {
 } from '@/lib/readiness-notes-actions'
 import type { EscalationEventRecord } from '@/lib/readiness-actions'
 import { EscalationHistorySection, NoteTimelineItem } from '@/components/ui/ReadinessWidgets'
+import NoteReplyThread from '@/components/ui/ReadinessNoteReplies'
 
 function todayLocal(): string {
   // en-CA formats as YYYY-MM-DD, which is what <input type="date"> wants.
@@ -140,13 +141,21 @@ function EditableNoteItem({ note, isLast, onChanged }: { note: ReadinessNote; is
     </>
   ) : undefined
 
-  return <NoteTimelineItem note={note} isLast={isLast} actions={actions} showSharedTag />
+  return (
+    <NoteTimelineItem
+      note={note}
+      isLast={isLast}
+      actions={actions}
+      showSharedTag
+      footer={<NoteReplyThread note={note} audience="staff" onChanged={onChanged} />}
+    />
+  )
 }
 
 /** Staff view of a student's readiness notes: an add-note box, then the History timeline
  * with notes placed by date among the escalation events (shown as soon as either exists).
  * Notes are staff-only unless "Share with student" is ticked; the student sees shared ones
- * in their own History (ReadinessTracker). */
+ * in their own History (ReadinessTracker), and either side can reply under a shared note. */
 export default function ReadinessNotesSection({ studentId, courseId, events }: {
   studentId: string
   courseId: string

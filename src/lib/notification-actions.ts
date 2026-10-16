@@ -10,6 +10,9 @@ export type Notification = {
   extension_request_id: string | null
   deck_id: string | null
   cutting_edge_event_id?: string | null
+  readiness_note_id?: string | null
+  /** For a student's reply on a readiness note: whose page the staff bell links to. */
+  readiness_note_student_id?: string | null
   message: string
   read: boolean
   created_at: string
@@ -23,13 +26,24 @@ export async function getMyNotifications(): Promise<Notification[]> {
   const admin = createServiceSupabaseClient()
   const { data } = await admin
     .from('notifications')
-    .select('id, type, course_id, assignment_id, extension_request_id, deck_id, cutting_edge_event_id, message, read, created_at')
+    .select('id, type, course_id, assignment_id, extension_request_id, deck_id, cutting_edge_event_id, readiness_note_id, message, read, created_at')
     .eq('user_id', user.id)
     .is('cleared_at', null)
     .order('created_at', { ascending: false })
     .limit(30)
 
-  return (data ?? []) as Notification[]
+  const rows = (data ?? []) as Notification[]
+
+  // A student's reply links staff to that student's page, so look up whose note it was.
+  const replyNoteIds = [...new Set(rows
+    .filter(n => n.type === 'readiness_note_student_reply' && n.readiness_note_id)
+    .map(n => n.readiness_note_id as string))]
+  if (replyNoteIds.length === 0) return rows
+  const { data: notes } = await admin.from('readiness_notes').select('id, student_id').in('id', replyNoteIds)
+  const studentByNote = new Map(((notes ?? []) as { id: string; student_id: string }[]).map(r => [r.id, r.student_id]))
+  return rows.map(n => n.readiness_note_id && studentByNote.has(n.readiness_note_id)
+    ? { ...n, readiness_note_student_id: studentByNote.get(n.readiness_note_id) }
+    : n)
 }
 
 // "Clear" hides a notification from the bell without deleting it, so anything that reads

@@ -94,6 +94,7 @@ describe('readiness note bell notifications', () => {
     setup({ before: { student_id: 's1', course_id: 'c1', visible_to_student: true } })
     await updateReadinessNote({ ...EDIT, visibleToStudent: false })
     expect(notifInserts).toEqual([])
-    expect(notifLog).toEqual([['delete', []], ['eq', ['readiness_note_id', 'note1']]])
+    // Only the student's notifications go: staff keep theirs about the student's replies.
+    expect(notifLog).toEqual([['delete', []], ['eq', ['readiness_note_id', 'note1']], ['eq', ['user_id', 's1']]])
   })
 })

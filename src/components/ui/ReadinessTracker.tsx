@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote, NoteTimelineItem } from '@/components/ui/ReadinessWidgets'
+import NoteReplyThread from '@/components/ui/ReadinessNoteReplies'
 import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, getMyPriorCourseMissing, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord, type PriorCourseMissing } from '@/lib/readiness-actions'
 import type { EscalationStatus } from '@/lib/readiness'
 import { getMyReadinessNotes, type ReadinessNote } from '@/lib/readiness-notes-actions'
@@ -205,6 +206,11 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
 
   useEffect(() => { load() }, [load])
 
+  // After a reply, refresh just the notes so the page doesn't flash back to "Loading…".
+  const reloadNotes = useCallback(() => {
+    getMyReadinessNotes(courseId).then(setNotes).catch(() => {})
+  }, [courseId])
+
   if (loading) return <p className="text-sm text-muted-text py-10 text-center">Loading…</p>
 
   // Whether the form for the *current* step1/step2 cycle has already been
@@ -261,7 +267,17 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
 
         {(escalationHistory.length > 0 || notes.length > 0) && (
           <div className="mt-4">
-            <EscalationHistorySection events={escalationHistory} notes={notes} />
+            <EscalationHistorySection
+              events={escalationHistory}
+              notes={notes}
+              renderNote={(note, isLast) => (
+                <NoteTimelineItem
+                  note={note}
+                  isLast={isLast}
+                  footer={<NoteReplyThread note={note} audience="student" onChanged={reloadNotes} />}
+                />
+              )}
+            />
           </div>
         )}
       </div>
