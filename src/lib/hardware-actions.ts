@@ -20,6 +20,7 @@ import {
   type ReceiveStatus,
   validateReplacementInput,
   DEVICE_KINDS,
+  formatDateOnly,
   type ReplacementInput,
   type BatchInput,
   type DeviceInput,
@@ -28,6 +29,7 @@ import {
   type HardwareDevice,
 } from '@/lib/hardware'
 import { DEVICE_COLUMNS, type Person } from '@/lib/hardware-server'
+import { validateSubscriptionInput, type SubscriptionInput } from '@/lib/hardware-reminders'
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
@@ -576,4 +578,54 @@ function courseIsCurrent(c: { start_date: string | null; end_date: string | null
   const end = new Date(`${c.start_date}T00:00:00Z`)
   end.setUTCDate(end.getUTCDate() + 105)
   return end.toISOString().slice(0, 10) >= today
+}
+
+// ── Hotspot plans (Phase 7) ──────────────────────────────────────────────────
+
+/** Adds a plan (subscriptionId null) or corrects one. Only hotspots have plans. */
+export async function saveHardwareSubscription(deviceId: string, subscriptionId: string | null, input: SubscriptionInput): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+  const invalid = validateSubscriptionInput(input)
+  if (invalid) return { ok: false, error: invalid }
+
+  const admin = createServiceSupabaseClient()
+  const { data: device } = await admin.from('hardware_devices').select('kind').eq('id', deviceId).maybeSingle()
+  if (device?.kind !== 'hotspot') return { ok: false, error: 'Only hotspots have plans.' }
+
+  const row = {
+    carrier: input.carrier.trim(),
+    plan: blankToNull(input.plan),
+    starts_on: input.startsOn,
+    ends_on: input.endsOn,
+    cost: input.cost.trim() ? Number(input.cost) : null,
+    account_number: blankToNull(input.accountNumber),
+    line_number: blankToNull(input.lineNumber),
+    notes: blankToNull(input.notes),
+  }
+  const { error } = subscriptionId
+    ? await admin.from('hardware_subscriptions').update(row).eq('id', subscriptionId).eq('device_id', deviceId)
+    : await admin.from('hardware_subscriptions').insert({ ...row, device_id: deviceId, created_by: staff.userId })
+  if (error) return { ok: false, error: error.message }
+
+  await admin.from('hardware_events').insert({
+    device_id: deviceId, type: subscriptionId ? 'plan_edited' : 'plan_added',
+    notes: `${row.carrier}${row.plan ? ` · ${row.plan}` : ''}: ${formatDateOnly(row.starts_on)} – ${formatDateOnly(row.ends_on)}`,
+    actor_id: staff.userId,
+  })
+  return { ok: true }
+}
+
+export async function deleteHardwareSubscription(subscriptionId: string): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+  const admin = createServiceSupabaseClient()
+  const { data: sub } = await admin.from('hardware_subscriptions').select('device_id, carrier, starts_on, ends_on').eq('id', subscriptionId).maybeSingle()
+  if (!sub) return { ok: false, error: 'Plan not found.' }
+  const { error } = await admin.from('hardware_subscriptions').delete().eq('id', subscriptionId)
+  if (error) return { ok: false, error: error.message }
+  await admin.from('hardware_events').insert({
+    device_id: sub.device_id, type: 'plan_removed', notes: `${sub.carrier}: ${formatDateOnly(sub.starts_on)} – ${formatDateOnly(sub.ends_on)}`, actor_id: staff.userId,
+  })
+  return { ok: true }
 }

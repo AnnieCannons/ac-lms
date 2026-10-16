@@ -32,6 +32,12 @@ function notificationHref(n: Notification): string | null {
   if (n.type === 'hardware_checkin') {
     return '/student/equipment-check-in'
   }
+  if (n.type === 'hardware_return_reminder') {
+    return '/account#equipment'
+  }
+  if (n.type === 'hardware_renewal') {
+    return '/instructor/hardware?tab=attention#renewals'
+  }
   if (n.type === 'confidence_goal_what_helped') {
     return '/student/skill-confidence#what-helped'
   }

@@ -53,6 +53,9 @@ export const EVENT_LABELS: Record<string, string> = {
   replacement_sent: 'Sent as a replacement',
   charger_replaced: 'Charger replaced',
   written_off: 'Written off',
+  plan_added: 'Plan added',
+  plan_edited: 'Plan updated',
+  plan_removed: 'Plan removed',
 }
 
 // ── Ownership, replacements and waitlist (Phase 3b) ──────────────────────────

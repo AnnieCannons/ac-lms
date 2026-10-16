@@ -1,8 +1,6 @@
 import { KIND_LABELS, REPLACEMENT_LIMIT, supportFormUrl, type HardwareDevice } from '@/lib/hardware'
 import type { MyEquipment } from '@/lib/hardware-server'
-
-/** Who students contact about returns (shipping labels, lost boxes, reimbursement). */
-const RETURN_CONTACT = 'Catie'
+import { RETURN_STEPS } from '@/lib/hardware-reminders'
 
 function describe(d: HardwareDevice, awaiting: boolean): { text: string; tone: 'urgent' | 'normal' } {
   if (awaiting) return { text: 'Please send this back', tone: 'urgent' }
@@ -46,9 +44,10 @@ export default function MyEquipmentCard({ equipment, email }: { equipment: MyEqu
           <div className="badge-amber border rounded-lg px-4 py-3 text-sm">
             <h3 className="font-bold">How to send it back</h3>
             <ol className="list-decimal pl-5 mt-2 flex flex-col gap-1.5">
-              <li><strong>Use the box it came in.</strong> If you no longer have the box, reach out to {RETURN_CONTACT} before you ship.</li>
-              <li><strong>Pack it carefully.</strong> You&apos;re responsible for packing it so it arrives safely. Wrap it with padding so nothing can move or break in transit.</li>
-              <li><strong>Shipping is covered.</strong> {RETURN_CONTACT} can send you a prepaid shipping label. Or, if you ship it yourself, keep your receipt and send it to {RETURN_CONTACT} to be reimbursed.</li>
+              {RETURN_STEPS.map(step => {
+                const [lead, ...rest] = step.split('. ')
+                return <li key={step}><strong>{lead}.</strong> {rest.join('. ')}</li>
+              })}
             </ol>
           </div>
         )}

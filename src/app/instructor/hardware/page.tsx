@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { loadDevices, loadHolders, loadOpenReturns, loadPeople, loadReadyToTransfer, loadWaitlist, searchStudents } from '@/lib/hardware-server'
+import { loadDevices, loadHolders, loadHotspotPlans, loadOpenReturns, loadPeople, loadReadyToTransfer, loadWaitlist, searchStudents } from '@/lib/hardware-server'
+import { daysBetween, pacificToday, RENEWAL_ALERT_DAYS, renewalState } from '@/lib/hardware-reminders'
 import {
   DEVICE_KINDS,
   DEVICE_STATUSES,
@@ -146,12 +147,18 @@ export default async function HardwarePage({
   } else if (tab === 'waitlist') {
     body = <WaitlistManager entries={await loadWaitlist(admin)} />
   } else {
-    const [returns, repair, prep, readyToTransfer] = await Promise.all([
+    const [returns, repair, prep, readyToTransfer, hotspotPlans] = await Promise.all([
       loadOpenReturns(admin),
       loadDevices(admin, { status: 'needs_repair' }),
       loadDevices(admin, { status: 'needs_prep' }),
       loadReadyToTransfer(admin),
+      loadHotspotPlans(admin),
     ])
+    const today = pacificToday()
+    const renewals = hotspotPlans
+      .filter(h => h.current && renewalState(h.current.ends_on, today) !== 'ok')
+      .sort((a, b) => a.current!.ends_on.localeCompare(b.current!.ends_on))
+    const noPlan = hotspotPlans.filter(h => !h.current)
     const likelyLost = returns.filter(r => isLikelyLost(r.request.requested_at))
     const waiting = returns.filter(r => !isLikelyLost(r.request.requested_at))
 
@@ -174,6 +181,26 @@ export default async function HardwarePage({
           <AttentionRow key={request.id} device={device} student={student}
             meta={`${daysSince(request.requested_at)} ${daysSince(request.requested_at) === 1 ? 'day' : 'days'}`}
             action={student && <Link href={`/instructor/hardware/receive?student=${student.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Mark received</Link>} />
+        )),
+      },
+      {
+        id: 'renewals', title: 'Hotspot renewals', urgent: renewals.some(h => renewalState(h.current!.ends_on, today) === 'expired'), count: renewals.length,
+        hint: `Plans ending within ${RENEWAL_ALERT_DAYS} days, or already ended. Renew from the hotspot's Plan card.`,
+        rows: renewals.map(({ device, holder, current }) => {
+          const left = daysBetween(today, current!.ends_on)
+          return (
+            <AttentionRow key={device.id} device={device} student={holder}
+              meta={left < 0 ? `Ended ${-left} days ago` : left === 0 ? 'Ends today' : `Ends in ${left} days`} metaTone={left <= 14 ? 'urgent' : undefined}
+              action={<Link href={`/instructor/hardware/devices/${device.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Renew</Link>} />
+          )
+        }),
+      },
+      {
+        id: 'no-plan', title: 'Hotspots with no plan', count: noPlan.length,
+        hint: 'Add each hotspot\'s plan so you get a reminder before it needs renewing.',
+        rows: noPlan.map(({ device, holder }) => (
+          <AttentionRow key={device.id} device={device} student={holder}
+            action={<Link href={`/instructor/hardware/devices/${device.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Add plan</Link>} />
         )),
       },
       {
@@ -200,7 +227,7 @@ export default async function HardwarePage({
 
     body = (
       <div className="flex flex-col gap-6">
-        <ul className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {sections.map(s => {
             const tile = (
               <>
@@ -234,7 +261,7 @@ export default async function HardwarePage({
         {withItems.length > 0 && clear.length > 0 && (
           <p className="text-sm text-muted-text">All clear: {clear.map(s => s.title).join(', ')}.</p>
         )}
-        <p className="text-xs text-muted-text">Hotspot renewals and support tickets will show here once those are added.</p>
+        <p className="text-xs text-muted-text">Support tickets will show here once those are added.</p>
       </div>
     )
   }

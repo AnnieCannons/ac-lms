@@ -1,5 +1,6 @@
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
+import { currentSubscription, type Subscription } from '@/lib/hardware-reminders'
 import {
   sanitizeSearch,
   type DeviceKind,
@@ -243,4 +244,31 @@ export async function loadMyEquipment(admin: Admin, userId: string): Promise<MyE
     awaitingIds: new Set(list.filter(d => d.status === 'awaiting_return').map(d => d.id)),
     replacementsUsed: { laptop: kinds.filter(k => k === 'laptop').length, charger: kinds.filter(k => k === 'charger').length },
   }
+}
+
+// ── Hotspot plans (Phase 7) ──────────────────────────────────────────────────
+
+const SUBSCRIPTION_COLUMNS = 'id, device_id, carrier, plan, starts_on, ends_on, cost, account_number, line_number, notes, created_at'
+
+export async function loadSubscriptions(admin: Admin, deviceId: string): Promise<Subscription[]> {
+  const { data } = await admin.from('hardware_subscriptions').select(SUBSCRIPTION_COLUMNS).eq('device_id', deviceId).order('ends_on', { ascending: false })
+  return (data as Subscription[] | null) ?? []
+}
+
+export type HotspotPlanStatus = { device: HardwareDevice; holder: Person | null; current: Subscription | null }
+
+/** Every hotspot still in use (not lost or retired) with its current plan, for renewals. */
+export async function loadHotspotPlans(admin: Admin): Promise<HotspotPlanStatus[]> {
+  const [{ data: hotspots }, subs] = await Promise.all([
+    admin.from('hardware_devices').select(DEVICE_COLUMNS).eq('kind', 'hotspot').not('status', 'in', '(lost,retired)').order('asset_tag'),
+    fetchAllRows<Subscription>((from, to) =>
+      admin.from('hardware_subscriptions').select(SUBSCRIPTION_COLUMNS).range(from, to) as unknown as PromiseLike<{ data: Subscription[] | null; error: { message: string } | null }>),
+  ])
+  const devices = (hotspots as HardwareDevice[] | null) ?? []
+  const people = await loadPeople(admin, devices.map(d => d.current_holder_id))
+  return devices.map(d => ({
+    device: d,
+    holder: d.current_holder_id ? people.get(d.current_holder_id) ?? null : null,
+    current: currentSubscription(subs.filter(s => s.device_id === d.id)),
+  }))
 }
