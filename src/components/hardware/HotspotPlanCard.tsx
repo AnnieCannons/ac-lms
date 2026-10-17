@@ -26,7 +26,7 @@ function toInput(s: Subscription): SubscriptionInput {
 }
 
 /** A hotspot's plan: current period, renewal countdown, past periods; add / renew / edit. */
-export default function HotspotPlanCard({ deviceId, subscriptions, today }: { deviceId: string; subscriptions: Subscription[]; today: string }) {
+export default function HotspotPlanCard({ deviceId, subscriptions, today, readOnly = false }: { deviceId: string; subscriptions: Subscription[]; today: string; readOnly?: boolean }) {
   const router = useRouter()
   const current = subscriptions[0] ?? null
   const past = subscriptions.slice(1)
@@ -63,7 +63,7 @@ export default function HotspotPlanCard({ deviceId, subscriptions, today }: { de
     router.refresh()
   }
 
-  const action = !editing && (
+  const action = !readOnly && !editing && (
     <div className="flex gap-4">
       {current && <button type="button" className={linkBtn} onClick={() => { setEditing({ id: null, input: renewalOf(current) }); setError(null) }}>Renew</button>}
       {current && <button type="button" className={linkBtn} onClick={() => { setEditing({ id: current.id, input: toInput(current) }); setError(null) }}>Edit</button>}
@@ -96,7 +96,7 @@ export default function HotspotPlanCard({ deviceId, subscriptions, today }: { de
           </div>
         </form>
       ) : !current ? (
-        <p className="text-sm text-muted-text">No plan recorded. Add one so you get a reminder {RENEWAL_ALERT_DAYS} days before it needs renewing.</p>
+        <p className="text-sm text-muted-text">No plan recorded.{readOnly ? '' : ` Add one so you get a reminder ${RENEWAL_ALERT_DAYS} days before it needs renewing.`}</p>
       ) : (
         <div className="flex flex-col gap-3 text-sm">
           <p className={state === 'ok' ? 'text-dark-text' : 'text-red-600 font-semibold'}>

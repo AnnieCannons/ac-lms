@@ -316,3 +316,53 @@ describe('updateHardwareTicket', () => {
     expect(await updateHardwareTicket('t1', { studentId: 'x' })).toEqual({ ok: false, error: 'Choose a student.' })
   })
 })
+
+describe('TA access (day-to-day only)', () => {
+  // A real TA: a student account with a TA enrollment in some course.
+  function signedInAsTa() {
+    vi.mocked(createServerSupabaseClient).mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: 'ta1' } } }) },
+      from: (table: string) => chain(table === 'course_enrollments' ? { data: [{ course_id: 'c1' }] } : { data: { name: 'Tia', role: 'student' } }),
+    } as never)
+  }
+  const laptop = { ...emptyDeviceInput('laptop'), serialNumber: 'SN1' }
+
+  it('refuses setup work before touching the database', async () => {
+    signedInAsTa()
+    expect(await createHardwareDevice(laptop)).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await createHardwarePurchaseBatch(batch)).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await updateHardwareDevice('d1', laptop)).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await markHardwareAwaitingReturn(['d1'], '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await confirmHardwareLost('d1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await transferHardwareOwnership('d1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await addToHardwareWaitlist('s1', 'hotspot', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await deleteHardwareSubscription('p1')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(await setHardwareDeviceStatus('d1', 'retired', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('lets a TA do day-to-day work', async () => {
+    signedInAsTa()
+    serviceWith({
+      users: { data: { id: 's1', role: 'student' }, error: null },
+      hardware_devices: { data: [{ id: 'd1', kind: 'laptop' }], error: null },
+    })
+    expect(await loanHardwareDevice('d1', 's1', '')).toEqual({ ok: true })
+    expect(await addHardwareNote('d1', 'charger missing')).toEqual({ ok: true })
+  })
+
+  it('lets a TA set needs prep, but no other status by hand', async () => {
+    signedInAsTa()
+    serviceWith({ hardware_devices: { data: { status: 'in_stock', current_holder_id: null }, error: null } })
+    expect(await setHardwareDeviceStatus('d1', 'needs_prep', '')).toEqual({ ok: true })
+  })
+
+  it('refuses a student with no TA enrollment', async () => {
+    vi.mocked(createServerSupabaseClient).mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: 's9' } } }) },
+      from: (table: string) => chain(table === 'course_enrollments' ? { data: [] } : { data: { name: 'Sam', role: 'student' } }),
+    } as never)
+    expect(await loanHardwareDevice('d1', 's1', '')).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+})

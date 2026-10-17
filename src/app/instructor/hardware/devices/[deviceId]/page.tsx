@@ -63,7 +63,7 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
             </Link>
           </div>
           <div className="border-t border-border px-5 py-4 flex flex-col gap-2">
-            <StatusControl device={device} waitlist={waitlist.map(w => w.student)} />
+            <StatusControl device={device} waitlist={waitlist.map(w => w.student)} canManage={viewer.canManage} />
             {(holder || waitingDays != null) && (
               <p className="text-sm text-muted-text">
                 {holder && (
@@ -79,9 +79,9 @@ export default async function DevicePage({ params }: { params: Promise<{ deviceI
           </div>
         </section>
 
-        {device.kind === 'hotspot' && <HotspotPlanCard deviceId={device.id} subscriptions={subscriptions} today={pacificToday()} />}
+        {device.kind === 'hotspot' && <HotspotPlanCard deviceId={device.id} subscriptions={subscriptions} today={pacificToday()} readOnly={!viewer.canManage} />}
 
-        <DeviceDetails device={device} batch={batch} />
+        <DeviceDetails device={device} batch={batch} canEdit={viewer.canManage} />
 
         <Card title="History" action={<AddNoteButton deviceId={device.id} />}>
           <HistoryTimeline events={events} people={people} />

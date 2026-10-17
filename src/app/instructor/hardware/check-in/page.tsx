@@ -8,7 +8,7 @@ import Card from '@/components/hardware/Card'
 
 /** Equipment check-ins sent to students, newest first. */
 export default async function CheckinListPage() {
-  const viewer = await getHardwareViewer()
+  const viewer = await getHardwareViewer({ manage: true })
   const checkins = await loadCheckins(createServiceSupabaseClient())
 
   return (

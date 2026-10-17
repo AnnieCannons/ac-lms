@@ -448,7 +448,7 @@ export default function PeopleManager({ courseId, courseName, members, invitatio
     )
   }
 
-  // After a student leaves (removed, or changed to observer): if they still have equipment on
+  // After a student or TA leaves (removed, or changed to observer): if they still have equipment on
   // loan, ask whether we need it back. Never blocks the change itself.
   const [dropPrompt, setDropPrompt] = useState<{ prompt: DropPrompt; reason: string } | null>(null)
   async function checkHardware(userId: string, reason: string) {
@@ -467,7 +467,7 @@ export default function PeopleManager({ courseId, courseName, members, invitatio
       setActionStatus({ id: userId, type: 'error', message: result.error })
     } else {
       startTransition(() => router.refresh())
-      if (before === 'student' && newRole === 'observer') checkHardware(userId, `Changed to observer in ${courseName ?? 'a course'}`)
+      if ((before === 'student' || before === 'ta') && newRole === 'observer') checkHardware(userId, `Changed to observer in ${courseName ?? 'a course'}`)
     }
   }
 
@@ -503,7 +503,7 @@ export default function PeopleManager({ courseId, courseName, members, invitatio
       setActionStatus({ id: userId, type: 'error', message: result.error })
     } else {
       startTransition(() => { router.refresh(); setRemoving(false) })
-      if (before === 'student' || before === 'observer') checkHardware(userId, `Removed from ${courseName ?? 'a course'}`)
+      if (before === 'student' || before === 'observer' || before === 'ta') checkHardware(userId, `Removed from ${courseName ?? 'a course'}`)
     }
   }
 

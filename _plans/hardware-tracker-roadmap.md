@@ -135,3 +135,8 @@ Decided 2026-10-16: start fresh. The launch survey (Phase 6) covers current stud
 
 ## Open questions
 1. **Which breaks count?** `calendar_breaks` has Winter, Spring and Fall Break plus "Holiday Break Week 1/2" rows that overlap Winter Break. Plan: fire once per break period (rows starting within a few weeks of each other count as one), so Winter Break gets one reminder, not three.
+
+## After launch (2026-10-17)
+- **"How do I…?" tab** (`/instructor/hardware/guide`, `HardwareGuide.tsx`): common situations as question headers (e.g. "Have a new bulk purchase?", "What if a student pauses or leaves the program?") with numbered steps and links. Bulk adding is called out in Help and on the Devices tab.
+- **TAs:** day-to-day access (loan, receive, needs prep / wiped and checked, tickets, notes) via a Hardware link in the TA course sidebar; setup work stays with instructors/staff/admins and is enforced in the server actions (`requireHardwareUser` vs `requireHardwareStaff`). TAs can also hold equipment, are included in course check-ins, and get the remove/observer prompt.
+

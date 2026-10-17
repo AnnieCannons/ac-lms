@@ -11,10 +11,10 @@ import Card from './Card'
  * Identifiers and purchase info, read-only. Model, year and condition are in the page
  * header; "Edit" opens the form for all of them.
  */
-export default function DeviceDetails({ device, batch }: { device: HardwareDevice; batch: PurchaseBatch | null }) {
+export default function DeviceDetails({ device, batch, canEdit = true }: { device: HardwareDevice; batch: PurchaseBatch | null; canEdit?: boolean }) {
   const [editing, setEditing] = useState(false)
 
-  const editLink = !editing && (
+  const editLink = canEdit && !editing && (
     <button type="button" onClick={() => setEditing(true)} className="text-sm font-semibold text-teal-primary hover:underline">
       Edit
     </button>

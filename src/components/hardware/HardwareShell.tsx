@@ -2,15 +2,16 @@ import Link from 'next/link'
 import InstructorTopNav, { type Breadcrumb } from '@/components/ui/InstructorTopNav'
 import type { HardwareViewer } from '@/lib/hardware-access'
 
-export type HardwareSection = 'devices' | 'students' | 'attention' | 'waitlist' | 'checkin' | 'receive'
+export type HardwareSection = 'devices' | 'students' | 'attention' | 'waitlist' | 'checkin' | 'receive' | 'guide'
 
-const SECTIONS: { key: HardwareSection; label: string; href: string }[] = [
+const SECTIONS: { key: HardwareSection; label: string; href: string; manageOnly?: boolean }[] = [
   { key: 'devices', label: 'Devices', href: '/instructor/hardware' },
   { key: 'students', label: 'Students', href: '/instructor/hardware?tab=students' },
   { key: 'attention', label: 'Needs attention', href: '/instructor/hardware?tab=attention' },
-  { key: 'waitlist', label: 'Waitlist', href: '/instructor/hardware?tab=waitlist' },
-  { key: 'checkin', label: 'Check-in', href: '/instructor/hardware/check-in' },
+  { key: 'waitlist', label: 'Waitlist', href: '/instructor/hardware?tab=waitlist', manageOnly: true },
+  { key: 'checkin', label: 'Check-in', href: '/instructor/hardware/check-in', manageOnly: true },
   { key: 'receive', label: 'Mark received', href: '/instructor/hardware/receive' },
+  { key: 'guide', label: 'How do I…?', href: '/instructor/hardware/guide' },
 ]
 
 /**
@@ -32,10 +33,10 @@ export default function HardwareShell({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <InstructorTopNav name={viewer.name} role={viewer.role} breadcrumbs={breadcrumbs} />
+      <InstructorTopNav name={viewer.name} role={viewer.role} isTa={!viewer.canManage} breadcrumbs={breadcrumbs} />
       <nav aria-label="Hardware" className="border-b border-border bg-surface print:hidden">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 flex gap-1 overflow-x-auto">
-          {SECTIONS.map(s => (
+          {SECTIONS.filter(s => viewer.canManage || !s.manageOnly).map(s => (
             <Link
               key={s.key}
               href={s.href}

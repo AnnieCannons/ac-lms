@@ -15,12 +15,12 @@ function isCurrent(c: { start_date: string | null; end_date: string | null }, no
 }
 
 export default async function NewCheckinPage() {
-  const viewer = await getHardwareViewer()
+  const viewer = await getHardwareViewer({ manage: true })
   const admin = createServiceSupabaseClient()
   const [{ data: courseRows }, enrollments] = await Promise.all([
     admin.from('courses').select('id, name, start_date, end_date, archived, is_template').order('start_date', { ascending: false, nullsFirst: false }),
     fetchAllRows<{ course_id: string }>((from, to) =>
-      admin.from('course_enrollments').select('course_id').eq('role', 'student').range(from, to) as unknown as PromiseLike<{ data: { course_id: string }[] | null; error: { message: string } | null }>),
+      admin.from('course_enrollments').select('course_id').in('role', ['student', 'ta']).range(from, to) as unknown as PromiseLike<{ data: { course_id: string }[] | null; error: { message: string } | null }>),
   ])
   const counts = new Map<string, number>()
   for (const e of enrollments) counts.set(e.course_id, (counts.get(e.course_id) ?? 0) + 1)

@@ -17,8 +17,11 @@ export default function HasNowCard({
   loaned,
   inStock,
   name,
+  canManage = true,
   children,
 }: {
+  /** TAs (day-to-day access) can loan and receive, but not ask for everything back. */
+  canManage?: boolean
   studentId: string
   /** In-stock devices that can be loaned to this student. */
   inStock: HardwareDevice[]
@@ -67,7 +70,7 @@ export default function HasNowCard({
           Loan a device
         </button>
       )}
-      {onLoan.length > 0 && (
+      {canManage && onLoan.length > 0 && (
         <button type="button" onClick={markAll} disabled={busy} className="text-sm font-semibold text-teal-primary hover:underline disabled:opacity-60">
           {busy ? 'Saving…' : onLoan.length === 1 ? 'Mark awaiting return' : 'Mark all awaiting return'}
         </button>

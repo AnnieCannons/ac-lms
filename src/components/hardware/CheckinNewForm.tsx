@@ -40,7 +40,7 @@ export default function CheckinNewForm({ courses, defaultTitle }: { courses: Cou
       <label className="flex items-center gap-3 py-1.5 text-sm text-dark-text">
         <input type="checkbox" className="h-4 w-4 accent-teal-primary" checked={courseIds.has(c.id)} onChange={() => toggle(c.id)} />
         <span className="font-medium">{c.name}</span>
-        <span className="text-xs text-muted-text">{c.students} {c.students === 1 ? 'student' : 'students'}{c.start_date ? ` · starts ${formatDateOnly(c.start_date)}` : ''}</span>
+        <span className="text-xs text-muted-text">{c.students} {c.students === 1 ? 'person' : 'people'}{c.start_date ? ` · starts ${formatDateOnly(c.start_date)}` : ''}</span>
       </label>
     </li>
   )
@@ -68,7 +68,7 @@ export default function CheckinNewForm({ courses, defaultTitle }: { courses: Cou
       </Card>
 
       <Card title="Anyone else?">
-        <p className="text-sm text-muted-text mb-3">For example, alumni who still have a hotspot or booster.</p>
+        <p className="text-sm text-muted-text mb-3">Each course&apos;s students and TAs are included. Add anyone else here, for example alumni who still have a hotspot or booster.</p>
         <StudentPicker
           label="Add a student"
           value={null}

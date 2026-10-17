@@ -29,7 +29,10 @@ export default function ReplacementPanel({
   studentLaptops,
   inStockLaptops,
   deviceTags,
+  readOnly = false,
 }: {
+  /** TAs see what's been used but can't record replacements. */
+  readOnly?: boolean
   studentId: string
   replacements: Replacement[]
   studentLaptops: HardwareDevice[]
@@ -79,7 +82,7 @@ export default function ReplacementPanel({
     )
   }
 
-  const action = !kind && (
+  const action = !readOnly && !kind && (
     <div className="flex gap-3">
       <button type="button" onClick={() => open('laptop')} disabled={studentLaptops.length === 0} className="text-sm font-semibold text-teal-primary hover:underline disabled:text-muted-text disabled:no-underline" title={studentLaptops.length === 0 ? 'This student has no laptop to replace' : undefined}>
         Replace laptop
