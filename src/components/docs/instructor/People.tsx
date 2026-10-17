@@ -15,6 +15,10 @@ const items: DocAccordionItem[] = [
           <li><strong>Current Class</strong> — everyone enrolled in this specific course: Learners, Observers, Staff assigned to teach it, and Pending Invitations</li>
           <li><strong>All Users</strong> — every Instructor and Admin on the platform, plus every student enrolled in any course, grouped by course. Available to any instructor, staff member, or admin — not admin-only. (Real Staff-role accounts don&apos;t currently appear in this table&apos;s Instructors &amp; Admins list — see <strong>The Global Users Page</strong> below, which does include them.)</li>
         </DocList>
+        <DocP>
+          Learners are listed alphabetically by name. Students have a <strong>Completed</strong> checkbox — see{' '}
+          <strong>Marking a Course Completed</strong> below.
+        </DocP>
         <DocNote>
           There&apos;s also a separate <strong>Roster</strong> page in the sidebar for tracking accommodations —
           that&apos;s a different tool from Users and is covered in its own Help section.
@@ -159,6 +163,10 @@ const items: DocAccordionItem[] = [
         <DocStep number={1}>Find the person in the Learners list on the Current Class tab.</DocStep>
         <DocStep number={2}>Click the role pill next to their name.</DocStep>
         <DocStep number={3}>Select the new role from the dropdown: <DocCode>Student</DocCode>, <DocCode>TA</DocCode>, <DocCode>Observer</DocCode>, <DocCode>Staff</DocCode>, or (admins only) <DocCode>Admin</DocCode>. The change takes effect immediately — no page refresh needed.</DocStep>
+        <DocP>
+          Changing a student to <strong>Observer</strong> also checks whether they have AnnieCannons equipment on loan — see{' '}
+          <strong>Removing and Deleting People</strong>.
+        </DocP>
         <DocNote>
           Only admins can assign the Admin role. Instructors, staff, and admins can all assign Student, Observer,
           TA, and Staff. Remember that Staff/Admin picked here only affects this course&apos;s enrollment — see the
@@ -178,6 +186,13 @@ const items: DocAccordionItem[] = [
           confirmation dialog appears — &ldquo;Remove [name]?&rdquo; — explaining this removes them from this course
           only, with their account and other enrollments untouched. Confirm with <strong>Yes, remove from
           course</strong>. Their submission history and grades for this course are preserved in the database.
+        </DocP>
+        <DocP>
+          If the student (or observer) still has equipment on loan — a laptop, hotspot or booster — a second dialog lists
+          it right after, with a one-click <strong>Mark awaiting return</strong>, a link to their hardware page, and{' '}
+          <strong>Not now</strong>. The same happens when you change a student to Observer. If they&apos;re still a student
+          in another current course (for example, moving from TCF to ITP), it says they probably still need it. See the{' '}
+          <strong>Hardware</strong> Help section for what happens next.
         </DocP>
 
         <DocH3>Staff on the Current Class Tab</DocH3>
@@ -203,6 +218,10 @@ const items: DocAccordionItem[] = [
           <li>Deletes their login credentials — they will not be able to log in</li>
         </DocList>
         <DocNote>
+          A student who still has loaned equipment, or a return you&apos;re waiting on, can&apos;t be deleted: the
+          dialog says to mark it received or lost in Hardware first. (A laptop they own doesn&apos;t block it.)
+        </DocNote>
+        <DocNote>
           Account deletion is permanent and cannot be undone. Use the Learner trash icon on{' '}
           <strong>Current Class</strong> if you only want to unenroll someone from a single course while keeping
           their account.
@@ -214,6 +233,27 @@ const items: DocAccordionItem[] = [
           tab is <strong>admin-only</strong> — instructors and staff won&apos;t see it at all. It uses the same
           typed-name confirmation as student deletion, and is permanent and irreversible.
         </DocP>
+      </>
+    ),
+  },
+  {
+    id: 'course-completion',
+    title: 'Marking a Course Completed',
+    content: (
+      <>
+        <DocP>
+          On the <strong>Current Class</strong> tab, each student has a <strong>Completed</strong> checkbox. Check it when they
+          finish the course. It saves instantly; unchecking asks you to confirm. Only instructors, staff and admins can
+          change it.
+        </DocP>
+        <DocP>
+          Completed students get a green <strong>Completed</strong> badge on the course&apos;s Roster and on the{' '}
+          <strong>Students</strong> page from the instructor dashboard.
+        </DocP>
+        <DocNote>
+          Completing both a Tech Career Foundations course and an Intro to Programming course is what puts a student&apos;s
+          loaned laptop on the Hardware tracker&apos;s <strong>Ready to transfer</strong> list.
+        </DocNote>
       </>
     ),
   },
