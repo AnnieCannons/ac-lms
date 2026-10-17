@@ -722,9 +722,10 @@ export async function applyDeckUpdates(
 export async function bulkImportCards(deckId: string, html: string) {
   const { supabase, user } = await getAuthUser()
 
-  // Role check — admin only
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  // Role check — flashcard admins (instructor/staff/admin, or anyone enrolled as instructor/TA),
+  // same rule as the bulk-import page
+  const { getIsFlashcardAdmin } = await import('@/lib/flashcards/queries')
+  const isAdmin = await getIsFlashcardAdmin(user.id)
   if (!isAdmin) throw new Error('Unauthorized')
 
   // Verify deck ownership
