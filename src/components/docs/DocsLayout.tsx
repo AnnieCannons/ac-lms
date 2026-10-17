@@ -12,6 +12,7 @@ const STUDENT_SECTIONS = [
   { slug: 'getting-started', label: 'Getting Started' },
   { slug: 'courses', label: 'Course Outline' },
   { slug: 'cutting-edge-talks', label: 'Cutting Edge Talks' },
+  { slug: 'equipment', label: 'My Equipment' },
   { slug: 'assignments', label: 'Assignments' },
   // Behind CONFIDENCE_TRACKER_V2_RATINGS_ENABLED (see FLAGGED_SECTIONS): only listed when the feature is on.
   { slug: 'skill-confidence', label: 'Skill Confidence' },
@@ -32,6 +33,7 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'quizzes', label: 'Quizzes' },
   { slug: 'career-dev', label: 'Career Development' },
   { slug: 'cutting-edge-talks', label: 'Cutting Edge Talks' },
+  { slug: 'hardware', label: 'Hardware' },
   { slug: 'people', label: 'People & Enrollment' },
   { slug: 'roster', label: 'Roster & Progress' },
   { slug: 'gradebook', label: 'Gradebook' },
