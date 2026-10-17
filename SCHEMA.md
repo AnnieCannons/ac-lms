@@ -534,7 +534,7 @@ In-app notifications for students and instructors.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `user_id` | uuid | FK → users, CASCADE DELETE |
-| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email), `readiness_note_shared` (a readiness note was shared with the student — bell only, links to `/student/readiness?course=`; removed when the note is unshared or deleted), `readiness_note_student_reply` (to the note's author when the student replies — bell only, links to `/instructor/students/[studentId]`), `readiness_note_staff_reply` (to the student when staff reply — bell only, links to `/student/readiness?course=`; removed when the note is unshared) |
+| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email), `readiness_note_shared` (a readiness note was shared with the student — bell only, links to `/student/readiness?course=`; removed when the note is unshared or deleted), `readiness_note_student_reply` (to the note's author when the student replies — bell only, links to `/instructor/students/[studentId]`), `readiness_note_staff_reply` (to the student when staff reply — bell only, links to `/student/readiness?course=`; removed when the note is unshared), `hardware_checkin` (equipment check-in sent or reminded — links to `/student/equipment-check-in`; cleared when the student answers), `hardware_return_reminder` (to a student asked to return equipment — links to `/account#equipment`), `hardware_renewal` and `hardware_ticket` (to `HARDWARE_ALERT_EMAILS` staff — link to Hardware → Needs attention). All hardware types are bell only |
 | `course_id` | uuid | FK → courses, nullable |
 | `assignment_id` | uuid | FK → assignments, nullable |
 | `extension_request_id` | uuid | FK → extension_requests, nullable |
@@ -777,6 +777,64 @@ Contacts (people) associated with a partner organization.
 | `is_primary` | boolean | Default: false |
 | `notes` | text | Nullable |
 | `created_at` | timestamptz | Default: now() |
+
+---
+
+### course_completions
+An instructor/staff/admin marked a student as having completed a course (the **Completed** checkbox on the course Users page). One row per student per course, PK `(course_id, user_id)`. Completing a "Tech Career Foundations …" **and** an "Intro to Programming …" course puts a loaned laptop on the hardware tracker's Ready to transfer list. Staff read all; students read their own; writes only via `setCourseCompleted` (service client).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `course_id` | uuid | FK → courses, CASCADE |
+| `user_id` | uuid | FK → users, CASCADE |
+| `completed_at` | timestamptz | Default now() |
+| `marked_by` | uuid | FK → users, SET NULL |
+
+---
+
+## Hardware tracker
+
+Loaner MacBooks, Franklin hotspots (Mission Telecom) and wifi boosters, at `/instructor/hardware`. See `_plans/hardware-tracker-roadmap.md`. All tables have RLS enabled with staff (`instructor`/`staff`/`admin`) `SELECT` policies only (survey recipients/responses also let a student read their own); every write goes through role-checked server actions, the `CRON_SECRET` cron, or the secret-checked Airtable webhook, using the service-role client. **No shipping addresses are stored anywhere.**
+
+### hardware_purchase_batches
+One row per purchase (bulk add): `kind`, `purchased_on`, `vendor`, `make_model`, `model_year`, `condition` (`new`/`refurbished`/`used`), `unit_cost`, `warranty_ends_on`, `notes`, `created_by`.
+
+### hardware_devices
+One row per physical device.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `kind` | text | `laptop` / `hotspot` / `booster` |
+| `asset_tag` | text | Unique. Set by a BEFORE INSERT trigger from per-kind sequences (`hardware_laptop_tag_seq` → `LAP-001`, `HOT-`, `BOOST-`); never reused |
+| `serial_number`, `imei`, `iccid`, `phone_number` | text | Serial unique ignoring case/space; IMEI unique |
+| `make_model`, `model_year`, `condition` | | Copied from the batch so one device can be corrected |
+| `purchase_batch_id` | uuid | FK → hardware_purchase_batches, SET NULL |
+| `status` | text | `in_stock`, `on_loan`, `owned_by_student`, `awaiting_return`, `received`, `needs_prep`, `needs_repair`, `lost`, `retired` |
+| `current_holder_id` | uuid | FK → users, SET NULL — the student who has it |
+
+### hardware_events
+Append-only history shown on device and student pages. `device_id` and/or `student_id` (at least one), `type` (labels in `EVENT_LABELS`, `src/lib/hardware.ts`), `notes`, `actor_id`, `created_at`.
+
+### hardware_return_requests
+One open row per device being chased back (unique on `device_id` where `closed_at` is null): `student_id`, `requested_at` (days waiting / 60-day likely lost), `next_reminder_at` (48h after asking, then +5 days, then weekly), `reminder_count`, `closed_at`, `closed_reason` (`received`/`lost`/`cancelled`).
+
+### hardware_replacements
+One laptop and one charger per student: `student_id`, `kind` (`laptop`/`charger`), `old_device_id`, `new_device_id`, `old_coming_back`, `write_off_reason` (required when not coming back), `override_note` (a second replacement), `notes`.
+
+### hardware_waitlist
+Staff-only waitlist: `student_id`, `kind`, `note`, `added_at`, `fulfilled_at` / `fulfilled_device_id` (set when that type is loaned to them), `removed_at`. One open entry per student per kind.
+
+### hardware_surveys / hardware_survey_recipients / hardware_survey_responses
+The equipment check-in. A survey (`title`, `closed_at`); recipients PK `(survey_id, user_id)` with `course_id` they came from and `last_nudged_at`; one response per student per survey (`has_laptop`, `laptop_serial`, `has_hotspot`, `hotspot_imei`, `hotspot_phone`, `has_booster`, `laptop_replaced`, `charger_replaced`, `notes`, `review_status` `pending`/`approved`/`dismissed`, `review_note`).
+
+### hardware_subscriptions
+Hotspot plan periods: `device_id`, `carrier` (default `Mission Telecom`), `plan`, `starts_on`, `ends_on`, `cost`, `account_number`, `line_number`, `notes`. Renewing adds a row; the current plan is the one ending last.
+
+### hardware_alerts_sent
+Sent-log for the daily job (`key` PK, e.g. `renewal:<subscription id>`, `likely-lost:<request id>`, `graduates:<break start>`), so each alert goes once.
+
+### hardware_tickets
+Equipment Support Form submissions from the Airtable webhook: `airtable_record_id` (unique) and `airtable_url` (the address lives there), `submitted_email`, `submitted_name`, `equipment_type`, `issue`, `other_info`, matched `student_id` / `device_id`, `status` (`open`/`in_progress`/`replacement_sent`/`resolved`), `last_activity_at`, `last_nudged_at` (48h nudge), `resolved_at`.
 
 ---
 

@@ -29,6 +29,10 @@ export default function Roster() {
                   enrolled yet, the page shows &ldquo;No students enrolled in this course.&rdquo; Students are listed
                   alphabetically by name.
                 </DocP>
+                <DocP>
+                  A green <strong>Completed</strong> badge next to a name means the student was marked as having completed
+                  the course on the Users page.
+                </DocP>
                 <DocNote>
                   Students whose enrollment role is <DocCode>observer</DocCode> are split into a separate
                   &ldquo;Observers &mdash; On Leave&rdquo; table below the main roster, with their own count

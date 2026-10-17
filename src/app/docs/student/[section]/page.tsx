@@ -12,6 +12,7 @@ import Observer from '@/components/docs/student/Observer'
 import Accessibility from '@/components/docs/student/Accessibility'
 import Flashcards from '@/components/docs/student/Flashcards'
 import CuttingEdgeTalks from '@/components/docs/student/CuttingEdgeTalks'
+import Equipment from '@/components/docs/student/Equipment'
 
 export const revalidate = 3600
 
@@ -19,6 +20,7 @@ const SECTIONS: Record<string, React.ComponentType> = {
   'getting-started': GettingStarted,
   'courses': Courses,
   'cutting-edge-talks': CuttingEdgeTalks,
+  'equipment': Equipment,
   'assignments': Assignments,
   'skill-confidence': SkillConfidence,
   'quizzes': Quizzes,
