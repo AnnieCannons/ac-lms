@@ -232,6 +232,15 @@ export default function InstructorCourseNav({
         )}
 
         {isTa && (
+          <Link
+            href="/instructor/hardware"
+            className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith('/instructor/hardware') ? 'bg-teal-light text-teal-primary' : 'text-muted-text hover:text-dark-text hover:bg-border/20'}`}
+          >
+            Hardware
+          </Link>
+        )}
+
+        {isTa && (
           <>
             <SectionHeader label="Employment" open={employmentOpen} onToggle={toggleEmploymentOpen} />
             {employmentOpen && (

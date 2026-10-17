@@ -74,7 +74,7 @@ export default function HardwareDropPrompt({
           </ul>
           {prompt.otherCourses.length > 0 && (
             <p className="text-sm badge-amber border rounded-lg px-3 py-2">
-              {name} is still a student in {prompt.otherCourses.join(', ')}. If they&apos;re continuing, they probably still need it.
+              {name} is still in {prompt.otherCourses.join(', ')}. If they&apos;re continuing, they probably still need it.
             </p>
           )}
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}

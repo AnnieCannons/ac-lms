@@ -57,13 +57,13 @@ async function notify(admin: Admin, userIds: string[], reminder = false) {
   })
 }
 
-/** Adds students (from courses and/or picked one by one) to a check-in and notifies the new ones. */
+/** Adds students and TAs (from courses and/or picked one by one) to a check-in and notifies the new ones. */
 async function addRecipients(admin: Admin, surveyId: string, courseIds: string[], personIds: string[]): Promise<number> {
   const rows = new Map<string, string | null>()
   const courses = [...new Set(courseIds)].slice(0, 50)
   if (courses.length) {
     const enrolled = await fetchAllRows<{ user_id: string; course_id: string }>((from, to) =>
-      admin.from('course_enrollments').select('user_id, course_id').in('course_id', courses).eq('role', 'student').range(from, to) as unknown as PromiseLike<{ data: { user_id: string; course_id: string }[] | null; error: { message: string } | null }>)
+      admin.from('course_enrollments').select('user_id, course_id').in('course_id', courses).in('role', ['student', 'ta']).range(from, to) as unknown as PromiseLike<{ data: { user_id: string; course_id: string }[] | null; error: { message: string } | null }>)
     for (const e of enrolled) if (!rows.has(e.user_id)) rows.set(e.user_id, e.course_id)
   }
   const people = [...new Set(personIds)].slice(0, 200)

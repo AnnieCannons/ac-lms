@@ -1,8 +1,8 @@
 'use server'
 
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
-import { HARDWARE_ROLES } from '@/lib/hardware-access'
+import { getHardwareActor } from '@/lib/hardware-access'
 import {
   batchIdentifierField,
   batchSize,
@@ -37,14 +37,23 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 /** Statuses staff can set by hand in Phase 1. Loan-related ones come with Phase 3. */
 const MANUAL_STATUSES: DeviceStatus[] = ['in_stock', 'needs_prep', 'needs_repair', 'lost', 'retired']
 
-/** Instructors, staff and admins manage hardware. TAs and students may not. */
+/** Setup work (purchases, edits, transfers, replacements, plans, waitlist…): instructors, staff and admins only. */
 async function requireHardwareStaff(): Promise<{ userId: string } | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  return HARDWARE_ROLES.includes(profile?.role ?? '') ? { userId: user.id } : null
+  const actor = await getHardwareActor()
+  return actor?.canManage ? { userId: actor.userId } : null
 }
+
+/**
+ * Day-to-day work (loan, receive, needs prep / wiped and checked, tickets, notes): managers
+ * and TAs. Students get null.
+ */
+async function requireHardwareUser(): Promise<{ userId: string; canManage: boolean } | null> {
+  const actor = await getHardwareActor()
+  return actor ? { userId: actor.userId, canManage: actor.canManage } : null
+}
+
+/** Statuses a TA may set by hand (anything else is setup work). */
+const TA_MANUAL_STATUSES: DeviceStatus[] = ['needs_prep']
 
 function deviceRow(input: DeviceInput) {
   return {
@@ -189,9 +198,10 @@ export async function updateHardwareDevice(id: string, input: DeviceInput): Prom
 
 /** Sets a status that doesn't involve a student (in stock, needs prep/repair, lost, retired). */
 export async function setHardwareDeviceStatus(id: string, status: DeviceStatus, note: string): Promise<Result> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
   if (!MANUAL_STATUSES.includes(status)) return { ok: false, error: 'That status is set from a loan, not by hand.' }
+  if (!staff.canManage && !TA_MANUAL_STATUSES.includes(status)) return { ok: false, error: 'Not authorized.' }
 
   const admin = createServiceSupabaseClient()
   const { data: existing } = await admin.from('hardware_devices').select('status, current_holder_id').eq('id', id).maybeSingle()
@@ -209,7 +219,7 @@ export async function setHardwareDeviceStatus(id: string, status: DeviceStatus, 
 }
 
 export async function addHardwareNote(deviceId: string, note: string): Promise<Result> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
   const text = note.trim()
   if (!text) return { ok: false, error: 'Write a note first.' }
@@ -232,7 +242,7 @@ const now = () => new Date().toISOString()
 
 /** Students matching a name or email, for the "loan to" picker. */
 export async function searchHardwareStudents(q: string): Promise<Result<{ students: Person[] }>> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
   const clean = sanitizeSearch(q)
   if (clean.length < 2) return { ok: true, students: [] }
@@ -245,7 +255,7 @@ export async function searchHardwareStudents(q: string): Promise<Result<{ studen
 
 /** Gives an in-stock device to a student. */
 export async function loanHardwareDevice(deviceId: string, studentId: string, note: string): Promise<Result> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
 
   const admin = createServiceSupabaseClient()
@@ -327,7 +337,7 @@ export async function receiveHardwareDevices(
   nextStatus: ReceiveStatus,
   conditionNotes: string,
 ): Promise<Result<{ received: number }>> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
   if (!RECEIVE_STATUSES.includes(nextStatus)) return { ok: false, error: 'Choose what happens next.' }
   const ids = [...new Set(deviceIds)].slice(0, MAX_IDS)
@@ -357,7 +367,7 @@ export async function receiveHardwareDevices(
 
 /** One click from the Needs prep list: wiped and checked, back in stock. */
 export async function markHardwarePrepped(deviceId: string): Promise<Result> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
 
   const admin = createServiceSupabaseClient()
@@ -534,7 +544,7 @@ export type DropPrompt = {
   student: Person
   /** Devices on loan to the student (not ones they own or that are already awaited). */
   items: { id: string; asset_tag: string | null; kind: DeviceKind; make_model: string | null }[]
-  /** Courses they are still a current student in, e.g. moving on from TCF to ITP. */
+  /** Courses they are still a current student or TA in, e.g. moving on from TCF to ITP. */
   otherCourses: string[]
 }
 
@@ -558,7 +568,7 @@ export async function getHardwareDropPrompt(studentId: string): Promise<Result<{
   const [{ data: student }, { data: enrollments }] = await Promise.all([
     admin.from('users').select('id, name, email').eq('id', studentId).maybeSingle(),
     admin.from('course_enrollments').select('courses(name, start_date, end_date, archived, is_template)')
-      .eq('user_id', studentId).eq('role', 'student'),
+      .eq('user_id', studentId).in('role', ['student', 'ta']),
   ])
   if (!student) return { ok: true, prompt: null }
 
@@ -638,7 +648,7 @@ export async function updateHardwareTicket(
   ticketId: string,
   changes: { status?: TicketStatus; studentId?: string | null; deviceId?: string | null; note?: string },
 ): Promise<Result> {
-  const staff = await requireHardwareStaff()
+  const staff = await requireHardwareUser()
   if (!staff) return { ok: false, error: 'Not authorized.' }
   if (changes.status && !TICKET_STATUSES.includes(changes.status)) return { ok: false, error: 'Choose a valid status.' }
 

@@ -4,7 +4,7 @@ import HardwareShell from '@/components/hardware/HardwareShell'
 import DeviceForm from '@/components/hardware/DeviceForm'
 
 export default async function NewDevicePage() {
-  const viewer = await getHardwareViewer()
+  const viewer = await getHardwareViewer({ manage: true })
   return (
     <HardwareShell viewer={viewer} active="devices" breadcrumbs={[{ label: 'Hardware', href: '/instructor/hardware' }, { label: 'Add one device' }]}>
       <h1 className="text-2xl font-bold text-dark-text mb-1">Add one device</h1>

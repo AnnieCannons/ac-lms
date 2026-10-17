@@ -17,7 +17,7 @@ export default async function CheckinDetailPage({
   params: Promise<{ surveyId: string }>
   searchParams: Promise<{ sent?: string }>
 }) {
-  const viewer = await getHardwareViewer()
+  const viewer = await getHardwareViewer({ manage: true })
   const { surveyId } = await params
   const { sent } = await searchParams
   if (!UUID.test(surveyId)) notFound()

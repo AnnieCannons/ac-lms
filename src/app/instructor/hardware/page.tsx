@@ -25,7 +25,7 @@ import WaitlistManager from '@/components/hardware/WaitlistManager'
 import SelectableDevices from '@/components/hardware/SelectableDevices'
 
 const TABS = {
-  devices: { title: 'Devices', subtitle: 'Every laptop, hotspot and wifi booster.' },
+  devices: { title: 'Devices', subtitle: 'Every laptop, hotspot and wifi booster. Bought a batch? Add a purchase adds the whole order at once.' },
   students: { title: 'Students', subtitle: 'Find a student to see or update their equipment.' },
   attention: { title: 'Needs attention', subtitle: 'Things waiting on you.' },
   waitlist: { title: 'Waitlist', subtitle: 'Students waiting for a device, first come, first served.' },
@@ -68,7 +68,9 @@ export default async function HardwarePage({
 }) {
   const viewer = await getHardwareViewer()
   const params = await searchParams
-  const tab: Tab = params.tab && params.tab in TABS ? (params.tab as Tab) : 'devices'
+  // The waitlist is setup work; TAs (day-to-day access) land on Devices instead.
+  const requested: Tab = params.tab && params.tab in TABS ? (params.tab as Tab) : 'devices'
+  const tab: Tab = requested === 'waitlist' && !viewer.canManage ? 'devices' : requested
   const kind = DEVICE_KINDS.includes(params.kind as DeviceKind) ? (params.kind as DeviceKind) : undefined
   const status = DEVICE_STATUSES.includes(params.status as DeviceStatus) ? (params.status as DeviceStatus) : undefined
   const q = (params.q ?? '').slice(0, 80)
@@ -198,7 +200,7 @@ export default async function HardwarePage({
           <AttentionRow key={request.id} device={device} student={student} meta={`${daysSince(request.requested_at)} days`} metaTone="urgent"
             action={<>
               {student && <Link href={`/instructor/hardware/receive?student=${student.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Mark received</Link>}
-              <ConfirmLostButton deviceId={device.id} tag={device.asset_tag ?? 'this device'} />
+              {viewer.canManage && <ConfirmLostButton deviceId={device.id} tag={device.asset_tag ?? 'this device'} />}
             </>} />
         )),
       },
@@ -236,7 +238,7 @@ export default async function HardwarePage({
         hint: 'Loaned laptops whose student is marked completed in a Tech Career Foundations course and an Intro to Programming course.',
         rows: readyToTransfer.map(({ device, student }) => (
           <AttentionRow key={device.id} device={device} student={student}
-            action={<TransferButton deviceId={device.id} tag={device.asset_tag ?? 'this laptop'} name={student.name ?? student.email} />} />
+            action={viewer.canManage ? <TransferButton deviceId={device.id} tag={device.asset_tag ?? 'this laptop'} name={student.name ?? student.email} /> : undefined} />
         )),
       },
       {
@@ -300,7 +302,7 @@ export default async function HardwarePage({
           <h1 className="text-2xl font-bold text-dark-text">{TABS[tab].title}</h1>
           <p className="text-sm text-muted-text mt-1">{TABS[tab].subtitle}</p>
         </div>
-        {tab === 'devices' && (
+        {tab === 'devices' && viewer.canManage && (
           <div className="flex flex-wrap gap-2">
             <Link href="/instructor/hardware/purchases/new" className="bg-teal-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity">
               + Add a purchase

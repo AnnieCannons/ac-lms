@@ -35,7 +35,10 @@ const HINTS: Partial<Record<StatusChoice, string>> = {
  * The device's status as a dropdown that only offers changes that make sense from here.
  * Picking one opens the small form that change needs; Cancel leaves the status as it was.
  */
-export default function StatusControl({ device, waitlist = [] }: { device: HardwareDevice; waitlist?: Person[] }) {
+/** What TAs (day-to-day access) may pick: loan it out, receive it, needs prep, wiped and checked. */
+const TA_CHOICES: StatusChoice[] = ['loan', 'receive', 'needs_prep', 'prepped']
+
+export default function StatusControl({ device, waitlist = [], canManage = true }: { device: HardwareDevice; waitlist?: Person[]; canManage?: boolean }) {
   const router = useRouter()
   const selectId = useId()
   const [choice, setChoice] = useState<StatusChoice | ''>('')
@@ -43,7 +46,7 @@ export default function StatusControl({ device, waitlist = [] }: { device: Hardw
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const choices = statusChoices(device.status, device.kind)
+  const choices = statusChoices(device.status, device.kind).filter(c => canManage || TA_CHOICES.includes(c))
 
   const reset = () => { setChoice(''); setStudent(null); setNote(''); setError(null) }
 

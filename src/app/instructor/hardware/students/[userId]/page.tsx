@@ -42,11 +42,12 @@ export default async function StudentHardwarePage({ params }: { params: Promise<
           <p className="text-sm text-muted-text">{student.email}</p>
         </div>
 
-        <HasNowCard studentId={student.id} loaned={loaned} inStock={inStock.filter(d => !d.current_holder_id)} name={displayName}>
+        <HasNowCard studentId={student.id} loaned={loaned} inStock={inStock.filter(d => !d.current_holder_id)} name={displayName} canManage={viewer.canManage}>
           <DeviceTable devices={currentDevices} people={people} showHolder={false} emptyText="No equipment recorded." />
         </HasNowCard>
 
         <ReplacementPanel
+          readOnly={!viewer.canManage}
           studentId={student.id}
           replacements={replacements}
           studentLaptops={studentLaptops}

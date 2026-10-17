@@ -16,7 +16,7 @@ export default function Hardware() {
           </DocP>
           <DocP>
             Open it from the <strong>Hardware</strong> card on the instructor dashboard. Instructors, staff and admins can
-            use it. TAs and students can&apos;t. Every Hardware page has the same bar along the top:
+            do everything. Students can&apos;t open it. Every Hardware page has the same bar along the top:
           </DocP>
           <DocList>
             <li><strong>Devices</strong> — every device, with search and filters. Add new equipment here.</li>
@@ -25,7 +25,26 @@ export default function Hardware() {
             <li><strong>Waitlist</strong> — students waiting for a device.</li>
             <li><strong>Check-in</strong> — ask students which equipment they have.</li>
             <li><strong>Mark received</strong> — when a box arrives back.</li>
+            <li><strong>How do I…?</strong> — step-by-step answers to common situations, like &ldquo;Have a new bulk purchase?&rdquo; or &ldquo;What if a student pauses or leaves the program?&rdquo;</li>
           </DocList>
+          <DocTip>
+            <strong>Bought a batch?</strong> You don&apos;t have to add devices one at a time. <strong>Devices → + Add a
+            purchase</strong> adds a whole order at once: enter the shared details once, then paste every serial number
+            (or IMEI), one per line, straight from a spreadsheet. Each device gets its own tag automatically.
+          </DocTip>
+          <DocH3>TAs</DocH3>
+          <DocP>
+            TAs open it from <strong>Hardware</strong> in their course sidebar and get <strong>day-to-day</strong> access:
+            loan devices, mark things received, mark needs prep / wiped and checked, update support tickets and add notes.
+            Setup work stays with instructors, staff and admins: adding purchases or devices, editing details, other status
+            changes, asking for equipment back, transfers, replacements, hotspot plans, the waitlist and check-ins. TAs
+            don&apos;t see the Waitlist or Check-in tabs.
+          </DocP>
+          <DocP>
+            TAs can also <strong>have</strong> equipment, just like students: find them under Students, include them in a
+            check-in (each course&apos;s TAs are sent it along with its students), and they get the same equipment prompt
+            when removed from a course or changed to Observer.
+          </DocP>
           <DocNote>
             No shipping addresses are stored in the LMS. They stay in Airtable.
           </DocNote>
@@ -34,10 +53,14 @@ export default function Hardware() {
     },
     {
       id: 'adding',
-      title: 'Adding Equipment and Printing Labels',
+      title: 'Adding Equipment (One Device or a Whole Purchase at Once) and Printing Labels',
       content: (
         <>
-          <DocH3>A whole purchase</DocH3>
+          <DocNote>
+            <strong>Bulk adding:</strong> a whole purchase — 20 refurbished MacBooks, a box of hotspots, a pack of
+            boosters — goes in with one form. Use <strong>+ Add a purchase</strong> rather than adding each device.
+          </DocNote>
+          <DocH3>A whole purchase (bulk add)</DocH3>
           <DocStep number={1}>On <strong>Devices</strong>, click <strong>+ Add a purchase</strong>.</DocStep>
           <DocStep number={2}>Choose the type, then fill in the details shared by the whole order: make and model, year, condition, vendor, purchase date and cost per device (warranty and notes are optional).</DocStep>
           <DocStep number={3}>Paste the serial numbers (laptops) or IMEIs (hotspots), one per line. A spreadsheet column pastes cleanly. For boosters, which have no serial number, enter how many.</DocStep>
@@ -343,7 +366,11 @@ export default function Hardware() {
   return (
     <>
       <h1 className="text-2xl font-bold text-dark-text mb-1">Hardware</h1>
-      <p className="text-sm text-muted-text mb-8">Track the laptops, hotspots and wifi boosters loaned to students, from purchase to return.</p>
+      <p className="text-sm text-muted-text mb-4">Track the laptops, hotspots and wifi boosters loaned to students, from purchase to return.</p>
+      <p className="text-sm text-dark-text mb-8 bg-surface border border-border rounded-xl px-4 py-3">
+        Looking for quick steps? The <a href="/instructor/hardware/guide" className="font-semibold text-teal-primary hover:underline">How do I…?</a>{' '}
+        tab in Hardware walks through common situations step by step.
+      </p>
 
       <DocAccordion items={items} />
     </>
