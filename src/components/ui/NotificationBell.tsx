@@ -35,6 +35,9 @@ function notificationHref(n: Notification): string | null {
   if (n.type === 'hardware_return_reminder') {
     return '/account#equipment'
   }
+  if (n.type === 'hardware_ticket') {
+    return '/instructor/hardware?tab=attention#tickets'
+  }
   if (n.type === 'hardware_renewal') {
     return '/instructor/hardware?tab=attention#renewals'
   }

@@ -3,6 +3,8 @@ import { getResend } from '@/lib/resend'
 import { notifyByEmail, slackPostMessage } from '@/lib/slack'
 import { daysSince, formatDateOnly, KIND_LABELS, LIKELY_LOST_DAYS, type DeviceKind } from '@/lib/hardware'
 import { loadHotspotPlans, loadOpenReturns, type HotspotPlanStatus } from '@/lib/hardware-server'
+import { loadOpenTickets } from '@/lib/hardware-tickets-server'
+import { TICKET_NUDGE_HOURS, TICKET_STATUS_LABELS, ticketNeedsNudge } from '@/lib/hardware-tickets'
 import {
   breakPeriods,
   daysBetween,
@@ -46,12 +48,13 @@ export type ReminderRunResult = {
   renewalsAlerted: number
   studentsReminded: number
   likelyLostAlerted: number
+  ticketsNudged: number
   graduateReview: string | null
 }
 
 export async function runHardwareReminders(admin: Admin, now: Date = new Date()): Promise<ReminderRunResult> {
   const today = pacificToday(now)
-  const result: ReminderRunResult = { renewalsAlerted: 0, studentsReminded: 0, likelyLostAlerted: 0, graduateReview: null }
+  const result: ReminderRunResult = { renewalsAlerted: 0, studentsReminded: 0, likelyLostAlerted: 0, ticketsNudged: 0, graduateReview: null }
   const staffIds = await alertStaffIds(admin)
 
   // 1. Hotspot plans ending within 45 days (or already ended): once per plan period.
@@ -135,7 +138,23 @@ export async function runHardwareReminders(admin: Admin, now: Date = new Date())
     result.likelyLostAlerted = lostLines.length
   }
 
-  // 4. First day of a break: time to go through and mark graduates / drops.
+  // 4. Support tickets nobody has touched for 48 hours: one post listing them, then again
+  //    48 hours later if still untouched. Claimed by moving last_nudged_at first.
+  const stale: string[] = []
+  for (const { ticket: t, student, device } of await loadOpenTickets(admin)) {
+    if (!ticketNeedsNudge(t, now)) continue
+    const { data: claimed } = await admin.from('hardware_tickets').update({ last_nudged_at: now.toISOString() })
+      .eq('id', t.id).eq('last_activity_at', t.last_activity_at).select('id')
+    if (!claimed?.length) continue
+    const who = student ? (student.name ?? student.email) : (t.submitted_name ?? t.submitted_email ?? 'someone')
+    stale.push(`• <${appUrl()}/instructor/hardware/tickets/${t.id}|${t.equipment_type ?? 'Equipment'} issue> from ${who}${device ? ` (${device.asset_tag})` : ''}: ${TICKET_STATUS_LABELS[t.status].toLowerCase()}, ${daysSince(t.created_at, now)} days old`)
+  }
+  if (stale.length) {
+    await slackPostMessage(channel(), `⏳ *Support ticket${stale.length === 1 ? '' : 's'} with no update in ${TICKET_NUDGE_HOURS / 24} days:*\n${stale.join('\n')}`)
+    result.ticketsNudged = stale.length
+  }
+
+  // 5. First day of a break: time to go through and mark graduates / drops.
   const { data: breaks } = await admin.from('calendar_breaks').select('label, start_date')
   const period = graduateReviewDue(breakPeriods((breaks ?? []) as { label: string; start_date: string }[]), today)
   if (period && await claimAlert(admin, `graduates:${period.start}`)) {

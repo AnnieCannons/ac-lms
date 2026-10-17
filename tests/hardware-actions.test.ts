@@ -8,6 +8,7 @@ import {
   addToHardwareWaitlist,
   getHardwareDropPrompt,
   saveHardwareSubscription,
+  updateHardwareTicket,
   deleteHardwareSubscription,
   recordHardwareReplacement,
   removeFromHardwareWaitlist,
@@ -290,5 +291,28 @@ describe('hotspot plans', () => {
   it('checks the dates', async () => {
     signedInAs('staff')
     expect(await saveHardwareSubscription('d1', null, { ...plan, endsOn: '2026-09-01' })).toEqual({ ok: false, error: 'The end date must be after the start date.' })
+  })
+})
+
+describe('updateHardwareTicket', () => {
+  it.each(['student', 'ta'])('rejects a %s', async role => {
+    signedInAs(role)
+    expect(await updateHardwareTicket('t1', { status: 'resolved' })).toEqual({ ok: false, error: 'Not authorized.' })
+    expect(createServiceSupabaseClient).not.toHaveBeenCalled()
+  })
+
+  it('refuses an unknown status', async () => {
+    signedInAs('staff')
+    expect(await updateHardwareTicket('t1', { status: 'closed' as never })).toEqual({ ok: false, error: 'Choose a valid status.' })
+  })
+
+  it('only matches tickets to students', async () => {
+    signedInAs('staff')
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => chain(table === 'hardware_tickets'
+        ? { data: { id: 't1', status: 'open', student_id: null, device_id: null }, error: null }
+        : { data: { role: 'instructor' }, error: null }),
+    } as never)
+    expect(await updateHardwareTicket('t1', { studentId: 'x' })).toEqual({ ok: false, error: 'Choose a student.' })
   })
 })

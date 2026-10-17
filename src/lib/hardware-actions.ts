@@ -30,6 +30,7 @@ import {
 } from '@/lib/hardware'
 import { DEVICE_COLUMNS, type Person } from '@/lib/hardware-server'
 import { validateSubscriptionInput, type SubscriptionInput } from '@/lib/hardware-reminders'
+import { TICKET_STATUSES, TICKET_STATUS_LABELS, type TicketStatus } from '@/lib/hardware-tickets'
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
@@ -627,5 +628,57 @@ export async function deleteHardwareSubscription(subscriptionId: string): Promis
   await admin.from('hardware_events').insert({
     device_id: sub.device_id, type: 'plan_removed', notes: `${sub.carrier}: ${formatDateOnly(sub.starts_on)} – ${formatDateOnly(sub.ends_on)}`, actor_id: staff.userId,
   })
+  return { ok: true }
+}
+
+// ── Support tickets (Phase 8) ────────────────────────────────────────────────
+
+/** Updates a ticket's status, student and/or device (each optional), with a note for the history. */
+export async function updateHardwareTicket(
+  ticketId: string,
+  changes: { status?: TicketStatus; studentId?: string | null; deviceId?: string | null; note?: string },
+): Promise<Result> {
+  const staff = await requireHardwareStaff()
+  if (!staff) return { ok: false, error: 'Not authorized.' }
+  if (changes.status && !TICKET_STATUSES.includes(changes.status)) return { ok: false, error: 'Choose a valid status.' }
+
+  const admin = createServiceSupabaseClient()
+  const { data: ticket } = await admin.from('hardware_tickets').select('id, status, student_id, device_id').eq('id', ticketId).maybeSingle()
+  if (!ticket) return { ok: false, error: 'Ticket not found.' }
+
+  const update: Record<string, unknown> = { last_activity_at: now() }
+  const said: string[] = []
+  if (changes.status && changes.status !== ticket.status) {
+    update.status = changes.status
+    update.resolved_at = changes.status === 'resolved' ? now() : null
+    said.push(`Ticket ${TICKET_STATUS_LABELS[changes.status].toLowerCase()}`)
+  }
+  if (changes.studentId !== undefined && changes.studentId !== ticket.student_id) {
+    if (changes.studentId) {
+      const { data: s } = await admin.from('users').select('role').eq('id', changes.studentId).maybeSingle()
+      if (s?.role !== 'student') return { ok: false, error: 'Choose a student.' }
+    }
+    update.student_id = changes.studentId
+    if (changes.deviceId === undefined) update.device_id = null
+    said.push('Ticket matched to a student')
+  }
+  if (changes.deviceId !== undefined && changes.deviceId !== ticket.device_id) {
+    update.device_id = changes.deviceId
+    said.push('Ticket linked to this device')
+  }
+  const note = (changes.note ?? '').trim()
+  if (said.length === 0 && !note) return { ok: true }
+
+  const { error } = await admin.from('hardware_tickets').update(update).eq('id', ticketId)
+  if (error) return { ok: false, error: error.message }
+
+  const deviceId = (update.device_id as string | null | undefined) ?? ticket.device_id
+  const studentId = (update.student_id as string | null | undefined) ?? ticket.student_id
+  if (deviceId || studentId) {
+    await admin.from('hardware_events').insert({
+      device_id: deviceId, student_id: studentId, type: 'ticket_updated',
+      notes: [...said, note].filter(Boolean).join('\n'), actor_id: staff.userId,
+    })
+  }
   return { ok: true }
 }

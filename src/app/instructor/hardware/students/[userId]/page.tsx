@@ -2,6 +2,10 @@ import { notFound } from 'next/navigation'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
 import { loadDevices, loadPeople, loadReplacements, loadStudentHardware } from '@/lib/hardware-server'
+import { loadStudentTickets } from '@/lib/hardware-tickets-server'
+import { TICKET_STATUS_LABELS } from '@/lib/hardware-tickets'
+import { formatPacific } from '@/lib/hardware'
+import Link from 'next/link'
 import HardwareShell from '@/components/hardware/HardwareShell'
 import DeviceTable from '@/components/hardware/DeviceTable'
 import HistoryTimeline from '@/components/hardware/HistoryTimeline'
@@ -16,10 +20,11 @@ export default async function StudentHardwarePage({ params }: { params: Promise<
   const { data: student } = await admin.from('users').select('id, name, email').eq('id', userId).maybeSingle()
   if (!student) notFound()
 
-  const [{ currentDevices, pastDevices, history }, replacements, inStock] = await Promise.all([
+  const [{ currentDevices, pastDevices, history }, replacements, inStock, tickets] = await Promise.all([
     loadStudentHardware(admin, student.id),
     loadReplacements(admin, student.id),
     loadDevices(admin, { status: 'in_stock' }),
+    loadStudentTickets(admin, student.id),
   ])
   const people = await loadPeople(admin, history.map(e => e.actor_id))
   const devices = new Map([...currentDevices, ...pastDevices].map(d => [d.id, d]))
@@ -48,6 +53,19 @@ export default async function StudentHardwarePage({ params }: { params: Promise<
           inStockLaptops={inStockLaptops}
           deviceTags={deviceTags}
         />
+
+        {tickets.length > 0 && (
+          <Card title={`Support tickets · ${tickets.length}`}>
+            <ul className="flex flex-col divide-y divide-border">
+              {tickets.map(({ ticket: t, device }) => (
+                <li key={t.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0 text-sm">
+                  <Link href={`/instructor/hardware/tickets/${t.id}`} className="font-medium text-dark-text hover:text-teal-primary">{t.equipment_type ?? 'Equipment'} issue</Link>
+                  <span className="text-muted-text">{TICKET_STATUS_LABELS[t.status]}{device ? ` · ${device.asset_tag}` : ''} · {formatPacific(t.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
 
         {pastDevices.length > 0 && (
           <Card title="Had before">
