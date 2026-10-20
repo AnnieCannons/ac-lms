@@ -702,7 +702,12 @@ function StudentsTab({
                 {expandedList.map(a => {
                   return (
                     <div key={a.id} className="flex items-center justify-between gap-4 py-1">
-                      <span className="text-xs text-dark-text">{a.title}</span>
+                      <Link
+                        href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                        className="text-xs text-dark-text hover:text-teal-primary hover:underline"
+                      >
+                        {a.title}
+                      </Link>
                       {expanded.category !== 'missing' ? (
                         <Link
                           href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}?by=student`}

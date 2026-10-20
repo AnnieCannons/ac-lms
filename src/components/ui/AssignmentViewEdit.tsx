@@ -5,6 +5,7 @@ import Link from 'next/link'
 import HtmlContent from './HtmlContent'
 import AssignmentEditor from './AssignmentEditor'
 import InlineDueDatePicker from './InlineDueDatePicker'
+import { formatDueDate } from '@/lib/date-utils'
 
 interface ChecklistItem {
   id: string
@@ -166,6 +167,29 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
           {assignment.skill_tags.map(tag => (
             <span key={tag} className="text-xs px-2.5 py-1 rounded-full border border-teal-primary bg-teal-primary text-white">{tag}</span>
           ))}
+        </div>
+      )}
+
+      {/* Student overrides (extensions / excused), read-only — managed in Edit */}
+      {initialOverrides.length > 0 && (
+        <div className="bg-surface rounded-2xl border border-border p-6">
+          <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">
+            Extensions &amp; Excused ({initialOverrides.length})
+          </p>
+          <div className="flex flex-col gap-2">
+            {[...initialOverrides].sort((a, b) => a.student_name.localeCompare(b.student_name)).map(o => (
+              <div key={o.id} className="flex items-center gap-3 text-sm">
+                <span className="font-medium text-dark-text flex-1">{o.student_name}</span>
+                {o.excused ? (
+                  <span className="badge-amber text-xs font-medium border rounded-full px-2 py-0.5">Excused</span>
+                ) : o.due_date ? (
+                  <span className="text-xs text-muted-text">Extended to {formatDueDate(o.due_date)}</span>
+                ) : (
+                  <span className="text-xs text-muted-text">No due date</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
