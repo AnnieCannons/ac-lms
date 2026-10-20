@@ -206,13 +206,17 @@ export default async function InstructorSubmissionsPage({
           <span className="text-border">/</span>
           <Link href={`/instructor/courses/${id}/submissions`} className="hover:text-teal-primary">{course?.name}</Link>
           <span className="text-border">/</span>
-          <span className="text-dark-text font-medium truncate max-w-[300px]">{assignment.title}</span>
+          <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-dark-text font-medium truncate max-w-[300px] hover:text-teal-primary hover:underline">{assignment.title}</Link>
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium">Submissions</span>
         </div>
 
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          <h1 className="text-2xl font-bold text-dark-text">
+            <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="hover:text-teal-primary hover:underline">
+              {assignment.title}
+            </Link>
+          </h1>
           {!assignment.submission_required && (
             <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">
               No submission
