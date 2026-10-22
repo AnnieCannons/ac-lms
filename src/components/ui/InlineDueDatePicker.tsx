@@ -13,6 +13,7 @@ export default function InlineDueDatePicker({ assignmentId, courseId, dueDate, o
 }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
@@ -42,9 +43,11 @@ export default function InlineDueDatePicker({ assignmentId, courseId, dueDate, o
   async function handleSelect(day: Date | undefined) {
     setOpen(false)
     setSaving(true)
+    setError(null)
     const val = day ? format(day, 'yyyy-MM-dd') : null
-    await updateAssignmentDueDate(assignmentId, val, courseId)
-    onSaved(val)
+    const result = await updateAssignmentDueDate(assignmentId, val, courseId)
+    if (result.error) setError(result.error)
+    else onSaved(val)
     setSaving(false)
   }
 
@@ -64,6 +67,7 @@ export default function InlineDueDatePicker({ assignmentId, courseId, dueDate, o
       >
         {saving ? 'Saving…' : label}
       </button>
+      {error && <p role="alert" className="text-xs text-red-500 mt-0.5">Couldn&apos;t save due date: {error}</p>}
       {open && (
         <div
           ref={popRef}
