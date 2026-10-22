@@ -30,6 +30,7 @@ export async function createModule(params: {
       title: params.title,
       category: params.category,
       order: params.order,
+      published: false,
       skill_tags: params.skillTags ?? [],
     })
     .select('id, title, order, week_number, category, skill_tags')
