@@ -47,9 +47,12 @@ interface StudentRow {
   needsReview: Assignment[]
   complete: Assignment[]
   needsRevision: Assignment[]
+  // Per-student overrides — shown alongside the status counts, not instead of them
+  extended: Assignment[]
+  excused: Assignment[]
 }
 
-type ExpandKey = 'missing' | 'needsReview' | 'complete' | 'needsRevision'
+type ExpandKey = 'missing' | 'needsReview' | 'complete' | 'needsRevision' | 'extended' | 'excused'
 
 interface Override {
   assignment_id: string
@@ -99,18 +102,24 @@ export default function CourseGradesView({
       const needsReview: Assignment[] = []
       const complete: Assignment[] = []
       const needsRevision: Assignment[] = []
+      const extended: Assignment[] = []
+      const excused: Assignment[] = []
 
       for (const a of assignments) {
         const sub = subMap.get(`${student.id}-${a.id}`)
         const override = overrideMap.get(`${student.id}-${a.id}`)
-        if (override?.excused) continue
+        if (override?.excused) { excused.push(a); continue }
         const effectiveDueDate = override?.due_date ?? a.due_date
         if (!sub || sub.status === 'draft') {
+          const pastDue = !!effectiveDueDate && localDate(effectiveDueDate) < todayLocal()
+          // Extensions still waiting on a submission. Once turned in, or once the
+          // extended date passes, they show in their status list with an "Extended" badge
+          if (override?.due_date && !pastDue) { extended.push(a); continue }
           // No-submission assignments are never "missing" — instructor marks them complete manually
           if (a.submission_required === false) continue
           // Optional assignments are never "missing" either
           if (a.is_optional) continue
-          if (effectiveDueDate && localDate(effectiveDueDate) < todayLocal()) missing.push(a)
+          if (pastDue) missing.push(a)
         } else if (sub.status === 'submitted') {
           needsReview.push(a)
         } else if (sub.status === 'graded') {
@@ -119,7 +128,7 @@ export default function CourseGradesView({
         }
       }
 
-      return { student, missing, needsReview, complete, needsRevision }
+      return { student, missing, needsReview, complete, needsRevision, extended, excused }
     })
     .sort((a, b) => {
       const aAttn = a.missing.length + a.needsReview.length + a.needsRevision.length
@@ -205,6 +214,7 @@ export default function CourseGradesView({
           studentStats={studentStats}
           courseId={courseId}
           subMap={subMap}
+          overrideMap={overrideMap}
           searchQuery={searchLower}
         />
       )}
@@ -602,11 +612,13 @@ function StudentsTab({
   studentStats,
   courseId,
   subMap,
+  overrideMap,
   searchQuery,
 }: {
   studentStats: StudentRow[]
   courseId: string
   subMap: Map<string, Sub>
+  overrideMap: Map<string, Override>
   searchQuery: string
 }) {
   const [expanded, setExpanded] = useState<{ studentId: string; category: ExpandKey } | null>(null)
@@ -620,8 +632,10 @@ function StudentsTab({
     needsReview: filterAssignments(row.needsReview),
     complete: filterAssignments(row.complete),
     needsRevision: filterAssignments(row.needsRevision),
+    extended: filterAssignments(row.extended),
+    excused: filterAssignments(row.excused),
   })).filter(row =>
-    !searchQuery || row.missing.length + row.needsReview.length + row.complete.length + row.needsRevision.length > 0
+    !searchQuery || row.missing.length + row.needsReview.length + row.complete.length + row.needsRevision.length + row.extended.length + row.excused.length > 0
   )
 
   if (filteredStats.length === 0) {
@@ -640,16 +654,16 @@ function StudentsTab({
 
   return (
     <div className="flex flex-col divide-y divide-border border border-border rounded-2xl overflow-hidden">
-      {filteredStats.map(({ student, missing, needsReview, complete, needsRevision }) => {
+      {filteredStats.map(({ student, missing, needsReview, complete, needsRevision, extended, excused }) => {
         const isExpanded = (cat: ExpandKey) =>
           expanded?.studentId === student.id && expanded.category === cat
 
         const expandedList: Assignment[] =
           expanded?.studentId === student.id
-            ? { missing, needsReview, complete, needsRevision }[expanded.category] ?? []
+            ? { missing, needsReview, complete, needsRevision, extended, excused }[expanded.category] ?? []
             : []
 
-        const hasAnything = missing.length + needsReview.length + complete.length + needsRevision.length > 0
+        const hasAnything = missing.length + needsReview.length + complete.length + needsRevision.length + extended.length + excused.length > 0
 
         return (
           <div key={student.id} className="bg-surface">
@@ -691,6 +705,22 @@ function StudentsTab({
                     {complete.length} complete
                   </button>
                 )}
+                {extended.length > 0 && (
+                  <button
+                    onClick={() => toggle(student.id, 'extended')}
+                    className={`font-medium hover:underline text-blue-600 dark:!text-blue-400 ${isExpanded('extended') ? 'underline' : ''}`}
+                  >
+                    {extended.length} extended
+                  </button>
+                )}
+                {excused.length > 0 && (
+                  <button
+                    onClick={() => toggle(student.id, 'excused')}
+                    className={`font-medium hover:underline text-purple-600 dark:!text-purple-400 ${isExpanded('excused') ? 'underline' : ''}`}
+                  >
+                    {excused.length} excused
+                  </button>
+                )}
                 {!hasAnything && (
                   <span className="text-muted-text">No activity yet</span>
                 )}
@@ -700,20 +730,46 @@ function StudentsTab({
             {expanded?.studentId === student.id && expandedList.length > 0 && (
               <div className="border-t border-border bg-background px-6 py-3 flex flex-col gap-1">
                 {expandedList.map(a => {
+                  const sub = subMap.get(`${student.id}-${a.id}`)
+                  const hasSubmission = sub && sub.status !== 'draft'
+                  const override = overrideMap.get(`${student.id}-${a.id}`)
+                  const isOverrideList = expanded.category === 'extended' || expanded.category === 'excused'
                   return (
                     <div key={a.id} className="flex items-center justify-between gap-4 py-1">
-                      <Link
-                        href={`/instructor/courses/${courseId}/assignments/${a.id}`}
-                        className="text-xs text-dark-text hover:text-teal-primary hover:underline"
-                      >
-                        {a.title}
-                      </Link>
-                      {expanded.category !== 'missing' ? (
+                      <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
+                        <Link
+                          href={`/instructor/courses/${courseId}/assignments/${a.id}`}
+                          className="text-xs text-dark-text hover:text-teal-primary hover:underline"
+                        >
+                          {a.title}
+                        </Link>
+                        {expanded.category === 'extended' && override?.due_date ? (
+                          <span className="text-xs text-muted-text">
+                            Extended to {formatDueDateWithTime(override.due_date)}
+                            {a.due_date && <> · was {formatDueDateWithTime(a.due_date)}</>}
+                          </span>
+                        ) : override?.due_date && !isOverrideList && (
+                          <span
+                            className="text-xs font-medium px-2 py-0.5 rounded-full border border-blue-400/50 text-blue-600 dark:!text-blue-400"
+                            title={`Extended to ${formatDueDateWithTime(override.due_date)}`}
+                          >
+                            Extended
+                          </span>
+                        )}
+                      </div>
+                      {expanded.category === 'extended' || (isOverrideList && !hasSubmission) ? (
+                        <Link
+                          href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions`}
+                          className="text-xs text-muted-text hover:text-teal-primary shrink-0"
+                        >
+                          View class →
+                        </Link>
+                      ) : expanded.category !== 'missing' ? (
                         <Link
                           href={`/instructor/courses/${courseId}/assignments/${a.id}/submissions/${student.id}?by=student`}
                           className="text-xs font-medium text-teal-primary hover:underline shrink-0"
                         >
-                          {expanded.category === 'needsReview' ? 'Grade →' : 'View →'}
+                          {expanded.category === 'needsReview' || (isOverrideList && sub?.status === 'submitted') ? 'Grade →' : 'View →'}
                         </Link>
                       ) : (
                         <Link

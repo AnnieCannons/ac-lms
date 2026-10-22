@@ -1,6 +1,7 @@
 'use server'
 
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { getAssignmentCourseId } from '@/lib/course-scope'
 import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModuleDay, linkedDayInCourse } from '@/lib/course-access'
 
 export async function createAssignment(params: {
@@ -44,19 +45,14 @@ export async function updateAssignmentDueDate(
   const access = await requireCourseInstructorAccess(courseId)
   if (isCourseAccessError(access)) return { error: access.error }
 
-  const supabase = await createServerSupabaseClient()
+  const admin = createServiceSupabaseClient()
 
   // Verify the assignment actually belongs to this course
-  const { data: assignment } = await supabase
-    .from('assignments')
-    .select('module_days!inner(modules!inner(course_id))')
-    .eq('id', assignmentId)
-    .maybeSingle()
-  const moduleDays = assignment?.module_days as unknown as { modules: { course_id: string } }[] | null
-  const assignmentCourseId = moduleDays?.[0]?.modules?.course_id
-  if (assignmentCourseId !== courseId) return { error: 'Assignment not found in this course' }
+  if ((await getAssignmentCourseId(admin, assignmentId)) !== courseId) {
+    return { error: 'Assignment not found in this course' }
+  }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('assignments')
     .update({ due_date: dueDate || null })
     .eq('id', assignmentId)
