@@ -67,7 +67,7 @@ export default function AddAssignmentButton({ courseId, className, variant = 'de
     const category = section === 'career' ? 'career' : null
     const { data, error } = await supabase
       .from('modules')
-      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length })
+      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length, published: false })
       .select('id, title, order, week_number, category')
       .single()
     if (error || !data) { setModuleError(error?.message ?? 'Failed to create module'); return }

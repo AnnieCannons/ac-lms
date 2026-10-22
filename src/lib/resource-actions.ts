@@ -42,6 +42,7 @@ export async function createResource(params: {
       title: params.title,
       content: params.content,
       order: count ?? 0,
+      published: false,
       linked_day_id: params.linkedDayId ?? null,
     })
     .select('id, module_day_id, type, title, content, order, linked_day_id')

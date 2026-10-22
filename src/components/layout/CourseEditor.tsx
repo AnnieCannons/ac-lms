@@ -567,21 +567,34 @@ function AssignmentFullView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId]);
 
-  const customTemplates: RubricTemplate[] = (() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem("rubric-templates-custom") ?? "[]"); } catch { return []; }
-  })();
+  // Custom templates are shared via the rubric_templates table (same source as AssignmentEditor).
+  // Older templates saved only to this browser's localStorage are still listed so they aren't lost.
+  const [customTemplates, setCustomTemplates] = useState<RubricTemplate[]>([]);
+  useEffect(() => {
+    supabase.from("rubric_templates").select("id, name, items").order("name").then(({ data, error }) => {
+      let legacy: RubricTemplate[] = [];
+      try { legacy = JSON.parse(localStorage.getItem("rubric-templates-custom") ?? "[]"); } catch { /* ignore */ }
+      if (error) console.error("Failed to load checklist templates:", error.message);
+      const shared = (data ?? []) as RubricTemplate[];
+      const sharedNames = new Set(shared.map(t => t.name));
+      setCustomTemplates([...shared, ...legacy.filter(t => !sharedNames.has(t.name))]);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const allTemplates = [...RUBRIC_TEMPLATES, ...customTemplates];
 
-  const saveAsCustomTemplate = (items: RubricItem[]) => {
-    if (items.filter(i => i.text.trim()).length === 0) return;
+  const saveAsCustomTemplate = async (items: RubricItem[]) => {
+    const cleaned = items.filter(i => i.text.trim()).map(i => ({ text: i.text.trim(), description: i.description.trim() }));
+    if (cleaned.length === 0) return;
     const name = window.prompt("Template name:");
     if (!name?.trim()) return;
-    const newTemplate: RubricTemplate = { id: `custom-${Date.now()}`, name: name.trim(), items };
-    try {
-      const existing: RubricTemplate[] = JSON.parse(localStorage.getItem("rubric-templates-custom") ?? "[]");
-      localStorage.setItem("rubric-templates-custom", JSON.stringify([...existing, newTemplate]));
-    } catch { /* ignore */ }
+    const { data, error } = await supabase
+      .from("rubric_templates")
+      .insert({ name: name.trim(), items: cleaned })
+      .select("id, name, items")
+      .single();
+    if (error || !data) { alert(`Couldn't save template: ${error?.message ?? "unknown error"}`); return; }
+    setCustomTemplates(prev => [...prev, data as RubricTemplate].sort((a, b) => a.name.localeCompare(b.name)));
   };
 
   const loadEditTemplate = (templateId: string) => {
@@ -1821,6 +1834,7 @@ function SortableDay({
         title,
         content: content || null,
         order: resourcesRef.current.length,
+        published: false,
       })
       .select()
       .single();
@@ -3252,6 +3266,7 @@ export default function CourseEditor({
         week_number: parseInt(newModuleWeek) || null,
         order: modules.length,
         category: filterCategory ?? null,
+        published: false,
       })
       .select()
       .single();
@@ -3518,6 +3533,7 @@ export default function CourseEditor({
         how_to_turn_in: howToTurnIn || null,
         due_date: dueDate || null,
         order: newOrder,
+        published: false,
       })
       .select()
       .single();
