@@ -34,6 +34,8 @@ export default async function QuizSubmissionsPage({
     .from("quizzes")
     .select("id, title, module_title, due_at")
     .eq("course_id", id)
+    // Practice quizzes are ungraded and live on Study Activity instead.
+    .eq("is_practice", false)
     .is("deleted_at", null)
     .order("module_title", { ascending: true })
     .order("title", { ascending: true });
@@ -124,6 +126,15 @@ export default async function QuizSubmissionsPage({
               <p className="text-sm text-muted-text">
                 {course.name} · {totalStudents} students enrolled
               </p>
+              {!isTa && (
+                <p className="text-sm text-muted-text mt-1">
+                  Practice quizzes are on{" "}
+                  <Link href={`/instructor/courses/${id}/study-activity`} className="text-teal-primary hover:underline">
+                    Study Activity
+                  </Link>
+                  .
+                </p>
+              )}
             </div>
 
             {quizList.length === 0 ? (

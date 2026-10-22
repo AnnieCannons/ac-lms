@@ -22,7 +22,7 @@ interface Props {
   showSkillConfidence?: boolean
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence', 'skill-confidence']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence', 'skill-confidence', 'study-activity']
 
 function useNavSection(key: string, defaultOpen = true): [boolean, () => void] {
   const [open, setOpen] = useState(() => {
@@ -189,6 +189,8 @@ export default function InstructorCourseNav({
         {!isTa && navLink('Users', 'users')}
         {navLink('Roster', 'roster')}
         {!isTa && navLink('Class Readiness', 'readiness')}
+        {/* Staff only: TAs don't see study habits. */}
+        {!isTa && navLink('Study Activity', 'study-activity')}
 
         <SectionHeader label="Course" open={courseOpen} onToggle={toggleCourseOpen} />
         {courseOpen && CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
