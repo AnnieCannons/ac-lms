@@ -59,39 +59,42 @@ async function fetchCourseAssignments(
   return assignments
 }
 
+export type NeedsRevisionEvent = { assignmentId: string; title: string; dueDate: string | null; returnedAt: string }
+
 /**
- * Counts how many times this student had a submission returned as Needs
- * Revision (grade_history rows with grade='incomplete') within [weekStart,
- * weekEnd] (ET calendar dates, inclusive) -- every bounce counts, not just
- * whatever is still sitting in that state as of when this is called. This is
- * what feeds the weekly readiness score, replacing the old Monday-morning
- * snapshot of current state.
+ * Every time this student had a submission returned as Needs Revision
+ * (grade_history rows with grade='incomplete') within [weekStart, weekEnd]
+ * (ET calendar dates, inclusive) -- every bounce counts, not just whatever is
+ * still sitting in that state as of when this is called. This is what feeds
+ * the weekly readiness score, replacing the old Monday-morning snapshot of
+ * current state. Oldest first.
  */
-export async function countNeedsRevisionEvents(
+export async function listNeedsRevisionEvents(
   admin: ReturnType<typeof createServiceSupabaseClient>,
   studentId: string,
   courseId: string,
   weekStart: string,
   weekEnd: string,
-): Promise<number> {
+): Promise<NeedsRevisionEvent[]> {
   const assignments = await fetchCourseAssignments(admin, courseId)
-  if (assignments.length === 0) return 0
+  if (assignments.length === 0) return []
 
   const { data: submissions } = await admin
     .from('submissions')
-    .select('id')
+    .select('id, assignment_id')
     .eq('student_id', studentId)
     .in('assignment_id', assignments.map(a => a.id))
 
-  const submissionIds = (submissions as { id: string }[] ?? []).map(s => s.id)
-  if (submissionIds.length === 0) return 0
+  const subs = (submissions as { id: string; assignment_id: string }[] ?? [])
+  if (subs.length === 0) return []
+  const assignmentBySubmission = new Map(subs.map(s => [s.id, assignments.find(a => a.id === s.assignment_id)!]))
 
   // All grades (not just incomplete) so a double-click can be told apart from
   // a real second return -- the same rule the Grade History panel shows.
   const { data: historyRows } = await admin
     .from('grade_history')
     .select('submission_id, grade, graded_at')
-    .in('submission_id', submissionIds)
+    .in('submission_id', subs.map(s => s.id))
 
   type HistoryRow = { submission_id: string; grade: string; graded_at: string }
   const bySubmission = new Map<string, HistoryRow[]>()
@@ -100,11 +103,17 @@ export async function countNeedsRevisionEvents(
     bySubmission.get(r.submission_id)!.push(r)
   }
 
-  return [...bySubmission.values()].flatMap(collapseDoubleClicks).filter(r => {
-    if (r.grade !== 'incomplete') return false
-    const etDate = toEtDateStr(new Date(r.graded_at))
-    return etDate >= weekStart && etDate <= weekEnd
-  }).length
+  return [...bySubmission.values()].flatMap(collapseDoubleClicks)
+    .filter(r => {
+      if (r.grade !== 'incomplete') return false
+      const etDate = toEtDateStr(new Date(r.graded_at))
+      return etDate >= weekStart && etDate <= weekEnd
+    })
+    .sort((a, b) => a.graded_at.localeCompare(b.graded_at))
+    .map(r => {
+      const a = assignmentBySubmission.get(r.submission_id)!
+      return { assignmentId: a.id, title: a.title, dueDate: a.due_date, returnedAt: r.graded_at }
+    })
 }
 
 export async function computeStudentAssignmentStats(

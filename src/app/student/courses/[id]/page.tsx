@@ -10,6 +10,7 @@ import PageRefresher from '@/components/ui/PageRefresher'
 import StudentPageBanner from '@/components/ui/StudentPageBanner'
 import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { getCourseWeekNumber } from '@/lib/date-utils'
+import ReadinessPreviewCard from '@/components/ui/ReadinessPreviewCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +25,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, start_date, end_date, paid_learners')
+    .select('id, name, code, start_date, end_date, paid_learners, readiness_enabled')
     .eq('id', id)
     .single()
 
@@ -179,6 +180,7 @@ export default async function StudentCourseDetailPage({
             </div>
 
             <PageRefresher />
+            {course.readiness_enabled && !readOnly && <ReadinessPreviewCard courseId={id} />}
             {modules.length > 0 ? (
               <CourseOutlineAccordion
                 modules={modulesWithCross as Parameters<typeof CourseOutlineAccordion>[0]['modules']}

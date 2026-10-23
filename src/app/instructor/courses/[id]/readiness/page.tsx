@@ -35,7 +35,7 @@ export default async function ClassReadinessPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-8 py-10 focus:outline-none">
             <h1 className="text-2xl font-bold text-dark-text mb-2">Class Readiness</h1>
-            <p className="text-sm text-muted-text mb-8">Weekly readiness scores for the class. Use the arrows to step through past weeks; click a name for that student&apos;s full history and escalation timeline.</p>
+            <p className="text-sm text-muted-text mb-8">Weekly readiness scores for the class. Use the arrows to step through past weeks, or open This week so far for a live preview before Monday&apos;s score; click a name for that student&apos;s full history and escalation timeline.</p>
             <ClassReadinessView courseId={id} readiness={readiness} />
           </main>
         </div>

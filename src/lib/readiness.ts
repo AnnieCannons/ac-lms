@@ -3,52 +3,21 @@
 // plumbing already built for the Friday instructor digest (see weekly-report.ts).
 
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { fetchClassAttendanceWeekly, type ClassStudentWeekly } from '@/lib/airtable'
-import { computeStudentAssignmentStats, countNeedsRevisionEvents } from '@/lib/student-stats'
 import {
   courseRanDuringWeek,
   getCourseStudents,
   getWeekRanges,
   resolveAirtableCourseName,
-  type CourseRow,
 } from '@/lib/weekly-report'
 import { notifyByEmail, openGroupDM, slackEscape, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
 import { findPredecessorCourse, getReadinessChain } from '@/lib/readiness-chain'
 import { isExcludedFromReadiness } from '@/lib/excluded-students'
+import { zoneForScore, type Zone } from '@/lib/readiness-breakdown'
+import { fetchClassWeekAttendance, fetchScoringCourses, isWeekOnFullBreak, scoreStudentWeek } from '@/lib/readiness-score'
+
+export { computeReadinessScore, zoneForScore, sundayAfter, type Zone } from '@/lib/readiness-breakdown'
 
 type AdminClient = ReturnType<typeof createServiceSupabaseClient>
-
-export type Zone = 'red' | 'yellow' | 'green'
-
-/**
- * score = 5, minus 1 whole point per every full 2 blocks missed that week,
- * minus 1 whole point per every full 3 missing assignments, minus 1 whole
- * point per every full 2 times a submission was returned as Needs Revision
- * *during* that week (Mon-Sun, so weekend grading counts) -- every return counts (from grade_history), not just
- * whatever is still sitting in that state when this runs, so resubmitting
- * unfinished work just to clear the current-state count no longer helps.
- * Stepped, not continuous -- e.g. 1 needs-revision return costs nothing, 2
- * cost exactly 1 point, 3 still only cost 1 point. Weights and the 0-5 scale
- * were set directly by the program (student-accountability feature), not
- * inferred from data.
- */
-export function computeReadinessScore(
-  missingCount: number,
-  needsRevisionCount: number,
-  blocksMissed: number,
-): number {
-  const raw = 5
-    - Math.floor(blocksMissed / 2)
-    - Math.floor(missingCount / 3)
-    - Math.floor(needsRevisionCount / 2)
-  return Math.max(0, Math.min(5, raw))
-}
-
-export function zoneForScore(score: number): Zone {
-  if (score >= 4) return 'green'
-  if (score >= 2) return 'yellow'
-  return 'red'
-}
 
 const ZONE_RANK: Record<Zone, number> = { red: 0, yellow: 1, green: 2 }
 
@@ -439,37 +408,7 @@ async function evaluateEscalationForStudent(
   // step3: no further automated advancement -- stays until a staff member resolves it.
 }
 
-/** The Sunday ending the week that starts on this Monday ('YYYY-MM-DD'). */
-export function sundayAfter(mondayStr: string): string {
-  const d = new Date(`${mondayStr}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 6)
-  return d.toISOString().slice(0, 10)
-}
-
 export type ReadinessJobResult = { courses: string[]; skippedBreak?: string }
-
-/**
- * True when the given Mon-Thu scoring window falls entirely inside a
- * calendar_holidays entry (e.g. Thanksgiving Week). A single-day holiday that
- * only covers the Monday (MLK Day, Labor Day, etc.) does NOT count -- classes
- * still meet the rest of that week, so it should still be scored normally.
- * We deliberately do not score a break week at all (rather than scoring it
- * and getting an all-green result) -- a quiet week with no assignments due
- * and no attendance taken would otherwise look like real progress and could
- * incorrectly count toward the 2-consecutive-good-weeks reset in the
- * escalation state machine, pulling a student out of the process for a week
- * where nothing was actually demonstrated.
- */
-async function isWeekOnFullBreak(admin: AdminClient, weekStart: string, weekEnd: string): Promise<boolean> {
-  const { data } = await admin
-    .from('calendar_holidays')
-    .select('date, end_date')
-    .lte('date', weekStart)
-
-  return ((data as { date: string; end_date: string | null }[]) ?? []).some(
-    h => (h.end_date ?? h.date) >= weekEnd,
-  )
-}
 
 /**
  * Monday-morning job: scores every student in every current course for the
@@ -481,100 +420,60 @@ async function isWeekOnFullBreak(admin: AdminClient, weekStart: string, weekEnd:
  */
 export async function runReadinessJob(admin: AdminClient, now: Date, onlyCourseId?: string): Promise<ReadinessJobResult> {
   const weekRanges = getWeekRanges(now)
-  // Returns are counted Mon-Sun, not Mon-Thu like attendance: there's no class
-  // on Fridays but a lot of grading happens Fri-Sun, and those returns belong
-  // to the week just scored.
-  const returnsWindowEnd = sundayAfter(weekRanges.lastWeek.start)
   if (await isWeekOnFullBreak(admin, weekRanges.lastWeek.start, weekRanges.lastWeek.end)) {
     return { courses: [], skippedBreak: weekRanges.lastWeek.start }
   }
 
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id, name, start_date, end_date, is_template, archived, airtable_course_name, readiness_enabled')
-
-  type CourseRecord = CourseRow & { id: string; start_date: string | null; end_date: string | null; readiness_enabled: boolean | null }
-  const allCourses = (courses as CourseRecord[]) ?? []
-
+  const allCourses = await fetchScoringCourses(admin)
   const scoredCourses: string[] = []
 
   for (const course of allCourses) {
-    if (onlyCourseId && (course as unknown as { id: string }).id !== onlyCourseId) continue
+    if (onlyCourseId && course.id !== onlyCourseId) continue
     if (course.is_template || course.archived) continue
     if (!courseRanDuringWeek(course.start_date, course.end_date, weekRanges.lastWeek)) continue
     if (!course.readiness_enabled) continue
 
-    const airtableCourseName = resolveAirtableCourseName(course, allCourses)
     // Instructors' fake student accounts never enter the process (see isExcludedFromReadiness).
-    const students = (await getCourseStudents(admin, (course as unknown as { id: string }).id, { excludeTestAccounts: false }))
+    const students = (await getCourseStudents(admin, course.id, { excludeTestAccounts: false }))
       .filter(s => !isExcludedFromReadiness(s.id))
     if (students.length === 0) continue
-
-    const courseId = (course as unknown as { id: string }).id
 
     // ITP continues from its cohort's TCF course: the escalation process and
     // history carry over, and TCF assignments still unfinished keep counting
     // as missing (until turned in) for students who were in TCF.
     const predecessor = findPredecessorCourse(course, allCourses)
-    const chain = predecessor ? [predecessor.id, courseId] : [courseId]
+    const chain = predecessor ? [predecessor.id, course.id] : [course.id]
     const predecessorStudentIds = new Set(
       predecessor ? (await getCourseStudents(admin, predecessor.id, { excludeTestAccounts: false })).map(s => s.id) : [],
     )
 
-    // Keyed by airtable_student_id when known (safe even if two students share a
-    // display name); also indexed by normalized name as a fallback for
-    // enrollments not yet backfilled with airtable_student_id -- see the same
-    // pattern in buildCourseReport (weekly-report.ts).
-    const attendanceMap = new Map<string, ClassStudentWeekly>()
-    if (airtableCourseName) {
-      try {
-        const weekly = await fetchClassAttendanceWeekly(airtableCourseName, weekRanges.thisWeek, weekRanges.lastWeek)
-        for (const w of weekly) {
-          if (w.airtableStudentId) attendanceMap.set(w.airtableStudentId, w)
-          const nameKey = w.preferredName.trim().toLowerCase()
-          if (!attendanceMap.has(nameKey)) attendanceMap.set(nameKey, w)
-        }
-      } catch (e) {
-        console.warn(`readiness-score: attendance fetch failed for ${course.name}:`, e)
-      }
-    }
+    const attendanceFor = await fetchClassWeekAttendance(
+      resolveAirtableCourseName(course, allCourses), weekRanges.lastWeek, course.name,
+    )
 
     for (const student of students) {
-      const stats = await computeStudentAssignmentStats(admin, student.id, courseId)
-      const attendance = (student.airtableStudentId && attendanceMap.get(student.airtableStudentId))
-        || attendanceMap.get(student.name.trim().toLowerCase())
-      const attendancePctMissed = attendance && attendance.blocksLastWeek > 0
-        ? (attendance.absencesLastWeek / attendance.blocksLastWeek) * 100
-        : 0
-
-      let missingCount = stats.missing.length
-      let needsRevisionCount = await countNeedsRevisionEvents(
-        admin, student.id, courseId, weekRanges.lastWeek.start, returnsWindowEnd,
-      )
-      if (predecessor && predecessorStudentIds.has(student.id)) {
-        const priorStats = await computeStudentAssignmentStats(admin, student.id, predecessor.id)
-        missingCount += priorStats.missing.length
-        needsRevisionCount += await countNeedsRevisionEvents(
-          admin, student.id, predecessor.id, weekRanges.lastWeek.start, returnsWindowEnd,
-        )
-      }
-      const blocksMissed = attendance?.absencesLastWeek ?? 0
-      const score = computeReadinessScore(missingCount, needsRevisionCount, blocksMissed)
-      const zone = zoneForScore(score)
+      const attendance = attendanceFor(student)
+      const { score, zone, missing, needsRevision } = await scoreStudentWeek(admin, {
+        studentId: student.id,
+        courseId: course.id,
+        predecessor: predecessor && predecessorStudentIds.has(student.id) ? predecessor : null,
+        week: weekRanges.lastWeek,
+        attendance,
+      })
 
       await admin.from('student_stats_snapshots').upsert({
         student_id: student.id,
-        course_id: courseId,
+        course_id: course.id,
         week_start: weekRanges.lastWeek.start,
-        missing_count: missingCount,
-        needs_revision_count: needsRevisionCount,
-        attendance_pct_missed: attendancePctMissed,
-        blocks_missed: attendance?.absencesLastWeek ?? 0,
-        blocks_total: attendance?.blocksLastWeek ?? 0,
+        missing_count: missing.count,
+        needs_revision_count: needsRevision.count,
+        attendance_pct_missed: attendance.blocksTotal > 0 ? (attendance.blocksMissed / attendance.blocksTotal) * 100 : 0,
+        blocks_missed: attendance.blocksMissed,
+        blocks_total: attendance.blocksTotal,
         readiness_score: score,
       }, { onConflict: 'student_id,course_id,week_start' })
 
-      await evaluateEscalationForStudent(admin, student.id, courseId, chain, weekRanges.lastWeek.start, { score, zone })
+      await evaluateEscalationForStudent(admin, student.id, course.id, chain, weekRanges.lastWeek.start, { score, zone })
     }
 
     scoredCourses.push(course.name)
