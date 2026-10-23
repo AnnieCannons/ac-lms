@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
+import { toggleCodeBlockMerged } from "@/lib/tiptap-code-block";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
@@ -283,7 +284,7 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleBlockquote().run())} className={btn(editor.isActive("blockquote"))} aria-label="Blockquote">&ldquo; Quote</button>
         <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleCode().run())} className={`${btn(editor.isActive("code"))} font-mono`} aria-label="Inline code">`</button>
-        <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleCodeBlock().run())} className={`${btn(editor.isActive("codeBlock"))} font-mono`} aria-label="Code block">```</button>
+        <button type="button" onMouseDown={tool(() => toggleCodeBlockMerged(editor))} className={`${btn(editor.isActive("codeBlock"))} font-mono`} aria-label="Code block">```</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={handleLinkButton} className={btn(isLinkActive)} aria-label={isLinkActive ? "Remove link" : "Add link"} title={isLinkActive ? "Remove link" : "Add link (select text first)"}>
           🔗
