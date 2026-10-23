@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { toggleCodeBlockMerged } from "@/lib/tiptap-code-block";
 import StarterKit from "@tiptap/starter-kit";
+import { codeBlockExtension } from "./codeBlockExtension";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import { getMarkRange } from "@tiptap/core";
@@ -67,7 +68,9 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({ codeBlock: false }),
+      // Same highlighted code block (language picker + remove) as the quiz editors.
+      codeBlockExtension(null),
       Placeholder.configure({ placeholder: placeholder ?? "Write something…" }),
       Link.configure({
         openOnClick: false,

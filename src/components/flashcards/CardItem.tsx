@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import DOMPurify from 'isomorphic-dompurify'
+import { highlightCodeHtml } from '@/lib/highlight-code-html'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import DeleteCardModal from './DeleteCardModal'
@@ -14,7 +15,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 function sanitize(html: string): string {
-  return DOMPurify.sanitize(html)
+  return highlightCodeHtml(DOMPurify.sanitize(html))
 }
 
 type Props = {

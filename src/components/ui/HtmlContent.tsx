@@ -1,6 +1,7 @@
 "use client";
 
 import DOMPurify from "isomorphic-dompurify";
+import { highlightCodeHtml } from "@/lib/highlight-code-html";
 
 // Force all links to open in a new tab during sanitization so it's correct from
 // first paint (no hydration gap from useEffect). Registered once at module scope —
@@ -23,7 +24,7 @@ export default function HtmlContent({
   html: string;
   className?: string;
 }) {
-  const clean = DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
+  const clean = highlightCodeHtml(DOMPurify.sanitize(html, { ADD_ATTR: ["target"] }));
 
   return (
     <div
