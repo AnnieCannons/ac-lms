@@ -79,6 +79,9 @@ export type StudentRow = {
 
 export type WeekBar = { week: string; studied: number; quizStudents: number; cardStudents: number }
 
+/** One student's attempts at one practice quiz, within the range. */
+export type QuizTaker = { studentId: string; name: string; attempts: number; first: number | null; best: number | null; lastAt: string }
+
 export type QuizRow = {
   quizId: string
   title: string
@@ -87,6 +90,8 @@ export type QuizRow = {
   attempts: number
   avgFirst: number | null
   avgBest: number | null
+  /** Who took it, most recent first. */
+  takers: QuizTaker[]
 }
 
 export type StudySummary = {
@@ -143,6 +148,7 @@ export function computeStudyActivity(input: {
   const to = today
   const studentIds = new Set(students.map(s => s.id))
   const quizById = new Map(quizzes.map(q => [q.id, q]))
+  const nameById = new Map(students.map(s => [s.id, s.name]))
 
   const attempts = input.attempts
     .filter(a => studentIds.has(a.studentId) && quizById.has(a.quizId))
@@ -233,19 +239,25 @@ export function computeStudyActivity(input: {
   // Per practice quiz, within the range: who tried it, how often, and first vs best score.
   const quizRows: QuizRow[] = quizzes.map(q => {
     const qa = attempts.filter(a => a.quizId === q.id && inRange(a.day)).sort((a, b) => a.at.localeCompare(b.at))
-    const perStudent = new Map<string, (number | null)[]>()
+    const perStudent = new Map<string, { scores: (number | null)[]; lastAt: string }>()
     for (const a of qa) {
-      if (!perStudent.has(a.studentId)) perStudent.set(a.studentId, [])
-      perStudent.get(a.studentId)!.push(a.score)
+      if (!perStudent.has(a.studentId)) perStudent.set(a.studentId, { scores: [], lastAt: a.at })
+      const cur = perStudent.get(a.studentId)!
+      cur.scores.push(a.score)
+      cur.lastAt = a.at
     }
     const firsts: number[] = []
     const bests: number[] = []
-    for (const scores of perStudent.values()) {
+    const takers: QuizTaker[] = []
+    for (const [studentId, { scores, lastAt }] of perStudent) {
       const scored = scores.filter((x): x is number => x != null)
-      if (scored.length) {
-        firsts.push(scored[0])
-        bests.push(Math.max(...scored))
+      const first = scored.length ? scored[0] : null
+      const best = scored.length ? Math.max(...scored) : null
+      if (first != null && best != null) {
+        firsts.push(first)
+        bests.push(best)
       }
+      takers.push({ studentId, name: nameById.get(studentId)!, attempts: scores.length, first, best, lastAt })
     }
     return {
       quizId: q.id,
@@ -255,6 +267,7 @@ export function computeStudyActivity(input: {
       attempts: qa.length,
       avgFirst: avg(firsts),
       avgBest: avg(bests),
+      takers: takers.sort((a, b) => b.lastAt.localeCompare(a.lastAt)),
     }
   })
 
