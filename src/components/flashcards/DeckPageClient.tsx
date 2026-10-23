@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import SmartBackLink from '@/components/ui/SmartBackLink'
 import {
   DndContext,
   closestCenter,
@@ -147,11 +146,13 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
-      <SmartBackLink
-        fallbackHref="/flashcards"
-        fallbackLabel="Back to My Decks"
+      {/* Always My Decks, not browser history, so Back never loops between a deck and My Decks. */}
+      <Link
+        href="/flashcards"
         className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-6"
-      />
+      >
+        ← Back to My Decks
+      </Link>
 
       {canShareUpdates && hasUnpushedChanges && !shareUpdatesDone && (
         <div className="mb-6 rounded-lg border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 flex items-center justify-between gap-4">
