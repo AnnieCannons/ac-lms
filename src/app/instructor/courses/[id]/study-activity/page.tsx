@@ -13,9 +13,8 @@ export const dynamic = 'force-dynamic'
 export default async function StudyActivityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { profile, isTa } = await getInstructorOrTaAccess(id, `/student/courses/${id}`)
-  // Staff only: TAs don't see study habits. This must come before the service-role client,
-  // which bypasses RLS, is used.
-  if (isTa) redirect(`/instructor/courses/${id}`)
+  // Staff and this course's TAs (getInstructorOrTaAccess only lets in TAs enrolled here);
+  // this check must come before the service-role client, which bypasses RLS, is used.
 
   const admin = createServiceSupabaseClient()
   const { data: course } = await admin.from('courses').select('id, name, start_date').eq('id', id).single()
