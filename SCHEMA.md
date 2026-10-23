@@ -836,6 +836,14 @@ Sent-log for the daily job (`key` PK, e.g. `renewal:<subscription id>`, `likely-
 ### hardware_tickets
 Equipment Support Form submissions from the Airtable webhook: `airtable_record_id` (unique) and `airtable_url` (the address lives there), `submitted_email`, `submitted_name`, `equipment_type`, `issue`, `other_info`, matched `student_id` / `device_id`, `status` (`open`/`in_progress`/`replacement_sent`/`resolved`), `last_activity_at`, `last_nudged_at` (48h nudge), `resolved_at`.
 
+## Class Catch Up Form
+
+### class_catch_up_forms
+A student's Class Catch Up Form (rebuilt from the Airtable form): `student_id`, `course_id`, `absence_date` (nullable; the day the Slack link was for), `missed_blocks`, `lectures_missed`, `lecture_links`, `assignments_missed`, `makeup_plan`, `notes`, `submitted_at`, `instructors_notified` (how many instructor DMs went out), `followed_up_at` / `followed_up_by`. SELECT: own rows, admin/instructor/staff, or a TA of the course; no write policies (server actions use the service client).
+
+### class_absence_alerts
+Sent-log for the 5am Pacific absence DM. PK `(student_id, absence_date)`; `course_id`, `blocks` (e.g. `{C,D}`), `slack_sent`. Staff-read only.
+
 ---
 
 ### rubric_templates
