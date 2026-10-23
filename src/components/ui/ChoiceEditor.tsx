@@ -5,6 +5,7 @@ import { useRef } from "react";
 import StarterKit from "@tiptap/starter-kit";
 import FileUpload from "@/components/ui/FileUpload";
 import { codeBlockExtension } from "@/components/ui/codeBlockExtension";
+import { toggleCodeBlockMerged } from "@/lib/tiptap-code-block";
 
 type Props = {
   initialContent: string;
@@ -104,28 +105,7 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
     }
   };
 
-  const handleCodeBlock = () => {
-    if (editor.isActive("codeBlock")) {
-      editor.chain().focus().toggleCodeBlock().run();
-      return;
-    }
-    const { from, to, empty } = editor.state.selection;
-    if (!empty) {
-      const selectedText = editor.state.doc.textBetween(from, to, "\n", "\n");
-      editor
-        .chain()
-        .focus()
-        .deleteSelection()
-        .insertContent({
-          type: "codeBlock",
-          attrs: { language: "javascript" },
-          content: selectedText ? [{ type: "text", text: selectedText }] : [],
-        })
-        .run();
-    } else {
-      editor.chain().focus().toggleCodeBlock().run();
-    }
-  };
+  const handleCodeBlock = () => toggleCodeBlockMerged(editor);
 
   return (
     <div className="border border-border rounded-lg bg-background overflow-hidden focus-within:ring-2 focus-within:ring-teal-primary">

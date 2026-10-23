@@ -44,3 +44,36 @@ describe('toggleCodeBlockMerged', () => {
     expect(ed.getHTML()).toBe('<p>top: 0</p>')
   })
 })
+
+describe('toggleCodeBlockMerged with line breaks inside one paragraph', () => {
+  // Pasted or Shift+Enter text: one paragraph, lines separated by <br>.
+  const comment = '<p>Nice work!<br>.cards {<br>gap: 0;<br>}<br>Thanks</p>'
+  const posOf = (ed: Editor, text: string) => {
+    let found = -1
+    ed.state.doc.descendants((node, pos) => {
+      if (found === -1 && node.isText && node.text!.includes(text)) found = pos + node.text!.indexOf(text)
+    })
+    return found
+  }
+
+  it('only turns the selected lines into a code block', () => {
+    const ed = make(comment)
+    ed.commands.setTextSelection({ from: posOf(ed, '.cards'), to: posOf(ed, '}') + 1 })
+    toggleCodeBlockMerged(ed)
+    expect(ed.getHTML()).toBe('<p>Nice work!</p><pre><code>.cards {\ngap: 0;\n}</code></pre><p>Thanks</p>')
+  })
+
+  it('takes the whole line when the selection starts or ends mid-line', () => {
+    const ed = make(comment)
+    ed.commands.setTextSelection({ from: posOf(ed, 'cards'), to: posOf(ed, 'gap') + 2 })
+    toggleCodeBlockMerged(ed)
+    expect(ed.getHTML()).toBe('<p>Nice work!</p><pre><code>.cards {\ngap: 0;</code></pre><p>}<br>Thanks</p>')
+  })
+
+  it('keeps all lines when the whole paragraph is selected', () => {
+    const ed = make('<p>a {<br>}</p>')
+    ed.commands.selectAll()
+    toggleCodeBlockMerged(ed)
+    expect(ed.getHTML()).toBe('<pre><code>a {\n}</code></pre>')
+  })
+})
