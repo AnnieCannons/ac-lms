@@ -22,6 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import CardItem from '@/components/flashcards/CardItem'
 import InlineCardEditor from '@/components/flashcards/InlineCardEditor'
+import BulkCardEditor from '@/components/flashcards/BulkCardEditor'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
 import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
 import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
@@ -67,14 +68,15 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
   const [applyingDiff, setApplyingDiff] = useState(false)
   const [editingCardId, setEditingCardId] = useState<string | 'new' | null>(null)
   const [editorKey, setEditorKey] = useState(0)
+  const [bulkEditing, setBulkEditing] = useState(false)
   const newEditorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!editingCardId) return
+    if (!editingCardId && !bulkEditing) return
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [editingCardId])
+  }, [editingCardId, bulkEditing])
 
   const openNewEditor = (scroll = false) => {
     setEditorKey(k => k + 1)
@@ -357,6 +359,15 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
               </div>
             </div>
           )}
+          {cards.length > 0 && !bulkEditing && (
+            <button
+              onClick={() => { setEditingCardId(null); setBulkEditing(true) }}
+              className="text-sm font-medium text-teal-primary border border-teal-primary/50 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors"
+            >
+              Edit All Cards
+            </button>
+          )}
+          {!bulkEditing && (
           <button
             onClick={() => openNewEditor(true)}
 
@@ -368,6 +379,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             </svg>
             Add Card
           </button>
+          )}
         </div>
       </div>
 
@@ -389,6 +401,13 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             Add your first card
           </button>
         </div>
+      ) : bulkEditing ? (
+        <BulkCardEditor
+          deckId={deckId}
+          cards={cards}
+          onSaved={() => { setBulkEditing(false); router.refresh() }}
+          onCancel={() => setBulkEditing(false)}
+        />
       ) : (
         <>
           {cards.length > 0 && (

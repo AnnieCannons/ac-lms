@@ -75,7 +75,7 @@ export default function InlineCardEditor({ deckId, mode, card, onSaved, onAddAno
           disabled={!canSubmit || isPending}
           className="bg-teal-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {isPending ? 'Saving…' : 'Save Deck'}
+          {isPending ? 'Saving…' : 'Save Card'}
         </button>
         {mode === 'create' && (
           <button
