@@ -46,11 +46,12 @@ function applyCode(code: HTMLElement) {
   code.style.color = "#cdd6f4";
 }
 
-function getLang(code: HTMLElement, pre: HTMLElement | null): string {
+// No language class (the editor's "Auto-detect") → null, highlighted by auto-detection.
+function getLang(code: HTMLElement, pre: HTMLElement | null): string | null {
   for (const cls of [...code.classList, ...(pre ? [...pre.classList] : [])]) {
     if (cls.startsWith("language-")) return cls.slice(9);
   }
-  return "javascript";
+  return null;
 }
 
 function highlightCode(code: HTMLElement, pre: HTMLElement | null) {
@@ -60,6 +61,7 @@ function highlightCode(code: HTMLElement, pre: HTMLElement | null) {
   if (!text.trim()) return;
 
   try {
+    if (!lang) throw new Error("no language");
     const result = hljs.highlight(text, { language: lang, ignoreIllegals: true });
     code.innerHTML = result.value;
     code.classList.add("hljs");
@@ -105,7 +107,7 @@ function processHtml(html: string): string {
     // Capture plain text before syntax highlighting replaces innerHTML with decorated spans
     const plainText = code.textContent ?? "";
     const lang = getLang(code, pre);
-    const langLabel = LANG_LABELS[lang] ?? lang;
+    const langLabel = lang ? LANG_LABELS[lang] ?? lang : null;
 
     highlightCode(code, pre);
     applyCode(code);
@@ -114,7 +116,7 @@ function processHtml(html: string): string {
     // hide the decorated pre from AT, and expose a sr-only plain-text copy.
     if (plainText.trim()) {
       const figure = document.createElement("figure");
-      figure.setAttribute("aria-label", `Code example in ${langLabel}`);
+      figure.setAttribute("aria-label", langLabel ? `Code example in ${langLabel}` : "Code example");
       figure.style.margin = "0";
       pre.setAttribute("aria-hidden", "true");
       pre.parentNode?.insertBefore(figure, pre);

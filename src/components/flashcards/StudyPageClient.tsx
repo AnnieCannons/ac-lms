@@ -4,12 +4,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SmartBackLink from '@/components/ui/SmartBackLink'
 import DOMPurify from 'isomorphic-dompurify'
+import { highlightCodeHtml } from '@/lib/highlight-code-html'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import { updateCard, rateCard, completeStudySession } from '@/lib/flashcards/actions'
 import type { Deck, Card } from '@/lib/flashcards/schema'
 
 function sanitize(html: string) {
-  return DOMPurify.sanitize(html)
+  return highlightCodeHtml(DOMPurify.sanitize(html))
 }
 
 function shuffle<T>(arr: T[]): T[] {

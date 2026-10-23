@@ -4,7 +4,7 @@ import { NodeViewContent, NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 
 const LANGUAGES = [
-  { value: "", label: "Plain text" },
+  { value: "", label: "Auto-detect" },
   { value: "javascript", label: "JavaScript" },
   { value: "jsx", label: "React (JSX)" },
   { value: "html", label: "HTML" },
