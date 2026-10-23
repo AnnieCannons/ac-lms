@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import FileUpload from "@/components/ui/FileUpload";
 import { codeBlockExtension } from "@/components/ui/codeBlockExtension";
+import { toggleCodeBlockMerged } from "@/lib/tiptap-code-block";
 
 type Props = {
   initialContent: string;
@@ -161,26 +162,7 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
         </button>
         <button
           type="button"
-          onMouseDown={tool(() => {
-            if (editor.isActive('codeBlock')) {
-              editor.chain().focus().toggleCodeBlock().run()
-              return
-            }
-            const { from, to, empty } = editor.state.selection
-            if (!empty) {
-              const selectedText = editor.state.doc.textBetween(from, to, '\n', '\n')
-              editor.chain().focus()
-                .deleteSelection()
-                .insertContent({
-                  type: 'codeBlock',
-                  attrs: { language: 'javascript' },
-                  content: selectedText ? [{ type: 'text', text: selectedText }] : [],
-                })
-                .run()
-            } else {
-              editor.chain().focus().toggleCodeBlock().run()
-            }
-          })}
+          onMouseDown={tool(() => toggleCodeBlockMerged(editor))}
           className={btn(editor.isActive("codeBlock"))}
           aria-label="Code block"
           aria-pressed={editor.isActive("codeBlock")}
