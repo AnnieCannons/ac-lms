@@ -1,15 +1,11 @@
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import UserAvatar from '@/components/ui/UserAvatar'
-import { ReadinessZoneBadge, READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
-import type { CourseReadinessRow, CourseReadinessWeek } from '@/lib/readiness-actions'
-import type { Zone } from '@/lib/readiness'
-
-function formatBlocksMissed(row: CourseReadinessRow): string {
-  const { week } = row
-  if (!week || week.blocksTotal == null || week.blocksTotal === 0) return '—'
-  return `${week.blocksMissed ?? 0} of ${week.blocksTotal}`
-}
+import { READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
+import ClassReadinessRow from '@/components/ui/ClassReadinessRow'
+import type { CourseReadinessWeek } from '@/lib/readiness-actions'
+import type { PreviewWeek } from '@/lib/readiness-score'
+import { LIVE_WEEK, type Zone } from '@/lib/readiness-breakdown'
+import { formatDueDate } from '@/lib/date-utils'
 
 function formatWeekOf(weekStart: string): string {
   return `Week of ${new Date(`${weekStart}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
@@ -17,6 +13,33 @@ function formatWeekOf(weekStart: string): string {
 
 function formatAvg(value: number | null): string {
   return value == null ? '—' : value.toFixed(1)
+}
+
+function weekHref(courseId: string, week: string): string {
+  return `/instructor/courses/${courseId}/readiness?week=${week}`
+}
+
+/** Link into the live "this week so far" view. */
+function LiveWeekLink({ courseId }: { courseId: string }) {
+  return (
+    <Link
+      href={weekHref(courseId, LIVE_WEEK)}
+      className="text-sm font-medium text-teal-primary border border-teal-primary/40 px-3 py-1.5 rounded-lg hover:bg-teal-light transition-colors whitespace-nowrap"
+    >
+      This week so far →
+    </Link>
+  )
+}
+
+function LiveWeekBanner({ liveWeek }: { liveWeek: PreviewWeek }) {
+  return (
+    <div className="rounded-lg border border-teal-primary/40 bg-teal-light px-4 py-3 text-sm text-dark-text">
+      <span className="font-semibold">Live preview — not final.</span>{' '}
+      Worked out just now from attendance through {formatDueDate(liveWeek.end)}, missing work as of right now, and returns for revision through {formatDueDate(liveWeek.returnsEnd)}.
+      The real score is recorded on the morning of {formatDueDate(liveWeek.scoredOn)}; turning in missing work before then raises it.
+      Nothing here is saved or sent to anyone. Click the arrow next to a name to see what&apos;s costing them points.
+    </div>
+  )
 }
 
 function WeekArrow({ courseId, week, direction }: { courseId: string; week: string | undefined; direction: 'prev' | 'next' }) {
@@ -32,7 +55,7 @@ function WeekArrow({ courseId, week, direction }: { courseId: string; week: stri
   }
   return (
     <Link
-      href={`/instructor/courses/${courseId}/readiness?week=${week}`}
+      href={weekHref(courseId, week)}
       aria-label={label}
       className={`${className} text-dark-text hover:bg-surface hover:text-teal-primary`}
     >
@@ -71,7 +94,8 @@ export default function ClassReadinessView({
   courseId: string
   readiness: CourseReadinessWeek
 }) {
-  const { weeks, weekStart, weekNumber, rows, averages, previousAverages } = readiness
+  const { weeks, weekStart, weekNumber, rows, averages, previousAverages, liveWeek, isLive } = readiness
+  const liveAvailable = !!liveWeek && !liveWeek.onBreak && !liveWeek.notInSession
 
   if (rows.length === 0) {
     return (
@@ -83,27 +107,48 @@ export default function ClassReadinessView({
 
   if (!weekStart) {
     return (
-      <div className="border border-border rounded-lg p-8 text-center text-sm text-muted-text">
-        No weekly readiness scores yet. Scores are calculated every Monday for the previous week.
+      <div className="border border-border rounded-lg p-8 text-center text-sm text-muted-text space-y-4">
+        <p>No weekly readiness scores yet. Scores are calculated every Monday for the previous week.</p>
+        {liveAvailable && <div><LiveWeekLink courseId={courseId} /></div>}
       </div>
     )
   }
 
+  // The live week sits after the last scored week in the arrow order.
   const index = weeks.indexOf(weekStart)
+  const prevWeek = isLive ? weeks.filter(w => w < weekStart).at(-1) : weeks[index - 1]
+  const nextWeek = isLive
+    ? undefined
+    : weeks[index + 1] ?? (liveAvailable && liveWeek!.start > weekStart ? LIVE_WEEK : undefined)
   const noDataCount = rows.filter(r => !r.week && !r.isTestAccount).length
+  const weekLabel = weekNumber != null && weekNumber > 0 ? `Week ${weekNumber}` : formatWeekOf(weekStart)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <WeekArrow courseId={courseId} week={weeks[index - 1]} direction="prev" />
+      <div className="flex items-center gap-3 flex-wrap">
+        <WeekArrow courseId={courseId} week={prevWeek} direction="prev" />
         <div className="min-w-0">
-          <div className="text-lg font-semibold text-dark-text">
-            {weekNumber != null && weekNumber > 0 ? `Week ${weekNumber}` : formatWeekOf(weekStart)}
+          <div className="text-lg font-semibold text-dark-text flex items-center gap-2">
+            {weekLabel}{isLive && ' — so far'}
+            {isLive && <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-teal-light text-teal-primary">Live</span>}
           </div>
           {weekNumber != null && weekNumber > 0 && <div className="text-xs text-muted-text">{formatWeekOf(weekStart)}</div>}
         </div>
-        <WeekArrow courseId={courseId} week={weeks[index + 1]} direction="next" />
+        <WeekArrow courseId={courseId} week={nextWeek} direction="next" />
+        {!isLive && liveAvailable && nextWeek !== LIVE_WEEK && (
+          <div className="ml-auto"><LiveWeekLink courseId={courseId} /></div>
+        )}
       </div>
+
+      {isLive && liveWeek && (liveWeek.onBreak || liveWeek.notInSession) ? (
+        <div className="border border-border rounded-lg p-8 text-center text-sm text-muted-text">
+          {liveWeek.onBreak
+            ? 'This is a break week, so it won’t be scored.'
+            : 'This course isn’t in session this week, so there’s nothing to preview.'}
+        </div>
+      ) : (
+      <>
+      {isLive && liveWeek && <LiveWeekBanner liveWeek={liveWeek} />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
@@ -151,35 +196,7 @@ export default function ClassReadinessView({
               </td>
             </tr>
             {rows.map(row => (
-              <tr key={row.studentId} className="bg-background">
-                <td className="px-4 py-3 font-medium text-dark-text">
-                  <Link
-                    href={`/instructor/courses/${courseId}/roster/${row.studentId}`}
-                    className="flex items-center gap-2 hover:text-teal-primary hover:underline"
-                  >
-                    <UserAvatar name={row.name} avatarUrl={row.avatarUrl} size="sm" />
-                    {row.name || '—'}
-                    {row.isTestAccount && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-border/40 text-muted-text">Test</span>
-                    )}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  {row.week?.score != null ? (
-                    <span className="font-bold" style={{ color: READINESS_COLOR }}>
-                      {row.week.score.toFixed(1)}<span className="text-xs text-muted-text font-normal">/5</span>
-                    </span>
-                  ) : (
-                    <span className="text-muted-text">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <ReadinessZoneBadge zone={row.week?.zone ?? null} />
-                </td>
-                <td className="px-4 py-3 text-dark-text">{row.week?.missing ?? '—'}</td>
-                <td className="px-4 py-3 text-dark-text">{row.week?.needsRevision ?? '—'}</td>
-                <td className="px-4 py-3 text-dark-text">{formatBlocksMissed(row)}</td>
-              </tr>
+              <ClassReadinessRow key={row.studentId} courseId={courseId} row={row} liveWeek={isLive ? liveWeek : null} />
             ))}
           </tbody>
         </table>
@@ -187,8 +204,13 @@ export default function ClassReadinessView({
 
       <p className="text-xs text-muted-text">
         Averages leave out students with no score this week
-        {noDataCount > 0 ? ` (${noDataCount} this week)` : ''}; blocks missed also leaves out students with no Airtable attendance match. Missing is how many assignments were outstanding when the week was scored, not new ones that week.
+        {noDataCount > 0 ? ` (${noDataCount} this week)` : ''}; blocks missed also leaves out students with no Airtable attendance match.{' '}
+        {isLive
+          ? 'Missing is how many assignments are outstanding right now. The change from last week compares against the last scored week.'
+          : 'Missing is how many assignments were outstanding when the week was scored, not new ones that week.'}
       </p>
+      </>
+      )}
     </div>
   )
 }

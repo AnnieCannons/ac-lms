@@ -9,6 +9,15 @@ import { EXCLUDED_STUDENT_USER_IDS, CLASS_READINESS_PINNED_TEST_STUDENT_IDS } fr
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { getPredecessorCourse, getReadinessChain, isEnrolledStudent } from '@/lib/readiness-chain'
 import { computeStudentAssignmentStats } from '@/lib/student-stats'
+import { LIVE_WEEK, type ReadinessBreakdown } from '@/lib/readiness-breakdown'
+import {
+  fetchScoringCourses,
+  getClassReadinessPreview,
+  getStudentReadinessPreview,
+  resolvePreviewWeek,
+  type PreviewWeek,
+  type StudentReadinessPreview,
+} from '@/lib/readiness-score'
 
 export type ReadinessHistoryPoint = {
   weekStart: string
@@ -145,12 +154,37 @@ export async function getPriorCourseMissing(studentId: string, courseId: string)
   return fetchPriorCourseMissing(studentId, courseId)
 }
 
+/**
+ * The student's own live "this week so far" score, with what's costing them
+ * points -- null when they aren't a student in this course or it doesn't use
+ * readiness. Not stored; the Monday job records the final score.
+ */
+export async function getMyReadinessPreview(courseId: string): Promise<StudentReadinessPreview | null> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createServiceSupabaseClient()
+  if (!(await isEnrolledStudent(admin, user.id, courseId))) return null
+
+  const { data: me } = await admin.from('users').select('name, airtable_student_id').eq('id', user.id).single()
+  const row = me as { name: string | null; airtable_student_id: string | null } | null
+  return getStudentReadinessPreview(
+    admin,
+    { id: user.id, name: row?.name ?? '', airtableStudentId: row?.airtable_student_id ?? null },
+    courseId,
+    new Date(),
+  )
+}
+
 export type CourseReadinessRow = {
   studentId: string
   name: string
   avatarUrl: string | null
   /** This student's snapshot for the selected week, or null if they weren't scored that week. */
   week: ReadinessHistoryPoint | null
+  /** Live view only: what's costing them points so far. */
+  breakdown?: ReadinessBreakdown | null
   /** A pinned test account (CLASS_READINESS_PINNED_TEST_STUDENT_IDS): shown last, never averaged. */
   isTestAccount?: boolean
 }
@@ -165,18 +199,24 @@ export type CourseReadinessWeek = {
   averages: ClassAverages
   /** Same averages for the week before the selected one, for week-over-week deltas. */
   previousAverages: ClassAverages | null
+  /** The not-yet-scored week the live view shows (or would show). */
+  liveWeek: PreviewWeek | null
+  /** Whether this is the live "this week so far" view rather than a scored week. */
+  isLive: boolean
 }
 
 type EnrolledUserRow = {
   user_id: string
-  users: { id: string; name: string | null; email: string | null; avatar_url: string | null } | { id: string; name: string | null; email: string | null; avatar_url: string | null }[] | null
+  users: EnrolledUser | EnrolledUser[] | null
 }
+type EnrolledUser = { id: string; name: string | null; email: string | null; avatar_url: string | null; airtable_student_id: string | null }
 
 const ZONE_SORT_ORDER: Record<Zone, number> = { red: 0, yellow: 1, green: 2 }
 
 /**
- * Whole-class readiness for one week (defaults to the most recent scored week)
- * -- staff/instructor/admin only. Excludes known non-actionable accounts
+ * Whole-class readiness for one week (defaults to the most recent scored week;
+ * LIVE_WEEK for the live "this week so far" preview, computed on the fly and
+ * never stored) -- staff/instructor/admin only. Excludes known non-actionable accounts
  * (EXCLUDED_STUDENT_USER_IDS: QA, graduated, withdrawn) and staff tester
  * accounts (see isTesterEmail) from both the table and the averages --
  * except CLASS_READINESS_PINNED_TEST_STUDENT_IDS, which get a row at the very
@@ -195,10 +235,10 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
   const admin = createServiceSupabaseClient()
   const chain = await getReadinessChain(admin, courseId)
 
-  const [{ data: enrollments }, { data: staffUsers }, week1Monday, weekRows] = await Promise.all([
+  const [{ data: enrollments }, { data: staffUsers }, week1Monday, weekRows, scoringCourses] = await Promise.all([
     admin
       .from('course_enrollments')
-      .select('user_id, users(id, name, email, avatar_url)')
+      .select('user_id, users(id, name, email, avatar_url, airtable_student_id)')
       .eq('course_id', courseId)
       .eq('role', 'student'),
     admin.from('users').select('email').in('role', ['staff', 'instructor', 'admin']),
@@ -207,6 +247,7 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
     fetchAllRows<{ week_start: string }>((from, to) =>
       admin.from('student_stats_snapshots').select('week_start').in('course_id', chain).range(from, to),
     ),
+    fetchScoringCourses(admin),
   ])
 
   const staffEmails = new Set(
@@ -216,35 +257,55 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
   const students = ((enrollments as unknown as EnrolledUserRow[]) ?? [])
     .map(e => {
       const u = Array.isArray(e.users) ? e.users[0] : e.users
-      return { studentId: e.user_id, name: u?.name ?? '', email: u?.email ?? null, avatarUrl: u?.avatar_url ?? null }
+      return { studentId: e.user_id, name: u?.name ?? '', email: u?.email ?? null, avatarUrl: u?.avatar_url ?? null, airtableStudentId: u?.airtable_student_id ?? null }
     })
     .filter(s => CLASS_READINESS_PINNED_TEST_STUDENT_IDS.has(s.studentId)
       || (!EXCLUDED_STUDENT_USER_IDS.has(s.studentId) && !isTesterEmail(s.email, staffEmails)))
     .map(s => ({
-      studentId: s.studentId, name: s.name, avatarUrl: s.avatarUrl,
+      studentId: s.studentId, name: s.name, avatarUrl: s.avatarUrl, airtableStudentId: s.airtableStudentId,
       ...(CLASS_READINESS_PINNED_TEST_STUDENT_IDS.has(s.studentId) ? { isTestAccount: true } : {}),
     }))
 
   const weeks = [...new Set(weekRows.map(r => r.week_start))].sort()
-  const weekStart = requestedWeek && weeks.includes(requestedWeek) ? requestedWeek : (weeks.at(-1) ?? null)
-  const previousWeek = weekStart ? (weeks[weeks.indexOf(weekStart) - 1] ?? null) : null
+  const course = scoringCourses.find(c => c.id === courseId)
+  const now = new Date()
+  const liveWeek = course ? await resolvePreviewWeek(admin, course, chain, now) : null
+  const isLive = requestedWeek === LIVE_WEEK && !!liveWeek
+  const weekStart = isLive
+    ? liveWeek!.start
+    : requestedWeek && weeks.includes(requestedWeek) ? requestedWeek : (weeks.at(-1) ?? null)
+  const previousWeek = isLive
+    ? (weeks.filter(w => w < liveWeek!.start).at(-1) ?? null)
+    : weekStart ? (weeks[weeks.indexOf(weekStart) - 1] ?? null) : null
 
+  // airtable_student_id is only needed to match attendance -- it isn't sent to the page.
+  const toRow = (s: (typeof students)[number]): Omit<CourseReadinessRow, 'week'> => ({
+    studentId: s.studentId, name: s.name, avatarUrl: s.avatarUrl,
+    ...(s.isTestAccount ? { isTestAccount: true } : {}),
+  })
   const empty: CourseReadinessWeek = {
     weeks,
     weekStart,
     weekNumber: weekStart ? weekNumberFor(weekStart, week1Monday) : null,
-    rows: students.map(s => ({ ...s, week: null })),
+    rows: students.map(s => ({ ...toRow(s), week: null })),
     averages: computeClassAverages([]),
     previousAverages: null,
+    liveWeek,
+    isLive,
   }
   if (students.length === 0 || !weekStart) return empty
 
-  const { data: snapshots } = await admin
-    .from('student_stats_snapshots')
-    .select(`${SNAPSHOT_COLUMNS}, student_id`)
-    .in('course_id', chain)
-    .in('student_id', students.map(s => s.studentId))
-    .in('week_start', previousWeek ? [weekStart, previousWeek] : [weekStart])
+  const [{ data: snapshots }, live] = await Promise.all([
+    admin
+      .from('student_stats_snapshots')
+      .select(`${SNAPSHOT_COLUMNS}, student_id`)
+      .in('course_id', chain)
+      .in('student_id', students.map(s => s.studentId))
+      .in('week_start', previousWeek ? [weekStart, previousWeek] : [weekStart]),
+    isLive
+      ? getClassReadinessPreview(admin, courseId, students.map(s => ({ id: s.studentId, name: s.name, airtableStudentId: s.airtableStudentId })), now)
+      : Promise.resolve(null),
+  ])
 
   const byWeek = new Map<string, Map<string, ReadinessHistoryPoint>>()
   for (const row of (snapshots as (SnapshotRow & { student_id: string })[] | null) ?? []) {
@@ -252,12 +313,30 @@ export async function getCourseReadinessWeek(courseId: string, requestedWeek?: s
     byWeek.get(row.week_start)!.set(row.student_id, toHistoryPoint(row, week1Monday))
   }
   const current = byWeek.get(weekStart) ?? new Map<string, ReadinessHistoryPoint>()
+  const weekNumber = weekNumberFor(weekStart, week1Monday)
+  for (const [studentId, b] of live?.byStudent ?? []) {
+    current.set(studentId, {
+      weekStart,
+      weekNumber,
+      score: b.score,
+      zone: b.zone,
+      missing: b.missing.count,
+      needsRevision: b.needsRevision.count,
+      attendancePctMissed: b.attendance.blocksTotal > 0 ? (b.attendance.count / b.attendance.blocksTotal) * 100 : null,
+      blocksMissed: b.attendance.count,
+      blocksTotal: b.attendance.blocksTotal,
+    })
+  }
   const previous = previousWeek ? byWeek.get(previousWeek) : undefined
   const realStudentPoints = (m: Map<string, ReadinessHistoryPoint>) =>
     [...m.entries()].filter(([id]) => !CLASS_READINESS_PINNED_TEST_STUDENT_IDS.has(id)).map(([, p]) => p)
 
   const rows = students
-    .map(s => ({ ...s, week: current.get(s.studentId) ?? null }))
+    .map(s => ({
+      ...toRow(s),
+      week: current.get(s.studentId) ?? null,
+      ...(live ? { breakdown: live.byStudent.get(s.studentId) ?? null } : {}),
+    }))
     .sort((a, b) => {
       const pa = a.isTestAccount ? 1 : 0
       const pb = b.isTestAccount ? 1 : 0
