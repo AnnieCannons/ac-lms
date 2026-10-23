@@ -88,6 +88,19 @@ describe('computeStudyActivity', () => {
     expect(r.quizzes[0]).toMatchObject({ students: 2, attempts: 3, avgFirst: 60, avgBest: 85 })
   })
 
+  it('lists who took each quiz, most recent first', () => {
+    const r = run([
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-10'), score: 50 },
+      { studentId: 'b', quizId: 'q1', at: at('2026-10-11'), score: 70 },
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-12'), score: 100 },
+      { studentId: 'b', quizId: 'q1', at: at('2026-08-01'), score: 90 }, // outside the range
+    ], [])
+    expect(r.quizzes[0].takers).toEqual([
+      { studentId: 'a', name: 'Ana', attempts: 2, first: 50, best: 100, lastAt: at('2026-10-12') },
+      { studentId: 'b', name: 'Bo', attempts: 1, first: 70, best: 70, lastAt: at('2026-10-11') },
+    ])
+  })
+
   it('counts students active per week', () => {
     const r = run([], [
       { studentId: 'a', at: at('2026-10-20'), cards: 5 },

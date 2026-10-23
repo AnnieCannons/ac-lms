@@ -98,6 +98,7 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
   const [tab, setTab] = useState<'students' | 'quizzes'>('students')
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'least', desc: false })
   const [open, setOpen] = useState<string | null>(null)
+  const [openQuiz, setOpenQuiz] = useState<string | null>(null)
 
   const data = useMemo(
     () => computeStudyActivity({ students, quizzes, attempts, sessions, today, courseStart, range }),
@@ -337,18 +338,55 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data.quizzes.map(q => (
-                  <tr key={q.quizId}>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-dark-text">{q.title}</p>
-                      {q.moduleTitle && <p className="text-xs text-muted-text">{q.moduleTitle}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-right text-dark-text tabular-nums">{q.students} of {summary.enrolled}</td>
-                    <td className="px-4 py-3 text-right text-dark-text tabular-nums">{q.attempts}</td>
-                    <td className="px-4 py-3 text-right text-dark-text tabular-nums">{pct(q.avgFirst)}</td>
-                    <td className="px-4 py-3 text-right text-dark-text tabular-nums">{pct(q.avgBest)}</td>
-                  </tr>
-                ))}
+                {data.quizzes.map(q => {
+                  const isOpen = openQuiz === q.quizId
+                  return (
+                    <Fragment key={q.quizId}>
+                      <tr className="hover:bg-border/10">
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setOpenQuiz(isOpen ? null : q.quizId)}
+                            aria-expanded={isOpen}
+                            className="flex items-start gap-1.5 text-left group"
+                          >
+                            <span aria-hidden="true" className="text-[9px] text-muted-text w-2 mt-1.5">{isOpen ? '▼' : '▶'}</span>
+                            <span>
+                              <span className="block font-medium text-dark-text group-hover:text-teal-primary">{q.title}</span>
+                              {q.moduleTitle && <span className="block text-xs text-muted-text">{q.moduleTitle}</span>}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-right text-dark-text tabular-nums">{q.students} of {summary.enrolled}</td>
+                        <td className="px-4 py-3 text-right text-dark-text tabular-nums">{q.attempts}</td>
+                        <td className="px-4 py-3 text-right text-dark-text tabular-nums">{pct(q.avgFirst)}</td>
+                        <td className="px-4 py-3 text-right text-dark-text tabular-nums">{pct(q.avgBest)}</td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="bg-background/60">
+                          <td colSpan={5} className="px-10 py-3">
+                            {q.takers.length === 0 ? (
+                              <p className="text-sm text-muted-text">No one took this quiz in the {rangeLabel}.</p>
+                            ) : (
+                              <ul className="flex flex-col gap-1 text-sm">
+                                {q.takers.map(t => (
+                                  <li key={t.studentId} className="flex flex-wrap gap-x-3">
+                                    <Link href={`/instructor/courses/${courseId}/roster/${t.studentId}`} className="text-dark-text hover:text-teal-primary hover:underline">
+                                      {t.name}
+                                    </Link>
+                                    <span className="text-muted-text">
+                                      {t.attempts} {t.attempts === 1 ? 'attempt' : 'attempts'} · first {pct(t.first)} · best {pct(t.best)} · last {relative(t.lastAt, today).toLowerCase()}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
