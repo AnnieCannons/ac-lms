@@ -189,8 +189,7 @@ export default function InstructorCourseNav({
         {!isTa && navLink('Users', 'users')}
         {navLink('Roster', 'roster')}
         {!isTa && navLink('Class Readiness', 'readiness')}
-        {/* Staff only: TAs don't see study habits. */}
-        {!isTa && navLink('Study Activity', 'study-activity')}
+        {navLink('Study Activity', 'study-activity')}
 
         <SectionHeader label="Course" open={courseOpen} onToggle={toggleCourseOpen} />
         {courseOpen && CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}

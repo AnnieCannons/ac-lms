@@ -126,15 +126,13 @@ export default async function QuizSubmissionsPage({
               <p className="text-sm text-muted-text">
                 {course.name} · {totalStudents} students enrolled
               </p>
-              {!isTa && (
-                <p className="text-sm text-muted-text mt-1">
-                  Practice quizzes are on{" "}
-                  <Link href={`/instructor/courses/${id}/study-activity`} className="text-teal-primary hover:underline">
-                    Study Activity
-                  </Link>
-                  .
-                </p>
-              )}
+              <p className="text-sm text-muted-text mt-1">
+                Practice quizzes are on{" "}
+                <Link href={`/instructor/courses/${id}/study-activity`} className="text-teal-primary hover:underline">
+                  Study Activity
+                </Link>
+                .
+              </p>
             </div>
 
             {quizList.length === 0 ? (
