@@ -196,6 +196,25 @@ export async function updateCard(
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 
+/** Saves several edited cards in one go (Edit All Cards). Cloze groups go through updateClozeCards. */
+export async function updateCards(
+  deckId: string,
+  updates: { id: string; card_type: string; front_content: string; back_content: string }[]
+) {
+  const { supabase } = await getAuthUser()
+
+  const results = await Promise.all(updates.map(u =>
+    supabase
+      .from('cards')
+      .update({ card_type: u.card_type, front_content: u.front_content, back_content: u.back_content })
+      .eq('id', u.id)
+      .eq('deck_id', deckId)
+  ))
+  const failed = results.find(r => r.error)
+  if (failed?.error) throw new Error(failed.error.message)
+  revalidatePath(`/flashcards/decks/${deckId}`)
+}
+
 export async function createClozeCards(deckId: string, frontContent: string) {
   const { supabase } = await getAuthUser()
   const words = parseClozeWords(frontContent)
