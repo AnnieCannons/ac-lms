@@ -7,7 +7,6 @@ import StudentCourseNav from "@/components/ui/StudentCourseNav";
 import StudentPageBanner from "@/components/ui/StudentPageBanner";
 import { getStudentCourseViewer } from "@/lib/student-course-viewer";
 import QuizForm from "./QuizForm";
-import { type AnswerEntry } from "./actions";
 import HtmlContent from "@/components/ui/HtmlContent";
 import HighlightedContent from "@/components/ui/HighlightedContent";
 
@@ -119,11 +118,6 @@ export default async function TakeQuizPage({
     }
   }
 
-  // Previous answers as array for QuizForm hidden input
-  const previousAnswers: AnswerEntry[] = Array.from(previousAnswersMap.entries()).map(
-    ([question_index, choice_ident]) => ({ question_index, choice_ident })
-  );
-
   // Correct vs wrong
   const correctCount = questions.filter((q, i) =>
     previousAnswersMap.get(i) === q.correct_response_ident
@@ -209,7 +203,7 @@ export default async function TakeQuizPage({
                 courseId={id}
                 quizId={quizId}
                 questions={formQuestions}
-                previousAnswers={previousAnswers}
+                attemptCount={attemptCount}
                 lockedAnswers={lockedAnswers}
                 isStudentPreview={preview}
               />
@@ -253,7 +247,7 @@ export default async function TakeQuizPage({
                   courseId={id}
                   quizId={quizId}
                   questions={formQuestions}
-                  previousAnswers={[]}
+                  attemptCount={attemptCount}
                   savedProgress={savedProgress}
                   isObserver={isObserver}
                   isStudentPreview={preview}

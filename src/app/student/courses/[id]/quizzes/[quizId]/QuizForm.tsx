@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useFormStatus } from "react-dom";
 import { submitQuiz, type AnswerEntry } from "./actions";
 import dynamic from "next/dynamic";
 
@@ -19,6 +20,19 @@ type Question = {
   code_language?: string;
 };
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="px-6 py-3 rounded-full bg-teal-primary text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-wait"
+    >
+      {pending ? "Submitting…" : "Submit quiz"}
+    </button>
+  );
+}
+
 function postProgress(quizId: string, answers: AnswerEntry[]) {
   fetch("/api/quiz-progress", {
     method: "POST",
@@ -31,7 +45,7 @@ export default function QuizForm({
   courseId,
   quizId,
   questions,
-  previousAnswers,
+  attemptCount,
   savedProgress,
   lockedAnswers,
   isObserver,
@@ -41,7 +55,8 @@ export default function QuizForm({
   courseId: string;
   quizId: string;
   questions: Question[];
-  previousAnswers: AnswerEntry[];
+  /** Attempts already submitted when the page rendered; the server drops a submit that doesn't match */
+  attemptCount: number;
   savedProgress?: Record<string, string>; // index → choice_ident (restore in-progress)
   lockedAnswers?: Record<string, string>;  // index → choice_ident (already correct in retake)
   isObserver?: boolean;
@@ -52,6 +67,19 @@ export default function QuizForm({
   // Track answers by question index — no state, no re-renders
   const answersRef = useRef<Record<string, string>>({});
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Each extra click on Submit used to record another attempt, so only the first one goes through
+  const submittingRef = useRef(false);
+
+  const handleSubmit = async (fd: FormData) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      // On success the action redirects to the results page; anything returned means it didn't save
+      await submitQuiz(fd);
+    } finally {
+      submittingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     // Saving progress would write it to the admin's own account
@@ -128,14 +156,10 @@ export default function QuizForm({
   }
 
   return (
-    <form action={(fd) => { void submitQuiz(fd) }} className="space-y-4">
+    <form action={handleSubmit} className="space-y-4">
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="quizId" value={quizId} />
-      <input
-        type="hidden"
-        name="previousAnswers"
-        value={JSON.stringify(previousAnswers)}
-      />
+      <input type="hidden" name="attemptCount" value={attemptCount} />
       {questions.map((q, i) => {
         const lockedChoice = lockedAnswers?.[String(i)];
         const isLocked = lockedChoice !== undefined;
@@ -252,12 +276,7 @@ export default function QuizForm({
             Quiz submission is disabled in Student View.
           </p>
         ) : (
-          <button
-            type="submit"
-            className="px-6 py-3 rounded-full bg-teal-primary text-white font-semibold hover:opacity-90 transition-opacity"
-          >
-            Submit quiz
-          </button>
+          <SubmitButton />
         )}
       </div>
     </form>
