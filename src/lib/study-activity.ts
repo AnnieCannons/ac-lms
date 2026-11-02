@@ -15,7 +15,7 @@ export type PracticeQuiz = { id: string; title: string; moduleTitle: string | nu
 export type QuizAttempt = { studentId: string; quizId: string; at: string; score: number | null }
 
 /** One flashcard study session. Flashcards aren't course-scoped, so these are all of a student's decks. */
-export type FlashcardSession = { studentId: string; at: string; cards: number }
+export type FlashcardSession = { studentId: string; at: string; cards: number; deck?: string | null }
 
 export type StudyRange = '7' | '28' | 'all'
 
@@ -75,6 +75,21 @@ export type StudentRow = {
   /** The last STRIP_DAYS days ending today, oldest first. */
   strip: StripDay[]
   quizzes: StudentQuizSummary[]
+  /** Each week the range touches, oldest first. */
+  weeks: StudentWeek[]
+  /** Each day in the range they studied, newest first. */
+  timeline: StudyDay[]
+}
+
+/** One student's week: days with each kind of studying (0–7, comparable), plus raw amounts. */
+export type StudentWeek = { week: string; quizDays: number; cardDays: number; quizAttempts: number; cards: number }
+
+export type StudyDay = {
+  date: string
+  /** Practice quizzes taken that day, with each attempt's score in order. */
+  quizzes: { quizId: string; title: string; scores: (number | null)[] }[]
+  /** Flashcard decks studied that day. */
+  decks: { title: string; sessions: number; cards: number }[]
 }
 
 export type WeekBar = { week: string; studied: number; quizStudents: number; cardStudents: number }
@@ -175,6 +190,13 @@ export function computeStudyActivity(input: {
     return days.size
   }
 
+  // Monday-start weeks the range touches, each clipped to the range.
+  const rangeWeeks: { week: string; lo: string; hi: string }[] = []
+  for (let w = weekStart(from); w <= to; w = addDays(w, 7)) {
+    const end = addDays(w, 6)
+    rangeWeeks.push({ week: w, lo: w < from ? from : w, hi: end > to ? to : end })
+  }
+
   const stripStart = addDays(today, -(STRIP_DAYS - 1))
   const quiet7Start = addDays(today, -6)
 
@@ -206,6 +228,38 @@ export function computeStudyActivity(input: {
       })
     }
 
+    const studentWeeks: StudentWeek[] = rangeWeeks.map(({ week, lo, hi }) => {
+      const wa = rangeAttempts.filter(a => inRange(a.day, lo, hi))
+      const ws = rangeSessions.filter(x => inRange(x.day, lo, hi))
+      return {
+        week,
+        quizDays: new Set(wa.map(a => a.day)).size,
+        cardDays: new Set(ws.map(x => x.day)).size,
+        quizAttempts: wa.length,
+        cards: ws.reduce((n, x) => n + x.cards, 0),
+      }
+    })
+
+    const byDay = new Map<string, StudyDay>()
+    const dayEntry = (date: string) => {
+      if (!byDay.has(date)) byDay.set(date, { date, quizzes: [], decks: [] })
+      return byDay.get(date)!
+    }
+    for (const a of [...rangeAttempts].sort((x, y) => x.at.localeCompare(y.at))) {
+      const d = dayEntry(a.day)
+      let q = d.quizzes.find(x => x.quizId === a.quizId)
+      if (!q) d.quizzes.push(q = { quizId: a.quizId, title: quizById.get(a.quizId)!.title, scores: [] })
+      q.scores.push(a.score)
+    }
+    for (const x of rangeSessions) {
+      const d = dayEntry(x.day)
+      const title = x.deck || 'Flashcards'
+      let deck = d.decks.find(k => k.title === title)
+      if (!deck) d.decks.push(deck = { title, sessions: 0, cards: 0 })
+      deck.sessions++
+      deck.cards += x.cards
+    }
+
     return {
       id: s.id,
       name: s.name,
@@ -216,15 +270,14 @@ export function computeStudyActivity(input: {
       lastActive: allTimes.length ? allTimes[allTimes.length - 1] : null,
       strip,
       quizzes: [...byQuiz.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt)),
+      weeks: studentWeeks,
+      timeline: [...byDay.values()].sort((a, b) => b.date.localeCompare(a.date)),
     }
   })
 
   // Weekly bars: how many students studied at all in each week the range touches.
   const weeks: WeekBar[] = []
-  for (let w = weekStart(from); w <= to; w = addDays(w, 7)) {
-    const lo = w < from ? from : w
-    const end = addDays(w, 6)
-    const hi = end > to ? to : end
+  for (const { week: w, lo, hi } of rangeWeeks) {
     let studied = 0, quizStudents = 0, cardStudents = 0
     for (const s of students) {
       const q = [...(quizDays.get(s.id) ?? [])].some(d => inRange(d, lo, hi))

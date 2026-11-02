@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from 'react'
 import Link from 'next/link'
+import StudyStudentDetail from './StudyStudentDetail'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import {
   compareLeastActive,
@@ -94,11 +95,12 @@ function Strip({ strip }: { strip: StudentRow['strip'] }) {
 }
 
 export default function StudyActivityView({ courseId, students, quizzes, attempts, sessions, today, courseStart }: Props) {
-  const [range, setRange] = useState<StudyRange>('28')
+  const [range, setRange] = useState<StudyRange>('all')
   const [tab, setTab] = useState<'students' | 'quizzes'>('students')
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'least', desc: false })
   const [open, setOpen] = useState<string | null>(null)
   const [openQuiz, setOpenQuiz] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   const data = useMemo(
     () => computeStudyActivity({ students, quizzes, attempts, sessions, today, courseStart, range }),
@@ -120,8 +122,9 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
       lastActive: (a, b) => (a.lastActive ?? '').localeCompare(b.lastActive ?? ''),
     }
     r.sort((a, b) => (sort.desc ? -1 : 1) * by[sort.key](a, b) || a.name.localeCompare(b.name))
-    return r
-  }, [data.students, sort])
+    const q = search.trim().toLowerCase()
+    return q ? r.filter(s => s.name.toLowerCase().includes(q)) : r
+  }, [data.students, sort, search])
 
   const sortBy = (key: SortKey) =>
     setSort(s => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== 'name' && key !== 'least' && key !== 'most' }))
@@ -233,7 +236,22 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
           ))}
         </div>
         {tab === 'students' && (
-          <div role="group" aria-label="Order students" className="inline-flex mb-2 rounded-lg border border-border bg-surface p-0.5">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+          <input
+            type="search"
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value)
+              // Typing a name that matches exactly one student opens them
+              const q = e.target.value.trim().toLowerCase()
+              const hits = q ? data.students.filter(s => s.name.toLowerCase().includes(q)) : []
+              if (hits.length === 1) setOpen(hits[0].id)
+            }}
+            placeholder="Find a student"
+            aria-label="Find a student"
+            className="w-44 rounded-lg border border-border bg-surface px-2.5 py-1 text-sm text-dark-text placeholder:text-placeholder-text"
+          />
+          <div role="group" aria-label="Order students" className="inline-flex rounded-lg border border-border bg-surface p-0.5">
             {([['least', 'Least active first'], ['most', 'Most active first']] as const).map(([key, label]) => (
               <button
                 key={key}
@@ -247,6 +265,7 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
                 {label}
               </button>
             ))}
+          </div>
           </div>
         )}
         </div>
@@ -265,6 +284,9 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
+                {rows.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-text">No students match “{search}”.</td></tr>
+                )}
                 {rows.map(r => {
                   const isOpen = open === r.id
                   return (
@@ -296,24 +318,8 @@ export default function StudyActivityView({ courseId, students, quizzes, attempt
                       </tr>
                       {isOpen && (
                         <tr className="bg-background/60">
-                          <td colSpan={6} className="px-10 py-3">
-                            {r.quizzes.length === 0 ? (
-                              <p className="text-sm text-muted-text">No practice quiz attempts in the {rangeLabel}.</p>
-                            ) : (
-                              <ul className="flex flex-col gap-1 text-sm">
-                                {r.quizzes.map(q => (
-                                  <li key={q.quizId} className="flex flex-wrap gap-x-3">
-                                    <span className="text-dark-text">{q.title}</span>
-                                    <span className="text-muted-text">
-                                      {q.attempts} {q.attempts === 1 ? 'attempt' : 'attempts'} · best {pct(q.best)} · last {relative(q.lastAt, today).toLowerCase()}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                            <Link href={`/instructor/courses/${courseId}/roster/${r.id}`} className="inline-block mt-2 text-xs text-teal-primary hover:underline">
-                              Open student page →
-                            </Link>
+                          <td colSpan={6} className="px-4 sm:px-10 py-4">
+                            <StudyStudentDetail row={r} courseId={courseId} rangeLabel={rangeLabel} />
                           </td>
                         </tr>
                       )}
