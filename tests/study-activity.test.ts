@@ -116,3 +116,40 @@ describe('computeStudyActivity', () => {
     expect(r.summary.studied).toBe(0)
   })
 })
+
+describe('one student over time', () => {
+  const attempts: QuizAttempt[] = [
+    { studentId: 'a', quizId: 'q1', at: at('2026-10-13'), score: 50 },
+    { studentId: 'a', quizId: 'q1', at: `2026-10-13T20:00:00Z`, score: 100 },
+    { studentId: 'a', quizId: 'q1', at: at('2026-10-21'), score: 100 },
+  ]
+  const sessions: FlashcardSession[] = [
+    { studentId: 'a', at: at('2026-10-14'), cards: 20, deck: 'CSS' },
+    { studentId: 'a', at: at('2026-10-21'), cards: 10, deck: 'CSS' },
+    { studentId: 'a', at: `2026-10-21T21:00:00Z`, cards: 5, deck: 'CSS' },
+    { studentId: 'b', at: at('2026-10-21'), cards: 99, deck: 'Other' },
+  ]
+  const ana = () => run(attempts, sessions, '28').students.find(s => s.id === 'a')!
+
+  it('counts days per week for each kind, with attempts and cards beside them', () => {
+    const weeks = ana().weeks
+    expect(weeks.map(w => w.week)).toEqual(['2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12', '2026-10-19'])
+    expect(weeks[3]).toEqual({ week: '2026-10-12', quizDays: 1, cardDays: 1, quizAttempts: 2, cards: 20 })
+    expect(weeks[4]).toEqual({ week: '2026-10-19', quizDays: 1, cardDays: 1, quizAttempts: 1, cards: 15 })
+    expect(weeks[0]).toMatchObject({ quizDays: 0, cardDays: 0 })
+  })
+
+  it('lists each study day newest first with quiz scores in order and decks', () => {
+    expect(ana().timeline).toEqual([
+      { date: '2026-10-21', quizzes: [{ quizId: 'q1', title: 'Flexbox', scores: [100] }], decks: [{ title: 'CSS', sessions: 2, cards: 15 }] },
+      { date: '2026-10-14', quizzes: [], decks: [{ title: 'CSS', sessions: 1, cards: 20 }] },
+      { date: '2026-10-13', quizzes: [{ quizId: 'q1', title: 'Flexbox', scores: [50, 100] }], decks: [] },
+    ])
+  })
+
+  it('keeps to the selected range', () => {
+    const a = run(attempts, sessions, '7').students.find(s => s.id === 'a')!
+    expect(a.timeline.map(d => d.date)).toEqual(['2026-10-21'])
+    expect(a.weeks.map(w => w.week)).toEqual(['2026-10-12', '2026-10-19'])
+  })
+})

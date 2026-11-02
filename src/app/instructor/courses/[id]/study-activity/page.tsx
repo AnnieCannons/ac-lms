@@ -25,7 +25,8 @@ export default async function StudyActivityPage({ params }: { params: Promise<{ 
   const courseStart: string = course.start_date && course.start_date <= today ? course.start_date : addDays(today, -104)
 
   const [{ data: enrollments }, { data: quizRows }] = await Promise.all([
-    admin.from('course_enrollments').select('user_id').eq('course_id', id).eq('role', 'student'),
+    // Students on leave (observer) keep the studying they did before going on leave.
+    admin.from('course_enrollments').select('user_id, role').eq('course_id', id).in('role', ['student', 'observer']),
     admin
       .from('quizzes')
       .select('id, title, module_title, published')
@@ -56,10 +57,10 @@ export default async function StudyActivityPage({ params }: { params: Promise<{ 
         )
       : Promise.resolve([]),
     studentIds.length
-      ? fetchAllRows<{ user_id: string; started_at: string; cards_studied: number }>((from, to) =>
+      ? fetchAllRows<{ user_id: string; deck_id: string | null; started_at: string; cards_studied: number }>((from, to) =>
           admin
             .from('study_sessions')
-            .select('user_id, started_at, cards_studied')
+            .select('user_id, deck_id, started_at, cards_studied')
             .in('user_id', studentIds)
             .gte('started_at', `${addDays(courseStart, -1)}T00:00:00Z`)
             .order('id')
@@ -68,8 +69,9 @@ export default async function StudyActivityPage({ params }: { params: Promise<{ 
       : Promise.resolve([]),
   ])
 
+  const onLeave = new Set((enrollments ?? []).filter(e => e.role === 'observer').map(e => e.user_id))
   const students = (users ?? [])
-    .map(u => ({ id: u.id, name: u.name || u.email || 'Unknown' }))
+    .map(u => ({ id: u.id, name: `${u.name || u.email || 'Unknown'}${onLeave.has(u.id) ? ' (on leave)' : ''}` }))
     .sort((a, b) => a.name.localeCompare(b.name))
   const attempts = expandQuizAttempts(submissions)
   const attemptedQuizIds = new Set(attempts.map(a => a.quizId))
@@ -81,9 +83,18 @@ export default async function StudyActivityPage({ params }: { params: Promise<{ 
       title: q.title?.startsWith('Quiz: ') ? q.title.slice(6) : q.title,
       moduleTitle: q.module_title,
     }))
-  const sessions: FlashcardSession[] = sessionRows
-    .filter(s => s.cards_studied > 0)
-    .map(s => ({ studentId: s.user_id, at: s.started_at, cards: s.cards_studied }))
+  const studied = sessionRows.filter(s => s.cards_studied > 0)
+  const deckIds = [...new Set(studied.map(s => s.deck_id).filter((d): d is string => !!d))]
+  const { data: decks } = deckIds.length
+    ? await admin.from('decks').select('id, title').in('id', deckIds)
+    : { data: [] as { id: string; title: string | null }[] }
+  const deckTitle = new Map((decks ?? []).map(d => [d.id, d.title]))
+  const sessions: FlashcardSession[] = studied.map(s => ({
+    studentId: s.user_id,
+    at: s.started_at,
+    cards: s.cards_studied,
+    deck: s.deck_id ? deckTitle.get(s.deck_id) ?? null : null,
+  }))
 
   return (
     <div className="min-h-screen bg-background">

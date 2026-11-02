@@ -13,6 +13,9 @@
 }
 
 @theme {
+  /* Two-line study charts: checked for colorblind separation against the light surface */
+  --color-chart-quiz: #8E3A7B;
+  --color-chart-cards: #0E9A86;
   --color-teal-primary: #6D2B5E;
   --color-teal-light: #F5E6F3;
   --color-purple-primary: #7B3FB0;
@@ -95,6 +98,8 @@ html.dyslexic * {
 
 /* Dark mode */
 html.theme-dark {
+  --color-chart-quiz: #c76fbb;
+  --color-chart-cards: #178f7c;
   --color-background: #120d1e;
   --color-surface: #1e1530;
   --color-dark-text: #f0eaf8;
