@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import { bulkImportCards } from '@/lib/flashcards/actions'
+import { parseCardsFromHtml } from '@/lib/flashcards/bulk-import-parse'
 
 type Props = {
   deckId: string
@@ -64,6 +65,7 @@ export default function BulkImportClient({ deckId, deckTitle }: Props) {
   const [rulesOpen, setRulesOpen] = useState(true)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const cardCount = html.trim() ? parseCardsFromHtml(html).length : 0
 
   const handleImport = async () => {
     if (!html.trim()) return
@@ -149,6 +151,7 @@ export default function BulkImportClient({ deckId, deckTitle }: Props) {
           placeholder="Paste your notes here…"
           minHeight={320}
           storagePath={`flashcard-images/${deckId}/`}
+          keepBlankLines
         />
       </div>
 
@@ -164,6 +167,11 @@ export default function BulkImportClient({ deckId, deckTitle }: Props) {
         >
           {importing ? 'Importing…' : 'Import Cards'}
         </button>
+        {html.trim() && (
+          <span className="text-sm text-muted-text" aria-live="polite">
+            {cardCount} card{cardCount === 1 ? '' : 's'} detected
+          </span>
+        )}
         <Link href={`/flashcards/decks/${deckId}`} className="text-sm text-muted-text hover:text-dark-text transition-colors">
           Cancel
         </Link>

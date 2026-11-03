@@ -721,6 +721,7 @@ export default function SubmissionForm({
                 bucket="lms-submissions"
                 path={`${assignmentId}/${studentId}/`}
                 multiple
+                dropzone
                 onUpload={(_url, _name, path) => {
                   setError(null);
                   // Store the storage path, not a URL — the bucket is private
