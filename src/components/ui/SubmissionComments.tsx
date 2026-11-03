@@ -114,6 +114,9 @@ export default function SubmissionComments({
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isStudent = currentUserRole === 'student' && !isTa;
+  // Staff/TA comments take pasted or dropped screenshots. `course-<id>/` is a path
+  // /api/upload maps to the course, so a TA can only upload for a course they TA.
+  const commentImagePath = courseId ? `course-${courseId}/comment-images/` : undefined;
 
   const send = async () => {
     if (!text.trim() || !submissionId) return;
@@ -285,6 +288,8 @@ export default function SubmissionComments({
                         onChange={setEditText}
                         placeholder="Edit comment…"
                         minHeight={120}
+                        storagePath={commentImagePath}
+                        uploadViaApi
                       />
                     )}
                     {editError && <p role="alert" className="text-xs text-red-500">{editError}</p>}
@@ -356,6 +361,8 @@ export default function SubmissionComments({
               onChange={setText}
               placeholder="Leave a comment for the student…"
               minHeight={120}
+              storagePath={commentImagePath}
+              uploadViaApi
             />
           )}
           {sendError && <p role="alert" className="text-xs text-red-500 mt-1">{sendError}</p>}

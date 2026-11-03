@@ -119,8 +119,8 @@ export default function ClozeCardEditor({ content, onChange }: Props) {
         <button type="button" onMouseDown={tool(() => ed.chain().focus().toggleOrderedList().run())} className={btn(ed.isActive('orderedList'))} aria-label="Numbered list">1. List</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={tool(() => ed.chain().focus().toggleBlockquote().run())} className={btn(ed.isActive('blockquote'))} aria-label="Blockquote">&ldquo; Quote</button>
-        <button type="button" onMouseDown={tool(() => ed.chain().focus().toggleCode().run())} className={`${btn(ed.isActive('code'))} font-mono`} aria-label="Inline code">`</button>
-        <button type="button" onMouseDown={tool(() => toggleCodeBlockMerged(ed))} className={`${btn(ed.isActive('codeBlock'))} font-mono`} aria-label="Code block">```</button>
+        <button type="button" onMouseDown={tool(() => ed.chain().focus().toggleCode().run())} className={`${btn(ed.isActive('code'))} font-mono`} aria-label="Inline code" aria-pressed={ed.isActive('code')}>`code`</button>
+        <button type="button" onMouseDown={tool(() => toggleCodeBlockMerged(ed))} className={btn(ed.isActive('codeBlock'))} aria-label="Code block" aria-pressed={ed.isActive('codeBlock')} title="Insert code block (pick language inside)">{'</>'}</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={handleLinkButton} className={btn(isLinkActive)} aria-label={isLinkActive ? 'Remove link' : 'Add link'} title={isLinkActive ? 'Remove link' : 'Add link (select text first)'}>
           🔗

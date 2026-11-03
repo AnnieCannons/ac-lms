@@ -9,7 +9,10 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import { getMarkRange } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
+import { Fragment, Slice } from "@tiptap/pm/model";
+import type { EditorView } from "@tiptap/pm/view";
 import { createClient } from "@/lib/supabase/client";
+import { uploadFile } from "@/lib/upload-file";
 import ImageResizeNode from "./ImageResizeNode";
 import EmojiPickerButton from "./EmojiPickerButton";
 
@@ -18,22 +21,33 @@ type Props = {
   onChange: (html: string) => void;
   placeholder?: string;
   storagePath?: string;
+  /** Upload pasted/dropped images through /api/upload (which checks the caller can
+   *  write to `storagePath`) instead of straight to storage. */
+  uploadViaApi?: boolean;
+  /** Keep blank lines in pasted plain text as empty paragraphs. */
+  keepBlankLines?: boolean;
   minHeight?: number;
   ariaLabel?: string;
 };
 
 type HoveredLink = { href: string; top: number; left: number; domEl: HTMLAnchorElement };
 
-export default function RichTextEditor({ content, onChange, placeholder, storagePath, minHeight = 300, ariaLabel }: Props) {
+export default function RichTextEditor({ content, onChange, placeholder, storagePath, uploadViaApi, keepBlankLines, minHeight = 300, ariaLabel }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const uploadImage = async (file: File): Promise<string | null> => {
     if (!storagePath) return null;
     setUploadingImage(true);
-    const supabase = createClient();
     const safeName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
     const filePath = `${storagePath}${safeName}`;
+    if (uploadViaApi) {
+      const result = await uploadFile(file, "lms-resources", filePath);
+      setUploadingImage(false);
+      if (!result.ok) { alert(`Image upload failed: ${result.error}`); return null; }
+      return result.url;
+    }
+    const supabase = createClient();
     const { error } = await supabase.storage.from("lms-resources").upload(filePath, file, { upsert: true });
     setUploadingImage(false);
     if (error) { alert(`Image upload failed: ${error.message}`); return null; }
@@ -98,6 +112,16 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         style: `min-height: ${minHeight}px`,
         ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
       },
+      // ProseMirror collapses runs of newlines in pasted plain text, so a blank line
+      // between two blocks of text disappears. Keep one paragraph per line instead.
+      ...(keepBlankLines ? {
+        clipboardTextParser: (text: string, _$context: unknown, _plain: boolean, view: EditorView) => {
+          const { schema } = view.state;
+          const lines = text.replace(/\r\n?/g, "\n").split("\n");
+          const paragraphs = lines.map(line => schema.nodes.paragraph.create(null, line ? schema.text(line) : null));
+          return new Slice(Fragment.from(paragraphs), 1, 1);
+        },
+      } : {}),
       handlePaste: (_view, event) => {
         if (!storagePath) return false;
         const items = Array.from(event.clipboardData?.items ?? []);
@@ -286,8 +310,8 @@ export default function RichTextEditor({ content, onChange, placeholder, storage
         <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleOrderedList().run())} className={btn(editor.isActive("orderedList"))} aria-label="Numbered list">1. List</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleBlockquote().run())} className={btn(editor.isActive("blockquote"))} aria-label="Blockquote">&ldquo; Quote</button>
-        <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleCode().run())} className={`${btn(editor.isActive("code"))} font-mono`} aria-label="Inline code">`</button>
-        <button type="button" onMouseDown={tool(() => toggleCodeBlockMerged(editor))} className={`${btn(editor.isActive("codeBlock"))} font-mono`} aria-label="Code block">```</button>
+        <button type="button" onMouseDown={tool(() => editor.chain().focus().toggleCode().run())} className={`${btn(editor.isActive("code"))} font-mono`} aria-label="Inline code" aria-pressed={editor.isActive("code")}>`code`</button>
+        <button type="button" onMouseDown={tool(() => toggleCodeBlockMerged(editor))} className={btn(editor.isActive("codeBlock"))} aria-label="Code block" aria-pressed={editor.isActive("codeBlock")} title="Insert code block (pick language inside)">{"</>"}</button>
         <div role="separator" aria-orientation="vertical" className="w-px h-4 bg-border mx-1" />
         <button type="button" onMouseDown={handleLinkButton} className={btn(isLinkActive)} aria-label={isLinkActive ? "Remove link" : "Add link"} title={isLinkActive ? "Remove link" : "Add link (select text first)"}>
           🔗

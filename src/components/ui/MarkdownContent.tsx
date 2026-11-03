@@ -18,7 +18,8 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2
   [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2
   [&_li]:mb-0.5
-  [&_strong]:font-semibold`
+  [&_strong]:font-semibold
+  [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded`
 
 /** Renders plain-text submission content: preserves newlines and auto-links URLs. */
 export function PlainTextContent({ content }: { content: string }) {

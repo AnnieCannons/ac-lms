@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { parseCardsFromHtml } from '@/lib/flashcards/bulk-import-parse'
 
 async function getAuthUser() {
   const supabase = await createServerSupabaseClient()
@@ -751,7 +752,7 @@ export async function bulkImportCards(deckId: string, html: string) {
   const { data: deck } = await supabase.from('decks').select('id').eq('id', deckId).eq('owner_user_id', user.id).single()
   if (!deck) throw new Error('Deck not found')
 
-  // Parse HTML into card pairs: empty <p> = card separator, first element = front, rest = back
+  // Parse HTML into card pairs: blank line = card separator, first element = front, rest = back
   const cards = parseCardsFromHtml(html)
   if (cards.length === 0) throw new Error('No cards found')
 
@@ -770,21 +771,6 @@ export async function bulkImportCards(deckId: string, html: string) {
   )
 
   revalidatePath(`/flashcards/decks/${deckId}`)
-}
-
-function parseCardsFromHtml(html: string): Array<{ front: string; back: string }> {
-  // Split on empty paragraphs (card separators)
-  const sections = html.split(/<p>\s*<\/p>/i).map(s => s.trim()).filter(Boolean)
-
-  return sections.flatMap(section => {
-    // Match the first block element as the front
-    const match = section.match(/^(<(?:p|h[1-6]|pre|blockquote|ul|ol)[^>]*>[\s\S]*?<\/(?:p|h[1-6]|pre|blockquote|ul|ol)>)/i)
-    if (!match) return []
-    const front = match[1].trim()
-    const back = section.slice(match[0].length).trim()
-    if (!front) return []
-    return [{ front, back }]
-  })
 }
 
 export async function reorderCards(deckId: string, orderedCardIds: string[]) {
