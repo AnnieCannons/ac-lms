@@ -82,7 +82,17 @@ export type StudentRow = {
 }
 
 /** One student's week: days with each kind of studying (0–7, comparable), plus raw amounts. */
-export type StudentWeek = { week: string; quizDays: number; cardDays: number; quizAttempts: number; cards: number }
+export type StudentWeek = {
+  week: string
+  quizDays: number
+  cardDays: number
+  quizAttempts: number
+  cards: number
+  /** Monday to Sunday, always seven; days outside the range (before it or after today) have inRange false and zeros. */
+  days: StudentWeekDay[]
+}
+
+export type StudentWeekDay = { date: string; inRange: boolean; quizAttempts: number; cards: number }
 
 export type StudyDay = {
   date: string
@@ -237,6 +247,15 @@ export function computeStudyActivity(input: {
         cardDays: new Set(ws.map(x => x.day)).size,
         quizAttempts: wa.length,
         cards: ws.reduce((n, x) => n + x.cards, 0),
+        days: Array.from({ length: 7 }, (_, i) => {
+          const date = addDays(week, i)
+          return {
+            date,
+            inRange: inRange(date, lo, hi),
+            quizAttempts: wa.filter(a => a.day === date).length,
+            cards: ws.filter(x => x.day === date).reduce((n, x) => n + x.cards, 0),
+          }
+        }),
       }
     })
 
