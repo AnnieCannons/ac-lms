@@ -47,6 +47,24 @@ describe('StudyActivityView — one student', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 3)
   })
 
+  it('shows the latest week day by day, and the arrows step back a week', () => {
+    view()
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a student' }), { target: { value: 'an' } })
+    expect(screen.getByRole('heading', { name: 'Day by day · week of Oct 19' })).toBeInTheDocument()
+    const wed = screen.getByRole('button', { name: 'Wed, Oct 21: 1 practice quiz attempt. Show what they studied' })
+    const target = document.getElementById('study-day-a-2026-10-21')!
+    target.scrollIntoView = vi.fn()
+    fireEvent.click(wed)
+    expect(target.scrollIntoView).toHaveBeenCalled()
+    expect(target).toHaveFocus()
+    expect(screen.getByLabelText('Fri, Oct 23: outside the range')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mon, Oct 19: no studying')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }))
+    expect(screen.getByRole('heading', { name: 'Day by day · week of Oct 12' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Wed, Oct 14: 30 flashcards/ })).toBeInTheDocument()
+  })
+
   it('says so when no one matches', () => {
     view()
     fireEvent.change(screen.getByRole('searchbox', { name: 'Find a student' }), { target: { value: 'zz' } })

@@ -134,9 +134,21 @@ describe('one student over time', () => {
   it('counts days per week for each kind, with attempts and cards beside them', () => {
     const weeks = ana().weeks
     expect(weeks.map(w => w.week)).toEqual(['2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12', '2026-10-19'])
-    expect(weeks[3]).toEqual({ week: '2026-10-12', quizDays: 1, cardDays: 1, quizAttempts: 2, cards: 20 })
-    expect(weeks[4]).toEqual({ week: '2026-10-19', quizDays: 1, cardDays: 1, quizAttempts: 1, cards: 15 })
+    expect(weeks[3]).toMatchObject({ week: '2026-10-12', quizDays: 1, cardDays: 1, quizAttempts: 2, cards: 20 })
+    expect(weeks[4]).toMatchObject({ week: '2026-10-19', quizDays: 1, cardDays: 1, quizAttempts: 1, cards: 15 })
     expect(weeks[0]).toMatchObject({ quizDays: 0, cardDays: 0 })
+  })
+
+  it('breaks each week into seven days, marking days after today as out of range', () => {
+    const days = ana().weeks[4].days
+    expect(days.map(d => d.date)).toEqual(['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'])
+    expect(days[2]).toEqual({ date: '2026-10-21', inRange: true, quizAttempts: 1, cards: 15 })
+    expect(days[0]).toEqual({ date: '2026-10-19', inRange: true, quizAttempts: 0, cards: 0 })
+    expect(days.filter(d => !d.inRange).map(d => d.date)).toEqual(['2026-10-23', '2026-10-24', '2026-10-25'])
+    expect(ana().weeks[3].days.slice(1, 3)).toEqual([
+      { date: '2026-10-13', inRange: true, quizAttempts: 2, cards: 0 },
+      { date: '2026-10-14', inRange: true, quizAttempts: 0, cards: 20 },
+    ])
   })
 
   it('lists each study day newest first with quiz scores in order and decks', () => {
