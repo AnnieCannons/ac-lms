@@ -127,4 +127,14 @@ describe('/api/upload — TA resource uploads', () => {
     signedInAsTaOf([])
     expect((await upload(`course-${MINE}/notes.pdf`)).status).toBe(403)
   })
+
+  it('takes a Windows-labelled zip, PowerPoint and tar.gz up to 20MB', async () => {
+    signedInAs('student')
+    for (const type of ['application/zip', 'application/x-zip-compressed', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/gzip']) {
+      const res = await POST(req({ bucket: 'lms-submissions', path: 'a1/stu1/site.zip', size: 18 * 1024 * 1024, type }))
+      expect(res.status).toBe(200)
+    }
+    const tooBig = await POST(req({ bucket: 'lms-submissions', path: 'a1/stu1/site.zip', size: 21 * 1024 * 1024, type: 'application/zip' }))
+    expect(tooBig.status).toBe(413)
+  })
 })

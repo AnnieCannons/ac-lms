@@ -16,6 +16,13 @@ const ALLOWED_MIME_EXACT = new Set([
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/zip',
+  'application/x-zip-compressed', // .zip from Chrome/Edge on Windows
+  'application/x-zip',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/x-tar',
+  'application/gzip',
+  'application/x-gzip',
 ])
 
 // Student submissions take raster images only: an SVG can carry script. Keep in sync
