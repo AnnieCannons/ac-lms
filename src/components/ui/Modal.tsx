@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useEffect, useId } from 'react'
+import { createPortal } from 'react-dom'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 export default function Modal({ title, onClose, children, maxWidth = 'max-w-sm' }: {
@@ -19,7 +20,9 @@ export default function Modal({ title, onClose, children, maxWidth = 'max-w-sm' 
     return () => prev?.focus()
   }, [])
   useFocusTrap(dialogRef, onClose)
-  return (
+  // Rendered into <body> so no ancestor's stacking context (sticky toolbars, transformed
+  // panels) can draw over the dialog, whatever its z-index.
+  const dialog = (
     <>
       <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
       <div
@@ -44,4 +47,5 @@ export default function Modal({ title, onClose, children, maxWidth = 'max-w-sm' 
       </div>
     </>
   )
+  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
 }

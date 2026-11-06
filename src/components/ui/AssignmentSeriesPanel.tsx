@@ -52,7 +52,13 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
 
   const addWeeks = () => run('add', () => pushAssignmentToWeeks({ assignmentId, courseId, moduleIds: selected }), r => {
     setAdding(false); setSelected([])
-    return `Added to ${r.created} week${r.created === 1 ? '' : 's'}.`
+    const moved = (r.moved ?? []) as { week: string; from: string; to: string; holiday: string }[]
+    const skipped = (r.skipped ?? []) as { week: string; holiday: string }[]
+    return [
+      `Added to ${r.created} week${r.created === 1 ? '' : 's'}.`,
+      ...moved.map(m => `${m.week}: ${m.holiday} is on ${m.from}, so it went on ${m.to}.`),
+      ...skipped.map(k => `${k.week}: skipped (${k.holiday}).`),
+    ].join(' ')
   })
 
   const pushChanges = () => run('push', () => updateUpcomingWeeks({ assignmentId, courseId }), r => {
@@ -124,7 +130,7 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
         {openWeeks.length > 0 && (adding ? (
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <p className="text-xs text-muted-text">
-              Copies go on {info.dayName ? <strong>{info.dayName}</strong> : 'the same day'} of each week, with the due date moved to match.
+              Copies go on {info.dayName ? <strong>{info.dayName}</strong> : 'the same day'} of each week (the day before, if it’s a holiday), due the day after.
             </p>
             <div className="flex gap-3 text-xs">
               <button type="button" className="text-teal-primary hover:underline" onClick={() => setSelected(openWeeks.map(w => w.moduleId))}>All</button>

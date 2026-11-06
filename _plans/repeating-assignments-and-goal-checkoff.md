@@ -23,6 +23,8 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 - Repeats weekly shows a list of the course's other weeks, with **All later weeks** / **All weeks** shortcuts.
 - On create, the assignment is made in the chosen week, and a copy goes into each picked week:
   - on the same day name (the day is created if that week doesn't have it)
+  - if that week's day is a holiday (e.g. a Thursday typing test on Thanksgiving), that copy moves to the closest open day before it that week (Wednesday). If nothing earlier is open, it goes to the next open day that week, and a week that's a break all week is skipped. The dialog shows this per week, and "Add to more weeks" reports it.
+  - every copy is still its own assignment, so you can drag any week to another day or change its due date afterwards. Pushing content to following weeks never changes a week's day or due date.
   - each due the day after its own day, past weekends, holidays and breaks (shown per week in the dialog). If a week can't be placed on the calendar, it falls back to this week's due date moved by the week gap.
 - It then opens straight in Edit. The other weeks start as blank copies until you push your content to them (see below).
 - Course Outline only. Career Dev and Level Up don't get the choice.

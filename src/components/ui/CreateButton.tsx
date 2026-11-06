@@ -9,7 +9,7 @@ import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { createWiki } from '@/lib/wiki-actions'
 import { createAssignment } from '@/lib/assignment-actions'
 import { pushAssignmentToWeeks, getDueDateCalendar, type DueDateCalendar } from '@/lib/assignment-series-actions'
-import { defaultDueDateFor, type DefaultDueDate } from '@/lib/assignment-series'
+import { defaultDueDateFor, placeInWeek, type DefaultDueDate, type WeekPlacement } from '@/lib/assignment-series'
 import { formatDueDate } from '@/lib/date-utils'
 import { createResource } from '@/lib/resource-actions'
 import { createModule, createModuleDay } from '@/lib/module-actions'
@@ -491,7 +491,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                   .slice()
                   .sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0) || a.order - b.order)}
                 currentWeek={codingModules.find(m => m.id === moduleId)?.week_number ?? null}
-                dueFor={w => calendar && selectedDayName ? defaultDueDateFor(calendar.courseStart, w.week_number, selectedDayName, calendar.closures) : null}
+                placementFor={w => calendar && selectedDayName ? placeInWeek(calendar.courseStart, w.week_number, selectedDayName, calendar.closures) : null}
                 selected={repeatModuleIds}
                 onSelectedChange={setRepeatModuleIds}
               />
@@ -903,12 +903,12 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
 // ─── One-time vs. repeating ─────────────────────────────────────────────────────────────
 
-function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, dueFor, selected, onSelectedChange }: {
+function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, placementFor, selected, onSelectedChange }: {
   repeats: boolean
   onRepeatsChange: (v: boolean) => void
   weeks: Module[]
   currentWeek: number | null
-  dueFor: (week: Module) => DefaultDueDate | null
+  placementFor: (week: Module) => WeekPlacement | null
   selected: string[]
   onSelectedChange: (ids: string[]) => void
 }) {
@@ -939,7 +939,7 @@ function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, dueFor, se
       {repeats && (
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-xs text-muted-text">
-            Also add it to these weeks, on the same day. Each week is due the day after its day (moved past weekends and holidays). You write it once, then push your changes to the following weeks.
+            Also add it to these weeks, on the same day. If that day is a holiday, that week’s copy moves to the day before. Each is due the day after (past weekends and holidays). You can still move any week afterwards. You write it once, then push your changes to the following weeks.
           </p>
           <div className="flex gap-3 text-xs">
             {laterIds.length > 0 && (
@@ -959,14 +959,23 @@ function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, dueFor, se
           <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-2 flex flex-col gap-1">
             {weeks.length === 0 && <p className="text-xs text-muted-text">No other weeks in this course yet.</p>}
             {weeks.map(w => {
-              const due = dueFor(w)
-              const note = closureNote(due)
+              const placement = placementFor(w)
+              const due = placement?.kind === 'placed' ? placement.due : null
+              const note = placement?.kind === 'skipped'
+                ? `${placement.closure.label} all week, so this week is skipped`
+                : placement?.movedFrom
+                  ? [`${placement.movedFrom.closure.label} is on ${placement.movedFrom.dayName}, so it moves to ${placement.dayName}`, closureNote(due && { ...due, classDayClosure: null })].filter(Boolean).join('; ')
+                  : closureNote(due)
               return (
                 <label key={w.id} className="flex items-start gap-2 text-sm text-dark-text cursor-pointer">
                   <input type="checkbox" checked={selected.includes(w.id)} onChange={() => toggle(w.id)} className="accent-teal-primary mt-1" />
                   <span className="flex-1 min-w-0">
                     {w.title}
-                    {due && <span className="block text-xs text-muted-text">Due {formatDueDate(due.dueDate)}</span>}
+                    {placement?.kind === 'placed' && (
+                      <span className="block text-xs text-muted-text">
+                        {placement.dayName} {formatDueDate(placement.due.classDate)} · due {formatDueDate(placement.due.dueDate)}
+                      </span>
+                    )}
                     {note && <span className="block text-xs text-amber-700">{note}</span>}
                   </span>
                 </label>

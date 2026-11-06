@@ -120,6 +120,54 @@ export function defaultDueDateFor(
   return day ? defaultDueDate(day, closures) : null
 }
 
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+export type WeekPlacement =
+  | {
+      kind: 'placed'
+      /** The day panel the copy goes on (the original day, or the day it moved to). */
+      dayName: string
+      due: DefaultDueDate
+      /** Set when the original day was a holiday and the copy moved off it. */
+      movedFrom: { dayName: string; date: string; closure: Closure } | null
+    }
+  | { kind: 'skipped'; closure: Closure }
+
+/**
+ * Where a repeating assignment's copy goes in a given week. Normally its usual day. If that
+ * day is a holiday, it moves to the closest open weekday before it in the same week (e.g. a
+ * Thursday on Thanksgiving moves to Wednesday); if nothing earlier is open, the closest open
+ * day after it in the same week; if the whole week is closed (a break), the week is skipped.
+ * Null when the week or day can't be placed on the calendar.
+ */
+export function placeInWeek(
+  courseStart: string | null, weekNumber: number | null, dayName: string, closures: Closure[],
+): WeekPlacement | null {
+  const usual = classDate(courseStart, weekNumber, dayName)
+  if (!usual || !courseStart || weekNumber == null) return null
+  const closure = closureOn(usual, closures)
+  if (!closure) return { kind: 'placed', dayName, due: defaultDueDate(usual, closures), movedFrom: null }
+
+  const offset = dayOffset(dayName)!
+  const monday = weekMonday(courseStart, weekNumber)
+  const candidates = [
+    ...Array.from({ length: Math.min(offset, 5) }, (_, i) => Math.min(offset, 5) - 1 - i), // earlier, nearest first
+    ...Array.from({ length: 5 }, (_, i) => i).filter(i => i > offset),                      // later, nearest first
+  ]
+  for (const i of candidates) {
+    const date = addCalendarDays(monday, i)
+    if (!closureOn(date, closures)) {
+      return {
+        kind: 'placed',
+        dayName: WEEKDAY_NAMES[i],
+        due: defaultDueDate(date, closures),
+        movedFrom: { dayName, date: usual, closure },
+      }
+    }
+  }
+  return { kind: 'skipped', closure }
+}
+
 /** Moves a stored due date by whole weeks (fallback when a week isn't on the calendar). */
 export function shiftDueDateByWeeks(dueDate: string | null, weeks: number): string | null {
   if (!dueDate) return null

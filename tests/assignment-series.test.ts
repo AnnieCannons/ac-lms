@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   compareOutlinePosition, membersAfter, shiftDueDateByWeeks, copyDueDate, weeksBetween, normalizeGoalLabel,
-  weekMonday, classDate, defaultDueDate, defaultDueDateFor,
+  weekMonday, classDate, defaultDueDate, defaultDueDateFor, placeInWeek,
   type OutlinePosition,
 } from '@/lib/assignment-series'
 
@@ -77,6 +77,41 @@ describe('defaultDueDate', () => {
   it('works from week + day name', () => {
     expect(defaultDueDateFor('2026-01-07', 3, 'Friday', [{ label: 'MLK Day', start: '2026-01-26', end: null }])?.dueDate).toBe('2026-01-27')
     expect(defaultDueDateFor('2026-01-07', 3, 'Wiki', [])).toBeNull()
+  })
+})
+
+describe('placeInWeek', () => {
+  // Fall 2026 course starting Mon Sep 7; week 12 Monday = Nov 23 (Thanksgiving Thu Nov 26)
+  const start = '2026-09-07'
+  const thanksgivingDay = { label: 'Thanksgiving', start: '2026-11-26', end: '2026-11-27' }
+
+  it('keeps the usual day when it is open', () => {
+    const p = placeInWeek(start, 11, 'Thursday', [thanksgivingDay])
+    expect(p).toMatchObject({ kind: 'placed', dayName: 'Thursday', movedFrom: null })
+    expect(p?.kind === 'placed' && p.due.dueDate).toBe('2026-11-20')
+  })
+
+  it('moves a holiday Thursday to Wednesday, due the next open day', () => {
+    const p = placeInWeek(start, 12, 'Thursday', [thanksgivingDay])
+    expect(p).toMatchObject({ kind: 'placed', dayName: 'Wednesday', movedFrom: { dayName: 'Thursday', date: '2026-11-26' } })
+    // Wed Nov 25 → Thu/Fri are the holiday, weekend → Mon Nov 30
+    expect(p?.kind === 'placed' && p.due.dueDate).toBe('2026-11-30')
+  })
+
+  it('moves a holiday Monday to the next open day that week, since nothing earlier is open', () => {
+    const labor = { label: 'Labor Day', start: '2026-09-07', end: null }
+    const p = placeInWeek(start, 1, 'Monday', [labor])
+    expect(p).toMatchObject({ kind: 'placed', dayName: 'Tuesday' })
+  })
+
+  it('skips a week that is a break all week', () => {
+    const brk = { label: 'Thanksgiving Week', start: '2026-11-23', end: '2026-11-27' }
+    expect(placeInWeek(start, 12, 'Thursday', [brk])).toEqual({ kind: 'skipped', closure: brk })
+  })
+
+  it('cannot place days without a weekday name or without a calendar', () => {
+    expect(placeInWeek(start, 12, 'Assignments', [])).toBeNull()
+    expect(placeInWeek(null, 12, 'Thursday', [])).toBeNull()
   })
 })
 

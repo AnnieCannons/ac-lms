@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getAssignmentCourseId } from '@/lib/course-scope'
 import { requireCourseInstructorAccess, isCourseAccessError } from '@/lib/course-access'
-import { compareOutlinePosition, copyDueDate, membersAfter, normalizeGoalLabel, type Closure, type OutlinePosition } from '@/lib/assignment-series'
+import { compareOutlinePosition, copyDueDate, membersAfter, normalizeGoalLabel, placeInWeek, type Closure, type OutlinePosition } from '@/lib/assignment-series'
 
 type Admin = ReturnType<typeof createServiceSupabaseClient>
 
@@ -180,6 +180,16 @@ export async function getSeriesInfo(assignmentId: string, courseId: string): Pro
 
 // ── Pushing to weeks ─────────────────────────────────────────────────────────────────────
 
+export type PushResult = {
+  created?: number
+  /** Weeks where the usual day is a holiday, so the copy went on another day. */
+  moved?: { week: string; from: string; to: string; holiday: string }[]
+  /** Weeks with no open day at all (a break), so no copy was made. */
+  skipped?: { week: string; holiday: string }[]
+  error?: string
+  code?: string
+}
+
 /**
  * Copies an assignment into other weeks of the same course, on the same day name
  * (the day is created if that week doesn't have it). Each copy gets the due date moved by
@@ -191,7 +201,7 @@ export async function pushAssignmentToWeeks(params: {
   assignmentId: string
   courseId: string
   moduleIds: string[]
-}): Promise<{ created?: number; error?: string; code?: string }> {
+}): Promise<PushResult> {
   const auth = await requireStaffForAssignment(params.assignmentId, params.courseId)
   if ('error' in auth) return { error: auth.error, code: auth.code }
   const { admin } = auth
@@ -237,14 +247,26 @@ export async function pushAssignmentToWeeks(params: {
   void _id; void _day; void _linked; void _due; void _created; void _updated; void _canvas; void _deleted; void _order
 
   const createdIds: string[] = []
+  const moved: NonNullable<PushResult['moved']> = []
+  const skipped: NonNullable<PushResult['skipped']> = []
   for (const moduleId of targets) {
     const mod = moduleById.get(moduleId)!
-    let day = days.find(d => d.module_id === moduleId && d.day_name === sourceDay.day_name)
+    // Usually the same day; a holiday moves it to the day before (or skips a break week).
+    const placement = placeInWeek(calendar.courseStart, mod.week_number, sourceDay.day_name, calendar.closures)
+    if (placement?.kind === 'skipped') {
+      skipped.push({ week: mod.title ?? '', holiday: placement.closure.label })
+      continue
+    }
+    const dayName = placement?.dayName ?? sourceDay.day_name
+    if (placement?.movedFrom) {
+      moved.push({ week: mod.title ?? '', from: placement.movedFrom.dayName, to: dayName, holiday: placement.movedFrom.closure.label })
+    }
+    let day = days.find(d => d.module_id === moduleId && d.day_name === dayName)
     if (!day) {
       const order = days.filter(d => d.module_id === moduleId).length
       const { data: newDay, error: dayErr } = await admin
         .from('module_days')
-        .insert({ module_id: moduleId, day_name: sourceDay.day_name, order })
+        .insert({ module_id: moduleId, day_name: dayName, order })
         .select('id, module_id, day_name, order')
         .single()
       if (dayErr || !newDay) return { error: dayErr?.message ?? 'Could not create a day', created: createdIds.length }
@@ -265,7 +287,7 @@ export async function pushAssignmentToWeeks(params: {
         linked_day_id: null,
         series_id: seriesId,
         order: count ?? 0,
-        due_date: copyDueDate({
+        due_date: placement ? placement.due.dueDate : copyDueDate({
           ...calendar,
           dayName: sourceDay.day_name,
           sourceDueDate: source.due_date,
@@ -289,7 +311,7 @@ export async function pushAssignmentToWeeks(params: {
   await excuseNewCopiesForConfirmedGoals(admin, params.courseId, seriesId, createdIds)
 
   revalidatePath(`/instructor/courses/${params.courseId}`, 'layout')
-  return { created: createdIds.length }
+  return { created: createdIds.length, moved, skipped }
 }
 
 /** New copies placed after a student's confirmed goal are excused for that student too. */
