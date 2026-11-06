@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getAssignmentCourseId } from '@/lib/course-scope'
 import { requireCourseInstructorAccess, isCourseAccessError } from '@/lib/course-access'
-import { compareOutlinePosition, copyDueDate, membersAfter, normalizeGoalLabel, type OutlinePosition } from '@/lib/assignment-series'
+import { compareOutlinePosition, copyDueDate, membersAfter, normalizeGoalLabel, type Closure, type OutlinePosition } from '@/lib/assignment-series'
 
 type Admin = ReturnType<typeof createServiceSupabaseClient>
 
@@ -105,6 +105,31 @@ async function requireStaffForAssignment(assignmentId: string, courseId: string)
 
 // ── Reading ──────────────────────────────────────────────────────────────────────────────
 
+export type DueDateCalendar = { courseStart: string | null; closures: Closure[] }
+
+/** The course start date plus every holiday and break, for working out default due dates. */
+async function loadDueDateCalendar(admin: Admin, courseId: string): Promise<DueDateCalendar> {
+  const [{ data: course }, { data: holidays }, { data: breaks }] = await Promise.all([
+    admin.from('courses').select('start_date').eq('id', courseId).single(),
+    admin.from('calendar_holidays').select('label, date, end_date'),
+    admin.from('calendar_breaks').select('label, start_date, end_date'),
+  ])
+  const closures: Closure[] = [
+    ...((holidays ?? []) as { label: string; date: string; end_date: string | null }[])
+      .filter(h => h.date).map(h => ({ label: h.label, start: h.date, end: h.end_date })),
+    ...((breaks ?? []) as { label: string; start_date: string; end_date: string | null }[])
+      .filter(b => b.start_date).map(b => ({ label: b.label, start: b.start_date, end: b.end_date })),
+  ]
+  return { courseStart: course?.start_date ?? null, closures }
+}
+
+/** For the Create dialog: lets it show each week's default due date before anything is made. */
+export async function getDueDateCalendar(courseId: string): Promise<DueDateCalendar | { error: string }> {
+  const access = await requireCourseInstructorAccess(courseId)
+  if (isCourseAccessError(access)) return { error: access.error }
+  return loadDueDateCalendar(createServiceSupabaseClient(), courseId)
+}
+
 /** The weeks of a course, marking which ones already hold a copy of this assignment. */
 export async function getSeriesInfo(assignmentId: string, courseId: string): Promise<SeriesInfo | { error: string }> {
   const auth = await requireStaffForAssignment(assignmentId, courseId)
@@ -197,6 +222,7 @@ export async function pushAssignmentToWeeks(params: {
   const targets = [...new Set(params.moduleIds)].filter(id => moduleById.has(id) && !weeksWithCopy.has(id))
   if (targets.length === 0) return { created: 0 }
 
+  const calendar = await loadDueDateCalendar(admin, params.courseId)
   const [{ data: checklist }, { data: skills }] = await Promise.all([
     admin.from('checklist_items').select('text, description, order, required').eq('assignment_id', source.id),
     admin.from('confidence_tracker_assignment_skills').select('skill_id').eq('assignment_id', source.id),
@@ -239,7 +265,13 @@ export async function pushAssignmentToWeeks(params: {
         linked_day_id: null,
         series_id: seriesId,
         order: count ?? 0,
-        due_date: copyDueDate(source.due_date, sourceModule.week_number, mod.week_number),
+        due_date: copyDueDate({
+          ...calendar,
+          dayName: sourceDay.day_name,
+          sourceDueDate: source.due_date,
+          fromWeek: sourceModule.week_number,
+          toWeek: mod.week_number,
+        }),
       })
       .select('id')
       .single()
@@ -400,7 +432,7 @@ export async function setGoalClaim(params: {
 
   const [{ data: enrollment }, { data: assignment }] = await Promise.all([
     admin.from('course_enrollments').select('role').eq('course_id', params.courseId).eq('user_id', user.id).maybeSingle(),
-    admin.from('assignments').select('published, goal_checkoff_label, deleted_at, submission_required').eq('id', params.assignmentId).single(),
+    admin.from('assignments').select('published, goal_checkoff_label, deleted_at').eq('id', params.assignmentId).single(),
   ])
   if (enrollment?.role !== 'student') return { error: 'Only students can check this' }
   if (!assignment?.published || assignment.deleted_at || !assignment.goal_checkoff_label) return { error: 'This assignment has no goal check-off' }
@@ -416,7 +448,7 @@ export async function setGoalClaim(params: {
     if (existing) return {}
     const { error } = await admin.from('assignment_goal_claims').insert({ assignment_id: params.assignmentId, student_id: user.id })
     if (error) return { error: error.message }
-    await queueForGrading(admin, params.assignmentId, user.id, assignment.submission_required !== false)
+    await queueForGrading(admin, params.assignmentId, user.id)
   } else {
     if (!existing) return {}
     if (existing.confirmed_at) return { error: 'Your instructor already confirmed this goal' }
@@ -432,7 +464,7 @@ export async function setGoalClaim(params: {
 // that is what lets un-checking or confirming put it back to 'graded' safely.
 
 /** Puts the student's work for this assignment back in the grader's to-grade queue. */
-async function queueForGrading(admin: Admin, assignmentId: string, studentId: string, submissionRequired: boolean) {
+async function queueForGrading(admin: Admin, assignmentId: string, studentId: string) {
   const { data: sub } = await admin
     .from('submissions')
     .select('id, status')
@@ -441,28 +473,21 @@ async function queueForGrading(admin: Admin, assignmentId: string, studentId: st
     .maybeSingle()
   if (sub?.status === 'graded') {
     await admin.from('submissions').update({ status: 'submitted' }).eq('id', sub.id)
-  } else if (!sub && !submissionRequired) {
-    // Check-off-only assignment: the same placeholder grading creates for these.
-    await admin.from('submissions').insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })
   }
-  // Not turned in yet (no submission, or a draft): it joins the queue when they turn it in.
+  // Not turned in yet (no submission, or a draft): nothing is created, so it stays missing
+  // once it's past due, and it joins the queue when they turn it in.
 }
 
 /** Takes a goal check back out of the queue: graded work goes back to graded. */
 async function unqueueForGrading(admin: Admin, assignmentId: string, studentId: string) {
   const { data: sub } = await admin
     .from('submissions')
-    .select('id, status, grade, content')
+    .select('id, status, grade')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
   if (sub?.status !== 'submitted') return
-  if (sub.grade) {
-    await admin.from('submissions').update({ status: 'graded' }).eq('id', sub.id)
-  } else if (sub.content === null) {
-    const { data: assignment } = await admin.from('assignments').select('submission_required').eq('id', assignmentId).single()
-    if (assignment?.submission_required === false) await admin.from('submissions').delete().eq('id', sub.id)
-  }
+  if (sub.grade) await admin.from('submissions').update({ status: 'graded' }).eq('id', sub.id)
 }
 
 /**

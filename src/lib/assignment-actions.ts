@@ -10,6 +10,7 @@ export async function createAssignment(params: {
   linkedDayId?: string | null
   skillTags?: string[]
   isBonus?: boolean
+  dueDate?: string | null
 }): Promise<{ data?: { id: string }; error?: string; code?: string }> {
   const admin = createServiceSupabaseClient()
 
@@ -30,6 +31,7 @@ export async function createAssignment(params: {
       linked_day_id: params.linkedDayId ?? null,
       skill_tags: params.skillTags ?? [],
       is_bonus: params.isBonus ?? false,
+      due_date: params.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(params.dueDate) ? params.dueDate : null,
     })
     .select('id')
     .single()

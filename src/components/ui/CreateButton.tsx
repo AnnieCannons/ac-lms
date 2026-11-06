@@ -8,7 +8,9 @@ import FileUpload from './FileUpload'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { createWiki } from '@/lib/wiki-actions'
 import { createAssignment } from '@/lib/assignment-actions'
-import { pushAssignmentToWeeks } from '@/lib/assignment-series-actions'
+import { pushAssignmentToWeeks, getDueDateCalendar, type DueDateCalendar } from '@/lib/assignment-series-actions'
+import { defaultDueDateFor, type DefaultDueDate } from '@/lib/assignment-series'
+import { formatDueDate } from '@/lib/date-utils'
 import { createResource } from '@/lib/resource-actions'
 import { createModule, createModuleDay } from '@/lib/module-actions'
 import { addSelfAsInstructor, getCourseName } from '@/lib/enrollment-actions'
@@ -77,6 +79,11 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   // Repeating assignment: the same assignment copied into other weeks (Course Outline only)
   const [repeats, setRepeats] = useState(false)
   const [repeatModuleIds, setRepeatModuleIds] = useState<string[]>([])
+
+  // Due date: defaults to the day after the chosen week + day (past holidays), editable
+  const [calendar, setCalendar] = useState<DueDateCalendar | null>(null)
+  const [dueDateInput, setDueDateInput] = useState('')
+  const [dueTouched, setDueTouched] = useState(false)
 
   // New module
   const [showNewModule, setShowNewModule] = useState(false)
@@ -176,6 +183,13 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     : allDaysForModule
   ).slice().sort((a, b) => a.order - b.order)
 
+  const selectedDayName = days.find(d => d.id === dayId)?.day_name ?? ''
+  const selectedWeek = modules.find(m => m.id === moduleId)?.week_number ?? null
+  const suggestedDue: DefaultDueDate | null = calendar && selectedDayName
+    ? defaultDueDateFor(calendar.courseStart, selectedWeek, selectedDayName, calendar.closures)
+    : null
+  const effectiveDueDate = dueTouched ? dueDateInput : (suggestedDue?.dueDate ?? '')
+
   // Default section/module/type to wherever the user actually clicked "+" from,
   // instead of always resetting to Course Outline (was showing the wrong module).
   const resolveDefaults = (mods: Module[]) => {
@@ -197,6 +211,9 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   }
 
   const handleOpen = async () => {
+    setDueTouched(false)
+    setDueDateInput('')
+    getDueDateCalendar(courseId).then(r => setCalendar('error' in r ? null : r))
     const { data, error: fetchError } = await supabase
       .from('modules')
       .select('id, title, order, week_number, category, skill_tags, module_days(id, day_name, order)')
@@ -333,7 +350,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         if (!resolvedDay) { setCreating(false); return }
         targetDayId = resolvedDay.id
       }
-      const result = await createAssignment({ moduleDayId: targetDayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up' })
+      const result = await createAssignment({ moduleDayId: targetDayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up', dueDate: section === 'level_up' ? null : (effectiveDueDate || null) })
       if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
       if (resolvedDay) onResourceCreated?.(resolvedModuleId, resolvedDay)
       if (result.error || !result.data) { setCreating(false); setError(result.error ?? 'Failed to create'); return }
@@ -474,6 +491,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                   .slice()
                   .sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0) || a.order - b.order)}
                 currentWeek={codingModules.find(m => m.id === moduleId)?.week_number ?? null}
+                dueFor={w => calendar && selectedDayName ? defaultDueDateFor(calendar.courseStart, w.week_number, selectedDayName, calendar.closures) : null}
                 selected={repeatModuleIds}
                 onSelectedChange={setRepeatModuleIds}
               />
@@ -519,6 +537,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                   onChange={e => {
                     setModuleId(e.target.value)
                     setDayId('')
+                    setDueTouched(false)
                     if (section === 'level_up') loadModuleTags(modules.find(m => m.id === e.target.value))
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
@@ -580,7 +599,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                 {days.length > 0 ? (
                   <select
                     value={dayId}
-                    onChange={e => setDayId(e.target.value)}
+                    onChange={e => { setDayId(e.target.value); setDueTouched(false) }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     {createType === 'assignment' && <option value="">— Select a day —</option>}
@@ -592,6 +611,30 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                 ) : (
                   <p className="text-xs text-muted-text">This module has no days. Add days to the module first.</p>
                 )}
+              </div>
+            )}
+
+            {/* Due date — defaults to the day after the chosen day, past weekends and holidays */}
+            {createType === 'assignment' && section !== 'level_up' && (
+              <div>
+                <label htmlFor="create-due-date" className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
+                  Due date <span className="normal-case font-normal text-muted-text">(optional)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="create-due-date"
+                    type="date"
+                    value={effectiveDueDate}
+                    onChange={e => { setDueDateInput(e.target.value); setDueTouched(true) }}
+                    className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  />
+                  {dueTouched && suggestedDue && dueDateInput !== suggestedDue.dueDate && (
+                    <button type="button" onClick={() => setDueTouched(false)} className="text-xs text-teal-primary hover:underline">
+                      Use {formatDueDate(suggestedDue.dueDate)}
+                    </button>
+                  )}
+                </div>
+                <DueDateNote due={suggestedDue} dayName={selectedDayName} edited={dueTouched} />
               </div>
             )}
 
@@ -860,11 +903,12 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
 // ─── One-time vs. repeating ─────────────────────────────────────────────────────────────
 
-function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, selected, onSelectedChange }: {
+function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, dueFor, selected, onSelectedChange }: {
   repeats: boolean
   onRepeatsChange: (v: boolean) => void
   weeks: Module[]
   currentWeek: number | null
+  dueFor: (week: Module) => DefaultDueDate | null
   selected: string[]
   onSelectedChange: (ids: string[]) => void
 }) {
@@ -895,7 +939,7 @@ function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, selected, 
       {repeats && (
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-xs text-muted-text">
-            Also add it to these weeks, on the same day, with the due date moved to match. You write it once, then push your changes to every week.
+            Also add it to these weeks, on the same day. Each week is due the day after its day (moved past weekends and holidays). You write it once, then push your changes to the following weeks.
           </p>
           <div className="flex gap-3 text-xs">
             {laterIds.length > 0 && (
@@ -914,16 +958,49 @@ function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, selected, 
           </div>
           <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-2 flex flex-col gap-1">
             {weeks.length === 0 && <p className="text-xs text-muted-text">No other weeks in this course yet.</p>}
-            {weeks.map(w => (
-              <label key={w.id} className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
-                <input type="checkbox" checked={selected.includes(w.id)} onChange={() => toggle(w.id)} className="accent-teal-primary" />
-                {w.title}
-              </label>
-            ))}
+            {weeks.map(w => {
+              const due = dueFor(w)
+              const note = closureNote(due)
+              return (
+                <label key={w.id} className="flex items-start gap-2 text-sm text-dark-text cursor-pointer">
+                  <input type="checkbox" checked={selected.includes(w.id)} onChange={() => toggle(w.id)} className="accent-teal-primary mt-1" />
+                  <span className="flex-1 min-w-0">
+                    {w.title}
+                    {due && <span className="block text-xs text-muted-text">Due {formatDueDate(due.dueDate)}</span>}
+                    {note && <span className="block text-xs text-amber-700">{note}</span>}
+                  </span>
+                </label>
+              )
+            })}
           </div>
           {selected.length === 0 && <p className="text-xs text-red-400">Pick at least one other week.</p>}
         </div>
       )}
     </fieldset>
+  )
+}
+
+// ─── Due date notes ─────────────────────────────────────────────────────────────────────
+
+/** "Labor Day is on Mon, Sep 7" / "Moved past Thanksgiving Week" — or null when nothing is in the way. */
+function closureNote(due: DefaultDueDate | null): string | null {
+  if (!due) return null
+  const parts: string[] = []
+  if (due.classDayClosure) parts.push(`${due.classDayClosure.label} is on ${formatDueDate(due.classDate)}`)
+  if (due.skipped.length > 0) parts.push(`due date moved past ${due.skipped.map(c => c.label).join(', ')}`)
+  if (parts.length === 0) return null
+  const text = parts.join('; ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+function DueDateNote({ due, dayName, edited }: { due: DefaultDueDate | null; dayName: string; edited: boolean }) {
+  if (!dayName) return <p className="text-xs text-muted-text mt-1">Pick a day to fill in the day after.</p>
+  if (!due) return <p className="text-xs text-muted-text mt-1">Couldn’t work out a date for this week (no course start date or week number). Pick one if you want.</p>
+  const note = closureNote(due)
+  return (
+    <>
+      {!edited && <p className="text-xs text-muted-text mt-1">The day after {dayName}, {formatDueDate(due.classDate)}.</p>}
+      {note && <p className="text-xs text-amber-700 mt-1">{note}</p>}
+    </>
   )
 }

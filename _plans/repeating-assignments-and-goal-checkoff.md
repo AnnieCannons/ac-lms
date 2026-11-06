@@ -8,12 +8,22 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 
 ## What it does
 
+### 0. Due dates (every assignment made from + Create)
+- You pick the week (module) and day, and the **Due date** fills in the day after that day, using the course start date and the module's week number.
+- It moves forward past weekends, holidays (`calendar_holidays`) and breaks (`calendar_breaks`): a Thursday is due Friday, and a Friday is due Monday.
+- A note says when it was moved past a holiday, or when the class day itself is a holiday. You can still change the date.
+- If the week can't be placed on the calendar (no start date, no week number, or a day that isn't a weekday name), the field is left blank for you to fill in.
+
+### Missing and scoring are unchanged
+- Each week is a normal assignment, so it's missing once past due with nothing turned in. An "incomplete" grade still counts toward the readiness score. Only a confirmed goal excuses later weeks.
+- Checking the goal box never creates a submission, so it doesn't stop work from counting as missing.
+
 ### 1. One-time or repeating, asked when you create an assignment
 - **+ Create → Assignment** now asks **How often?** first: **One-time** (the default) or **Repeats weekly**.
 - Repeats weekly shows a list of the course's other weeks, with **All later weeks** / **All weeks** shortcuts.
 - On create, the assignment is made in the chosen week, and a copy goes into each picked week:
   - on the same day name (the day is created if that week doesn't have it)
-  - with the due date moved by the gap in week numbers, at the same Pacific time across DST changes
+  - each due the day after its own day, past weekends, holidays and breaks (shown per week in the dialog). If a week can't be placed on the calendar, it falls back to this week's due date moved by the week gap.
 - It then opens straight in Edit. The other weeks start as blank copies until you push your content to them (see below).
 - Course Outline only. Career Dev and Level Up don't get the choice.
 
@@ -36,7 +46,6 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
   - can be unchecked until it's confirmed
 - **Grader:** checking the box puts the assignment back in the to-grade queue, with no bell and no Slack message:
   - Already-graded work flips to "submitted" and keeps its grade.
-  - A check-off-only assignment gets the usual placeholder submission.
   - Work that hasn't been turned in yet joins the queue when it's turned in.
   - Opening it shows a 🎯 banner, *"Ada checked that they met their goal. Please confirm it."*, with **Confirm & excuse later weeks**. Confirming takes already-graded work back out of the queue.
   - The submissions list shows a 🎯 *Says goal met* / *Goal met* pill.

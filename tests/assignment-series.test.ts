@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   compareOutlinePosition, membersAfter, shiftDueDateByWeeks, copyDueDate, weeksBetween, normalizeGoalLabel,
+  weekMonday, classDate, defaultDueDate, defaultDueDateFor,
   type OutlinePosition,
 } from '@/lib/assignment-series'
 
@@ -28,35 +29,74 @@ describe('membersAfter', () => {
   })
 })
 
-describe('shiftDueDateByWeeks', () => {
-  it('keeps no due date as no due date', () => {
-    expect(shiftDueDateByWeeks(null, 2)).toBeNull()
+describe('calendar placement', () => {
+  // Course starts Wed Jan 7 2026 → week 1 Monday is Jan 5
+  it('anchors week 1 to the Monday of the start week', () => {
+    expect(weekMonday('2026-01-07', 1)).toBe('2026-01-05')
+    expect(weekMonday('2026-01-07', 3)).toBe('2026-01-19')
   })
 
-  it('moves by whole weeks', () => {
-    // Fri Oct 2 2026, 11:59pm PDT
-    expect(shiftDueDateByWeeks('2026-10-03T06:59:00.000Z', 1)).toBe('2026-10-10T06:59:00.000Z')
+  it('finds the date of a weekday-named day, and nothing for non-weekday days', () => {
+    expect(classDate('2026-01-07', 2, 'Tuesday')).toBe('2026-01-13')
+    expect(classDate('2026-01-07', 2, 'Assignments')).toBeNull()
+    expect(classDate(null, 2, 'Tuesday')).toBeNull()
+    expect(classDate('2026-01-07', null, 'Tuesday')).toBeNull()
+  })
+})
+
+describe('defaultDueDate', () => {
+  it('is the day after', () => {
+    expect(defaultDueDate('2026-01-13', []).dueDate).toBe('2026-01-14')
   })
 
-  it('keeps the same Pacific wall time across the fall DST change', () => {
-    // Fri Oct 30 2026 11:59pm PDT → Fri Nov 6 2026 11:59pm PST (UTC offset changes by an hour)
-    expect(shiftDueDateByWeeks('2026-10-31T06:59:00.000Z', 1)).toBe('2026-11-07T07:59:00.000Z')
+  it('skips the weekend: a Thursday is due Friday, a Friday is due Monday', () => {
+    expect(defaultDueDate('2026-01-15', []).dueDate).toBe('2026-01-16')
+    expect(defaultDueDate('2026-01-16', []).dueDate).toBe('2026-01-19')
   })
 
-  it('can move backwards', () => {
-    expect(shiftDueDateByWeeks('2026-10-10T06:59:00.000Z', -1)).toBe('2026-10-03T06:59:00.000Z')
+  it('moves past a one-day holiday and says which', () => {
+    const mlk = { label: 'MLK Day', start: '2026-01-19', end: null }
+    const r = defaultDueDate('2026-01-16', [mlk])
+    expect(r.dueDate).toBe('2026-01-20')
+    expect(r.skipped).toEqual([mlk])
+  })
+
+  it('moves past a whole break week', () => {
+    const thanksgiving = { label: 'Thanksgiving Week', start: '2026-11-23', end: '2026-11-27' }
+    expect(defaultDueDate('2026-11-20', [thanksgiving]).dueDate).toBe('2026-11-30')
+  })
+
+  it('flags when the class day itself is a holiday', () => {
+    const labor = { label: 'Labor Day', start: '2026-09-07', end: null }
+    const r = defaultDueDate('2026-09-07', [labor])
+    expect(r.dueDate).toBe('2026-09-08')
+    expect(r.classDayClosure).toEqual(labor)
+    expect(r.skipped).toEqual([])
+  })
+
+  it('works from week + day name', () => {
+    expect(defaultDueDateFor('2026-01-07', 3, 'Friday', [{ label: 'MLK Day', start: '2026-01-26', end: null }])?.dueDate).toBe('2026-01-27')
+    expect(defaultDueDateFor('2026-01-07', 3, 'Wiki', [])).toBeNull()
   })
 })
 
 describe('copyDueDate', () => {
-  it('shifts by the difference in week numbers', () => {
-    expect(weeksBetween(1, 4)).toBe(3)
-    expect(copyDueDate('2026-10-03T06:59:00.000Z', 1, 3)).toBe('2026-10-17T06:59:00.000Z')
+  const base = { courseStart: '2026-01-07', closures: [], dayName: 'Tuesday', sourceDueDate: '2026-01-07', fromWeek: 1, toWeek: 4 }
+
+  it('uses the calendar default for the copy\'s own week', () => {
+    // week 4 Tuesday = Jan 27 → due Wed Jan 28
+    expect(copyDueDate(base)).toBe('2026-01-28')
   })
 
-  it('leaves the copy without a due date when either week has no number', () => {
-    expect(copyDueDate('2026-10-03T06:59:00.000Z', null, 3)).toBeNull()
-    expect(copyDueDate('2026-10-03T06:59:00.000Z', 1, null)).toBeNull()
+  it('falls back to moving the source date by the week gap when the calendar can\'t place it', () => {
+    expect(copyDueDate({ ...base, courseStart: null })).toBe('2026-01-28')
+    expect(shiftDueDateByWeeks('2026-01-07T00:00:00+00:00', 1)).toBe('2026-01-14')
+    expect(weeksBetween(1, 4)).toBe(3)
+  })
+
+  it('has no due date when neither works', () => {
+    expect(copyDueDate({ ...base, courseStart: null, toWeek: null })).toBeNull()
+    expect(copyDueDate({ ...base, courseStart: null, sourceDueDate: null })).toBeNull()
   })
 })
 
