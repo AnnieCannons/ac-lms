@@ -208,3 +208,39 @@ export function normalizeGoalLabel(label: string | null | undefined): string | n
   const trimmed = (label ?? '').trim().slice(0, 200)
   return trimmed === '' ? null : trimmed
 }
+
+// ── Which modules are course weeks ──────────────────────────────────────────────────────
+
+export type WeekCandidate = { id: string; title: string | null; week_number: number | null; order: number; published?: boolean | null }
+
+const titleWeek = (title: string | null) => {
+  const m = title?.trim().match(/^Week\s+(\d+)/i)
+  return m ? parseInt(m[1], 10) : null
+}
+
+/**
+ * The modules that are real course weeks, in week order: they need a week number, and when
+ * several modules share one (e.g. a stray "Extra?" module also saved as week 1), the one
+ * whose title says "Week N" wins. Modules titled "DO NOT PUBLISH" are never weeks.
+ */
+export function courseWeeks<T extends WeekCandidate>(modules: T[]): T[] {
+  const candidates = modules.filter(m => m.week_number != null && m.title && !m.title.includes('DO NOT PUBLISH'))
+  const byWeek = new Map<number, T[]>()
+  for (const m of candidates) byWeek.set(m.week_number!, [...(byWeek.get(m.week_number!) ?? []), m])
+  const weeks: T[] = []
+  for (const group of byWeek.values()) {
+    const titled = group.filter(m => titleWeek(m.title) === m.week_number)
+    weeks.push(...(titled.length > 0 ? titled : group))
+  }
+  return weeks.sort((a, b) => a.week_number! - b.week_number! || a.order - b.order)
+}
+
+/** The day name most copies of a series sit on (its usual day, ignoring holiday moves). */
+export function usualDayName(dayNames: string[]): string {
+  const counts = new Map<string, number>()
+  for (const d of dayNames) counts.set(d, (counts.get(d) ?? 0) + 1)
+  let best = ''
+  let bestCount = 0
+  for (const [d, c] of counts) if (c > bestCount) { best = d; bestCount = c }
+  return best
+}

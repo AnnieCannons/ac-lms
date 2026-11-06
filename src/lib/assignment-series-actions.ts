@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getAssignmentCourseId } from '@/lib/course-scope'
 import { requireCourseInstructorAccess, isCourseAccessError } from '@/lib/course-access'
-import { compareOutlinePosition, copyDueDate, membersAfter, normalizeGoalLabel, placeInWeek, type Closure, type OutlinePosition } from '@/lib/assignment-series'
+import { compareOutlinePosition, copyDueDate, courseWeeks, dayOffset, membersAfter, normalizeGoalLabel, placeInWeek, usualDayName, type Closure, type OutlinePosition } from '@/lib/assignment-series'
 
 type Admin = ReturnType<typeof createServiceSupabaseClient>
 
@@ -33,7 +33,7 @@ export type SeriesInfo = {
   weeks: SeriesWeek[]
 }
 
-type ModuleRow = { id: string; title: string | null; week_number: number | null; order: number; category: string | null }
+type ModuleRow = { id: string; title: string | null; week_number: number | null; order: number; category: string | null; published: boolean | null }
 type DayRow = { id: string; module_id: string; day_name: string; order: number }
 type AssignmentRow = {
   id: string; module_day_id: string; order: number; series_id: string | null; due_date: string | null; published: boolean
@@ -43,7 +43,7 @@ type AssignmentRow = {
 async function loadCourseOutline(admin: Admin, courseId: string, seriesId: string | null) {
   const { data: modules } = await admin
     .from('modules')
-    .select('id, title, week_number, order, category')
+    .select('id, title, week_number, order, category, published')
     .eq('course_id', courseId)
     .is('deleted_at', null)
   const mods = ((modules ?? []) as ModuleRow[]).filter(m => m.category !== 'career' && m.category !== 'level_up' && m.title)
@@ -154,7 +154,10 @@ export async function getSeriesInfo(assignmentId: string, courseId: string): Pro
     if (day && !copyByModule.has(day.module_id)) copyByModule.set(day.module_id, c as AssignmentRow)
   }
 
+  // Real course weeks, plus any other module that already holds a copy.
+  const realWeeks = new Set(courseWeeks(modules).map(m => m.id))
   const weeks: SeriesWeek[] = [...modules]
+    .filter(m => realWeeks.has(m.id) || copyByModule.has(m.id))
     .sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0) || a.order - b.order)
     .map(m => {
       const copy = copyByModule.get(m.id) ?? null
@@ -172,7 +175,9 @@ export async function getSeriesInfo(assignmentId: string, courseId: string): Pro
 
   return {
     seriesId: source.series_id,
-    dayName: sourceDay?.day_name ?? '',
+    // The series' usual day: what most copies sit on, so one week moved off a holiday
+    // doesn't change where new copies go.
+    dayName: usualDayName(copies.map(c => dayById.get(c.module_day_id)?.day_name ?? '').filter(Boolean)) || (sourceDay?.day_name ?? ''),
     goalLabel: source.goal_checkoff_label,
     weeks,
   }
@@ -201,6 +206,8 @@ export async function pushAssignmentToWeeks(params: {
   assignmentId: string
   courseId: string
   moduleIds: string[]
+  /** The usual weekday for the copies (defaults to this assignment's own day). */
+  dayName?: string
 }): Promise<PushResult> {
   const auth = await requireStaffForAssignment(params.assignmentId, params.courseId)
   if ('error' in auth) return { error: auth.error, code: auth.code }
@@ -226,6 +233,8 @@ export async function pushAssignmentToWeeks(params: {
   const sourceModule = sourceDay ? moduleById.get(sourceDay.module_id) : undefined
   if (!sourceDay || !sourceModule) return { error: 'This assignment is not in a course outline week' }
   if (SKIP_DAYS.has(sourceDay.day_name)) return { error: 'Move this assignment onto a day first' }
+  if (params.dayName && dayOffset(params.dayName) == null) return { error: 'Pick a weekday' }
+  const usualDay = params.dayName ?? sourceDay.day_name
 
   // Weeks that already hold a copy are skipped, so pushing twice never duplicates.
   const weeksWithCopy = new Set(members.map(m => dayById.get(m.module_day_id)?.module_id).filter(Boolean))
@@ -252,12 +261,12 @@ export async function pushAssignmentToWeeks(params: {
   for (const moduleId of targets) {
     const mod = moduleById.get(moduleId)!
     // Usually the same day; a holiday moves it to the day before (or skips a break week).
-    const placement = placeInWeek(calendar.courseStart, mod.week_number, sourceDay.day_name, calendar.closures)
+    const placement = placeInWeek(calendar.courseStart, mod.week_number, usualDay, calendar.closures)
     if (placement?.kind === 'skipped') {
       skipped.push({ week: mod.title ?? '', holiday: placement.closure.label })
       continue
     }
-    const dayName = placement?.dayName ?? sourceDay.day_name
+    const dayName = placement?.dayName ?? usualDay
     if (placement?.movedFrom) {
       moved.push({ week: mod.title ?? '', from: placement.movedFrom.dayName, to: dayName, holiday: placement.movedFrom.closure.label })
     }
@@ -289,7 +298,7 @@ export async function pushAssignmentToWeeks(params: {
         order: count ?? 0,
         due_date: placement ? placement.due.dueDate : copyDueDate({
           ...calendar,
-          dayName: sourceDay.day_name,
+          dayName: usualDay,
           sourceDueDate: source.due_date,
           fromWeek: sourceModule.week_number,
           toWeek: mod.week_number,

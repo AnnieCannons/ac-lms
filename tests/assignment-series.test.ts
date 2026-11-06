@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   compareOutlinePosition, membersAfter, shiftDueDateByWeeks, copyDueDate, weeksBetween, normalizeGoalLabel,
-  weekMonday, classDate, defaultDueDate, defaultDueDateFor, placeInWeek,
+  weekMonday, classDate, defaultDueDate, defaultDueDateFor, placeInWeek, courseWeeks, usualDayName,
   type OutlinePosition,
 } from '@/lib/assignment-series'
 
@@ -140,5 +140,30 @@ describe('normalizeGoalLabel', () => {
     expect(normalizeGoalLabel('  I met my typing goal  ')).toBe('I met my typing goal')
     expect(normalizeGoalLabel('   ')).toBeNull()
     expect(normalizeGoalLabel(null)).toBeNull()
+  })
+})
+
+describe('courseWeeks', () => {
+  // Shaped like Intro to Programming (May 2026): stored newest-first, with stray modules
+  // that also carry week numbers 1 and 2.
+  const mods = [
+    { id: 'res', title: 'Course Resources', week_number: null, order: 0 },
+    { id: 'extra', title: 'Extra?', week_number: 1, order: 1 },
+    { id: 'instr', title: 'Instructor Resources - DO NOT PUBLISH', week_number: 2, order: 2 },
+    { id: 'w3', title: 'Week 3: Grid', week_number: 3, order: 3 },
+    { id: 'w2', title: 'Week 2: More HTML and CSS', week_number: 2, order: 4 },
+    { id: 'w1', title: 'Week 1: HTML review', week_number: 1, order: 5 },
+    { id: 'lab', title: 'Lab week', week_number: 4, order: 6 },
+  ]
+
+  it('keeps real weeks in week order, preferring the module titled "Week N"', () => {
+    expect(courseWeeks(mods).map(m => m.id)).toEqual(['w1', 'w2', 'w3', 'lab'])
+  })
+})
+
+describe('usualDayName', () => {
+  it('is the day most copies sit on, so a holiday move does not change it', () => {
+    expect(usualDayName(['Thursday', 'Thursday', 'Wednesday', 'Thursday'])).toBe('Thursday')
+    expect(usualDayName([])).toBe('')
   })
 })

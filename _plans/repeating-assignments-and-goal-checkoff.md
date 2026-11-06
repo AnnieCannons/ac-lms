@@ -19,14 +19,19 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 - Checking the goal box never creates a submission, so it doesn't stop work from counting as missing.
 
 ### 1. One-time or repeating, asked when you create an assignment
-- **+ Create → Assignment** now asks **How often?** first: **One-time** (the default) or **Repeats weekly**.
-- Repeats weekly shows a list of the course's other weeks, with **All later weeks** / **All weeks** shortcuts.
-- On create, the assignment is made in the chosen week, and a copy goes into each picked week:
-  - on the same day name (the day is created if that week doesn't have it)
-  - if that week's day is a holiday (e.g. a Thursday typing test on Thanksgiving), that copy moves to the closest open day before it that week (Wednesday). If nothing earlier is open, it goes to the next open day that week, and a week that's a break all week is skipped. The dialog shows this per week, and "Add to more weeks" reports it.
+- **+ Create → Assignment** asks **How often?** first: **One-time** (the default) or **Repeats weekly**.
+- **One-time:** Section → Module → Day → Due date, as before.
+- **Repeats weekly** has no single module to pick. Instead you choose:
+  - **Which day?** Monday to Friday.
+  - **Which weeks?** The course's real week modules in week order. Every published week starts checked, and unpublished ones (e.g. a Lab/Career week) are listed unchecked.
+- A "real week" is a module with a week number. If two share a number, the one titled "Week N" wins, so a stray "Extra?" saved as week 1 isn't listed.
+- Each week shows its date and due date, plus a note when a holiday moved it or a break skipped it.
+- On create:
+  - the assignment is made in the first chosen week and copied to the rest, on the chosen day (the day is added to a week if it's missing)
+  - a holiday on that day moves that week to the closest open day before it; a week that's a break all week is skipped
+  - each is due the day after, past weekends, holidays and breaks; if a week can't be placed on the calendar, it falls back to the first week's due date moved by the week gap
   - every copy is still its own assignment, so you can drag any week to another day or change its due date afterwards. Pushing content to following weeks never changes a week's day or due date.
-  - each due the day after its own day, past weekends, holidays and breaks (shown per week in the dialog). If a week can't be placed on the calendar, it falls back to this week's due date moved by the week gap.
-- It then opens straight in Edit. The other weeks start as blank copies until you push your content to them (see below).
+- It then opens straight in Edit. The other weeks start as blank copies until you push your content to them.
 - Course Outline only. Career Dev and Level Up don't get the choice.
 
 ### 2. Each copy is its own assignment, linked by `series_id`

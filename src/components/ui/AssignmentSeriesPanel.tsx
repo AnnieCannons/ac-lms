@@ -7,6 +7,7 @@ import {
   type SeriesInfo,
 } from '@/lib/assignment-series-actions'
 import { formatDueDate } from '@/lib/date-utils'
+import { dayOffset } from '@/lib/assignment-series'
 
 interface Props {
   courseId: string
@@ -50,7 +51,7 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
     router.refresh()
   }
 
-  const addWeeks = () => run('add', () => pushAssignmentToWeeks({ assignmentId, courseId, moduleIds: selected }), r => {
+  const addWeeks = () => run('add', () => pushAssignmentToWeeks({ assignmentId, courseId, moduleIds: selected, dayName: dayOffset(info.dayName) != null ? info.dayName : undefined }), r => {
     setAdding(false); setSelected([])
     const moved = (r.moved ?? []) as { week: string; from: string; to: string; holiday: string }[]
     const skipped = (r.skipped ?? []) as { week: string; holiday: string }[]
