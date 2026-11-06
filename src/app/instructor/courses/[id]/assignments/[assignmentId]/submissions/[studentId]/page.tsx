@@ -18,6 +18,7 @@ import { resolveMyStudentIds } from '@/lib/grading-utils'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 import LocalDateTime from '@/components/ui/LocalDateTime'
 import UserAvatar from '@/components/ui/UserAvatar'
+import GoalClaimReview from '@/components/ui/GoalClaimReview'
 
 type SubmissionType = 'text' | 'link' | 'file'
 
@@ -61,7 +62,7 @@ export default async function GradingPage({
 
   const { data: assignment } = await admin
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required, grader_id, module_days!module_day_id(module_id)')
+    .select('id, title, description, how_to_turn_in, due_date, answer_key_url, submission_required, grader_id, series_id, goal_checkoff_label, module_days!module_day_id(module_id)')
     .eq('id', assignmentId)
     .single()
 
@@ -78,6 +79,14 @@ export default async function GradingPage({
     .select('id, name, avatar_url')
     .eq('id', studentId)
     .single()
+
+  // The student's "I met my goal" check, flagged for the grader to confirm
+  const { data: goalClaim } = await admin
+    .from('assignment_goal_claims')
+    .select('claimed_at, confirmed_at, excused_assignment_ids')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', studentId)
+    .maybeSingle()
 
   // Fetch all enrolled students + all submissions to build navigation
   const [{ data: enrollments }, { data: allSubmissions }] = await Promise.all([
@@ -499,6 +508,20 @@ export default async function GradingPage({
         </div>
 
         <div className="flex flex-col gap-6">
+          {goalClaim && (
+            <GoalClaimReview
+              assignmentId={assignmentId}
+              courseId={id}
+              studentId={studentId}
+              studentName={student?.name ?? 'Student'}
+              label={assignment.goal_checkoff_label ?? 'I met my goal'}
+              claimedAt={goalClaim.claimed_at}
+              confirmedAt={goalClaim.confirmed_at}
+              excusedCount={goalClaim.excused_assignment_ids?.length ?? 0}
+              repeats={!!assignment.series_id}
+            />
+          )}
+
           {/* Assignment instructions (collapsed reference) */}
           {assignment.description && (
             <details className="bg-surface rounded-2xl border border-border p-6 group">

@@ -6,6 +6,7 @@ import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import AssignmentViewEdit from "@/components/ui/AssignmentViewEdit";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
 import { getAssignmentCourseId } from "@/lib/course-scope";
+import { getSeriesInfo } from "@/lib/assignment-series-actions";
 
 export const dynamic = 'force-dynamic'
 
@@ -94,6 +95,9 @@ export default async function InstructorAssignmentEditPage({
       || a.order - b.order
   }).map(a => ({ id: a.id, title: a.title }))
 
+  const series = await getSeriesInfo(assignmentId, id)
+  const seriesInfo = 'error' in series ? null : series
+
   const currentIndex = orderedAssignments.findIndex(a => a.id === assignmentId)
   const prevAssignment = currentIndex > 0 ? orderedAssignments[currentIndex - 1] : null
   const nextAssignment = currentIndex < orderedAssignments.length - 1 ? orderedAssignments[currentIndex + 1] : null
@@ -119,6 +123,7 @@ export default async function InstructorAssignmentEditPage({
               initialOverrides={initialOverrides}
               prevAssignment={prevAssignment}
               nextAssignment={nextAssignment}
+              seriesInfo={seriesInfo}
             />
           </main>
         </div>

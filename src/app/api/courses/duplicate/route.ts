@@ -192,8 +192,18 @@ export async function POST(req: NextRequest) {
       linked_day_id: remapLinkedDay(r.linked_day_id),
     })))
 
+    // Repeating-assignment series get fresh ids, so the copy's weeks link to each other
+    // and never to the original course's.
+    const seriesIdMap = new Map<string, string>()
+    const remapSeries = (id: string | null | undefined) => {
+      if (!id) return null
+      if (!seriesIdMap.has(id)) seriesIdMap.set(id, crypto.randomUUID())
+      return seriesIdMap.get(id)!
+    }
+
     // Grader and Canvas ids are per-cohort, so they start fresh
     const newAssignments = await insertAll('assignments', assignments.map(a => copyRow(a, {
+      series_id: remapSeries(a.series_id),
       module_day_id: dayIdMap.get(a.module_day_id)!,
       linked_day_id: remapLinkedDay(a.linked_day_id),
       due_date: shiftDueDate(a.due_date),

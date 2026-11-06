@@ -8,6 +8,7 @@ import FileUpload from './FileUpload'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { createWiki } from '@/lib/wiki-actions'
 import { createAssignment } from '@/lib/assignment-actions'
+import { pushAssignmentToWeeks } from '@/lib/assignment-series-actions'
 import { createResource } from '@/lib/resource-actions'
 import { createModule, createModuleDay } from '@/lib/module-actions'
 import { addSelfAsInstructor, getCourseName } from '@/lib/enrollment-actions'
@@ -72,6 +73,10 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   const [assignmentCustomTags, setAssignmentCustomTags] = useState<string[]>([])
   const [showAssignmentCustomTag, setShowAssignmentCustomTag] = useState(false)
   const [assignmentCustomTagInput, setAssignmentCustomTagInput] = useState('')
+
+  // Repeating assignment: the same assignment copied into other weeks (Course Outline only)
+  const [repeats, setRepeats] = useState(false)
+  const [repeatModuleIds, setRepeatModuleIds] = useState<string[]>([])
 
   // New module
   const [showNewModule, setShowNewModule] = useState(false)
@@ -331,10 +336,17 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
       const result = await createAssignment({ moduleDayId: targetDayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up' })
       if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
       if (resolvedDay) onResourceCreated?.(resolvedModuleId, resolvedDay)
+      if (result.error || !result.data) { setCreating(false); setError(result.error ?? 'Failed to create'); return }
+      const isRepeating = repeats && section === 'coding' && repeatModuleIds.length > 0
+      if (isRepeating) {
+        const pushed = await pushAssignmentToWeeks({ assignmentId: result.data.id, courseId, moduleIds: repeatModuleIds })
+        if (pushed.error) { setCreating(false); setError(`Created, but copying to other weeks failed: ${pushed.error}`); return }
+      }
       setCreating(false)
-      if (result.error || !result.data) { setError(result.error ?? 'Failed to create'); return }
       setOpen(false)
-      router.push(`/instructor/courses/${courseId}/assignments/${result.data.id}`)
+      // A repeating assignment opens straight in Edit: the other weeks are blank copies
+      // until the content is written once and pushed to them.
+      router.push(`/instructor/courses/${courseId}/assignments/${result.data.id}${isRepeating ? '?edit=1' : ''}`)
 
     } else if (createType === 'resource') {
       if (!resTitle.trim()) { setError('Please enter a title.'); setCreating(false); return }
@@ -396,6 +408,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
 
   const hasModule = !!moduleId || !!newModuleTitle.trim()
   const isValid = hasModule && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId || section === 'level_up')
+    && !(createType === 'assignment' && section === 'coding' && repeats && repeatModuleIds.length === 0)
 
   return (
     <>
@@ -450,6 +463,21 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                 ))}
               </div>
             </div>
+
+            {/* One-time or repeating — asked first for Course Outline assignments */}
+            {createType === 'assignment' && section === 'coding' && (
+              <RepeatChoice
+                repeats={repeats}
+                onRepeatsChange={setRepeats}
+                weeks={codingModules
+                  .filter(m => m.id !== moduleId)
+                  .slice()
+                  .sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0) || a.order - b.order)}
+                currentWeek={codingModules.find(m => m.id === moduleId)?.week_number ?? null}
+                selected={repeatModuleIds}
+                onSelectedChange={setRepeatModuleIds}
+              />
+            )}
 
             {/* Section filter */}
             {showSectionFilter && (
@@ -827,5 +855,75 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         </div>
       )}
     </>
+  )
+}
+
+// ─── One-time vs. repeating ─────────────────────────────────────────────────────────────
+
+function RepeatChoice({ repeats, onRepeatsChange, weeks, currentWeek, selected, onSelectedChange }: {
+  repeats: boolean
+  onRepeatsChange: (v: boolean) => void
+  weeks: Module[]
+  currentWeek: number | null
+  selected: string[]
+  onSelectedChange: (ids: string[]) => void
+}) {
+  const toggle = (id: string) =>
+    onSelectedChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+  const laterIds = weeks.filter(w => currentWeek != null && (w.week_number ?? -Infinity) > currentWeek).map(w => w.id)
+
+  return (
+    <fieldset>
+      <legend className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">How often?</legend>
+      <div className="flex gap-2">
+        {([false, true] as const).map(v => (
+          <button
+            key={String(v)}
+            type="button"
+            aria-pressed={repeats === v}
+            onClick={() => onRepeatsChange(v)}
+            className={`flex-1 text-xs font-semibold py-2 rounded-full border transition-colors ${
+              repeats === v
+                ? 'bg-teal-primary text-white border-teal-primary'
+                : 'border-border text-muted-text hover:text-dark-text hover:border-dark-text/40'
+            }`}
+          >
+            {v ? 'Repeats weekly' : 'One-time'}
+          </button>
+        ))}
+      </div>
+      {repeats && (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-xs text-muted-text">
+            Also add it to these weeks, on the same day, with the due date moved to match. You write it once, then push your changes to every week.
+          </p>
+          <div className="flex gap-3 text-xs">
+            {laterIds.length > 0 && (
+              <button type="button" className="text-teal-primary hover:underline" onClick={() => onSelectedChange(laterIds)}>
+                All later weeks
+              </button>
+            )}
+            <button type="button" className="text-teal-primary hover:underline" onClick={() => onSelectedChange(weeks.map(w => w.id))}>
+              All weeks
+            </button>
+            {selected.length > 0 && (
+              <button type="button" className="text-muted-text hover:underline" onClick={() => onSelectedChange([])}>
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-2 flex flex-col gap-1">
+            {weeks.length === 0 && <p className="text-xs text-muted-text">No other weeks in this course yet.</p>}
+            {weeks.map(w => (
+              <label key={w.id} className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
+                <input type="checkbox" checked={selected.includes(w.id)} onChange={() => toggle(w.id)} className="accent-teal-primary" />
+                {w.title}
+              </label>
+            ))}
+          </div>
+          {selected.length === 0 && <p className="text-xs text-red-400">Pick at least one other week.</p>}
+        </div>
+      )}
+    </fieldset>
   )
 }

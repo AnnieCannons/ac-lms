@@ -135,6 +135,25 @@ An assignment attached to a module day.
 | `is_bonus` | boolean | Default: false — bonus assignments appear only in Level Up, not in the main Assignments list or grades unless completed |
 | `grader_id` | uuid | FK → users, nullable — overrides the grader for this assignment; if null, falls back to the student's grading group assignment |
 | `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
+| `series_id` | uuid | Nullable — links the weekly copies of a repeating assignment (no FK; a series is just its members). Each copy keeps its own due date and grades |
+| `goal_checkoff_label` | text | Nullable — when set, students see an "I met my goal" checkbox with this label (see `assignment_goal_claims`) |
+
+---
+
+### assignment_goal_claims
+A student's "I met my goal" check on an assignment, and the grader's confirmation. Confirming excuses the student (via `assignment_overrides.excused`) from every later assignment in the same series.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `claimed_at` | timestamptz | Default: now() |
+| `confirmed_at` | timestamptz | Nullable — set when a grader confirms |
+| `confirmed_by` | uuid | FK → users, nullable |
+| `excused_assignment_ids` | uuid[] | The later weeks this confirmation excused, so undo removes only those |
+
+Unique constraint on `(assignment_id, student_id)`. Students can read their own rows; writes go through server actions.
 
 ---
 

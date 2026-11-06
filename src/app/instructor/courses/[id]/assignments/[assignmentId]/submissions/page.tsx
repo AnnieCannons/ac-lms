@@ -60,6 +60,12 @@ export default async function InstructorSubmissionsPage({
 
   const submissionMap = new Map((submissions ?? []).map(s => [s.student_id, s]))
 
+  const { data: goalClaims } = await admin
+    .from('assignment_goal_claims')
+    .select('student_id, confirmed_at')
+    .eq('assignment_id', assignmentId)
+  const goalByStudent = new Map((goalClaims ?? []).map(c => [c.student_id, c.confirmed_at ? 'confirmed' as const : 'claimed' as const]))
+
   const students: StudentRow[] = (enrollments ?? [])
     .map(e => {
       const u = Array.isArray(e.users) ? e.users[0] : e.users
@@ -70,6 +76,7 @@ export default async function InstructorSubmissionsPage({
         submission: sub as StudentRow['submission'],
         historyCount: historyCountByStudent.get(e.user_id) ?? 0,
         latestSubmittedAt: sub?.submitted_at ?? null,
+        goal: goalByStudent.get(e.user_id) ?? null,
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name))

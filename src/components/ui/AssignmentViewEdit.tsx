@@ -6,6 +6,8 @@ import HtmlContent from './HtmlContent'
 import AssignmentEditor from './AssignmentEditor'
 import InlineDueDatePicker from './InlineDueDatePicker'
 import { formatDueDate } from '@/lib/date-utils'
+import AssignmentSeriesPanel from './AssignmentSeriesPanel'
+import type { SeriesInfo } from '@/lib/assignment-series-actions'
 
 interface ChecklistItem {
   id: string
@@ -45,6 +47,7 @@ interface Props {
   initialOverrides: Override[]
   prevAssignment?: { id: string; title: string } | null
   nextAssignment?: { id: string; title: string } | null
+  seriesInfo?: SeriesInfo | null
 }
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
@@ -61,11 +64,12 @@ function decodeHtml(str: string) {
   return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
 }
 
-export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment }: Props) {
+export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment, seriesInfo }: Props) {
   const searchParams = useSearchParams()
   const [editing, setEditing] = useState(searchParams.get('edit') === '1')
   const [assignment, setAssignment] = useState(initialAssignment)
   const [checklist, setChecklist] = useState(initialChecklist)
+  const [justSaved, setJustSaved] = useState(false)
 
   // Previous/Next replace the history entry, so "← Back" (and the browser back
   // button) return to wherever the instructor opened the first assignment from.
@@ -111,6 +115,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             if (updated) setAssignment(prev => ({ ...prev, ...updated }))
             if (updatedChecklist) setChecklist(updatedChecklist)
             setEditing(false)
+            setJustSaved(true)
           }}
         />
         {navBar}
@@ -160,6 +165,16 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
           </button>
         </div>
       </div>
+
+      {seriesInfo && (
+        <AssignmentSeriesPanel
+          courseId={courseId}
+          assignmentId={assignment.id}
+          info={seriesInfo}
+          justSaved={justSaved}
+          onDismissSaved={() => setJustSaved(false)}
+        />
+      )}
 
       {/* Skill tags */}
       {assignment.skill_tags && assignment.skill_tags.length > 0 && (
