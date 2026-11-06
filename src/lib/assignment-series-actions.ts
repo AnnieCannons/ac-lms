@@ -287,8 +287,9 @@ async function excuseNewCopiesForConfirmedGoals(admin: Admin, courseId: string, 
 
 /**
  * Copies this assignment's content (title, instructions, how to turn in, settings,
- * checklist, goal check-off) onto the other weeks of its series that nobody has turned
- * anything in for yet. Due dates and published state are left alone.
+ * checklist, goal check-off) onto the following weeks of its series (later in the course
+ * outline) that nobody has turned anything in for yet. Earlier weeks are never touched.
+ * Due dates and published state are left alone.
  */
 export async function updateUpcomingWeeks(params: {
   assignmentId: string
@@ -306,7 +307,7 @@ export async function updateUpcomingWeeks(params: {
   if (!source?.series_id) return { error: 'This assignment does not repeat' }
 
   const positions = await seriesPositions(admin, params.courseId, source.series_id)
-  const others = positions.map(p => p.id).filter(id => id !== source.id)
+  const others = membersAfter(source.id, positions).map(p => p.id)
   const withWork = await assignmentsWithWork(admin, others)
   const targets = others.filter(id => !withWork.has(id))
 
@@ -399,7 +400,7 @@ export async function setGoalClaim(params: {
 
   const [{ data: enrollment }, { data: assignment }] = await Promise.all([
     admin.from('course_enrollments').select('role').eq('course_id', params.courseId).eq('user_id', user.id).maybeSingle(),
-    admin.from('assignments').select('published, goal_checkoff_label, deleted_at').eq('id', params.assignmentId).single(),
+    admin.from('assignments').select('published, goal_checkoff_label, deleted_at, submission_required').eq('id', params.assignmentId).single(),
   ])
   if (enrollment?.role !== 'student') return { error: 'Only students can check this' }
   if (!assignment?.published || assignment.deleted_at || !assignment.goal_checkoff_label) return { error: 'This assignment has no goal check-off' }
@@ -415,13 +416,53 @@ export async function setGoalClaim(params: {
     if (existing) return {}
     const { error } = await admin.from('assignment_goal_claims').insert({ assignment_id: params.assignmentId, student_id: user.id })
     if (error) return { error: error.message }
+    await queueForGrading(admin, params.assignmentId, user.id, assignment.submission_required !== false)
   } else {
     if (!existing) return {}
     if (existing.confirmed_at) return { error: 'Your instructor already confirmed this goal' }
     const { error } = await admin.from('assignment_goal_claims').delete().eq('id', existing.id)
     if (error) return { error: error.message }
+    await unqueueForGrading(admin, params.assignmentId, user.id)
   }
   return {}
+}
+
+// The to-grade queue is submissions with status 'submitted'. A student resubmitting clears
+// the grade, so 'submitted' with a grade still on it only ever comes from a goal check:
+// that is what lets un-checking or confirming put it back to 'graded' safely.
+
+/** Puts the student's work for this assignment back in the grader's to-grade queue. */
+async function queueForGrading(admin: Admin, assignmentId: string, studentId: string, submissionRequired: boolean) {
+  const { data: sub } = await admin
+    .from('submissions')
+    .select('id, status')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (sub?.status === 'graded') {
+    await admin.from('submissions').update({ status: 'submitted' }).eq('id', sub.id)
+  } else if (!sub && !submissionRequired) {
+    // Check-off-only assignment: the same placeholder grading creates for these.
+    await admin.from('submissions').insert({ assignment_id: assignmentId, student_id: studentId, submission_type: 'text', content: null, status: 'submitted' })
+  }
+  // Not turned in yet (no submission, or a draft): it joins the queue when they turn it in.
+}
+
+/** Takes a goal check back out of the queue: graded work goes back to graded. */
+async function unqueueForGrading(admin: Admin, assignmentId: string, studentId: string) {
+  const { data: sub } = await admin
+    .from('submissions')
+    .select('id, status, grade, content')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (sub?.status !== 'submitted') return
+  if (sub.grade) {
+    await admin.from('submissions').update({ status: 'graded' }).eq('id', sub.id)
+  } else if (sub.content === null) {
+    const { data: assignment } = await admin.from('assignments').select('submission_required').eq('id', assignmentId).single()
+    if (assignment?.submission_required === false) await admin.from('submissions').delete().eq('id', sub.id)
+  }
 }
 
 /**
@@ -472,6 +513,15 @@ export async function confirmGoalClaim(params: {
       .update({ confirmed_at: new Date().toISOString(), confirmed_by: userId, excused_assignment_ids: toExcuse })
       .eq('id', claim.id)
     if (error) return { error: error.message }
+    // Already-graded work only came back to the queue for this check: confirming clears it.
+    // Work that was never graded stays in the queue for a normal Complete/Incomplete.
+    await admin
+      .from('submissions')
+      .update({ status: 'graded' })
+      .eq('assignment_id', params.assignmentId)
+      .eq('student_id', params.studentId)
+      .eq('status', 'submitted')
+      .not('grade', 'is', null)
     revalidatePath(`/instructor/courses/${params.courseId}`, 'layout')
     revalidatePath(`/student/courses/${params.courseId}`, 'layout')
     return { excused: toExcuse.length }

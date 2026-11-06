@@ -21,8 +21,9 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 - Every week keeps its own due date, submissions, extensions and gradebook column. Missing, late and readiness work the same as they do now.
 - A **Repeats weekly** card on the instructor assignment page lists every week with its due date and Draft/Published state. It also has:
   - **+ Add to more weeks** (or **Make this repeat…** on a one-time assignment): turns any existing assignment into a repeating one.
-  - **Copy this week's content to the other weeks**: copies the title, instructions, how to turn in, settings, checklist and goal checkbox. It never changes due dates or published state, and skips any week where someone has already turned something in.
-  - After you **Save** an edit, a banner asks: *"Update the N other weeks with these changes too?"*
+  - After you **Save** an edit, a banner asks where the changes go: **This week only** or **This week and following weeks**. Following weeks get the title, instructions, how to turn in, settings, checklist and goal checkbox. Earlier weeks are never changed, due dates and published state are never changed, and any week where someone has already turned something in is skipped.
+  - **Copy this week's content to the following weeks** does the same thing at any time.
+  - Weeks are published one by one, as before.
   - **Stop this week repeating**: unlinks one week, which stays as a regular assignment.
 - Checklist items are matched by position, so a student's own checks on unchanged items are kept.
 - Duplicating a course gives its series new ids, so the copy's weeks never link back to the original course.
@@ -33,7 +34,12 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
   - drops confetti (skipped when the device asks for reduced motion)
   - says *"Your instructor will see this when they grade and confirm it."*
   - can be unchecked until it's confirmed
-- **Grader:** the grading page shows a 🎯 banner, *"Ada says they met their goal"*, with **Confirm & excuse later weeks**. The submissions list shows a 🎯 *Says goal met* / *Goal met* pill.
+- **Grader:** checking the box puts the assignment back in the to-grade queue, with no bell and no Slack message:
+  - Already-graded work flips to "submitted" and keeps its grade.
+  - A check-off-only assignment gets the usual placeholder submission.
+  - Work that hasn't been turned in yet joins the queue when it's turned in.
+  - Opening it shows a 🎯 banner, *"Ada checked that they met their goal. Please confirm it."*, with **Confirm & excuse later weeks**. Confirming takes already-graded work back out of the queue.
+  - The submissions list shows a 🎯 *Says goal met* / *Goal met* pill.
 
 ### 4. Confirming excuses the later weeks
 - Confirming sets `assignment_overrides.excused = true` for that student on every **later** week of the series, by course outline order. It uses the excusal that already exists, so the gradebook shows EX and missing/late/readiness skip those weeks with no new logic.
@@ -64,8 +70,5 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 6. Try **Undo confirmation** and check that the EX goes away.
 
 ## Open questions / possible follow-ups
-- **Auto-sync vs. ask:** edits currently ask before updating the other weeks. They could update the upcoming weeks automatically instead.
-- **Publishing:** copies start unpublished, same as the existing Duplicate. "Publish all weeks" could be one click.
-- **Notifications:** the grader is told only on the grading page and in the submissions list. There's no bell or Slack message, and the student gets no notification when their goal is confirmed. Either would be small to add.
 - **Different targets per student:** the goal is the student's own (e.g. their WPM target). Nothing records the number itself.
 - Not shown in the CourseEditor outline yet: a small ↻ badge on repeating assignments would help.

@@ -26,8 +26,10 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
   const copies = info.weeks.filter(w => w.assignmentId)
   const repeats = info.seriesId !== null && copies.length > 1
   const openWeeks = info.weeks.filter(w => !w.assignmentId)
-  const others = copies.filter(w => !w.isCurrent)
-  const upcoming = others.filter(w => !w.hasWork)
+  // info.weeks is in course order, so the weeks after this one are the "following" weeks.
+  const currentIndex = copies.findIndex(w => w.isCurrent)
+  const following = copies.slice(currentIndex + 1)
+  const upcoming = following.filter(w => !w.hasWork)
 
   const [adding, setAdding] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
@@ -56,7 +58,7 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
   const pushChanges = () => run('push', () => updateUpcomingWeeks({ assignmentId, courseId }), r => {
     onDismissSaved()
     const skipped = Number(r.skipped ?? 0)
-    return `Updated ${r.updated} week${r.updated === 1 ? '' : 's'}.` +
+    return `Updated this week and the ${r.updated} following week${r.updated === 1 ? '' : 's'}.` +
       (skipped ? ` ${skipped} week${skipped === 1 ? '' : 's'} with turned-in work ${skipped === 1 ? 'was' : 'were'} left as is.` : '')
   })
 
@@ -72,16 +74,19 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
   return (
     <div className="flex flex-col gap-6">
       {repeats && justSaved && upcoming.length > 0 && (
-        <div role="status" className="rounded-2xl border border-teal-primary bg-teal-light p-4 flex items-center justify-between gap-4 flex-wrap">
-          <p className="text-sm text-dark-text">
-            Saved. Update the {upcoming.length} other week{upcoming.length === 1 ? '' : 's'} with these changes too?
-          </p>
-          <div className="flex gap-2">
-            <button type="button" onClick={pushChanges} disabled={busy !== null} className={BTN}>
-              {busy === 'push' ? 'Updating…' : `Update ${upcoming.length} week${upcoming.length === 1 ? '' : 's'}`}
+        <div role="group" aria-label="Apply your changes to" className="rounded-2xl border border-teal-primary bg-teal-light p-4 flex flex-col gap-3">
+          <p className="text-sm text-dark-text font-semibold">Saved. Apply these changes to:</p>
+          <div className="flex gap-2 flex-wrap">
+            <button type="button" onClick={onDismissSaved} disabled={busy !== null} className={BTN}>
+              This week only
             </button>
-            <button type="button" onClick={onDismissSaved} className="text-sm text-muted-text hover:text-dark-text px-2">Not now</button>
+            <button type="button" onClick={pushChanges} disabled={busy !== null} className={BTN}>
+              {busy === 'push' ? 'Updating…' : `This week and following weeks (${upcoming.length} more)`}
+            </button>
           </div>
+          {following.length > upcoming.length && (
+            <p className="text-xs text-muted-text">Following weeks where someone already turned something in are left as they are.</p>
+          )}
         </div>
       )}
 
@@ -91,7 +96,7 @@ export default function AssignmentSeriesPanel({ courseId, assignmentId, info, ju
           <p className={LABEL}>{repeats ? `Repeats weekly (${copies.length} weeks)` : 'One-time assignment'}</p>
           {repeats && upcoming.length > 0 && !justSaved && (
             <button type="button" onClick={pushChanges} disabled={busy !== null} className="text-xs text-teal-primary hover:underline disabled:opacity-50">
-              {busy === 'push' ? 'Updating…' : 'Copy this week’s content to the other weeks'}
+              {busy === 'push' ? 'Updating…' : 'Copy this week’s content to the following weeks'}
             </button>
           )}
         </div>

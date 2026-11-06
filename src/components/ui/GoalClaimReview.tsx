@@ -39,7 +39,7 @@ export default function GoalClaimReview({ assignmentId, courseId, studentId, stu
         <span aria-hidden="true" className="text-2xl leading-none">🎯</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-dark-text">
-            {confirmedAt ? `You confirmed ${first} met their goal` : `${first} says they met their goal`}
+            {confirmedAt ? `You confirmed ${first} met their goal` : `${first} checked that they met their goal. Please confirm it.`}
           </p>
           <p className="text-sm text-dark-text mt-0.5">“{label}”</p>
           <p className="text-xs text-muted-text mt-1">

@@ -22,7 +22,7 @@ beforeEach(() => {
 describe('GoalClaimReview', () => {
   it('flags the claim and confirms it, excusing later weeks', async () => {
     render(<GoalClaimReview {...base} />)
-    expect(screen.getByText('Ada says they met their goal')).toBeInTheDocument()
+    expect(screen.getByText('Ada checked that they met their goal. Please confirm it.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Confirm & excuse later weeks' }))
     expect(confirmGoalClaim).toHaveBeenCalledWith({ assignmentId: 'a1', courseId: 'c1', studentId: 's1', confirmed: true })
     expect(refresh).toHaveBeenCalled()
