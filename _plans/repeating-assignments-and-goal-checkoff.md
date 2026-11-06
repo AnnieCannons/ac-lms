@@ -1,6 +1,6 @@
 # Repeating assignments + "I met my goal" check-off
 
-**Branch:** `claude/feat/repeating-assignments-goal-checkoff` (branched from `claude/feat/gradebook-excused-marker`, so the gradebook shows excused weeks as a blue **EX**)
+**Branch:** `claude/feat/repeating-assignments-goal-checkoff` (builds on the gradebook's blue **EX** for excused weeks, PR #231)
 **Status:** built, not deployed. Needs the migration before any page that uses it will load.
 
 ## Why
@@ -70,7 +70,7 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 
 ## Code
 - `src/lib/assignment-series.ts`: pure rules (outline order, "later weeks", due-date shifting, label cleanup), tested in `tests/assignment-series.test.ts`
-- `src/lib/assignment-series-actions.ts`: `getSeriesInfo`, `pushAssignmentToWeeks`, `updateUpcomingWeeks`, `leaveSeries`, `setGoalCheckoff`, `setGoalClaim` (student), `confirmGoalClaim` (staff/TA)
+- `src/lib/assignment-series-actions.ts`: `getSeriesInfo`, `pushAssignmentToWeeks`, `updateUpcomingWeeks`, `leaveSeries`, `setGoalClaim` (student), `confirmGoalClaim` (staff/TA)
 - UI:
   - `CreateButton` (the How often? step)
   - `AssignmentSeriesPanel` (instructor assignment page)
@@ -80,7 +80,7 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 
 ## How to try it
 1. Paste the migration into the Supabase SQL editor for the project you test against. Until it runs, the student assignment page and the grader page fail to load, because they read the new columns.
-2. In an ITP course: **+ Create → Assignment → Repeats weekly**, pick the weeks, then write the typing test and add its checklist. Save, then click **Update N weeks**.
+2. In an ITP course: **+ Create → Assignment → Repeats weekly**, pick the day and the weeks, then write the typing test and add its checklist. Save, then pick **This week and following weeks**.
 3. In the editor's **Goal Checkbox** section, turn it on and word it ("I met my typing goal (35 WPM)"). Save, then pick **This week and following weeks**. Publish the weeks.
 4. As a student (or impersonating one), check the box and watch the confetti.
 5. As the grader, open that student's submission, then **Confirm & excuse later weeks**. Check the gradebook for EX on the later weeks, and the student's later typing tests for the Excused badge.
