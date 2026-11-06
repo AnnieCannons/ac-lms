@@ -387,6 +387,8 @@ html.theme-dark .badge-count {
 .status-late-badge    { background-color: #fffbeb; color: #b45309; border-color: #fde68a; }
 .status-draft-badge   { background-color: #fefce8; color: #a16207; border-color: #fde047; }
 .status-camera-badge  { background-color: #fef2f2; color: #dc2626; border-color: #fecaca; }
+/* Excused: same blue as the attendance "Excused Absence" pill */
+.status-excused-badge { background-color: #d1e2ff; color: #1d4ed8; border-color: #bfd4fb; }
 .status-needs-grading-btn { background-color: #fefce8; color: #a16207; border-color: #fde68a; }
 .status-needs-grading-btn:hover { background-color: #fef9c3; }
 
@@ -405,6 +407,7 @@ html.theme-dark .status-revision-btn:hover { background-color: #2d1010; }
 html.theme-dark .status-late-badge    { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
 html.theme-dark .status-draft-badge   { background-color: #1c1a00; color: #fcd34d; border-color: #3d3400; }
 html.theme-dark .status-camera-badge  { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
+html.theme-dark .status-excused-badge { background-color: #0b1530; color: #93b4ff; border-color: #1e3a6e; }
 html.theme-dark .status-needs-grading-btn { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
 html.theme-dark .status-needs-grading-btn:hover { background-color: #261a00; }
 

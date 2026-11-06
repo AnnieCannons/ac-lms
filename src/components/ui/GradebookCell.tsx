@@ -16,10 +16,11 @@ interface Props {
   dueDate: string | null
   submissionRequired?: boolean
   isOptional?: boolean
+  excused?: boolean
   currentUserId?: string
 }
 
-export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate, submissionRequired, isOptional, currentUserId }: Props) {
+export default function GradebookCell({ courseId, assignmentId, studentId, submission, dueDate, submissionRequired, isOptional, excused, currentUserId }: Props) {
   const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
   const isComplete = submission?.grade === 'complete'
   const [optimisticComplete, setOptimisticComplete] = useState<boolean | null>(null)
@@ -92,6 +93,10 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
       cellClass = 'status-needs-grading-btn'
       cellLabel = 'Submitted – needs grading'
     }
+  } else if (excused) {
+    icon = 'EX'
+    cellClass = 'status-excused-badge'
+    cellLabel = 'Excused'
   } else if (isOptional) {
     cellLabel = isPastDue ? 'Optional — closed, not submitted' : 'Optional — not submitted'
   } else if (isPastDue) {
@@ -107,7 +112,7 @@ export default function GradebookCell({ courseId, assignmentId, studentId, submi
   return (
     <td className={`relative group p-0 border-r border-b border-border overflow-hidden ${cellClass}`} title={cellLabel} aria-label={cellLabel}>
       <div className="w-full h-full min-h-[44px] flex items-center justify-center text-sm font-bold">
-        <span aria-hidden="true">{icon}</span>
+        <span aria-hidden="true" className={excused && !hasSubmission ? 'text-[9px] tracking-wide' : undefined}>{icon}</span>
       </div>
       {graderUrl && (
         <a
