@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/hardware-reminders",
       "schedule": "30 15,16 * * *"
+    },
+    {
+      "path": "/api/cron/catch-up-reminders",
+      "schedule": "0 12,13 * * *"
     }
   ]
 }
