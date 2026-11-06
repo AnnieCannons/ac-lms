@@ -522,3 +522,21 @@ html.theme-dark .quiz-html code:not(pre code) {
   padding: 0;
   display: block;
 }
+/* Confetti for the "I met my goal" check-off (Confetti.tsx). Pieces fall and spin once, then the
+   component removes them. Hidden entirely for reduced motion. */
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate3d(var(--confetti-drift, 0px), 105vh, 0) rotate(var(--confetti-spin, 720deg)); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.4, 0.5, 1);
+  animation-fill-mode: forwards;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { display: none; }
+}

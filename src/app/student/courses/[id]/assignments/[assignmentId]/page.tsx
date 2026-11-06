@@ -15,6 +15,7 @@ import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
 import { getExtensionRequestForStudent } from '@/lib/extension-actions'
 import { getAssignmentSkillsForStudent } from '@/lib/confidence-tracker-actions'
 import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
+import GoalCheckoff from '@/components/ui/GoalCheckoff'
 
 export default async function StudentAssignmentPage({
   params,
@@ -32,7 +33,7 @@ export default async function StudentAssignmentPage({
 
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus, is_optional')
+    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus, is_optional, goal_checkoff_label')
     .eq('id', assignmentId)
     .eq('published', true)
     .single()
@@ -123,6 +124,16 @@ export default async function StudentAssignmentPage({
   const isExcused = override?.excused ?? false
 
   const isStudent = !preview && !readOnly && viewer.enrollmentRole === 'student'
+
+  // "I met my goal" check-off, when the instructor turned it on for this assignment
+  const { data: goalClaim } = (admin && assignment.goal_checkoff_label)
+    ? await admin
+        .from('assignment_goal_claims')
+        .select('confirmed_at, excused_assignment_ids')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', viewer.viewerId)
+        .maybeSingle()
+    : { data: null }
   const existingExtensionRequest = isStudent && admin
     ? await getExtensionRequestForStudent(assignmentId, viewer.viewerId)
     : null
@@ -322,6 +333,18 @@ export default async function StudentAssignmentPage({
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
               <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
             </div>
+          )}
+
+          {assignment.goal_checkoff_label && (
+            <GoalCheckoff
+              assignmentId={assignmentId}
+              courseId={id}
+              label={assignment.goal_checkoff_label}
+              initialClaimed={!!goalClaim}
+              confirmed={!!goalClaim?.confirmed_at}
+              excusedCount={goalClaim?.excused_assignment_ids?.length ?? 0}
+              disabled={!isStudent}
+            />
           )}
 
           {/* Grade history */}

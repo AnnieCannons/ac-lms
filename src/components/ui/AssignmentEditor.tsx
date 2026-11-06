@@ -12,6 +12,7 @@ import { trashAssignment } from '@/lib/trash-actions'
 import { removeAssignmentOverride } from '@/lib/override-actions'
 import BulkOverridePaste from '@/components/ui/BulkOverridePaste'
 import OverrideStudentChecklist from '@/components/ui/OverrideStudentChecklist'
+import { normalizeGoalLabel } from '@/lib/assignment-series'
 import { listAssignmentSkills, setAssignmentSkills, type ConfidenceSkill } from '@/lib/skill-actions'
 import ConfidenceSkillsField from './ConfidenceSkillsField'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -56,11 +57,13 @@ interface Props {
     skill_tags: string[] | null
     is_bonus: boolean
     is_optional: boolean
+    series_id?: string | null
+    goal_checkoff_label?: string | null
   }
   initialChecklist: ChecklistItem[]
   enrolledStudents: { id: string; name: string }[]
   initialOverrides: Override[]
-  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; is_optional: boolean; skill_tags: string[]; answer_key_url: string | null }, updatedChecklist: ChecklistItem[]) => void
+  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; is_optional: boolean; skill_tags: string[]; answer_key_url: string | null; goal_checkoff_label?: string | null }, updatedChecklist: ChecklistItem[]) => void
 }
 
 export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides, onSaved }: Props) {
@@ -75,6 +78,11 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
   const [isBonus, setIsBonus] = useState(assignment.is_bonus)
   const [isOptional, setIsOptional] = useState(assignment.is_optional)
+  // "I met my goal" checkbox — only offered on repeating assignments, since confirming it
+  // excuses the student from the later weeks
+  const repeats = !!assignment.series_id
+  const [goalOn, setGoalOn] = useState(!!assignment.goal_checkoff_label)
+  const [goalLabel, setGoalLabel] = useState(assignment.goal_checkoff_label ?? 'I met my goal this week')
   const [skillTags, setSkillTags] = useState<string[]>(assignment.skill_tags ?? [])
   const [customSkillTags, setCustomSkillTags] = useState<string[]>(
     (assignment.skill_tags ?? []).filter(t => !PRESET_SKILL_TAGS.includes(t))
@@ -238,6 +246,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         is_optional: isOptional,
         skill_tags: skillTags,
         answer_key_url: answerKeyUrl.trim() || null,
+        ...(repeats ? { goal_checkoff_label: goalOn ? normalizeGoalLabel(goalLabel) : null } : {}),
       })
       .eq('id', assignment.id)
     if (error) { setSaving(false); alert(error.message); return }
@@ -247,7 +256,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     setIsDirty(false)
     if (onSaved) {
       onSaved(
-        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, is_optional: isOptional, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null },
+        { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, is_optional: isOptional, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null,
+          ...(repeats ? { goal_checkoff_label: goalOn ? normalizeGoalLabel(goalLabel) : null } : {}) },
         checklist
       )
     }
@@ -752,6 +762,38 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           </div>
         </div>
       </div>
+
+      {/* "I met my goal" checkbox — repeating assignments only */}
+      {repeats && (
+        <div>
+          <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Goal Checkbox</label>
+          <label className="flex items-center gap-2 text-sm text-dark-text cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-teal-primary"
+              checked={goalOn}
+              onChange={e => { setGoalOn(e.target.checked); setIsDirty(true) }}
+            />
+            Students can check that they met their goal
+          </label>
+          {goalOn && (
+            <div className="mt-2 flex flex-col gap-1.5 pl-6">
+              <label htmlFor="goal-label" className="text-xs text-muted-text">What the checkbox says</label>
+              <input
+                id="goal-label"
+                type="text"
+                maxLength={200}
+                value={goalLabel}
+                onChange={e => { setGoalLabel(e.target.value); setIsDirty(true) }}
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+              />
+              <p className="text-xs text-muted-text">
+                Checking it shows confetti and puts it in your grading queue. If you confirm it, the student is excused from every later week of this assignment.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Student Overrides */}
       {enrolledStudents.length > 0 && (

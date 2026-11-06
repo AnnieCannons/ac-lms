@@ -23,6 +23,8 @@ export type StudentRow = {
   } | null;
   historyCount: number;
   latestSubmittedAt: string | null;
+  /** "I met my goal" check-off: null when not checked. */
+  goal?: "claimed" | "confirmed" | null;
 };
 
 type Filter = "all" | "needs-grading" | "graded" | "not-submitted";
@@ -235,6 +237,11 @@ export default function SubmissionsList({
                     <StatusBadge status={sub?.status ?? null} grade={effectiveGrade ?? sub?.grade} />
                     {student.historyCount > 1 && (
                       <span className="text-xs text-muted-text">{student.historyCount} submissions</span>
+                    )}
+                    {student.goal && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-teal-primary text-teal-primary bg-teal-light">
+                        <span aria-hidden="true">🎯 </span>{student.goal === "confirmed" ? "Goal met" : "Says goal met"}
+                      </span>
                     )}
                   </div>
                   {sub && submissionRequired ? (

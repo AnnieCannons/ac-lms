@@ -8,6 +8,9 @@ import FileUpload from './FileUpload'
 import { createQuizWithQuestions } from '@/lib/quiz-actions'
 import { createWiki } from '@/lib/wiki-actions'
 import { createAssignment } from '@/lib/assignment-actions'
+import { pushAssignmentToWeeks, getDueDateCalendar, type DueDateCalendar } from '@/lib/assignment-series-actions'
+import { courseWeeks, defaultDueDateFor, placeInWeek, type DefaultDueDate, type WeekPlacement } from '@/lib/assignment-series'
+import { formatDueDate } from '@/lib/date-utils'
 import { createResource } from '@/lib/resource-actions'
 import { createModule, createModuleDay } from '@/lib/module-actions'
 import { addSelfAsInstructor, getCourseName } from '@/lib/enrollment-actions'
@@ -18,7 +21,7 @@ type CreateType = 'assignment' | 'resource' | 'quiz' | 'wiki'
 type SectionType = 'coding' | 'career' | 'level_up'
 type ResourceType = 'video' | 'reading' | 'link' | 'file'
 type Day = { id: string; day_name: string; order: number }
-type Module = { id: string; title: string; order: number; week_number: number | null; category: string | null; module_days: Day[]; skill_tags?: string[] | null }
+type Module = { id: string; title: string; order: number; week_number: number | null; category: string | null; published?: boolean | null; module_days: Day[]; skill_tags?: string[] | null }
 
 const PRESET_SKILL_TAGS = ['HTML', 'CSS', 'JavaScript', 'React', 'SQL', 'Other']
 
@@ -72,6 +75,16 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   const [assignmentCustomTags, setAssignmentCustomTags] = useState<string[]>([])
   const [showAssignmentCustomTag, setShowAssignmentCustomTag] = useState(false)
   const [assignmentCustomTagInput, setAssignmentCustomTagInput] = useState('')
+
+  // Repeating assignment: the same assignment copied into other weeks (Course Outline only)
+  const [repeats, setRepeats] = useState(false)
+  const [repeatModuleIds, setRepeatModuleIds] = useState<string[]>([])
+  const [repeatDay, setRepeatDay] = useState('')
+
+  // Due date: defaults to the day after the chosen week + day (past holidays), editable
+  const [calendar, setCalendar] = useState<DueDateCalendar | null>(null)
+  const [dueDateInput, setDueDateInput] = useState('')
+  const [dueTouched, setDueTouched] = useState(false)
 
   // New module
   const [showNewModule, setShowNewModule] = useState(false)
@@ -128,6 +141,16 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   const showSectionFilter = true
 
   const codingModules = modules.filter(m => m.category !== 'career' && m.category !== 'level_up')
+  // Repeating assignments: pick a weekday and the course weeks, no single module
+  const isRepeatMode = createType === 'assignment' && section === 'coding' && repeats
+  const weekModules = courseWeeks(codingModules)
+  const turnOnRepeats = (on: boolean) => {
+    setRepeats(on)
+    setError(null)
+    // Every published week starts checked: it's meant to be in every week.
+    if (on && repeatModuleIds.length === 0) setRepeatModuleIds(weekModules.filter(w => w.published !== false).map(w => w.id))
+  }
+
   const crossModuleAllDays = codingModules.find(m => m.id === crossModuleId)?.module_days ?? []
   const crossModuleDays = (createType === 'assignment'
     ? crossModuleAllDays.filter(d => !SKIP_DAYS.has(d.day_name))
@@ -171,6 +194,13 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     : allDaysForModule
   ).slice().sort((a, b) => a.order - b.order)
 
+  const selectedDayName = days.find(d => d.id === dayId)?.day_name ?? ''
+  const selectedWeek = modules.find(m => m.id === moduleId)?.week_number ?? null
+  const suggestedDue: DefaultDueDate | null = calendar && selectedDayName
+    ? defaultDueDateFor(calendar.courseStart, selectedWeek, selectedDayName, calendar.closures)
+    : null
+  const effectiveDueDate = dueTouched ? dueDateInput : (suggestedDue?.dueDate ?? '')
+
   // Default section/module/type to wherever the user actually clicked "+" from,
   // instead of always resetting to Course Outline (was showing the wrong module).
   const resolveDefaults = (mods: Module[]) => {
@@ -192,16 +222,19 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   }
 
   const handleOpen = async () => {
+    setDueTouched(false)
+    setDueDateInput('')
+    getDueDateCalendar(courseId).then(r => setCalendar('error' in r ? null : r))
     const { data, error: fetchError } = await supabase
       .from('modules')
-      .select('id, title, order, week_number, category, skill_tags, module_days(id, day_name, order)')
+      .select('id, title, order, week_number, category, published, skill_tags, module_days(id, day_name, order)')
       .eq('course_id', courseId)
       .order('order', { ascending: true })
     if (fetchError) {
       // Fallback: try without skill_tags (migration may not have run yet)
       const { data: data2 } = await supabase
         .from('modules')
-        .select('id, title, order, week_number, category, module_days(id, day_name, order)')
+        .select('id, title, order, week_number, category, published, module_days(id, day_name, order)')
         .eq('course_id', courseId)
         .order('order', { ascending: true })
       const mods2 = ((data2 ?? []) as Module[]).filter(m => m.title && !m.title.includes('DO NOT PUBLISH'))
@@ -291,9 +324,43 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
     return { id: result.data.id, day_name: 'General', isNew: true }
   }
 
+  // Repeating: made in the first chosen week (on the day before, if that day is a holiday),
+  // then copied to the rest. Opens in Edit, since the copies are blank until the content is
+  // written once and pushed to the following weeks.
+  const handleCreateRepeating = async () => {
+    const chosen = weekModules.filter(w => repeatModuleIds.includes(w.id))
+    const placements = chosen.map(w => ({ week: w, placement: calendar ? placeInWeek(calendar.courseStart, w.week_number, repeatDay, calendar.closures) : null }))
+    const first = placements.find(p => p.placement?.kind !== 'skipped')
+    if (!first) { setError('Every chosen week is a break.'); setCreating(false); return }
+    const placed = first.placement?.kind === 'placed' ? first.placement : null
+    const dayName = placed?.dayName ?? repeatDay
+
+    let day = first.week.module_days.find(d => d.day_name === dayName)
+    if (!day) {
+      const made = await createModuleDay({ moduleId: first.week.id, dayName, order: first.week.module_days.length })
+      if (made.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
+      if (made.error || !made.data) { setError(made.error ?? 'Could not add the day'); setCreating(false); return }
+      day = { id: made.data.id, day_name: dayName, order: first.week.module_days.length }
+    }
+
+    const result = await createAssignment({ moduleDayId: day.id, skillTags: assignmentTags, dueDate: placed?.due.dueDate ?? null })
+    if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
+    if (result.error || !result.data) { setError(result.error ?? 'Failed to create'); setCreating(false); return }
+
+    const rest = chosen.filter(w => w.id !== first.week.id).map(w => w.id)
+    if (rest.length > 0) {
+      const pushed = await pushAssignmentToWeeks({ assignmentId: result.data.id, courseId, moduleIds: rest, dayName: repeatDay })
+      if (pushed.error) { setCreating(false); setError(`Created in ${first.week.title}, but copying to the other weeks failed: ${pushed.error}`); return }
+    }
+    setCreating(false)
+    setOpen(false)
+    router.push(`/instructor/courses/${courseId}/assignments/${result.data.id}?edit=1`)
+  }
+
   const handleCreate = async () => {
     setError(null)
     setCreating(true)
+    if (isRepeatMode) { await handleCreateRepeating(); return }
     // If no module yet but a new module name was entered, create it first
     let resolvedModuleId = moduleId
     if (!moduleId && newModuleTitle.trim()) {
@@ -328,11 +395,11 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
         if (!resolvedDay) { setCreating(false); return }
         targetDayId = resolvedDay.id
       }
-      const result = await createAssignment({ moduleDayId: targetDayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up' })
+      const result = await createAssignment({ moduleDayId: targetDayId, linkedDayId, skillTags: assignmentTags, isBonus: section === 'level_up', dueDate: section === 'level_up' ? null : (effectiveDueDate || null) })
       if (result.code === 'NOT_ENROLLED') { await triggerEnrollPrompt(() => handleCreate()); return }
       if (resolvedDay) onResourceCreated?.(resolvedModuleId, resolvedDay)
+      if (result.error || !result.data) { setCreating(false); setError(result.error ?? 'Failed to create'); return }
       setCreating(false)
-      if (result.error || !result.data) { setError(result.error ?? 'Failed to create'); return }
       setOpen(false)
       router.push(`/instructor/courses/${courseId}/assignments/${result.data.id}`)
 
@@ -395,7 +462,9 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
   }
 
   const hasModule = !!moduleId || !!newModuleTitle.trim()
-  const isValid = hasModule && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId || section === 'level_up')
+  const isValid = isRepeatMode
+    ? !!repeatDay && repeatModuleIds.length > 0
+    : hasModule && (createType !== 'resource' || !!resTitle.trim()) && (createType !== 'assignment' || !!dayId || section === 'level_up')
 
   return (
     <>
@@ -451,8 +520,22 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
               </div>
             </div>
 
+            {/* One-time or repeating — asked first for Course Outline assignments */}
+            {createType === 'assignment' && section === 'coding' && (
+              <RepeatChoice
+                repeats={repeats}
+                onRepeatsChange={turnOnRepeats}
+                weeks={weekModules}
+                day={repeatDay}
+                onDayChange={setRepeatDay}
+                placementFor={w => calendar && repeatDay ? placeInWeek(calendar.courseStart, w.week_number, repeatDay, calendar.closures) : null}
+                selected={repeatModuleIds}
+                onSelectedChange={setRepeatModuleIds}
+              />
+            )}
+
             {/* Section filter */}
-            {showSectionFilter && (
+            {showSectionFilter && !isRepeatMode && (
               <div>
                 <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Section</label>
                 <select
@@ -483,7 +566,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
             )}
 
             {/* Module */}
-            <div>
+            <div className={isRepeatMode ? 'hidden' : undefined}>
               <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Module</label>
               {modules.length > 0 && (
                 <select
@@ -491,6 +574,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                   onChange={e => {
                     setModuleId(e.target.value)
                     setDayId('')
+                    setDueTouched(false)
                     if (section === 'level_up') loadModuleTags(modules.find(m => m.id === e.target.value))
                   }}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
@@ -542,7 +626,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
             </div>
 
             {/* Day — Level Up has no day/week structure, so skip this entirely there */}
-            {section !== 'level_up' && (days.length > 0 || createType === 'assignment') && (
+            {section !== 'level_up' && !isRepeatMode && (days.length > 0 || createType === 'assignment') && (
               <div>
                 <label className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
                   Day{createType === 'assignment'
@@ -552,7 +636,7 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                 {days.length > 0 ? (
                   <select
                     value={dayId}
-                    onChange={e => setDayId(e.target.value)}
+                    onChange={e => { setDayId(e.target.value); setDueTouched(false) }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
                   >
                     {createType === 'assignment' && <option value="">— Select a day —</option>}
@@ -564,6 +648,30 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
                 ) : (
                   <p className="text-xs text-muted-text">This module has no days. Add days to the module first.</p>
                 )}
+              </div>
+            )}
+
+            {/* Due date — defaults to the day after the chosen day, past weekends and holidays */}
+            {createType === 'assignment' && section !== 'level_up' && !isRepeatMode && (
+              <div>
+                <label htmlFor="create-due-date" className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">
+                  Due date <span className="normal-case font-normal text-muted-text">(optional)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="create-due-date"
+                    type="date"
+                    value={effectiveDueDate}
+                    onChange={e => { setDueDateInput(e.target.value); setDueTouched(true) }}
+                    className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-dark-text focus:outline-none focus:ring-2 focus:ring-teal-primary"
+                  />
+                  {dueTouched && suggestedDue && dueDateInput !== suggestedDue.dueDate && (
+                    <button type="button" onClick={() => setDueTouched(false)} className="text-xs text-teal-primary hover:underline">
+                      Use {formatDueDate(suggestedDue.dueDate)}
+                    </button>
+                  )}
+                </div>
+                <DueDateNote due={suggestedDue} dayName={selectedDayName} edited={dueTouched} />
               </div>
             )}
 
@@ -826,6 +934,139 @@ export default function CreateButton({ courseId, compact, defaultType, defaultMo
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+// ─── One-time vs. repeating ─────────────────────────────────────────────────────────────
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+function RepeatChoice({ repeats, onRepeatsChange, weeks, day, onDayChange, placementFor, selected, onSelectedChange }: {
+  repeats: boolean
+  onRepeatsChange: (v: boolean) => void
+  weeks: Module[]
+  day: string
+  onDayChange: (d: string) => void
+  placementFor: (week: Module) => WeekPlacement | null
+  selected: string[]
+  onSelectedChange: (ids: string[]) => void
+}) {
+  const toggle = (id: string) =>
+    onSelectedChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+
+  return (
+    <fieldset>
+      <legend className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">How often?</legend>
+      <div className="flex gap-2">
+        {([false, true] as const).map(v => (
+          <button
+            key={String(v)}
+            type="button"
+            aria-pressed={repeats === v}
+            onClick={() => onRepeatsChange(v)}
+            className={`flex-1 text-xs font-semibold py-2 rounded-full border transition-colors ${
+              repeats === v
+                ? 'bg-teal-primary text-white border-teal-primary'
+                : 'border-border text-muted-text hover:text-dark-text hover:border-dark-text/40'
+            }`}
+          >
+            {v ? 'Repeats weekly' : 'One-time'}
+          </button>
+        ))}
+      </div>
+      {repeats && (
+        <div className="mt-4 flex flex-col gap-4">
+          <div>
+            <p className="block text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">
+              Which day? <span className="normal-case font-normal text-red-400">(required)</span>
+            </p>
+            <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Which day?">
+              {WEEKDAYS.map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={day === d}
+                  onClick={() => onDayChange(d)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    day === d ? 'bg-teal-primary text-white border-teal-primary' : 'border-border text-muted-text hover:border-teal-primary hover:text-teal-primary'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-text mt-2">
+              Due the day after (past weekends and holidays). If that day is a holiday one week, that week moves to the day before. You can still move any week afterwards.
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-muted-text uppercase tracking-wide">Which weeks?</p>
+              <div className="flex gap-3 text-xs">
+                <button type="button" className="text-teal-primary hover:underline" onClick={() => onSelectedChange(weeks.map(w => w.id))}>All</button>
+                {selected.length > 0 && (
+                  <button type="button" className="text-muted-text hover:underline" onClick={() => onSelectedChange([])}>Clear</button>
+                )}
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto border border-border rounded-lg p-2 flex flex-col gap-1.5">
+              {weeks.length === 0 && <p className="text-xs text-muted-text">This course has no week modules (modules with a week number).</p>}
+              {weeks.map(w => {
+                const placement = placementFor(w)
+                const due = placement?.kind === 'placed' ? placement.due : null
+                const note = placement?.kind === 'skipped'
+                  ? `${placement.closure.label} all week, so this week is skipped`
+                  : placement?.movedFrom
+                    ? [`${placement.movedFrom.closure.label} is on ${placement.movedFrom.dayName}, so it moves to ${placement.dayName}`, closureNote(due && { ...due, classDayClosure: null })].filter(Boolean).join('; ')
+                    : closureNote(due)
+                return (
+                  <label key={w.id} className="flex items-start gap-2 text-sm text-dark-text cursor-pointer">
+                    <input type="checkbox" checked={selected.includes(w.id)} onChange={() => toggle(w.id)} className="accent-teal-primary mt-1" />
+                    <span className="flex-1 min-w-0">
+                      {w.title}
+                      {w.published === false && <span className="text-xs text-muted-text"> (module not published)</span>}
+                      {placement?.kind === 'placed' && (
+                        <span className="block text-xs text-muted-text">
+                          {placement.dayName} {formatDueDate(placement.due.classDate)} · due {formatDueDate(placement.due.dueDate)}
+                        </span>
+                      )}
+                      {note && <span className="block text-xs text-amber-700">{note}</span>}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+            {selected.length === 0 && <p className="text-xs text-red-400 mt-1">Pick at least one week.</p>}
+          </div>
+        </div>
+      )}
+    </fieldset>
+  )
+}
+
+// ─── Due date notes ─────────────────────────────────────────────────────────────────────
+
+/** "Labor Day is on Mon, Sep 7" / "Moved past Thanksgiving Week" — or null when nothing is in the way. */
+function closureNote(due: DefaultDueDate | null): string | null {
+  if (!due) return null
+  const parts: string[] = []
+  if (due.classDayClosure) parts.push(`${due.classDayClosure.label} is on ${formatDueDate(due.classDate)}`)
+  if (due.skipped.length > 0) parts.push(`due date moved past ${due.skipped.map(c => c.label).join(', ')}`)
+  if (parts.length === 0) return null
+  const text = parts.join('; ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+function DueDateNote({ due, dayName, edited }: { due: DefaultDueDate | null; dayName: string; edited: boolean }) {
+  if (!dayName) return <p className="text-xs text-muted-text mt-1">Pick a day to fill in the day after.</p>
+  if (!due) return <p className="text-xs text-muted-text mt-1">Couldn’t work out a date for this week (no course start date or week number). Pick one if you want.</p>
+  const note = closureNote(due)
+  return (
+    <>
+      {!edited && <p className="text-xs text-muted-text mt-1">The day after {dayName}, {formatDueDate(due.classDate)}.</p>}
+      {note && <p className="text-xs text-amber-700 mt-1">{note}</p>}
     </>
   )
 }
