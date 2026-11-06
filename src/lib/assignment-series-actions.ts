@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getAssignmentCourseId } from '@/lib/course-scope'
 import { requireCourseInstructorAccess, isCourseAccessError } from '@/lib/course-access'
-import { compareOutlinePosition, copyDueDate, courseWeeks, dayOffset, membersAfter, normalizeGoalLabel, placeInWeek, usualDayName, type Closure, type OutlinePosition } from '@/lib/assignment-series'
+import { compareOutlinePosition, copyDueDate, courseWeeks, dayOffset, membersAfter, placeInWeek, usualDayName, type Closure, type OutlinePosition } from '@/lib/assignment-series'
 
 type Admin = ReturnType<typeof createServiceSupabaseClient>
 
@@ -420,29 +420,6 @@ export async function leaveSeries(params: { assignmentId: string; courseId: stri
 }
 
 // ── Goal check-off ───────────────────────────────────────────────────────────────────────
-
-/** Turns the "I met my goal" checkbox on (with a label) or off, for this week or every week. */
-export async function setGoalCheckoff(params: {
-  assignmentId: string
-  courseId: string
-  label: string | null
-  wholeSeries: boolean
-}): Promise<{ error?: string }> {
-  const auth = await requireStaffForAssignment(params.assignmentId, params.courseId)
-  if ('error' in auth) return { error: auth.error ?? 'Not authorized' }
-  const { admin } = auth
-  const label = normalizeGoalLabel(params.label)
-
-  const { data: source } = await admin.from('assignments').select('series_id').eq('id', params.assignmentId).single()
-  let ids = [params.assignmentId]
-  if (params.wholeSeries && source?.series_id) {
-    ids = (await seriesPositions(admin, params.courseId, source.series_id)).map(p => p.id)
-  }
-  const { error } = await admin.from('assignments').update({ goal_checkoff_label: label }).in('id', ids)
-  if (error) return { error: error.message }
-  revalidatePath(`/instructor/courses/${params.courseId}`, 'layout')
-  return {}
-}
 
 /**
  * A student checks or unchecks "I met my goal". Only the student themself, enrolled as a

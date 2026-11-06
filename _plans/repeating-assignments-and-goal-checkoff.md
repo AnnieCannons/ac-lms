@@ -46,7 +46,8 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 - Duplicating a course gives its series new ids, so the copy's weeks never link back to the original course.
 
 ### 3. "I met my goal" checkbox
-- Turned on per assignment in the **"I met my goal" checkbox** card, with your own wording (default *"I met my goal this week"*). **Apply to all N weeks** sets it on every week at once.
+- It's in the **assignment editor**, under the Grading Checklist, and only shows for repeating assignments. It's off by default, so only the ones you choose (e.g. the typing test) get it.
+- Tick **Students can check that they met their goal** and word it (default *"I met my goal this week"*). It saves with the assignment, and **This week and following weeks** carries it to the later weeks. The assignment page shows a 🎯 *Goal checkbox* badge when it's on.
 - Students see it as its own **Your goal** card under the regular checklist and submission. Checking it:
   - drops confetti (skipped when the device asks for reduced motion)
   - says *"Your instructor will see this when they grade and confirm it."*
@@ -80,7 +81,7 @@ The ITP typing test is a weekly assignment that is the same every week. Many oth
 ## How to try it
 1. Paste the migration into the Supabase SQL editor for the project you test against. Until it runs, the student assignment page and the grader page fail to load, because they read the new columns.
 2. In an ITP course: **+ Create → Assignment → Repeats weekly**, pick the weeks, then write the typing test and add its checklist. Save, then click **Update N weeks**.
-3. In the **"I met my goal" checkbox** card, turn it on, word it ("I met my typing goal (35 WPM)"), keep **Apply to all weeks**, and save. Publish the weeks.
+3. In the editor's **Goal Checkbox** section, turn it on and word it ("I met my typing goal (35 WPM)"). Save, then pick **This week and following weeks**. Publish the weeks.
 4. As a student (or impersonating one), check the box and watch the confetti.
 5. As the grader, open that student's submission, then **Confirm & excuse later weeks**. Check the gradebook for EX on the later weeks, and the student's later typing tests for the Excused badge.
 6. Try **Undo confirmation** and check that the EX goes away.

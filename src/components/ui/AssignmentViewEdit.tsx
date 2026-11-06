@@ -37,6 +37,8 @@ interface Assignment {
   skill_tags: string[] | null
   is_bonus: boolean
   is_optional: boolean
+  series_id?: string | null
+  goal_checkoff_label?: string | null
 }
 
 interface Props {
@@ -141,6 +143,11 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             )}
             {assignment.is_optional && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light">Optional</span>
+            )}
+            {assignment.goal_checkoff_label && (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light" title={assignment.goal_checkoff_label}>
+                <span aria-hidden="true">🎯 </span>Goal checkbox
+              </span>
             )}
             <InlineDueDatePicker
               assignmentId={assignment.id}
