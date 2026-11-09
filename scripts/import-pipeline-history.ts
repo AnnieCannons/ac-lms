@@ -9,8 +9,13 @@
  * CSV columns (header row required; names are case-insensitive, spaces or underscores):
  *   partner          required. Matched to an existing partner by name (case-insensitive)
  *   stage            required. A stage label ("Apprentice Placed", "Referral Fee Paid", "MOU Signed", ...) or key
- *   introduced_by    optional. Name of a partner tagged Venture Capital or Private Equity
- *   introduced_on    optional. YYYY-MM-DD or M/D/YYYY (likewise for the other dates)
+ *   company_size     optional. Growth stage or Enterprise; counts toward outreach targets by started_on
+ *   referral_source  optional. VC/PE firm, Client referral, Funding partner, Board member / advisor,
+ *                    Staff / personal network, Event / conference or Inbound (labels or keys)
+ *   introduced_by    optional. Name of a partner tagged Venture Capital or Private Equity; implies VC/PE firm,
+ *                    so referral_source can be left blank
+ *   referral_detail  optional. Client or funding partner name, for those two sources only
+ *   introduced_on    optional. Referral date, YYYY-MM-DD or M/D/YYYY (likewise for the other dates)
  *   started_on       optional. When the partner entered the pipeline
  *   closed_on        optional. Only kept for Apprentice Placed / Referral Fee Paid
  *   notes            optional
@@ -47,7 +52,9 @@ config({ path: resolve(process.cwd(), '.env.local') })
 import { createClient } from '@supabase/supabase-js'
 import {
   SALES_STAGES, SALES_STAGE_LABELS, FEE_STATUSES, FEE_STATUS_LABELS, isClosedStage, formatPlacementTerm,
-  type SalesStage, type FeeStatus, type PlacementTerm, type ApprenticePlacement,
+  REFERRAL_SOURCES, REFERRAL_SOURCE_LABELS, REFERRAL_DETAIL_LABELS, REFERRAL_DETAIL_MAX_LENGTH,
+  COMPANY_SEGMENTS, COMPANY_SEGMENT_LABELS,
+  type SalesStage, type FeeStatus, type PlacementTerm, type ApprenticePlacement, type ReferralSource, type CompanySegment,
 } from '../src/lib/sales-pipeline.ts'
 
 const args = process.argv.slice(2)
@@ -103,7 +110,7 @@ function parseCsv(text: string): string[][] {
 }
 
 const COLUMNS = [
-  'partner', 'stage', 'introduced_by', 'introduced_on', 'started_on', 'closed_on', 'notes',
+  'partner', 'stage', 'company_size', 'referral_source', 'introduced_by', 'referral_detail', 'introduced_on', 'started_on', 'closed_on', 'notes',
   'term', 'year', 'placed', 'converted', 'placement_fee', 'fee_status',
 ] as const
 type Column = (typeof COLUMNS)[number]
@@ -135,6 +142,13 @@ const normalize = (s: string) => s.trim().toLowerCase().replace(/[\s_-]+/g, ' ')
 function parseStage(raw: string): SalesStage | null {
   const n = normalize(raw)
   return SALES_STAGES.find(s => normalize(s) === n || normalize(SALES_STAGE_LABELS[s]) === n) ?? null
+}
+
+/** Matches a key or label ignoring case and punctuation, so "Board member/advisor" and "vc_pe" both work. */
+function parseReferralSource(raw: string): ReferralSource | null {
+  const loose = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, ' ').trim()
+  const n = loose(raw)
+  return REFERRAL_SOURCES.find(s => loose(s) === n || loose(REFERRAL_SOURCE_LABELS[s]) === n) ?? null
 }
 
 function parseFeeStatus(raw: string): FeeStatus | null {
@@ -184,6 +198,9 @@ interface PlannedDeal {
   partnerName: string
   partnerId: string | null
   stage: SalesStage
+  companySegment: CompanySegment | null
+  referralSource: ReferralSource | null
+  referralDetail: string | null
   introducedByName: string | null
   introducedById: string | null
   introducedOn: string | null
@@ -193,8 +210,8 @@ interface PlannedDeal {
   placements: ApprenticePlacement[]
 }
 
-type DealColumn = 'stage' | 'introduced_by' | 'introduced_on' | 'started_on' | 'closed_on' | 'notes'
-const DEAL_COLUMNS: DealColumn[] = ['stage', 'introduced_by', 'introduced_on', 'started_on', 'closed_on', 'notes']
+type DealColumn = 'stage' | 'company_size' | 'referral_source' | 'introduced_by' | 'referral_detail' | 'introduced_on' | 'started_on' | 'closed_on' | 'notes'
+const DEAL_COLUMNS: DealColumn[] = ['stage', 'company_size', 'referral_source', 'introduced_by', 'referral_detail', 'introduced_on', 'started_on', 'closed_on', 'notes']
 
 function planDeals(rows: Row[], errors: string[]): PlannedDeal[] {
   const groups = new Map<string, Row[]>()
@@ -228,7 +245,37 @@ function planDeals(rows: Row[], errors: string[]): PlannedDeal[] {
       if (parsed === undefined) err(group[0].line, `invalid ${col} "${values[col]}" (use YYYY-MM-DD or M/D/YYYY)`)
       else dates[col] = parsed
     }
-    if (dates.introduced_on && !values.introduced_by) err(group[0].line, 'introduced_on is set but introduced_by is blank')
+    const looseText = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, ' ').trim()
+    const companySegment = values.company_size
+      ? COMPANY_SEGMENTS.find(s => looseText(s) === looseText(values.company_size) || looseText(COMPANY_SEGMENT_LABELS[s]) === looseText(values.company_size)) ?? null
+      : null
+    if (values.company_size && !companySegment) {
+      err(group[0].line, `unknown company_size "${values.company_size}" (use Growth stage or Enterprise)`)
+    }
+
+    let referralSource: ReferralSource | null = null
+    if (values.referral_source) {
+      referralSource = parseReferralSource(values.referral_source)
+      if (!referralSource) {
+        err(group[0].line, `unknown referral_source "${values.referral_source}" (use one of: ${REFERRAL_SOURCES.map(s => REFERRAL_SOURCE_LABELS[s]).join(', ')})`)
+      }
+    } else if (values.introduced_by) {
+      referralSource = 'vc_pe'
+    }
+    if (values.introduced_by && referralSource && referralSource !== 'vc_pe') {
+      err(group[0].line, 'introduced_by names a VC/PE firm, so referral_source must be VC/PE firm or blank')
+    }
+    if (referralSource === 'vc_pe' && !values.introduced_by) err(group[0].line, 'referral_source is VC/PE firm but introduced_by is blank')
+    if (values.referral_detail) {
+      if (!referralSource || !REFERRAL_DETAIL_LABELS[referralSource]) {
+        err(group[0].line, `referral_detail is only kept for ${REFERRAL_SOURCE_LABELS.client_referral} or ${REFERRAL_SOURCE_LABELS.funding_partner}`)
+      } else if (values.referral_detail.length > REFERRAL_DETAIL_MAX_LENGTH) {
+        err(group[0].line, `referral_detail must be ${REFERRAL_DETAIL_MAX_LENGTH} characters or fewer`)
+      }
+    }
+    if (dates.introduced_on && !values.referral_source && !values.introduced_by) {
+      err(group[0].line, 'introduced_on is set but there is no referral_source or introduced_by')
+    }
     if (dates.closed_on && stage && !isClosedStage(stage)) {
       err(group[0].line, `closed_on is only kept for ${SALES_STAGE_LABELS.closed_won} or ${SALES_STAGE_LABELS.closed_lost}`)
     }
@@ -269,6 +316,9 @@ function planDeals(rows: Row[], errors: string[]): PlannedDeal[] {
       partnerName: name,
       partnerId: null,
       stage,
+      companySegment,
+      referralSource,
+      referralDetail: values.referral_detail || null,
       introducedByName: values.introduced_by || null,
       introducedById: null,
       introducedOn: dates.introduced_on ?? null,
@@ -372,7 +422,10 @@ async function main() {
       ? deal.placements.map(p => `${formatPlacementTerm(p)}: ${p.count} placed, ${p.convertedCount} converted, fee ${p.feeAmount ?? 'not set'} (${FEE_STATUS_LABELS[p.feeStatus]})`).join('; ')
       : 'no placements'
     const created = deal.partnerId ? '' : ' [new partner]'
-    console.log(`→ ${deal.partnerName}${created}: ${SALES_STAGE_LABELS[deal.stage]}; ${placed}`)
+    const referral = deal.referralSource
+      ? `; introduced by ${deal.referralSource === 'vc_pe' ? deal.introducedByName : REFERRAL_SOURCE_LABELS[deal.referralSource]}${deal.referralDetail ? `: ${deal.referralDetail}` : ''}`
+      : ''
+    console.log(`→ ${deal.partnerName}${created}: ${SALES_STAGE_LABELS[deal.stage]}${referral}; ${placed}`)
   }
   if (skipped.length > 0) {
     console.log(`\n↷ Skipping ${skipped.length} partner(s) that already have a live deal (pass --overwrite to import over them):`)
@@ -405,6 +458,9 @@ async function main() {
     const row: Record<string, unknown> = {
       partner_id: deal.partnerId,
       stage: deal.stage,
+      company_segment: deal.companySegment,
+      referral_source: deal.referralSource,
+      referral_detail: deal.referralDetail,
       introduced_by_partner_id: deal.introducedById,
       introduced_on: deal.introducedOn,
       started_on: deal.startedOn,

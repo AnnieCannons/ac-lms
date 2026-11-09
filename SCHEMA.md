@@ -759,8 +759,11 @@ Sales pipeline deal for an Apprenticeship partner (one per partner; the page lis
 | `engagement_types` | text[] | **No longer used by the app** (kept to preserve data). Any of `mentorship`, `guest_speaking`, `cutting_edge_talks`. Default: `{}` |
 | `hosts_apprentice` | boolean | **No longer used by the app** (kept to preserve data); placements replace it. Default: false |
 | `funds_ac` | boolean | **No longer used by the app** (kept to preserve data). Default: false |
-| `introduced_by_partner_id` | uuid | FK → partners (a VC/PE firm), SET NULL on delete, nullable. Can't be the deal's own partner |
-| `introduced_on` | date | Nullable |
+| `company_segment` | text | Nullable. `growth_stage`, `enterprise` (shown as "Company size"); counts toward `partner_outreach_targets` |
+| `referral_source` | text | Nullable. `vc_pe`, `client_referral`, `funding_partner`, `board_advisor`, `personal_network`, `event`, `inbound` (shown under "Introduced by") |
+| `referral_detail` | text | Nullable. Typed-in client or funding partner name; only set for `client_referral`/`funding_partner` |
+| `introduced_by_partner_id` | uuid | FK → partners (a VC/PE firm), SET NULL on delete, nullable. Only set when `referral_source` is `vc_pe` (CHECK). Can't be the deal's own partner |
+| `introduced_on` | date | Referral date, for any source. Nullable |
 | `started_on` | date | When the partner entered the pipeline. Default: current date; the app sends the user's local date on first save |
 | `closed_on` | date | Set by trigger when `stage` becomes `closed_won`/`closed_lost` without one (the app normally sends the local date), except on historical deals, which keep whatever they were given; cleared by the same trigger when a deal is reopened |
 | `is_historical` | boolean | Imported past deal (`scripts/import-pipeline-history.ts`): counts toward the funnel, placements and fees but is left out of all sales-cycle timing. Toggled in the deal dialog. Default: false |
@@ -770,7 +773,7 @@ Sales pipeline deal for an Apprenticeship partner (one per partner; the page lis
 | `created_at` | timestamptz | Default: now() |
 | `updated_at` | timestamptz | Auto-updated via trigger |
 
-The pipeline tracks hiring partners; its KPIs come from `partner_apprentice_placements`. Sales cycle is `started_on` → `closed_on`; introduction to close is `introduced_on` → `closed_on` (both computed in `src/lib/sales-pipeline.ts`, nothing stored, historical deals excluded). Because `partners` now has two FKs from this table, embeds from `partners` must name the constraint (`partner_sales_deals!partner_sales_deals_partner_id_fkey`).
+The pipeline tracks hiring partners; its KPIs come from `partner_apprentice_placements`. Sales cycle is `started_on` → `closed_on`; introduction to close is `introduced_on` → `closed_on`, overall and per `referral_source` (both computed in `src/lib/sales-pipeline.ts`, nothing stored, historical deals excluded). Because `partners` now has two FKs from this table, embeds from `partners` must name the constraint (`partner_sales_deals!partner_sales_deals_partner_id_fkey`).
 
 RLS: staff and admin only.
 
@@ -793,6 +796,26 @@ Apprentices placed with an Apprenticeship partner, by term. Edited from the deal
 | `created_at` | timestamptz | Default: now() |
 
 Unique on `(partner_id, term, year)`. RLS: staff and admin only.
+
+A placement runs 4 months from the 1st of its term's month (Jan → May 1, May → Sep 1, September → Jan 1). The pipeline's conversion rate only counts terms that have finished; nothing about this is stored (`placementPhase` in `src/lib/sales-pipeline.ts`).
+
+---
+
+### partner_outreach_targets
+How many companies of each size to add to the Sales Pipeline over a period, edited from the Outreach targets panel at the top of the pipeline tab.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `segment` | text | `growth_stage`, `enterprise` |
+| `target_count` | integer | 1–10000 |
+| `start_date` | date | Inclusive |
+| `end_date` | date | Inclusive, ≥ `start_date` |
+| `created_by` | uuid | FK → users, nullable |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+A company counts toward a target when its deal's `company_segment` matches and its `started_on` is within the dates; progress and on-pace status are computed in `src/lib/sales-pipeline.ts`, nothing stored. RLS: staff and admin only.
 
 ---
 

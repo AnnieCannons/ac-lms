@@ -13,8 +13,10 @@ import {
   summarizePipeline, computeCycleStats, isSalesStage, isClosedStage, daysBetween, formatDays, todayIso,
   PLACEMENT_TERMS, PLACEMENT_TERM_LABELS, formatPlacementTerm, sortPlacements, upcomingPlacementTerm,
   FEE_STATUSES, FEE_STATUS_LABELS, FEE_STATUS_COLORS, formatCurrency, formatPercent,
+  REFERRAL_SOURCES, REFERRAL_SOURCE_LABELS, REFERRAL_DETAIL_LABELS, REFERRAL_DETAIL_MAX_LENGTH, describeReferral,
+  COMPANY_SEGMENTS, COMPANY_SEGMENT_LABELS,
   type PipelineDeal, type InvestorFirm, type SalesStage, type DurationStats,
-  type ApprenticePlacement, type PlacementTerm, type FeeStatus,
+  type ApprenticePlacement, type PlacementTerm, type FeeStatus, type ReferralSource, type CompanySegment,
 } from '@/lib/sales-pipeline'
 
 const noopSubscribe = () => () => {}
@@ -71,7 +73,7 @@ export default function SalesPipelineBoard({ deals, firms, onSaveDeal }: {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const today = useToday()
-  const summary = useMemo(() => summarizePipeline(deals), [deals])
+  const summary = useMemo(() => summarizePipeline(deals, today), [deals, today])
   const cycle = useMemo(() => computeCycleStats(deals, today), [deals, today])
   const firmNames = useMemo(() => new Map(firms.map(f => [f.partnerId, f.name])), [firms])
   const activeDeal = deals.find(d => d.partnerId === activeId) ?? null
@@ -108,8 +110,7 @@ export default function SalesPipelineBoard({ deals, firms, onSaveDeal }: {
 
   return (
     <div className="flex flex-col gap-8">
-      <PipelineKpis summary={summary} total={deals.length} />
-      <SalesCycleKpis cycle={cycle} showOpenAge={today !== null} />
+      
 
       {saveError && (
         <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -117,7 +118,7 @@ export default function SalesPipelineBoard({ deals, firms, onSaveDeal }: {
         </p>
       )}
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveId(null)}>
+      <DndContext id="sales-pipeline-board" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveId(null)}>
         <div className="flex gap-3 overflow-x-auto pb-4">
           {SALES_STAGES.map(stage => (
             <StageColumn
@@ -146,11 +147,51 @@ export default function SalesPipelineBoard({ deals, firms, onSaveDeal }: {
           }}
         />
       )}
+      <PipelineKpis summary={summary} total={deals.length} today={today} />
+      <SalesCycleKpis cycle={cycle} showOpenAge={today !== null} />
     </div>
   )
 }
 
-function PipelineKpis({ summary, total }: { summary: ReturnType<typeof summarizePipeline>; total: number }) {
+/** Compact conversion rate card; counts finished placements only, like the "Apprentices converted" KPI. */
+export function ConversionRateCard({ deals }: { deals: PipelineDeal[] }) {
+  const today = useToday()
+  const summary = useMemo(() => summarizePipeline(deals, today), [deals, today])
+  const pending = [
+    summary.inPlacement > 0 ? `${summary.inPlacement} still in placement` : null,
+    summary.upcoming > 0 ? `${summary.upcoming} starting later` : null,
+  ].filter(Boolean)
+
+  let detail: string | null = null
+  if (today) {
+    detail = summary.finishedPlaced > 0
+      ? `${summary.finishedConverted} of ${summary.finishedPlaced} apprentices with finished placements converted`
+      : 'No finished placements yet'
+  }
+
+  return (
+    <section aria-labelledby="conversion-heading" className="rounded-xl border border-border bg-surface px-5 py-4 border-l-4 border-l-purple-300 max-w-sm">
+      <h2 id="conversion-heading" className="text-xs font-semibold text-muted-text uppercase tracking-wide">Conversion rate</h2>
+      <p className="text-3xl font-bold text-dark-text mt-1">{today ? formatPercent(summary.conversionRate) : '—'}</p>
+      {/* {detail && <p className="text-xs text-muted-text mt-0.5">{detail}</p>}
+      {today && pending.length > 0 && <p className="text-xs text-muted-text">Not counted yet: {pending.join(' · ')}</p>} */}
+    </section>
+  )
+}
+
+function conversionDetail(summary: ReturnType<typeof summarizePipeline>, today: string | null): string {
+  if (!today) return `— conversion rate · ${plural(summary.convertingPartners, 'partner')}`
+  const rate = summary.finishedPlaced > 0
+    ? `${formatPercent(summary.conversionRate)} conversion rate (${summary.finishedConverted} of ${summary.finishedPlaced} with finished placements)`
+    : 'No finished placements yet, so no conversion rate'
+  const pending = [
+    summary.inPlacement > 0 ? `${summary.inPlacement} still in placement` : null,
+    summary.upcoming > 0 ? `${summary.upcoming} starting later` : null,
+  ].filter(Boolean)
+  return [rate, ...pending, plural(summary.convertingPartners, 'partner')].join(' · ')
+}
+
+function PipelineKpis({ summary, total, today }: { summary: ReturnType<typeof summarizePipeline>; total: number; today: string | null }) {
   const maxCount = Math.max(1, ...OPEN_SALES_STAGES.map(s => summary.stageCounts[s]))
   const fees = summary.feesByStatus
 
@@ -170,7 +211,7 @@ function PipelineKpis({ summary, total }: { summary: ReturnType<typeof summarize
     {
       label: 'Apprentices converted',
       value: String(summary.converted),
-      detail: `${formatPercent(summary.conversionRate)} conversion rate · ${plural(summary.convertingPartners, 'partner')}`,
+      detail: conversionDetail(summary, today),
       accent: 'border-purple-300',
     },
     {
@@ -197,8 +238,8 @@ function PipelineKpis({ summary, total }: { summary: ReturnType<typeof summarize
 
       <h3 className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-3">
         Funnel · {summary.openCount} open
-        {summary.introducedByFirms > 0 && (
-          <span className="normal-case font-normal"> · {summary.introducedByFirms} introduced by VC/PE firms</span>
+        {summary.referredCount > 0 && (
+          <span className="normal-case font-normal"> · {summary.referredCount} with a referral source</span>
         )}
       </h3>
       <ol className="flex flex-col items-center gap-1.5">
@@ -234,6 +275,10 @@ function SalesCycleKpis({ cycle, showOpenAge }: { cycle: ReturnType<typeof compu
     stats.count > 0
       ? `average · median ${formatDays(stats.medianDays)} · ${stats.count} ${noun}`
       : `No ${noun} deals yet`
+  const bySource = REFERRAL_SOURCES.flatMap(s => {
+    const stats = cycle.introToCloseBySource[s]
+    return stats ? [[s, stats] as const] : []
+  })
 
   const kpis = [
     { label: 'Sales cycle (apprentice placed)', value: formatDays(cycle.salesCycleWon.averageDays), detail: describe(cycle.salesCycleWon, 'placed') },
@@ -250,7 +295,7 @@ function SalesCycleKpis({ cycle, showOpenAge }: { cycle: ReturnType<typeof compu
     <section aria-labelledby="cycle-heading" className="rounded-xl border border-border bg-surface p-5">
       <h2 id="cycle-heading" className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-1">Sales cycle</h2>
       <p className="text-xs text-muted-text mb-4">
-        Sales cycle runs from when a partner entered the pipeline to when it closed. Introduction to close starts at the VC/PE introduction date.
+        Sales cycle runs from when a partner entered the pipeline to when it closed. Introduction to close starts at the introduction date, for any referral source.
       </p>
       <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map(k => (
@@ -261,6 +306,31 @@ function SalesCycleKpis({ cycle, showOpenAge }: { cycle: ReturnType<typeof compu
           </div>
         ))}
       </dl>
+      {bySource.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Introduction to apprentice placed, by source</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted-text">
+                <th scope="col" className="font-medium py-1 pr-3">Source</th>
+                <th scope="col" className="font-medium py-1 pr-3">Average</th>
+                <th scope="col" className="font-medium py-1 pr-3">Median</th>
+                <th scope="col" className="font-medium py-1">Placed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bySource.map(([source, stats]) => (
+                <tr key={source} className="border-t border-border text-dark-text">
+                  <th scope="row" className="font-normal py-1.5 pr-3">{REFERRAL_SOURCE_LABELS[source]}</th>
+                  <td className="py-1.5 pr-3">{formatDays(stats.averageDays)}</td>
+                  <td className="py-1.5 pr-3">{formatDays(stats.medianDays)}</td>
+                  <td className="py-1.5">{stats.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   )
 }
@@ -335,6 +405,7 @@ function DraggableDealCard({ deal, firmName, onOpen }: {
 function DealCardBody({ deal, firmName, dragging = false }: { deal: PipelineDeal; firmName: string | null; dragging?: boolean }) {
   const location = [deal.city, deal.state].filter(Boolean).join(', ')
   const timing = dealTiming(deal, useToday())
+  const referral = describeReferral(deal, firmName)
 
   return (
     <div className={`rounded-lg border border-border bg-surface px-3 py-2.5 flex flex-col gap-1.5 cursor-grab hover:border-teal-primary/50 transition-colors ${
@@ -351,12 +422,16 @@ function DealCardBody({ deal, firmName, dragging = false }: { deal: PipelineDeal
           </span>
         )}
       </div>
-      {location && <span className="text-xs text-muted-text truncate">{location}</span>}
+      {(location || deal.companySegment) && (
+        <span className="text-xs text-muted-text truncate">
+          {[deal.companySegment ? COMPANY_SEGMENT_LABELS[deal.companySegment] : null, location || null].filter(Boolean).join(' · ')}
+        </span>
+      )}
       <PlacementSummary placements={deal.placements} />
-      {firmName && <span className="text-xs text-muted-text truncate">Introduced by {firmName}</span>}
+      {referral && <span className="text-xs text-muted-text truncate">Introduced by {referral}</span>}
       {timing && <span className="text-xs text-muted-text">{timing}</span>}
       {deal.expectedCloseDate && !deal.closedOn && <span className="text-xs text-muted-text">Expected close {formatDate(deal.expectedCloseDate)}</span>}
-      {deal.ownerName && <span className="text-xs text-muted-text truncate">Owner: {deal.ownerName}</span>}
+      {/* {deal.ownerName && <span className="text-xs text-muted-text truncate">Owner: {deal.ownerName}</span>} */}
     </div>
   )
 }
@@ -427,6 +502,9 @@ function EditDealModal({ deal, firms, onClose, onSave }: {
   onSave: (update: SalesDealUpdate) => Promise<string | null>
 }) {
   const [stage, setStage] = useState<SalesStage>(deal.stage)
+  const [companySegment, setCompanySegment] = useState<CompanySegment | ''>(deal.companySegment ?? '')
+  const [referralSource, setReferralSource] = useState<ReferralSource | ''>(deal.referralSource ?? '')
+  const [referralDetail, setReferralDetail] = useState(deal.referralDetail ?? '')
   const [introducedBy, setIntroducedBy] = useState(deal.introducedByPartnerId ?? '')
   const [introducedOn, setIntroducedOn] = useState(deal.introducedOn ?? '')
   const [closeDate, setCloseDate] = useState(deal.expectedCloseDate ?? '')
@@ -465,7 +543,11 @@ function EditDealModal({ deal, firms, onClose, onSave }: {
     }
 
     const closed = isClosedStage(stage)
-    const effectiveIntroOn = introducedBy ? introducedOn : ''
+    if (referralSource === 'vc_pe' && !introducedBy) {
+      setFormError('Choose the VC or PE firm that made the introduction.')
+      return
+    }
+    const effectiveIntroOn = referralSource ? introducedOn : ''
     if (closed && closedOn) {
       if (startedOn && closedOn < startedOn) {
         setFormError('The close date can’t be before the date this partner entered the pipeline.')
@@ -480,7 +562,10 @@ function EditDealModal({ deal, firms, onClose, onSave }: {
     setSaving(true)
     const error = await onSave({
       stage,
-      introducedByPartnerId: introducedBy || null,
+      companySegment: companySegment || null,
+      referralSource: referralSource || null,
+      introducedByPartnerId: referralSource === 'vc_pe' ? introducedBy : null,
+      referralDetail: referralSource && REFERRAL_DETAIL_LABELS[referralSource] ? referralDetail.trim() || null : null,
       introducedOn: effectiveIntroOn || null,
       ...(startedOn ? { startedOn } : {}),
       closedOn: closed ? closedOn || (isHistorical ? null : todayIso()) : null,
@@ -511,6 +596,15 @@ function EditDealModal({ deal, firms, onClose, onSave }: {
           <select value={stage} onChange={e => changeStage(e.target.value as SalesStage)} className={inputClass}>
             {SALES_STAGES.map(s => <option key={s} value={s}>{SALES_STAGE_LABELS[s]}</option>)}
           </select>
+        </label>
+
+        <label className={labelClass}>
+          Company size
+          <select value={companySegment} onChange={e => setCompanySegment(e.target.value as CompanySegment | '')} className={inputClass}>
+            <option value="">Not set</option>
+            {COMPANY_SEGMENTS.map(s => <option key={s} value={s}>{COMPANY_SEGMENT_LABELS[s]}</option>)}
+          </select>
+          <span className="text-xs font-normal text-muted-text">Counts toward the outreach targets, by &ldquo;Entered pipeline&rdquo; date.</span>
         </label>
 
         <fieldset className="flex flex-col gap-2">
@@ -606,17 +700,39 @@ function EditDealModal({ deal, firms, onClose, onSave }: {
 
         <label className={labelClass}>
           Introduced by
-          <select value={introducedBy} onChange={e => setIntroducedBy(e.target.value)} className={inputClass}>
-            <option value="">Not introduced by a VC/PE firm</option>
-            {firms.map(f => <option key={f.partnerId} value={f.partnerId}>{f.name}</option>)}
+          <select value={referralSource} onChange={e => setReferralSource(e.target.value as ReferralSource | '')} className={inputClass}>
+            <option value="">No referral source</option>
+            {REFERRAL_SOURCES.map(s => <option key={s} value={s}>{REFERRAL_SOURCE_LABELS[s]}</option>)}
           </select>
-          {firms.length === 0 && (
-            <span className="text-xs font-normal text-muted-text">
-              Tag a partner as Venture Capital or Private Equity to list it here.
-            </span>
-          )}
         </label>
-        {introducedBy && (
+        {referralSource === 'vc_pe' && (
+          <label className={labelClass}>
+            Firm
+            <select value={introducedBy} onChange={e => setIntroducedBy(e.target.value)} className={inputClass}>
+              <option value="">Choose a firm…</option>
+              {firms.map(f => <option key={f.partnerId} value={f.partnerId}>{f.name}</option>)}
+            </select>
+            {firms.length === 0 && (
+              <span className="text-xs font-normal text-muted-text">
+                Tag a partner as Venture Capital or Private Equity to list it here.
+              </span>
+            )}
+          </label>
+        )}
+        {referralSource && REFERRAL_DETAIL_LABELS[referralSource] && (
+          <label className={labelClass}>
+            {REFERRAL_DETAIL_LABELS[referralSource]}
+            <input
+              type="text"
+              value={referralDetail}
+              onChange={e => setReferralDetail(e.target.value)}
+              maxLength={REFERRAL_DETAIL_MAX_LENGTH}
+              placeholder="Optional"
+              className={inputClass}
+            />
+          </label>
+        )}
+        {referralSource && (
           <label className={labelClass}>
             Introduction date
             <input type="date" value={introducedOn} onChange={e => setIntroducedOn(e.target.value)} className={inputClass} />

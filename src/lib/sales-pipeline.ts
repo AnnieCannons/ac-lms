@@ -60,6 +60,64 @@ export function isLpStatus(value: unknown): value is LpStatus {
   return typeof value === 'string' && (LP_STATUSES as readonly string[]).includes(value)
 }
 
+export const COMPANY_SEGMENTS = ['growth_stage', 'enterprise'] as const
+
+export type CompanySegment = (typeof COMPANY_SEGMENTS)[number]
+
+export const COMPANY_SEGMENT_LABELS: Record<CompanySegment, string> = {
+  growth_stage: 'Growth stage',
+  enterprise: 'Enterprise',
+}
+
+export function isCompanySegment(value: unknown): value is CompanySegment {
+  return typeof value === 'string' && (COMPANY_SEGMENTS as readonly string[]).includes(value)
+}
+
+export const REFERRAL_SOURCES = [
+  'vc_pe',
+  'client_referral',
+  'funding_partner',
+  'board_advisor',
+  'personal_network',
+  'event',
+  'inbound',
+] as const
+
+export type ReferralSource = (typeof REFERRAL_SOURCES)[number]
+
+export const REFERRAL_SOURCE_LABELS: Record<ReferralSource, string> = {
+  vc_pe: 'VC/PE firm',
+  client_referral: 'Client referral',
+  funding_partner: 'Funding partner',
+  board_advisor: 'Board member / advisor',
+  personal_network: 'Staff / personal network',
+  event: 'Event / conference',
+  inbound: 'Inbound',
+}
+
+/** Sources that take a typed-in name, and what to call it. */
+export const REFERRAL_DETAIL_LABELS: Partial<Record<ReferralSource, string>> = {
+  client_referral: 'Client name',
+  funding_partner: 'Funding partner name',
+}
+
+export const REFERRAL_DETAIL_MAX_LENGTH = 200
+
+export function isReferralSource(value: unknown): value is ReferralSource {
+  return typeof value === 'string' && (REFERRAL_SOURCES as readonly string[]).includes(value)
+}
+
+/** Card text, e.g. "Client referral: Acme Corp" or, for a VC/PE introduction, the firm's name. */
+export function describeReferral(
+  deal: Pick<PipelineDeal, 'referralSource' | 'referralDetail'>,
+  firmName: string | null,
+): string | null {
+  if (!deal.referralSource) return null
+  if (deal.referralSource === 'vc_pe') return firmName ?? REFERRAL_SOURCE_LABELS.vc_pe
+  const label = REFERRAL_SOURCE_LABELS[deal.referralSource]
+  return deal.referralDetail ? `${label}: ${deal.referralDetail}` : label
+}
+
 export const PLACEMENT_TERMS = ['january', 'may', 'september'] as const
 
 export type PlacementTerm = (typeof PLACEMENT_TERMS)[number]
@@ -124,24 +182,82 @@ export function upcomingPlacementTerm(date: string): Pick<ApprenticePlacement, '
   return { term: 'january', year: year + 1 }
 }
 
+const PLACEMENT_TERM_START_MONTH: Record<PlacementTerm, number> = { january: 1, may: 5, september: 9 }
+
+/** A placement lasts this many months from the 1st of its term's month. */
+export const PLACEMENT_LENGTH_MONTHS = 4
+
+export type PlacementPhase = 'upcoming' | 'in_placement' | 'finished'
+
+/** YYYY-MM-DD dates a term's placement starts and finishes (the finish date is the first day it's over). */
+export function placementPeriod(p: Pick<ApprenticePlacement, 'term' | 'year'>): { start: string; end: string } {
+  const startMonth = PLACEMENT_TERM_START_MONTH[p.term]
+  const endIndex = startMonth - 1 + PLACEMENT_LENGTH_MONTHS
+  const iso = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}-01`
+  return {
+    start: iso(p.year, startMonth),
+    end: iso(p.year + Math.floor(endIndex / 12), (endIndex % 12) + 1),
+  }
+}
+
+export function placementPhase(p: Pick<ApprenticePlacement, 'term' | 'year'>, today: string): PlacementPhase {
+  const { start, end } = placementPeriod(p)
+  if (today < start) return 'upcoming'
+  return today < end ? 'in_placement' : 'finished'
+}
+
 export interface PlacementTotals {
   placed: number
+  /** All conversions, including any from placements that haven't finished. */
   converted: number
-  /** Converted ÷ placed, or null when nothing has been placed. */
+  /** Apprentices whose placement has finished; the conversion rate's denominator. */
+  finishedPlaced: number
+  finishedConverted: number
+  /** Converted ÷ placed for finished placements only; null when none have finished or today isn't known. */
   conversionRate: number | null
+  /** Apprentices in a placement that has started but not finished. */
+  inPlacement: number
+  /** Apprentices in a term that hasn't started yet. */
+  upcoming: number
   feesByStatus: Record<FeeStatus, number>
 }
 
-export function totalPlacements(placements: Pick<ApprenticePlacement, 'count' | 'convertedCount' | 'feeAmount' | 'feeStatus'>[]): PlacementTotals {
+type TotalsPlacement = Pick<ApprenticePlacement, 'term' | 'year' | 'count' | 'convertedCount' | 'feeAmount' | 'feeStatus'>
+
+/** Without `today`, nothing can be called finished, so the conversion rate is null. */
+export function totalPlacements(placements: TotalsPlacement[], today: string | null = null): PlacementTotals {
   const feesByStatus = { not_invoiced: 0, invoiced: 0, paid: 0 }
   let placed = 0
   let converted = 0
+  let finishedPlaced = 0
+  let finishedConverted = 0
+  let inPlacement = 0
+  let upcoming = 0
   for (const p of placements) {
     placed += p.count
     converted += p.convertedCount
     feesByStatus[p.feeStatus] += p.feeAmount ?? 0
+    if (!today) continue
+    const phase = placementPhase(p, today)
+    if (phase === 'finished') {
+      finishedPlaced += p.count
+      finishedConverted += p.convertedCount
+    } else if (phase === 'in_placement') {
+      inPlacement += p.count
+    } else {
+      upcoming += p.count
+    }
   }
-  return { placed, converted, conversionRate: placed > 0 ? converted / placed : null, feesByStatus }
+  return {
+    placed,
+    converted,
+    finishedPlaced,
+    finishedConverted,
+    conversionRate: finishedPlaced > 0 ? finishedConverted / finishedPlaced : null,
+    inPlacement,
+    upcoming,
+    feesByStatus,
+  }
 }
 
 export function formatCurrency(value: number): string {
@@ -166,7 +282,13 @@ export interface PipelineDeal {
   state: string | null
   ownerName: string | null
   stage: SalesStage
+  companySegment: CompanySegment | null
+  referralSource: ReferralSource | null
+  /** Typed-in name for a client or funding partner referral. */
+  referralDetail: string | null
+  /** The VC/PE firm, when `referralSource` is `vc_pe`. */
   introducedByPartnerId: string | null
+  /** Referral date, for any source. */
   introducedOn: string | null
   startedOn: string | null
   closedOn: string | null
@@ -213,13 +335,18 @@ export interface CycleStats {
   salesCycleWon: DurationStats
   salesCycleLost: DurationStats
   introToCloseWon: DurationStats
+  /** Intro-to-close for each referral source; only sources with at least one measured deal. */
+  introToCloseBySource: Partial<Record<ReferralSource, DurationStats>>
   openAge: DurationStats
 }
 
-type CycleDeal = Pick<PipelineDeal, 'stage' | 'introducedOn' | 'startedOn' | 'closedOn'> & { isHistorical?: boolean }
+type CycleDeal = Pick<PipelineDeal, 'stage' | 'introducedOn' | 'startedOn' | 'closedOn'> & {
+  isHistorical?: boolean
+  referralSource?: ReferralSource | null
+}
 
 /**
- * Sales cycle runs from pipeline entry to close; intro-to-close runs from a VC/PE introduction to close.
+ * Sales cycle runs from pipeline entry to close; intro-to-close runs from the referral date to close.
  * Historical deals are left out entirely.
  */
 export function computeCycleStats(allDeals: CycleDeal[], today: string | null = null): CycleStats {
@@ -227,11 +354,20 @@ export function computeCycleStats(allDeals: CycleDeal[], today: string | null = 
   const won = deals.filter(d => d.stage === 'closed_won' && d.closedOn)
   const lost = deals.filter(d => d.stage === 'closed_lost' && d.closedOn)
   const open = today ? deals.filter(d => !isClosedStage(d.stage) && d.startedOn) : []
+  const introduced = won.filter(d => d.introducedOn)
+  const introDays = (ds: CycleDeal[]) => ds.map(d => daysBetween(d.introducedOn!, d.closedOn!))
+
+  const introToCloseBySource: CycleStats['introToCloseBySource'] = {}
+  for (const source of REFERRAL_SOURCES) {
+    const stats = durationStats(introDays(introduced.filter(d => d.referralSource === source)))
+    if (stats.count > 0) introToCloseBySource[source] = stats
+  }
 
   return {
     salesCycleWon: durationStats(won.filter(d => d.startedOn).map(d => daysBetween(d.startedOn!, d.closedOn!))),
     salesCycleLost: durationStats(lost.filter(d => d.startedOn).map(d => daysBetween(d.startedOn!, d.closedOn!))),
-    introToCloseWon: durationStats(won.filter(d => d.introducedOn).map(d => daysBetween(d.introducedOn!, d.closedOn!))),
+    introToCloseWon: durationStats(introDays(introduced)),
+    introToCloseBySource,
     openAge: durationStats(open.map(d => daysBetween(d.startedOn!, today!))),
   }
 }
@@ -262,32 +398,40 @@ export interface PipelineSummary extends PlacementTotals {
   hiringPartners: number
   /** Partners with at least one apprentice converted. */
   convertingPartners: number
-  introducedByFirms: number
+  referralCounts: Record<ReferralSource, number>
+  /** Deals with any referral source. */
+  referredCount: number
 }
 
-type SummaryDeal = Pick<PipelineDeal, 'stage' | 'introducedByPartnerId' | 'placements'>
+type SummaryDeal = Pick<PipelineDeal, 'stage' | 'referralSource' | 'placements'>
 
-export function summarizePipeline(deals: SummaryDeal[]): PipelineSummary {
+/** `today` is needed for the conversion rate and in-placement counts; see `totalPlacements`. */
+export function summarizePipeline(deals: SummaryDeal[], today: string | null = null): PipelineSummary {
   const stageCounts = Object.fromEntries(SALES_STAGES.map(s => [s, 0])) as Record<SalesStage, number>
+  const referralCounts = Object.fromEntries(REFERRAL_SOURCES.map(s => [s, 0])) as Record<ReferralSource, number>
   let hiringPartners = 0
   let convertingPartners = 0
-  let introducedByFirms = 0
+  let referredCount = 0
 
   for (const deal of deals) {
     stageCounts[deal.stage]++
     const totals = totalPlacements(deal.placements)
     if (totals.placed > 0) hiringPartners++
     if (totals.converted > 0) convertingPartners++
-    if (deal.introducedByPartnerId) introducedByFirms++
+    if (deal.referralSource) {
+      referralCounts[deal.referralSource]++
+      referredCount++
+    }
   }
 
   return {
-    ...totalPlacements(deals.flatMap(d => d.placements)),
+    ...totalPlacements(deals.flatMap(d => d.placements), today),
     stageCounts,
     openCount: OPEN_SALES_STAGES.reduce((n, s) => n + stageCounts[s], 0),
     hiringPartners,
     convertingPartners,
-    introducedByFirms,
+    referralCounts,
+    referredCount,
   }
 }
 
@@ -307,4 +451,81 @@ export function summarizeFirms(firms: Pick<InvestorFirm, 'partnerId' | 'lpStatus
     introductionCount: deals.filter(d => d.introducedByPartnerId && firmIds.has(d.introducedByPartnerId)).length,
     lpCounts,
   }
+}
+
+export interface OutreachTarget {
+  id: string
+  segment: CompanySegment
+  targetCount: number
+  /** Inclusive YYYY-MM-DD dates. */
+  startDate: string
+  endDate: string
+}
+
+export type TargetStatus = 'upcoming' | 'on_track' | 'behind' | 'met' | 'missed'
+
+export const TARGET_STATUS_LABELS: Record<TargetStatus, string> = {
+  upcoming: 'Not started',
+  on_track: 'On track',
+  behind: 'Behind pace',
+  met: 'Target met',
+  missed: 'Ended below target',
+}
+
+export const TARGET_STATUS_COLORS: Record<TargetStatus, string> = {
+  upcoming: 'bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300',
+  on_track: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  behind:   'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+  met:      'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  missed:   'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+}
+
+export interface TargetProgress {
+  /** Deals of the target's company size whose "Entered pipeline" date is within the period. */
+  added: Pick<PipelineDeal, 'partnerId' | 'partnerName' | 'startedOn'>[]
+  addedCount: number
+  remaining: number
+  /** Null when today isn't known (server render). */
+  status: TargetStatus | null
+  /** Days left in the period, counting today; 0 once it has ended. */
+  daysLeft: number | null
+  /** Where an even pace through the period would be by today, rounded down. */
+  expectedByNow: number | null
+}
+
+type TargetDeal = Pick<PipelineDeal, 'partnerId' | 'partnerName' | 'startedOn' | 'companySegment'>
+
+/** "On track" means at least where an even pace from the start date would be by today. */
+export function computeTargetProgress(target: OutreachTarget, deals: TargetDeal[], today: string | null): TargetProgress {
+  const added = deals
+    .filter(d => d.companySegment === target.segment && d.startedOn && d.startedOn >= target.startDate && d.startedOn <= target.endDate)
+    .sort((a, b) => a.startedOn!.localeCompare(b.startedOn!) || a.partnerName.localeCompare(b.partnerName))
+    .map(({ partnerId, partnerName, startedOn }) => ({ partnerId, partnerName, startedOn }))
+  const addedCount = added.length
+  const remaining = Math.max(0, target.targetCount - addedCount)
+
+  if (!today) return { added, addedCount, remaining, status: null, daysLeft: null, expectedByNow: null }
+
+  const totalDays = daysBetween(target.startDate, target.endDate) + 1
+  const elapsedDays = today < target.startDate ? 0 : today > target.endDate ? totalDays : daysBetween(target.startDate, today) + 1
+  const expectedByNow = Math.floor((target.targetCount * elapsedDays) / totalDays)
+  const daysLeft = today > target.endDate ? 0 : daysBetween(today < target.startDate ? target.startDate : today, target.endDate) + 1
+
+  let status: TargetStatus
+  if (addedCount >= target.targetCount) status = 'met'
+  else if (today < target.startDate) status = 'upcoming'
+  else if (today > target.endDate) status = 'missed'
+  else status = addedCount >= expectedByNow ? 'on_track' : 'behind'
+
+  return { added, addedCount, remaining, status, daysLeft, expectedByNow }
+}
+
+/** Targets whose period includes today or hasn't started come first (soonest end first), then past ones (latest first). */
+export function sortTargets(targets: OutreachTarget[], today: string | null): OutreachTarget[] {
+  const ended = (t: OutreachTarget) => (today !== null && t.endDate < today ? 1 : 0)
+  return [...targets].sort((a, b) =>
+    ended(a) - ended(b)
+    || (ended(a) ? b.endDate.localeCompare(a.endDate) : a.endDate.localeCompare(b.endDate))
+    || COMPANY_SEGMENTS.indexOf(a.segment) - COMPANY_SEGMENTS.indexOf(b.segment)
+  )
 }

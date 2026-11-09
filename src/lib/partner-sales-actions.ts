@@ -3,9 +3,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import {
-  isSalesStage, isLpStatus, isPlacementTerm, isFeeStatus, sortPlacements,
+  isSalesStage, isLpStatus, isPlacementTerm, isFeeStatus, isReferralSource, isCompanySegment, sortPlacements,
+  REFERRAL_DETAIL_LABELS, REFERRAL_DETAIL_MAX_LENGTH,
   type PipelineDeal, type InvestorFirm, type FirmKind, type SalesStage, type LpStatus,
-  type ApprenticePlacement,
+  type ApprenticePlacement, type ReferralSource, type CompanySegment, type OutreachTarget,
 } from '@/lib/sales-pipeline'
 
 const FIRM_TYPES: FirmKind[] = ['venture_capital', 'private_equity']
@@ -33,6 +34,9 @@ type StaffSupabase = NonNullable<Awaited<ReturnType<typeof requireStaffOrAdmin>>
 
 interface DealRow {
   stage: string
+  company_segment: string | null
+  referral_source: string | null
+  referral_detail: string | null
   introduced_by_partner_id: string | null
   introduced_on: string | null
   started_on: string | null
@@ -71,11 +75,12 @@ export async function getSalesPipelineData(): Promise<{
   error: string | null
   deals: PipelineDeal[]
   firms: InvestorFirm[]
+  targets: OutreachTarget[]
 }> {
   const { error, supabase } = await requireStaffOrAdmin()
-  if (error || !supabase) return { error, deals: [], firms: [] }
+  if (error || !supabase) return { error, deals: [], firms: [], targets: [] }
 
-  const [dealsResult, firmsResult] = await Promise.all([
+  const [dealsResult, firmsResult, targetsResult] = await Promise.all([
     supabase
       .from('partners')
       .select(`
@@ -83,7 +88,7 @@ export async function getSalesPipelineData(): Promise<{
         owner:users!partners_internal_owner_id_fkey (name),
         partner_type_assignments!inner (partner_type),
         partner_sales_deals!partner_sales_deals_partner_id_fkey (
-          stage, introduced_by_partner_id, introduced_on, started_on, closed_on, expected_close_date, notes, is_historical
+          stage, company_segment, referral_source, referral_detail, introduced_by_partner_id, introduced_on, started_on, closed_on, expected_close_date, notes, is_historical
         ),
         partner_apprentice_placements (term, year, count, converted_count, fee_amount, fee_status)
       `)
@@ -99,10 +104,14 @@ export async function getSalesPipelineData(): Promise<{
       `)
       .in('partner_type_assignments.partner_type', FIRM_TYPES)
       .order('name'),
+    supabase
+      .from('partner_outreach_targets')
+      .select('id, segment, target_count, start_date, end_date')
+      .order('end_date'),
   ])
 
-  if (dealsResult.error) return { error: dealsResult.error.message, deals: [], firms: [] }
-  if (firmsResult.error) return { error: firmsResult.error.message, deals: [], firms: [] }
+  const failed = dealsResult.error ?? firmsResult.error ?? targetsResult.error
+  if (failed) return { error: failed.message, deals: [], firms: [], targets: [] }
 
   const deals = (dealsResult.data ?? []).map((p): PipelineDeal => {
     const deal = firstOrSelf(p.partner_sales_deals as DealRow | DealRow[] | null)
@@ -114,6 +123,9 @@ export async function getSalesPipelineData(): Promise<{
       state: p.state,
       ownerName: owner?.name ?? null,
       stage: deal && isSalesStage(deal.stage) ? deal.stage : 'lead',
+      companySegment: deal && isCompanySegment(deal.company_segment) ? deal.company_segment : null,
+      referralSource: deal && isReferralSource(deal.referral_source) ? deal.referral_source : null,
+      referralDetail: deal?.referral_detail ?? null,
       introducedByPartnerId: deal?.introduced_by_partner_id ?? null,
       introducedOn: deal?.introduced_on ?? null,
       startedOn: deal?.started_on ?? null,
@@ -152,11 +164,40 @@ export async function getSalesPipelineData(): Promise<{
     }
   })
 
-  return { error: null, deals, firms }
+  const targets = ((targetsResult.data ?? []) as TargetRow[])
+    .filter(t => isCompanySegment(t.segment))
+    .map(toOutreachTarget)
+
+  return { error: null, deals, firms, targets }
+}
+
+interface TargetRow {
+  id: string
+  segment: string
+  target_count: number
+  start_date: string
+  end_date: string
+}
+
+function toOutreachTarget(t: TargetRow): OutreachTarget {
+  return {
+    id: t.id,
+    segment: t.segment as OutreachTarget['segment'],
+    targetCount: t.target_count,
+    startDate: t.start_date,
+    endDate: t.end_date,
+  }
 }
 
 export interface SalesDealUpdate {
   stage?: SalesStage
+  companySegment?: CompanySegment | null
+  /**
+   * Saving the referral replaces it as a whole: send the source with the firm (for `vc_pe`)
+   * or name (for client and funding partner referrals). `null` clears the referral and its date.
+   */
+  referralSource?: ReferralSource | null
+  referralDetail?: string | null
   introducedByPartnerId?: string | null
   introducedOn?: string | null
   startedOn?: string | null
@@ -213,6 +254,10 @@ export async function updateSalesDeal(partnerId: string, update: SalesDealUpdate
     if (!isSalesStage(update.stage)) return { error: 'Invalid stage' }
     row.stage = update.stage
   }
+  if (update.companySegment !== undefined) {
+    if (update.companySegment !== null && !isCompanySegment(update.companySegment)) return { error: 'Invalid company size' }
+    row.company_segment = update.companySegment
+  }
   if (update.introducedOn !== undefined) {
     const d = update.introducedOn
     if (d !== null && !DATE_RE.test(d)) return { error: 'Invalid introduction date' }
@@ -250,16 +295,34 @@ export async function updateSalesDeal(partnerId: string, update: SalesDealUpdate
     return { error: 'Only Apprenticeship partners can be in the sales pipeline' }
   }
 
-  if (update.introducedByPartnerId !== undefined) {
-    const firmId = update.introducedByPartnerId
-    if (firmId !== null) {
+  if (update.referralSource === undefined) {
+    if (update.introducedByPartnerId !== undefined || update.referralDetail !== undefined) {
+      return { error: 'A referral must be saved with its source' }
+    }
+  } else {
+    const source = update.referralSource
+    if (source !== null && !isReferralSource(source)) return { error: 'Invalid referral source' }
+    row.referral_source = source
+    row.introduced_by_partner_id = null
+    row.referral_detail = null
+
+    if (source === null) {
+      row.introduced_on = null
+    } else if (source === 'vc_pe') {
+      const firmId = update.introducedByPartnerId
+      if (!firmId) return { error: 'Choose the VC or PE firm that made the introduction' }
       if (firmId === partnerId) return { error: 'A partner can’t introduce itself' }
       if (!(await partnerHasType(supabase, firmId, FIRM_TYPES))) {
         return { error: 'Introductions can only come from a VC or PE firm' }
       }
+      row.introduced_by_partner_id = firmId
+    } else if (REFERRAL_DETAIL_LABELS[source]) {
+      const detail = update.referralDetail?.trim() || null
+      if (detail && detail.length > REFERRAL_DETAIL_MAX_LENGTH) {
+        return { error: `${REFERRAL_DETAIL_LABELS[source]} must be ${REFERRAL_DETAIL_MAX_LENGTH} characters or fewer` }
+      }
+      row.referral_detail = detail
     }
-    row.introduced_by_partner_id = firmId
-    if (firmId === null) row.introduced_on = null
   }
 
   const { error: dbError } = await supabase
@@ -323,6 +386,56 @@ export async function updateInvestorFirm(partnerId: string, update: InvestorFirm
     .from('partner_investor_firms')
     .upsert(row, { onConflict: 'partner_id' })
 
+  if (dbError) return { error: dbError.message }
+
+  revalidatePath('/instructor/partnerships/pipeline')
+  return { error: null }
+}
+
+export interface OutreachTargetInput {
+  segment: CompanySegment
+  targetCount: number
+  startDate: string
+  endDate: string
+}
+
+/** Creates a target when `id` is null, otherwise updates it. */
+export async function saveOutreachTarget(
+  id: string | null,
+  input: OutreachTargetInput,
+): Promise<{ error: string | null; target: OutreachTarget | null }> {
+  const { error, supabase, user } = await requireStaffOrAdmin()
+  if (error || !supabase || !user) return { error, target: null }
+
+  if (!isCompanySegment(input.segment)) return { error: 'Invalid company size', target: null }
+  if (!Number.isInteger(input.targetCount) || input.targetCount < 1 || input.targetCount > 10000) {
+    return { error: 'The target must be a whole number of at least 1', target: null }
+  }
+  if (!DATE_RE.test(input.startDate) || !DATE_RE.test(input.endDate)) return { error: 'Invalid dates', target: null }
+  if (input.endDate < input.startDate) return { error: 'The end date can’t be before the start date', target: null }
+
+  const row = {
+    segment: input.segment,
+    target_count: input.targetCount,
+    start_date: input.startDate,
+    end_date: input.endDate,
+  }
+  const query = id
+    ? supabase.from('partner_outreach_targets').update(row).eq('id', id)
+    : supabase.from('partner_outreach_targets').insert({ ...row, created_by: user.id })
+  const { data, error: dbError } = await query.select('id, segment, target_count, start_date, end_date').single()
+
+  if (dbError || !data) return { error: dbError?.message ?? 'Target not found', target: null }
+
+  revalidatePath('/instructor/partnerships/pipeline')
+  return { error: null, target: toOutreachTarget(data as TargetRow) }
+}
+
+export async function deleteOutreachTarget(id: string): Promise<{ error: string | null }> {
+  const { error, supabase } = await requireStaffOrAdmin()
+  if (error || !supabase) return { error }
+
+  const { error: dbError } = await supabase.from('partner_outreach_targets').delete().eq('id', id)
   if (dbError) return { error: dbError.message }
 
   revalidatePath('/instructor/partnerships/pipeline')

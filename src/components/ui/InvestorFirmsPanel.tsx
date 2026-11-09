@@ -113,7 +113,7 @@ function FirmCard({ firm, deals, onEditLp, onSaveDeal }: {
   const [error, setError] = useState<string | null>(null)
 
   const introduced = deals.filter(d => d.introducedByPartnerId === firm.partnerId)
-  const linkable = deals.filter(d => !d.introducedByPartnerId && d.partnerId !== firm.partnerId)
+  const linkable = deals.filter(d => !d.referralSource && d.partnerId !== firm.partnerId)
   const today = useToday()
   const firmIntroToClose = computeCycleStats(introduced).introToCloseWon
 
@@ -137,7 +137,7 @@ function FirmCard({ firm, deals, onEditLp, onSaveDeal }: {
   async function handleLink(e: React.FormEvent) {
     e.preventDefault()
     if (!linkId) return
-    const err = await run(linkId, { introducedByPartnerId: firm.partnerId, introducedOn: todayIso() })
+    const err = await run(linkId, { referralSource: 'vc_pe', introducedByPartnerId: firm.partnerId, introducedOn: todayIso() })
     if (!err) setLinkId('')
   }
 
@@ -201,7 +201,7 @@ function FirmCard({ firm, deals, onEditLp, onSaveDeal }: {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => run(d.partnerId, { introducedByPartnerId: null })}
+                    onClick={() => run(d.partnerId, { referralSource: null })}
                     className="hover:text-red-700 disabled:opacity-60"
                   >
                     Unlink<span className="sr-only"> {d.partnerName} from {firm.name}</span>
@@ -232,7 +232,7 @@ function FirmCard({ firm, deals, onEditLp, onSaveDeal }: {
           </button>
         </form>
         <p className="text-xs text-muted-text">
-          Only Apprenticeship partners not already linked to a firm are listed. To add a new company, create it with the Apprenticeship type first.
+          Only Apprenticeship partners with no referral source yet are listed. To add a new company, create it with the Apprenticeship type first.
         </p>
         {error && <p role="alert" className="text-sm text-red-700">Couldn&apos;t save: {error}</p>}
       </div>

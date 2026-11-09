@@ -1,13 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import SalesPipelineBoard from '@/components/ui/SalesPipelineBoard'
+import SalesPipelineBoard, { ConversionRateCard } from '@/components/ui/SalesPipelineBoard'
 import InvestorFirmsPanel from '@/components/ui/InvestorFirmsPanel'
+import OutreachTargetsPanel from '@/components/ui/OutreachTargetsPanel'
 import {
-  updateSalesDeal, updateInvestorFirm,
-  type SalesDealUpdate, type InvestorFirmUpdate,
+  updateSalesDeal, updateInvestorFirm, saveOutreachTarget, deleteOutreachTarget,
+  type SalesDealUpdate, type InvestorFirmUpdate, type OutreachTargetInput,
 } from '@/lib/partner-sales-actions'
-import { isClosedStage, todayIso, type PipelineDeal, type InvestorFirm } from '@/lib/sales-pipeline'
+import {
+  isClosedStage, todayIso, REFERRAL_DETAIL_LABELS,
+  type PipelineDeal, type InvestorFirm, type OutreachTarget,
+} from '@/lib/sales-pipeline'
 
 export type PipelineTab = 'pipeline' | 'firms'
 
@@ -16,14 +20,35 @@ const TABS: { id: PipelineTab; label: string }[] = [
   { id: 'firms', label: 'VC & PE Firms' },
 ]
 
-export default function SalesPipelineView({ initialDeals, initialFirms, initialTab }: {
+export default function SalesPipelineView({ initialDeals, initialFirms, initialTargets, initialTab }: {
   initialDeals: PipelineDeal[]
   initialFirms: InvestorFirm[]
+  initialTargets: OutreachTarget[]
   initialTab: PipelineTab
 }) {
   const [tab, setTab] = useState<PipelineTab>(initialTab)
   const [deals, setDeals] = useState(initialDeals)
   const [firms, setFirms] = useState(initialFirms)
+  const [targets, setTargets] = useState(initialTargets)
+
+  async function saveTarget(id: string | null, input: OutreachTargetInput): Promise<string | null> {
+    const result = await saveOutreachTarget(id, input)
+    const saved = result.target
+    if (result.error || !saved) return result.error ?? 'Couldn’t save the target'
+    setTargets(ts => id ? ts.map(t => t.id === id ? saved : t) : [...ts, saved])
+    return null
+  }
+
+  async function removeTarget(id: string): Promise<string | null> {
+    const previous = targets
+    setTargets(ts => ts.filter(t => t.id !== id))
+    const result = await deleteOutreachTarget(id)
+    if (result.error) {
+      setTargets(previous)
+      return result.error
+    }
+    return null
+  }
 
   function selectTab(next: PipelineTab) {
     setTab(next)
@@ -51,7 +76,11 @@ export default function SalesPipelineView({ initialDeals, initialFirms, initialT
     setDeals(ds => ds.map(d => {
       if (d.partnerId !== partnerId) return d
       const next = { ...d, ...update }
-      if (update.introducedByPartnerId === null) next.introducedOn = null
+      if (update.referralSource !== undefined) {
+        if (update.referralSource !== 'vc_pe') next.introducedByPartnerId = null
+        if (!update.referralSource || !REFERRAL_DETAIL_LABELS[update.referralSource]) next.referralDetail = null
+        if (update.referralSource === null) next.introducedOn = null
+      }
       if (!isClosedStage(next.stage)) next.closedOn = null
       return next
     }))
@@ -100,7 +129,13 @@ export default function SalesPipelineView({ initialDeals, initialFirms, initialT
 
       <div role="tabpanel" id={`pipeline-panel-${tab}`} aria-labelledby={`pipeline-tab-${tab}`}>
         {tab === 'pipeline' ? (
-          <SalesPipelineBoard deals={deals} firms={firms} onSaveDeal={saveDeal} />
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-3">
+              <OutreachTargetsPanel targets={targets} deals={deals} onSave={saveTarget} onDelete={removeTarget} />
+              <ConversionRateCard deals={deals} />
+            </div>
+            <SalesPipelineBoard deals={deals} firms={firms} onSaveDeal={saveDeal} />
+          </div>
         ) : (
           <InvestorFirmsPanel firms={firms} deals={deals} onSaveFirm={saveFirm} onSaveDeal={saveDeal} />
         )}

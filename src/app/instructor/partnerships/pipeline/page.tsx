@@ -4,7 +4,7 @@ import SalesPipelineView from '@/components/ui/SalesPipelineView'
 
 export default async function SalesPipelinePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams
-  const { error, deals, firms } = await getSalesPipelineData()
+  const { error, deals, firms, targets } = await getSalesPipelineData()
 
   return (
     <main className="px-6 py-10">
@@ -26,7 +26,7 @@ export default async function SalesPipelinePage({ searchParams }: { searchParams
       {error ? (
         <p role="alert" className="text-sm text-red-700">Couldn&apos;t load the pipeline: {error}</p>
       ) : (
-        <SalesPipelineView initialDeals={deals} initialFirms={firms} initialTab={tab === 'firms' ? 'firms' : 'pipeline'} />
+        <SalesPipelineView initialDeals={deals} initialFirms={firms} initialTargets={targets} initialTab={tab === 'firms' ? 'firms' : 'pipeline'} />
       )}
     </main>
   )
