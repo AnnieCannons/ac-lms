@@ -173,6 +173,13 @@ export default function PartnershipsSidebar({ deptCounts, totalCount }: Props) {
 
         <div className="my-2 border-t border-border shrink-0" />
 
+        <Link href="/instructor/partnerships/pipeline" className={linkClass('/instructor/partnerships/pipeline')}>
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
+          </svg>
+          <span className="truncate">Sales Pipeline</span>
+        </Link>
+
         <Link href="/instructor/partnerships/referrals" className={linkClass('/instructor/partnerships/referrals')}>
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />

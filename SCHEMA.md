@@ -725,7 +725,7 @@ Junction table — a partner can have multiple types.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `partner_id` | uuid | FK → partners, CASCADE DELETE |
-| `partner_type` | partner_type | `service_provider`, `corporate`, `funder`, `advisory`, `mentorship`, `media` |
+| `partner_type` | partner_type | `service_provider`, `corporate`, `funder`, `advisory`, `mentorship`, `apprenticeship`, `media`, `admissions_referral`, `venture_capital`, `private_equity` |
 
 Unique on `(partner_id, partner_type)`.
 
@@ -745,6 +745,71 @@ Contacts (people) associated with a partner organization.
 | `is_primary` | boolean | Default: false |
 | `notes` | text | Nullable |
 | `created_at` | timestamptz | Default: now() |
+
+---
+
+### partner_sales_deals
+Sales pipeline deal for an Apprenticeship partner (one per partner; the page lists partners with the `apprenticeship` type). Apprenticeship partners with no row are shown in the `lead` stage; a row is created the first time one is moved or edited on the Sales Pipeline page.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE, unique |
+| `stage` | text | `lead`, `contacted`, `meeting_held`, `proposal_sent`, `negotiation` (shown as "MOU Signed"), `closed_won` (shown as "Apprentice Placed"), `closed_lost` (shown as "Referral Fee Paid"). Default: `lead` |
+| `engagement_types` | text[] | **No longer used by the app** (kept to preserve data). Any of `mentorship`, `guest_speaking`, `cutting_edge_talks`. Default: `{}` |
+| `hosts_apprentice` | boolean | **No longer used by the app** (kept to preserve data); placements replace it. Default: false |
+| `funds_ac` | boolean | **No longer used by the app** (kept to preserve data). Default: false |
+| `introduced_by_partner_id` | uuid | FK → partners (a VC/PE firm), SET NULL on delete, nullable. Can't be the deal's own partner |
+| `introduced_on` | date | Nullable |
+| `started_on` | date | When the partner entered the pipeline. Default: current date; the app sends the user's local date on first save |
+| `closed_on` | date | Set by trigger when `stage` becomes `closed_won`/`closed_lost` without one (the app normally sends the local date), except on historical deals, which keep whatever they were given; cleared by the same trigger when a deal is reopened |
+| `is_historical` | boolean | Imported past deal (`scripts/import-pipeline-history.ts`): counts toward the funnel, placements and fees but is left out of all sales-cycle timing. Toggled in the deal dialog. Default: false |
+| `expected_close_date` | date | Nullable |
+| `notes` | text | Nullable |
+| `updated_by` | uuid | FK → users, nullable |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+The pipeline tracks hiring partners; its KPIs come from `partner_apprentice_placements`. Sales cycle is `started_on` → `closed_on`; introduction to close is `introduced_on` → `closed_on` (both computed in `src/lib/sales-pipeline.ts`, nothing stored, historical deals excluded). Because `partners` now has two FKs from this table, embeds from `partners` must name the constraint (`partner_sales_deals!partner_sales_deals_partner_id_fkey`).
+
+RLS: staff and admin only.
+
+---
+
+### partner_apprentice_placements
+Apprentices placed with an Apprenticeship partner, by term. Edited from the deal dialog on the Sales Pipeline page, which replaces all of a partner's rows on save.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE |
+| `term` | text | `january`, `may`, `september` (shown as Jan, May, September) |
+| `year` | integer | 2000–2100 |
+| `count` | integer | Number of apprentices placed that term, > 0 |
+| `converted_count` | integer | How many of them converted to a hire, 0 to `count`. Default: 0 |
+| `fee_amount` | numeric(12,2) | Placement fee for the term in USD, nullable, ≥ 0 |
+| `fee_status` | text | `not_invoiced`, `invoiced`, `paid`. Default: `not_invoiced` |
+| `created_by` | uuid | FK → users, nullable |
+| `created_at` | timestamptz | Default: now() |
+
+Unique on `(partner_id, term, year)`. RLS: staff and admin only.
+
+---
+
+### partner_investor_firms
+LP strategy tracking for VC/PE partners (one per partner). Firms with no row are shown as `not_discussed`. The portfolio companies a firm introduced are the deals whose `introduced_by_partner_id` points at it.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `partner_id` | uuid | FK → partners, CASCADE DELETE, unique |
+| `lp_status` | text | `not_discussed`, `introduced`, `in_discussion`, `engaged`, `declined`. Default: `not_discussed` |
+| `lp_notes` | text | Nullable |
+| `updated_by` | uuid | FK → users, nullable |
+| `created_at` | timestamptz | Default: now() |
+| `updated_at` | timestamptz | Auto-updated via trigger |
+
+RLS: staff and admin only.
 
 ---
 

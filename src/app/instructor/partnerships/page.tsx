@@ -114,6 +114,9 @@ export default async function PartnershipsPage() {
               <Link href="/instructor/partnerships/map" className="text-xs text-teal-primary hover:underline">
                 Map View →
               </Link>
+              <Link href="/instructor/partnerships/pipeline" className="text-xs text-teal-primary hover:underline">
+                Sales Pipeline →
+              </Link>
               <Link href="/instructor/partnerships/referrals" className="text-xs text-teal-primary hover:underline">
                 Student Referrals →
               </Link>

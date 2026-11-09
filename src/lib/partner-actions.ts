@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { revalidatePath } from 'next/cache'
 
 export type PartnerStatus = 'prospect' | 'active' | 'inactive' | 'in_onboarding'
-export type PartnerType = 'service_provider' | 'corporate' | 'funder' | 'advisory' | 'mentorship' | 'apprenticeship' | 'media' | 'admissions_referral'
+export type PartnerType = 'service_provider' | 'corporate' | 'funder' | 'advisory' | 'mentorship' | 'apprenticeship' | 'media' | 'admissions_referral' | 'venture_capital' | 'private_equity'
 
 export interface PartnerContact {
   id?: string
