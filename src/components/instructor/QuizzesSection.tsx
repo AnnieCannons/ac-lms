@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { QuizRow } from "@/data/quizzes";
 import { createQuizWithQuestions, toggleQuizPublished, upsertQuizFromJson, updateQuizMeta } from "@/lib/quiz-actions";
 import QuizFullView from "./QuizFullView";
+import { PACIFIC_TZ } from "@/lib/cutting-edge";
 import {
   DndContext,
   closestCenter,
@@ -41,14 +42,15 @@ function sortByWeekNumber(a: string, b: string): number {
 function formatDueDate(dueAt: string | null): string {
   if (!dueAt || !dueAt.trim()) return "No due date";
   try {
-    return new Date(dueAt).toLocaleDateString("en-US", {
+    return `${new Date(dueAt).toLocaleDateString("en-US", {
+      timeZone: PACIFIC_TZ,
       weekday: "short",
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
-    });
+    })} PT`;
   } catch {
     return dueAt;
   }
