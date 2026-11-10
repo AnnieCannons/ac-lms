@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { QuizRow, QuizQuestion, QuizChoice, CodeLanguage } from "@/data/quizzes";
 import DatePickerField from "@/components/ui/DatePickerField";
+import { pacificDate, pacificTime, pacificToUtcIso } from "@/lib/cutting-edge";
 import dynamic from "next/dynamic";
 import {
   updateQuizMeta,
@@ -52,6 +53,24 @@ type QuizFullViewProps = {
   onSaved?: (updatedQuiz: QuizRow) => void;
   onDeleted?: (quizId: string) => void;
 };
+
+// quizzes.due_at is a real UTC instant (Canvas imports store 11:59pm Pacific as
+// 07:59Z). The program runs on Pacific time, so the picker always reads and writes
+// Pacific wall-clock time, whatever time zone the staff member's computer is in —
+// 11:59pm typed on the East Coast still means 11:59pm Pacific.
+function dueAtToPicker(dueAt: string | null | undefined): string {
+  if (!dueAt || !dueAt.trim()) return "";
+  const d = new Date(dueAt);
+  if (isNaN(d.getTime())) return "";
+  return `${pacificDate(d)}T${pacificTime(d)}`;
+}
+
+function pickerToDueAt(val: string): string | null {
+  if (!val) return null;
+  const [date, time] = val.split("T");
+  if (!date) return null;
+  return pacificToUtcIso(date, time || "23:59");
+}
 
 function formatDueDate(dueAt: string | null): string {
   if (!dueAt || !dueAt.trim()) return "No due date";
@@ -115,7 +134,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
   // Inline-editable metadata fields
   const [titleDraft, setTitleDraft] = useState(quiz.title);
   const [dueDateDraft, setDueDateDraft] = useState(
-    quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : ""
+    dueAtToPicker(quiz.due_at)
   );
   const [maxAttemptsDraft, setMaxAttemptsDraft] = useState<number | null>(quiz.max_attempts ?? null);
   const [moduleTitleDraft, setModuleTitleDraft] = useState(quiz.module_title ?? "");
@@ -168,7 +187,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
   // Sync draft fields when quiz prop changes
   useEffect(() => {
     setTitleDraft(quiz.title);
-    setDueDateDraft(quiz.due_at ? new Date(quiz.due_at).toISOString().slice(0, 16) : "");
+    setDueDateDraft(dueAtToPicker(quiz.due_at));
     setMaxAttemptsDraft(quiz.max_attempts ?? null);
     setModuleTitleDraft(quiz.module_title ?? "");
     setDayTitleDraft(quiz.day_title ?? "");
@@ -206,7 +225,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
       if (fromJsonOnly) {
         const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
           title: (updates.title ?? titleDraft.trim()) || quiz.title,
-          due_at: updates.due_at !== undefined ? updates.due_at : (dueDateDraft || null),
+          due_at: updates.due_at !== undefined ? updates.due_at : pickerToDueAt(dueDateDraft),
           module_title: updates.module_title ?? moduleTitleDraft,
           published: quiz.published,
           questions: quiz.questions ?? [],
@@ -257,7 +276,7 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
       if (fromJsonOnly) {
         const saved = await upsertQuizFromJson(courseId, quiz.identifier, {
           title: titleDraft.trim() || quiz.title,
-          due_at: dueDateDraft || null,
+          due_at: pickerToDueAt(dueDateDraft),
           module_title: moduleTitleDraft,
           published: true,
           questions: quiz.questions ?? [],
@@ -549,11 +568,11 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
                           value={dueDateDraft}
                           onChange={(val) => {
                             setDueDateDraft(val);
-                            void autoSave({ due_at: val || null });
+                            void autoSave({ due_at: pickerToDueAt(val) });
                           }}
                         />
                         <span className="text-xs text-muted-text shrink-0">
-                          {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                          Pacific time
                         </span>
                         <button
                           type="button"
@@ -571,11 +590,9 @@ export default function QuizFullView({ quiz, courseId, moduleTitles = [], onClos
                       <button
                         type="button"
                         onClick={() => {
-                          const d = new Date();
-                          d.setHours(23, 59, 0, 0);
-                          const val = d.toISOString().slice(0, 16);
+                          const val = `${pacificDate(new Date())}T23:59`;
                           setDueDateDraft(val);
-                          void autoSave({ due_at: val });
+                          void autoSave({ due_at: pickerToDueAt(val) });
                         }}
                         className="text-xs text-muted-text hover:text-teal-primary transition-colors border border-dashed border-border rounded-lg px-3 py-1.5"
                       >

@@ -6,11 +6,15 @@ import ResizableSidebar from "@/components/ui/ResizableSidebar";
 import StudentCourseNav from "@/components/ui/StudentCourseNav";
 import StudentPageBanner from "@/components/ui/StudentPageBanner";
 import { getStudentCourseViewer } from "@/lib/student-course-viewer";
+import { PACIFIC_TZ } from "@/lib/cutting-edge";
 
 function formatDueDate(dueAt: string | null): string {
   if (!dueAt || !dueAt.trim()) return "No due date";
   try {
+    // Due dates are Pacific (the program's time zone); without timeZone this ran in
+    // the server's UTC and an 11:59pm Pacific quiz showed as due the next day.
     return new Date(dueAt).toLocaleDateString("en-US", {
+      timeZone: PACIFIC_TZ,
       weekday: "short",
       month: "short",
       day: "numeric",
