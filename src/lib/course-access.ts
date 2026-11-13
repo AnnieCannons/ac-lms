@@ -55,3 +55,14 @@ export async function getCourseIdForModuleDay(
   if (!day) return null
   return getCourseIdForModule(admin, day.module_id)
 }
+
+// A Career Dev cross-post (linked_day_id) must point at a day in the same course;
+// otherwise a TA could publish content onto another course's student day pages.
+export async function linkedDayInCourse(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  linkedDayId: string | null | undefined,
+  courseId: string
+): Promise<boolean> {
+  if (!linkedDayId) return true
+  return (await getCourseIdForModuleDay(admin, linkedDayId)) === courseId
+}

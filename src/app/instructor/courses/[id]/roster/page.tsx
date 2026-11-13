@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import RosterView from '@/components/ui/RosterView'
+import { completionKey, loadCompletionKeys } from '@/lib/course-completion'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
 export default async function RosterPage({
@@ -78,6 +79,8 @@ export default async function RosterPage({
     }])
   )
 
+  const completions = await loadCompletionKeys(admin, [id])
+
   const students = (enrollments ?? [])
     .map(e => {
       const u = Array.isArray(e.users) ? e.users[0] : e.users
@@ -88,6 +91,7 @@ export default async function RosterPage({
         avatarUrl: u?.avatar_url ?? null,
         accommodation: accommodationMap[e.user_id] ?? null,
         enrollmentRole: e.role as 'student' | 'observer',
+        completed: completions.has(completionKey(id, e.user_id)),
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name))

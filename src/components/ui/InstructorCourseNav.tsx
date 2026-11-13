@@ -7,6 +7,7 @@ import CreateButton from './CreateButton'
 import InstructorGlobalNav from './InstructorGlobalNav'
 import LaunchSetupButton from './LaunchSetupButton'
 import StudentViewButton from './StudentViewButton'
+import { emptyTrash } from '@/lib/trash-actions'
 
 interface Props {
   courseId: string
@@ -21,7 +22,7 @@ interface Props {
   showSkillConfidence?: boolean
 }
 
-const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence', 'skill-confidence']
+const COURSE_SLUGS = ['syllabus', 'level-up', 'class-resources', 'instructor-resources', 'career', 'assignments', 'quizzes', 'quiz-submissions', 'gradebook', 'confidence', 'skill-confidence', 'study-activity']
 
 function useNavSection(key: string, defaultOpen = true): [boolean, () => void] {
   const [open, setOpen] = useState(() => {
@@ -188,21 +189,10 @@ export default function InstructorCourseNav({
         {!isTa && navLink('Users', 'users')}
         {navLink('Roster', 'roster')}
         {!isTa && navLink('Class Readiness', 'readiness')}
+        {navLink('Study Activity', 'study-activity')}
 
         <SectionHeader label="Course" open={courseOpen} onToggle={toggleCourseOpen} />
         {courseOpen && CATEGORY_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        {courseOpen && (
-          <Link
-            href={`/flashcards?from=${encodeURIComponent(`/instructor/courses/${courseId}/level-up`)}`}
-            className={`pl-9 pr-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              pathname.startsWith('/flashcards')
-                ? 'bg-teal-light text-teal-primary'
-                : 'text-muted-text hover:text-dark-text hover:bg-border/20'
-            }`}
-          >
-            Flashcard App
-          </Link>
-        )}
 
         <SectionHeader label="Grades" open={gradesOpen} onToggle={toggleGradesOpen} />
         {gradesOpen && (
@@ -210,7 +200,6 @@ export default function InstructorCourseNav({
             <GradesNavLink courseId={courseId} needsGrading={isTa ? myGroupNeedsGrading : needsGrading} pathname={pathname} />
             {navLink('Gradebook', 'gradebook')}
             {navLink('Quiz Submissions', 'quiz-submissions')}
-            {navLink('Confidence Tracker', 'confidence')}
             {/* Staff only: TAs are excluded from Confidence Tracker v2 data. */}
             {showSkillConfidence && !isTa && navLink('Skill Confidence', 'skill-confidence')}
             <button
@@ -233,6 +222,24 @@ export default function InstructorCourseNav({
         )}
 
         <TrashNavLink courseId={courseId} pathname={pathname} />
+
+        {isTa && (
+          <Link
+            href={`/instructor/cutting-edge-talks?from=${courseId}`}
+            className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith('/instructor/cutting-edge-talks') ? 'bg-teal-light text-teal-primary' : 'text-muted-text hover:text-dark-text hover:bg-border/20'}`}
+          >
+            Cutting Edge Talks
+          </Link>
+        )}
+
+        {isTa && (
+          <Link
+            href="/instructor/hardware"
+            className={`pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith('/instructor/hardware') ? 'bg-teal-light text-teal-primary' : 'text-muted-text hover:text-dark-text hover:bg-border/20'}`}
+          >
+            Hardware
+          </Link>
+        )}
 
         {isTa && (
           <>
@@ -337,10 +344,13 @@ function TrashNavLink({ courseId, pathname }: { courseId: string; pathname: stri
                 Review trash
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   setShowEmptyPrompt(false)
                   localStorage.removeItem(`trashHasItems_${courseId}`)
-                  router.push(`${href}?action=empty`)
+                  // Server action (POST), not a GET link: a permanent delete must not be
+                  // triggerable by someone sending an instructor a URL.
+                  await emptyTrash(courseId)
+                  router.push(href)
                 }}
                 className="flex-1 px-4 py-2 rounded-full bg-red-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
               >

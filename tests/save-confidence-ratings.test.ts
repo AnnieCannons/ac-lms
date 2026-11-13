@@ -18,6 +18,7 @@ interface Opts {
   outcomeRows?: { goal_history_id: string }[]
   outcomeInsertError?: { message: string } | null
   notificationInsertError?: { message: string } | null
+  noSubmission?: boolean
 }
 
 // Per-table stand-in for the Supabase query builder used by saveConfidenceRatings. Every
@@ -56,6 +57,13 @@ function makeClient(opts: Opts = {}) {
             return { error: opts.insertError ?? null }
           },
         }
+      }
+      if (table === 'submissions') {
+        const chain: Record<string, unknown> = {}
+        chain.select = () => chain
+        chain.eq = () => chain
+        chain.maybeSingle = async () => ({ data: opts.noSubmission ? null : { id: 'sub1' }, error: null })
+        return chain
       }
       if (table === 'confidence_tracker_assignment_skills') {
         return { select: () => ({ eq: async () => ({ data: [{ skill_id: 's1' }], error: null }) }) }
@@ -136,6 +144,15 @@ const prior = (rating: number) => [{ id: 'r1', skill_id: 's1', rating, created_a
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(isConfidenceRatingsEnabled).mockReturnValue(true)
+})
+
+describe('saveConfidenceRatings access', () => {
+  it('refuses to rate an assignment the student has not submitted', async () => {
+    const { calls } = makeClient({ noSubmission: true })
+    const result = await saveConfidenceRatings('a1', [{ skillId: 's1', rating: 6 }])
+    expect(result.error).toMatch(/Submit this assignment/)
+    expect(calls).not.toContain('insert')
+  })
 })
 
 describe('saveConfidenceRatings kudos', () => {

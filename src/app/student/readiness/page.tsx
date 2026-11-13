@@ -79,7 +79,7 @@ export default async function StudentReadinessPage({
         )}
 
         {selectedCourse ? (
-          <ReadinessTracker courseId={selectedCourse.id} userName={profile?.name ?? 'Student'} />
+          <ReadinessTracker key={selectedCourse.id} courseId={selectedCourse.id} userName={profile?.name ?? 'Student'} />
         ) : (
           <p className="text-muted-text">You&apos;re not enrolled in a course yet.</p>
         )}

@@ -1,20 +1,21 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import HtmlContent from '@/components/ui/HtmlContent'
 import SubmissionForm from '@/components/ui/SubmissionForm'
 import { type CommentEntry } from '@/components/ui/SubmissionComments'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
-import { LateBadge, DueDatePill } from '@/components/ui/AssignmentDueStatus'
+import { LateBadge, DueDatePill, ExcusedBadge } from '@/components/ui/AssignmentDueStatus'
 import GradeHistoryList, { type GradeHistoryEntry } from '@/components/ui/GradeHistoryList'
 import RequestExtensionButton from '@/components/ui/RequestExtensionButton'
 import { getExtensionRequestForStudent } from '@/lib/extension-actions'
 import { getAssignmentSkillsForStudent } from '@/lib/confidence-tracker-actions'
 import { isConfidenceRatingsEnabled } from '@/lib/feature-flags'
+import GoalCheckoff from '@/components/ui/GoalCheckoff'
 
 export default async function StudentAssignmentPage({
   params,
@@ -25,38 +26,14 @@ export default async function StudentAssignmentPage({
 }) {
   const { id, assignmentId } = await params
   const { filter: backFilter } = await searchParams
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb, profile, preview, readOnly } = viewer
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  // Verify enrollment
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id, role')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
-
-  const isObserver = !preview && enrollment?.role === 'observer'
+  const isObserver = viewer.enrollmentRole === 'observer'
 
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus, is_optional')
+    .select('id, title, description, how_to_turn_in, due_date, module_day_id, published, submission_required, skill_tags, is_bonus, is_optional, goal_checkoff_label')
     .eq('id', assignmentId)
     .eq('published', true)
     .single()
@@ -102,26 +79,27 @@ export default async function StudentAssignmentPage({
         .from('submissions')
         .select('id, submission_type, content, status, grade, submitted_at, student_comment')
         .eq('assignment_id', assignmentId)
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .maybeSingle()
     : await supabase
         .from('submissions')
         .select('id, submission_type, content, status, grade, submitted_at')
         .eq('assignment_id', assignmentId)
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .maybeSingle()
 
-  const { data: submissionHistory } = await supabase
+  const { data: submissionHistory } = await studentDb
     .from('submission_history')
     .select('id, submission_type, content, submitted_at')
     .eq('assignment_id', assignmentId)
-    .eq('student_id', user.id)
+    .eq('student_id', viewer.viewerId)
     .order('submitted_at', { ascending: false })
 
   // Confidence Tracker v2, Phase 2+: gated behind a flag until the full feature (through
   // Phase 6) is ready, so students never see a partial rollout. Phase 1's tagging stays
   // live regardless — this only controls whether tagged skills are ever surfaced here.
-  const { skills: confidenceSkills } = isConfidenceRatingsEnabled()
+  // Read-only viewing never rates anything, and these reads are scoped to the logged-in user
+  const { skills: confidenceSkills } = isConfidenceRatingsEnabled() && !readOnly
     ? await getAssignmentSkillsForStudent(assignmentId)
     : { skills: [] }
 
@@ -138,16 +116,26 @@ export default async function StudentAssignmentPage({
         .from('assignment_overrides')
         .select('due_date, excused')
         .eq('assignment_id', assignmentId)
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .maybeSingle()
     : { data: null }
 
   const effectiveDueDate = (override?.due_date ?? null) ? override!.due_date : assignment.due_date
   const isExcused = override?.excused ?? false
 
-  const isStudent = !preview && enrollment?.role === 'student'
+  const isStudent = !preview && !readOnly && viewer.enrollmentRole === 'student'
+
+  // "I met my goal" check-off, when the instructor turned it on for this assignment
+  const { data: goalClaim } = (admin && assignment.goal_checkoff_label)
+    ? await admin
+        .from('assignment_goal_claims')
+        .select('confirmed_at, excused_assignment_ids')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', viewer.viewerId)
+        .maybeSingle()
+    : { data: null }
   const existingExtensionRequest = isStudent && admin
-    ? await getExtensionRequestForStudent(assignmentId, user.id)
+    ? await getExtensionRequestForStudent(assignmentId, viewer.viewerId)
     : null
 
   // Instructor's checklist responses (read-only for student)
@@ -163,7 +151,7 @@ export default async function StudentAssignmentPage({
     ? await admin
         .from('student_checklist_progress')
         .select('checklist_item_id, checked')
-        .eq('student_id', user.id)
+        .eq('student_id', viewer.viewerId)
         .in('checklist_item_id', (checklistItems ?? []).map(i => i.id))
     : { data: [] }
 
@@ -196,12 +184,12 @@ export default async function StudentAssignmentPage({
     }
   })
 
-  const module = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
+  const parentModule = Array.isArray(day?.modules) ? day?.modules[0] : day?.modules
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
       <div className="flex">
         <ResizableSidebar>
           <StudentCourseNav courseId={id} courseName={course?.name ?? ''} paidLearners={course?.paid_learners ?? false} />
@@ -260,15 +248,11 @@ export default async function StudentAssignmentPage({
             </span>
           )}
           <LateBadge dueDate={effectiveDueDate} isExcused={isExcused || !!assignment.is_optional} hasSubmission={!!existingSubmission} />
-          {isExcused && (
-            <span className="badge-amber shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full border">
-              Excused
-            </span>
-          )}
+          {isExcused && <ExcusedBadge size="md" />}
         </div>
         <div className="flex items-center gap-3 mb-8 flex-wrap">
-          {module && (
-            <p className="text-muted-text text-sm">{module.title}</p>
+          {parentModule && (
+            <p className="text-muted-text text-sm">{parentModule.title}</p>
           )}
           {effectiveDueDate && (
             <DueDatePill
@@ -288,6 +272,7 @@ export default async function StudentAssignmentPage({
               existingRequest={existingExtensionRequest}
               assignmentTitle={assignment.title}
               dueDate={effectiveDueDate}
+              hasSubmitted={!!existingSubmission && existingSubmission.status !== 'draft'}
             />
           </div>
         )}
@@ -327,7 +312,7 @@ export default async function StudentAssignmentPage({
           {assignment.submission_required !== false ? (
             <SubmissionForm
               assignmentId={assignmentId}
-              studentId={user.id}
+              studentId={viewer.viewerId}
               courseId={id}
               existingSubmission={existingSubmission ?? null}
               initialHistory={submissionHistory ?? []}
@@ -337,6 +322,7 @@ export default async function StudentAssignmentPage({
               instructorResponseMap={hasInstructorReview ? instructorResponseMap : undefined}
               isObserver={isObserver}
               isStudentPreview={preview}
+              viewingAs={viewer.impersonation?.studentName}
               initialComments={initialComments}
               currentUserName={profile?.name ?? 'Student'}
               currentUserRole={profile?.role ?? 'student'}
@@ -347,6 +333,18 @@ export default async function StudentAssignmentPage({
               <p className="text-xs font-semibold text-muted-text uppercase tracking-wide mb-2">Submission</p>
               <p className="text-sm text-muted-text">No submission needed — your instructor will check this off directly.</p>
             </div>
+          )}
+
+          {assignment.goal_checkoff_label && (
+            <GoalCheckoff
+              assignmentId={assignmentId}
+              courseId={id}
+              label={assignment.goal_checkoff_label}
+              initialClaimed={!!goalClaim}
+              confirmed={!!goalClaim?.confirmed_at}
+              excusedCount={goalClaim?.excused_assignment_ids?.length ?? 0}
+              disabled={!isStudent}
+            />
           )}
 
           {/* Grade history */}

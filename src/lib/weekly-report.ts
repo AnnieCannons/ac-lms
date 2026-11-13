@@ -9,12 +9,6 @@ type AdminClient = ReturnType<typeof createServiceSupabaseClient>
 
 export type Track = 'backend' | 'frontend' | 'itp_tcf'
 
-export const TRACK_CHANNELS: Record<Track, string> = {
-  backend: 'C09DC5MAQ4Q',
-  frontend: 'C09C551E7DM',
-  itp_tcf: 'C09C56VL25D',
-}
-
 export function detectTrack(name: string, airtableCourseName: string | null): Track | null {
   const haystack = `${name} ${airtableCourseName ?? ''}`.toLowerCase()
   if (haystack.includes('backend')) return 'backend'

@@ -19,7 +19,7 @@ export default function ImpersonateBanner({
   return (
     <div className="sticky top-0 z-50 bg-purple-100 border-b border-purple-300 px-4 py-2 flex items-center justify-between gap-4">
       <p className="text-sm font-medium text-purple-800">
-        Viewing as <strong>{studentName}</strong>
+        Viewing as <strong>{studentName}</strong> <span className="font-normal">· read-only</span>
       </p>
       <button
         onClick={exit}

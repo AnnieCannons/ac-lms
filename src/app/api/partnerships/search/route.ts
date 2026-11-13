@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { checkAddonApiKey } from '@/lib/partnerships/addon-auth'
 
 const COMMON_DOMAINS = new Set(['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'])
-
-function checkApiKey(req: NextRequest) {
-  const key = req.headers.get('x-addon-api-key')
-  return !!(process.env.ADDON_API_KEY && key === process.env.ADDON_API_KEY)
-}
 
 type PartnerSnippet = { id: string; name: string; status: string; city: string | null; state: string | null } | null
 
@@ -24,7 +20,7 @@ function formatContact(c: { id: string; name: string; email: string; primary_dep
 }
 
 export async function GET(req: NextRequest) {
-  if (!checkApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkAddonApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const email = req.nextUrl.searchParams.get('email')
   const q = req.nextUrl.searchParams.get('q')

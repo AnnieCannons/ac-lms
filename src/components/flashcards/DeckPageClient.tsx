@@ -21,6 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import CardItem from '@/components/flashcards/CardItem'
 import InlineCardEditor from '@/components/flashcards/InlineCardEditor'
+import BulkCardEditor from '@/components/flashcards/BulkCardEditor'
 import DeleteDeckModal from '@/components/flashcards/DeleteDeckModal'
 import { updateDeck, deleteDeck, deleteCard, reorderCards, pushDeckUpdates, applyDeckUpdates } from '@/lib/flashcards/actions'
 import DeckUpdateModal from '@/components/flashcards/DeckUpdateModal'
@@ -66,14 +67,15 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
   const [applyingDiff, setApplyingDiff] = useState(false)
   const [editingCardId, setEditingCardId] = useState<string | 'new' | null>(null)
   const [editorKey, setEditorKey] = useState(0)
+  const [bulkEditing, setBulkEditing] = useState(false)
   const newEditorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!editingCardId) return
+    if (!editingCardId && !bulkEditing) return
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [editingCardId])
+  }, [editingCardId, bulkEditing])
 
   const openNewEditor = (scroll = false) => {
     setEditorKey(k => k + 1)
@@ -144,6 +146,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
+      {/* Always My Decks, not browser history, so Back never loops between a deck and My Decks. */}
       <Link
         href="/flashcards"
         className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-6"
@@ -329,6 +332,19 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             {cards.length} {cards.length === 1 ? "card" : "cards"}
           </p>
           {cards.length > 0 && <PrintModal cards={cards} deckTitle={deck.title} />}
+          {cards.length > 0 && (
+            <div className="relative group/freestudy">
+              <Link
+                href={`/flashcards/study/${deckId}?mode=free`}
+                className="text-xs text-muted-text border border-border px-3 py-1.5 rounded-lg hover:text-teal-primary hover:border-teal-primary transition-colors"
+              >
+                Free Study
+              </Link>
+              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-48 text-center rounded bg-zinc-800 px-2 py-1.5 text-[11px] text-white opacity-0 group-hover/freestudy:opacity-100 transition-opacity">
+                Flip through all cards without affecting your study schedule
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && (
@@ -344,6 +360,15 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
               </div>
             </div>
           )}
+          {cards.length > 0 && !bulkEditing && (
+            <button
+              onClick={() => { setEditingCardId(null); setBulkEditing(true) }}
+              className="text-sm font-medium text-teal-primary border border-teal-primary/50 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors"
+            >
+              Edit All Cards
+            </button>
+          )}
+          {!bulkEditing && (
           <button
             onClick={() => openNewEditor(true)}
 
@@ -355,6 +380,7 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             </svg>
             Add Card
           </button>
+          )}
         </div>
       </div>
 
@@ -376,6 +402,13 @@ export default function DeckPageClient({ deckId, deck, initialCards, userId, pen
             Add your first card
           </button>
         </div>
+      ) : bulkEditing ? (
+        <BulkCardEditor
+          deckId={deckId}
+          cards={cards}
+          onSaved={() => { setBulkEditing(false); router.refresh() }}
+          onCancel={() => setBulkEditing(false)}
+        />
       ) : (
         <>
           {cards.length > 0 && (

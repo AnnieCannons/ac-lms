@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { markCompleteNoSubmission } from "@/lib/grade-actions";
 import { normalizeUrl } from "@/lib/url";
+import { parseFileUrls, submissionFileHref, submissionFileName } from "@/lib/submission-files";
 
 type SubmissionStatus = "draft" | "submitted" | "graded";
 type SubmissionType = "text" | "link" | "file";
@@ -22,6 +23,8 @@ export type StudentRow = {
   } | null;
   historyCount: number;
   latestSubmittedAt: string | null;
+  /** "I met my goal" check-off: null when not checked. */
+  goal?: "claimed" | "confirmed" | null;
 };
 
 type Filter = "all" | "needs-grading" | "graded" | "not-submitted";
@@ -60,7 +63,22 @@ function extractUrl(content: string): string {
 
 function SubmissionPreview({ type, content }: { type: SubmissionType; content: string | null }) {
   if (!content) return <span className="text-muted-text italic">No content</span>;
-  if (type === "link" || type === "file") {
+  if (type === "file") {
+    const entries = parseFileUrls(content);
+    return (
+      <span className="line-clamp-1 break-all">
+        {entries.map((entry, i) => (
+          <span key={i}>
+            {i > 0 && ", "}
+            <a href={submissionFileHref(entry)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline">
+              {submissionFileName(entry)}
+            </a>
+          </span>
+        ))}
+      </span>
+    );
+  }
+  if (type === "link") {
     const url = content.startsWith('<') ? extractUrl(content) : content;
     return (
       <a href={normalizeUrl(url)} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline break-all line-clamp-1">
@@ -219,6 +237,11 @@ export default function SubmissionsList({
                     <StatusBadge status={sub?.status ?? null} grade={effectiveGrade ?? sub?.grade} />
                     {student.historyCount > 1 && (
                       <span className="text-xs text-muted-text">{student.historyCount} submissions</span>
+                    )}
+                    {student.goal && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-teal-primary text-teal-primary bg-teal-light">
+                        <span aria-hidden="true">🎯 </span>{student.goal === "confirmed" ? "Goal met" : "Says goal met"}
+                      </span>
                     )}
                   </div>
                   {sub && submissionRequired ? (

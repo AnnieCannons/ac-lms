@@ -18,7 +18,8 @@ const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
   [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2
   [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2
   [&_li]:mb-0.5
-  [&_strong]:font-semibold`
+  [&_strong]:font-semibold
+  [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded`
 
 /** Renders plain-text submission content: preserves newlines and auto-links URLs. */
 export function PlainTextContent({ content }: { content: string }) {
@@ -33,7 +34,7 @@ export function PlainTextContent({ content }: { content: string }) {
   }
   if (lastIndex < content.length) parts.push({ type: 'text', value: content.slice(lastIndex) })
   return (
-    <p className="text-sm text-dark-text whitespace-pre-wrap break-all">
+    <p className="text-sm text-dark-text whitespace-pre-wrap [overflow-wrap:anywhere]">
       {parts.map((part, i) =>
         part.type === 'url' ? (
           <a key={i} href={part.value} target="_blank" rel="noopener noreferrer" className="text-teal-primary underline">

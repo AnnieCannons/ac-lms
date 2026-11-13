@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
+import { validReadinessChannel } from '@/lib/readiness-channels'
 
 export async function POST(req: NextRequest) {
   // Auth check
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds } = await req.json()
+  const { sourceCourseId, newName, newCode, newStartDate, sourceStartDate, instructorIds, readinessInstructorIds, readinessSlackChannel } = await req.json()
   if (!sourceCourseId || !newName || !newCode) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -53,17 +54,19 @@ export async function POST(req: NextRequest) {
   if (!sourceCourse) return NextResponse.json({ error: 'Source course not found' }, { status: 404 })
 
   let modules: Row[], days: Row[], assignments: Row[], resources: Row[], checklistItems: Row[]
-  let courseSections: Row[], quizzes: Row[], wikis: Row[], assignmentSkills: Row[]
+  let courseSections: Row[], quizzes: Row[], wikis: Row[], assignmentSkills: Row[], levelUpLinks: Row[]
   try {
     modules = await fetchIn('modules', 'course_id', [sourceCourseId], { excludeDeleted: true })
     const moduleIds = modules.map(m => m.id)
     days = await fetchIn('module_days', 'module_id', moduleIds, { excludeDeleted: true })
     const dayIds = days.map(d => d.id)
-    ;[assignments, resources, courseSections, quizzes] = await Promise.all([
+    ;[assignments, resources, courseSections, quizzes, levelUpLinks] = await Promise.all([
       fetchIn('assignments', 'module_day_id', dayIds, { excludeDeleted: true }),
       fetchIn('resources', 'module_day_id', dayIds, { excludeDeleted: true }),
       fetchIn('course_sections', 'course_id', [sourceCourseId]),
       fetchIn('quizzes', 'course_id', [sourceCourseId], { excludeDeleted: true }),
+      // Only this course's own Level Up extras; shared links (course_id null) already show everywhere
+      fetchIn('level_up_links', 'course_id', [sourceCourseId]),
     ])
     const assignmentIds = assignments.map(a => a.id)
     const [moduleWikis, dayWikis] = await Promise.all([
@@ -133,6 +136,19 @@ export async function POST(req: NextRequest) {
     new Map(source.map((r, i) => [r.id as string, inserted[i].id as string]))
 
   // Course — everything except per-cohort links (Canvas, Airtable attendance) and status flags
+  // Accountability instructors are picked per cohort in the duplicate form
+  // (prefilled from the source), so only keep ids of real staff users.
+  const readinessCandidates: string[] = Array.isArray(readinessInstructorIds) ? readinessInstructorIds.filter(Boolean) : []
+  let validReadinessInstructorIds: string[] = []
+  if (readinessCandidates.length > 0) {
+    const { data: validUsers } = await service
+      .from('users')
+      .select('id')
+      .in('id', readinessCandidates)
+      .in('role', ['instructor', 'staff', 'admin'])
+    validReadinessInstructorIds = (validUsers ?? []).map(u => u.id)
+  }
+
   const { data: newCourse, error: courseError } = await service
     .from('courses')
     .insert(copyRow(sourceCourse, {
@@ -144,6 +160,11 @@ export async function POST(req: NextRequest) {
       is_template: false,
       canvas_course_id: null,
       airtable_course_name: null,
+      // Readiness needs an Airtable name for attendance (updateCourseDates
+      // enforces this); without one it would score on assignments alone.
+      readiness_enabled: false,
+      readiness_instructor_ids: validReadinessInstructorIds,
+      readiness_slack_channel: validReadinessChannel(readinessSlackChannel),
     }))
     .select().single()
 
@@ -171,8 +192,18 @@ export async function POST(req: NextRequest) {
       linked_day_id: remapLinkedDay(r.linked_day_id),
     })))
 
+    // Repeating-assignment series get fresh ids, so the copy's weeks link to each other
+    // and never to the original course's.
+    const seriesIdMap = new Map<string, string>()
+    const remapSeries = (id: string | null | undefined) => {
+      if (!id) return null
+      if (!seriesIdMap.has(id)) seriesIdMap.set(id, crypto.randomUUID())
+      return seriesIdMap.get(id)!
+    }
+
     // Grader and Canvas ids are per-cohort, so they start fresh
     const newAssignments = await insertAll('assignments', assignments.map(a => copyRow(a, {
+      series_id: remapSeries(a.series_id),
       module_day_id: dayIdMap.get(a.module_day_id)!,
       linked_day_id: remapLinkedDay(a.linked_day_id),
       due_date: shiftDueDate(a.due_date),
@@ -202,7 +233,10 @@ export async function POST(req: NextRequest) {
       module_day_id: w.module_day_id ? dayIdMap.get(w.module_day_id) ?? null : null,
     })))
 
+    const newLevelUpLinks = await insertAll('level_up_links', levelUpLinks.map(l => copyRow(l, { course_id: newCourse.id })))
+
     stats = {
+      levelUpLinks: newLevelUpLinks.length,
       modules: newModules.length,
       days: newDays.length,
       assignments: newAssignments.length,

@@ -2,6 +2,7 @@ import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/paginate";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import SmartBackLink from "@/components/ui/SmartBackLink";
 import InstructorTopNav from "@/components/ui/InstructorTopNav";
 import InstructorSidebar from "@/components/ui/InstructorSidebar";
 import { getInstructorOrTaAccess } from "@/lib/instructor-access";
@@ -33,6 +34,8 @@ export default async function QuizSubmissionsPage({
     .from("quizzes")
     .select("id, title, module_title, due_at")
     .eq("course_id", id)
+    // Practice quizzes are ungraded and live on Study Activity instead.
+    .eq("is_practice", false)
     .is("deleted_at", null)
     .order("module_title", { ascending: true })
     .order("title", { ascending: true });
@@ -115,18 +118,20 @@ export default async function QuizSubmissionsPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-6 sm:px-8 sm:py-10 focus:outline-none">
             <div className="flex items-center justify-between mb-6">
-              <Link
-                href={`/instructor/courses/${id}/quizzes`}
-                className="text-muted-text hover:text-teal-primary text-sm"
-              >
-                ← Quizzes
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${id}/quizzes`} fallbackLabel="Quizzes" className="text-muted-text hover:text-teal-primary text-sm" />
             </div>
 
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-dark-text mb-1">Quiz Submissions</h1>
               <p className="text-sm text-muted-text">
                 {course.name} · {totalStudents} students enrolled
+              </p>
+              <p className="text-sm text-muted-text mt-1">
+                Practice quizzes are on{" "}
+                <Link href={`/instructor/courses/${id}/study-activity`} className="text-teal-primary hover:underline">
+                  Study Activity
+                </Link>
+                .
               </p>
             </div>
 

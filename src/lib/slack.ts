@@ -6,6 +6,15 @@
 const SLACK_BOT_TOKEN    = process.env.SLACK_BOT_TOKEN
 const STAFF_NOTIFY_EMAIL = process.env.STAFF_NOTIFY_EMAIL
 
+/**
+ * Escape user-controlled text for Slack mrkdwn. Slack only treats &, < and > as
+ * control characters; escaping them stops a display name like
+ * "<!channel> <https://evil.example|View>" from pinging a channel or planting a link.
+ */
+export function slackEscape(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 // Cache the staff Slack ID within a single process lifetime
 let _staffSlackId: string | null | undefined = undefined
 

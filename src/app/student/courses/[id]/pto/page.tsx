@@ -1,11 +1,10 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import YearlyScheduleSection from '@/components/ui/YearlyScheduleSection'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 
 export default async function StudentPTOPage({
   params,
@@ -13,40 +12,8 @@ export default async function StudentPTOPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    // Check if they are a TA for this course — if so, allow access to PTO
-    const { data: taEnrollment } = await supabase
-      .from('course_enrollments')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('course_id', id)
-      .maybeSingle()
-    if (taEnrollment?.role !== 'ta') {
-      redirect(`/instructor/courses/${id}`)
-    }
-  }
-
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
+  const viewer = await getStudentCourseViewer(id, { allowStaffTa: true })
+  const { supabase } = viewer
 
   const { data: course } = await supabase
     .from('courses')
@@ -59,8 +26,8 @@ export default async function StudentPTOPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
 
       <div className="flex">
         <ResizableSidebar>

@@ -1,24 +1,11 @@
 "use client";
 
-import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
-import { mergeAttributes } from "@tiptap/core";
+import { useEditor, EditorContent } from "@tiptap/react";
 import { useRef } from "react";
 import StarterKit from "@tiptap/starter-kit";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { createLowlight } from "lowlight";
-import javascript from "highlight.js/lib/languages/javascript";
-import xml from "highlight.js/lib/languages/xml";
-import css from "highlight.js/lib/languages/css";
-import sql from "highlight.js/lib/languages/sql";
 import FileUpload from "@/components/ui/FileUpload";
-import CodeBlockNode from "@/components/ui/CodeBlockNode";
-
-const lowlight = createLowlight();
-lowlight.register("javascript", javascript);
-lowlight.register("jsx", javascript);
-lowlight.register("html", xml);
-lowlight.register("css", css);
-lowlight.register("sql", sql);
+import { codeBlockExtension } from "@/components/ui/codeBlockExtension";
+import { toggleCodeBlockMerged } from "@/lib/tiptap-code-block";
 
 type Props = {
   initialContent: string;
@@ -42,21 +29,7 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
         orderedList: false,
         listItem: false,
       }),
-      CodeBlockLowlight.extend({
-        addNodeView() {
-          return ReactNodeViewRenderer(CodeBlockNode);
-        },
-        renderHTML({ node, HTMLAttributes }) {
-          return [
-            "pre",
-            mergeAttributes(HTMLAttributes),
-            ["code", { class: node.attrs.language ? `language-${node.attrs.language}` : null }, 0],
-          ];
-        },
-      }).configure({
-        lowlight,
-        defaultLanguage: "javascript",
-      }),
+      codeBlockExtension("javascript"),
     ],
     content: initialContent,
     onUpdate: ({ editor }) => {
@@ -132,28 +105,7 @@ export default function ChoiceEditor({ initialContent, onChange, storagePath }: 
     }
   };
 
-  const handleCodeBlock = () => {
-    if (editor.isActive("codeBlock")) {
-      editor.chain().focus().toggleCodeBlock().run();
-      return;
-    }
-    const { from, to, empty } = editor.state.selection;
-    if (!empty) {
-      const selectedText = editor.state.doc.textBetween(from, to, "\n", "\n");
-      editor
-        .chain()
-        .focus()
-        .deleteSelection()
-        .insertContent({
-          type: "codeBlock",
-          attrs: { language: "javascript" },
-          content: selectedText ? [{ type: "text", text: selectedText }] : [],
-        })
-        .run();
-    } else {
-      editor.chain().focus().toggleCodeBlock().run();
-    }
-  };
+  const handleCodeBlock = () => toggleCodeBlockMerged(editor);
 
   return (
     <div className="border border-border rounded-lg bg-background overflow-hidden focus-within:ring-2 focus-within:ring-teal-primary">

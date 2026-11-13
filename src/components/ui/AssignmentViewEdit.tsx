@@ -5,6 +5,9 @@ import Link from 'next/link'
 import HtmlContent from './HtmlContent'
 import AssignmentEditor from './AssignmentEditor'
 import InlineDueDatePicker from './InlineDueDatePicker'
+import { formatDueDate } from '@/lib/date-utils'
+import AssignmentSeriesPanel from './AssignmentSeriesPanel'
+import type { SeriesInfo } from '@/lib/assignment-series-actions'
 
 interface ChecklistItem {
   id: string
@@ -34,6 +37,8 @@ interface Assignment {
   skill_tags: string[] | null
   is_bonus: boolean
   is_optional: boolean
+  series_id?: string | null
+  goal_checkoff_label?: string | null
 }
 
 interface Props {
@@ -44,6 +49,7 @@ interface Props {
   initialOverrides: Override[]
   prevAssignment?: { id: string; title: string } | null
   nextAssignment?: { id: string; title: string } | null
+  seriesInfo?: SeriesInfo | null
 }
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
@@ -60,17 +66,21 @@ function decodeHtml(str: string) {
   return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
 }
 
-export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment }: Props) {
+export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment, seriesInfo }: Props) {
   const searchParams = useSearchParams()
   const [editing, setEditing] = useState(searchParams.get('edit') === '1')
   const [assignment, setAssignment] = useState(initialAssignment)
   const [checklist, setChecklist] = useState(initialChecklist)
+  const [justSaved, setJustSaved] = useState(false)
 
+  // Previous/Next replace the history entry, so "← Back" (and the browser back
+  // button) return to wherever the instructor opened the first assignment from.
   const navBar = (prevAssignment || nextAssignment) && (
     <div className="flex items-center justify-between gap-8 pt-6 mt-6 border-t border-border">
       <div className="w-[45%] min-w-0">
         {prevAssignment && (
           <Link
+            replace
             href={`/instructor/courses/${courseId}/assignments/${prevAssignment.id}${editing ? '?edit=1' : ''}`}
             className="group flex flex-col gap-0.5"
           >
@@ -82,6 +92,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
       <div className="w-[45%] min-w-0 text-right">
         {nextAssignment && (
           <Link
+            replace
             href={`/instructor/courses/${courseId}/assignments/${nextAssignment.id}${editing ? '?edit=1' : ''}`}
             className="group flex flex-col gap-0.5 items-end"
           >
@@ -106,6 +117,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             if (updated) setAssignment(prev => ({ ...prev, ...updated }))
             if (updatedChecklist) setChecklist(updatedChecklist)
             setEditing(false)
+            setJustSaved(true)
           }}
         />
         {navBar}
@@ -132,6 +144,11 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             {assignment.is_optional && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light">Optional</span>
             )}
+            {assignment.goal_checkoff_label && (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light" title={assignment.goal_checkoff_label}>
+                <span aria-hidden="true">🎯 </span>Goal checkbox
+              </span>
+            )}
             <InlineDueDatePicker
               assignmentId={assignment.id}
               courseId={courseId}
@@ -156,12 +173,45 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
         </div>
       </div>
 
+      {seriesInfo && (
+        <AssignmentSeriesPanel
+          courseId={courseId}
+          assignmentId={assignment.id}
+          info={seriesInfo}
+          justSaved={justSaved}
+          onDismissSaved={() => setJustSaved(false)}
+        />
+      )}
+
       {/* Skill tags */}
       {assignment.skill_tags && assignment.skill_tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {assignment.skill_tags.map(tag => (
             <span key={tag} className="text-xs px-2.5 py-1 rounded-full border border-teal-primary bg-teal-primary text-white">{tag}</span>
           ))}
+        </div>
+      )}
+
+      {/* Student overrides (extensions / excused), read-only — managed in Edit */}
+      {initialOverrides.length > 0 && (
+        <div className="bg-surface rounded-2xl border border-border p-6">
+          <p className="text-xs font-bold text-muted-text uppercase tracking-wide mb-3">
+            Extensions &amp; Excused ({initialOverrides.length})
+          </p>
+          <div className="flex flex-col gap-2">
+            {[...initialOverrides].sort((a, b) => a.student_name.localeCompare(b.student_name)).map(o => (
+              <div key={o.id} className="flex items-center gap-3 text-sm">
+                <span className="font-medium text-dark-text flex-1">{o.student_name}</span>
+                {o.excused ? (
+                  <span className="badge-amber text-xs font-medium border rounded-full px-2 py-0.5">Excused</span>
+                ) : o.due_date ? (
+                  <span className="text-xs text-muted-text">Extended to {formatDueDate(o.due_date)}</span>
+                ) : (
+                  <span className="text-xs text-muted-text">No due date</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

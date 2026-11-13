@@ -49,13 +49,14 @@ const MIN_COL_WIDTH = 60
 const NAME_COL_WIDTH = 192
 const ASSIGNMENT_ROW_COL_WIDTH = 240
 
-type StatusFilter = 'complete' | 'needs_revision' | 'ungraded' | 'late_missing' | 'not_yet_due'
+type StatusFilter = 'complete' | 'needs_revision' | 'ungraded' | 'late_missing' | 'excused' | 'not_yet_due'
 
 const STATUS_OPTIONS: { key: StatusFilter; icon: string; label: string; iconCls: string }[] = [
   { key: 'complete',       icon: '✓', label: 'Complete',       iconCls: 'status-complete-btn' },
   { key: 'needs_revision', icon: '✗', label: 'Needs Revision', iconCls: 'status-revision-btn' },
   { key: 'ungraded',       icon: '●', label: 'Ungraded',       iconCls: 'status-needs-grading-btn' },
   { key: 'late_missing',   icon: '–', label: 'Late / Missing', iconCls: 'status-late-badge' },
+  { key: 'excused',        icon: 'EX', label: 'Excused',        iconCls: 'status-excused-badge !text-[9px]' },
   { key: 'not_yet_due',    icon: ' ', label: 'Not Yet Due',    iconCls: 'border border-border' },
 ]
 
@@ -339,9 +340,10 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
   const toggleStatus = (s: StatusFilter) => setSelectedStatuses(prev => {
     const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next
   })
-  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean, isOptional?: boolean): StatusFilter {
+  function getCellStatus(sub: GradebookSubmission | null, dueDate: string | null, submissionRequired?: boolean, isOptional?: boolean, excused?: boolean): StatusFilter {
     const isPastDue = dueDate ? localDate(dueDate) < todayLocal() : false
     if (!sub || sub.status === 'draft') {
+      if (excused && submissionRequired !== false) return 'excused'
       if (submissionRequired === false || isOptional) return 'not_yet_due'
       return isPastDue ? 'late_missing' : 'not_yet_due'
     }
@@ -429,11 +431,15 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     return o?.due_date ?? globalDueDate
   }
 
+  function isExcused(assignmentId: string, studentId: string): boolean {
+    return overrideMap.get(`${assignmentId}_${studentId}`)?.excused ?? false
+  }
+
   const statusFilteredStudents = selectedStatuses.size === 0
     ? filteredStudents
     : filteredStudents.filter(student =>
         filteredAssignments.some(a =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required, a.is_optional))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required, a.is_optional, isExcused(a.id, student.id)))
         )
       )
 
@@ -441,7 +447,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
     ? filteredAssignments
     : filteredAssignments.filter(a =>
         filteredStudents.some(student =>
-          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required, a.is_optional))
+          selectedStatuses.has(getCellStatus(submissionMap.get(`${a.id}_${student.id}`) ?? null, effectiveDueDate(a.id, student.id, a.due_date), a.submission_required, a.is_optional, isExcused(a.id, student.id)))
         )
       )
 
@@ -573,6 +579,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
                       submissionRequired={a.submission_required}
                       isOptional={a.is_optional}
+                      excused={isExcused(a.id, student.id)}
                       currentUserId={currentUserId}
                     />
                   ))}
@@ -664,6 +671,7 @@ export default function GradebookGrid({ courseId, currentUserId, students, modul
                       dueDate={effectiveDueDate(a.id, student.id, a.due_date)}
                       submissionRequired={a.submission_required}
                       isOptional={a.is_optional}
+                      excused={isExcused(a.id, student.id)}
                       currentUserId={currentUserId}
                     />
                   ))}

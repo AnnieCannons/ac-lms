@@ -20,7 +20,7 @@ export default async function InstructorDashboardPage() {
 
   const canAccessPartnerships = profile?.role === 'staff' || profile?.role === 'admin'
   const canAccessForms = profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
-  const cardCount = [true, canAccessPartnerships, true, true, canAccessForms, true].filter(Boolean).length
+  const cardCount = [true, canAccessPartnerships, true, true, canAccessForms, true, true].filter(Boolean).length
   const gridCols = cardCount >= 4 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'
 
   return (
@@ -89,6 +89,17 @@ export default async function InstructorDashboardPage() {
               </div>
             </Link>
           )}
+
+          <Link
+            href="/instructor/hardware"
+            className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-8 hover:border-teal-primary hover:shadow-md transition-all"
+          >
+            <div className="text-3xl">💻</div>
+            <div>
+              <p className="text-lg font-semibold text-dark-text group-hover:text-teal-primary transition-colors">Hardware</p>
+              <p className="text-sm text-muted-text mt-1">Laptops, hotspots &amp; boosters</p>
+            </div>
+          </Link>
 
           <Link
             href="/flashcards"

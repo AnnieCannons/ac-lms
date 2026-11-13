@@ -10,6 +10,7 @@ import {
 } from '@/lib/student-stats-actions'
 import { TrendChart, StatCard, AssignmentList } from '@/components/ui/StudentStatsWidgets'
 import UserAvatar from '@/components/ui/UserAvatar'
+import CompletedBadge from '@/components/ui/CompletedBadge'
 import type { CourseWithStudents } from '@/app/instructor/students/page'
 
 type AttendanceStats = {
@@ -35,7 +36,7 @@ function StudentRow({
   endDate,
   airtableCourseName,
 }: {
-  student: { id: string; name: string; avatarUrl: string | null; airtableStudentId: string | null }
+  student: CourseWithStudents['students'][number]
   courseId: string
   startDate: string | null
   endDate: string | null
@@ -97,6 +98,7 @@ function StudentRow({
         <button type="button" onClick={toggle} className="flex-1 flex items-center gap-3 text-left min-w-0">
           <UserAvatar name={student.name} avatarUrl={student.avatarUrl} size="md" />
           <span className="text-sm font-medium text-dark-text truncate">{student.name}</span>
+          {student.completed && <CompletedBadge />}
         </button>
         <div className="flex items-center gap-3 shrink-0">
           <Link

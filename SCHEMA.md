@@ -46,6 +46,8 @@ A course offered on the platform.
 | `is_template` | boolean | Default: false |
 | `paid_learners` | boolean | Default: false — enables Benefits & PTO sidebar |
 | `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
+| `readiness_instructor_ids` | uuid[] | Default: `{}` — the course's actual instructors ("Accountability Instructors"), set in course setup / Edit Course Settings; readiness step 3 group DMs and 48h check-in reminders go to them, not to every `role='instructor'` enrollment |
+| `readiness_slack_channel` | text | Nullable — Slack channel id for this course's readiness posts (step 1/2 started, check-in completed, 48h overdue, process completed); options in `src/lib/readiness-channels.ts`. Null skips those posts |
 | `created_at` | timestamptz | Default: now() |
 
 ---
@@ -133,6 +135,25 @@ An assignment attached to a module day.
 | `is_bonus` | boolean | Default: false — bonus assignments appear only in Level Up, not in the main Assignments list or grades unless completed |
 | `grader_id` | uuid | FK → users, nullable — overrides the grader for this assignment; if null, falls back to the student's grading group assignment |
 | `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
+| `series_id` | uuid | Nullable — links the weekly copies of a repeating assignment (no FK; a series is just its members). Each copy keeps its own due date and grades |
+| `goal_checkoff_label` | text | Nullable — when set, students see an "I met my goal" checkbox with this label (see `assignment_goal_claims`) |
+
+---
+
+### assignment_goal_claims
+A student's "I met my goal" check on an assignment, and the grader's confirmation. Confirming excuses the student (via `assignment_overrides.excused`) from every later assignment in the same series.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | Primary key |
+| `assignment_id` | uuid | FK → assignments, CASCADE DELETE |
+| `student_id` | uuid | FK → users, CASCADE DELETE |
+| `claimed_at` | timestamptz | Default: now() |
+| `confirmed_at` | timestamptz | Nullable — set when a grader confirms |
+| `confirmed_by` | uuid | FK → users, nullable |
+| `excused_assignment_ids` | uuid[] | The later weeks this confirmation excused, so undo removes only those |
+
+Unique constraint on `(assignment_id, student_id)`. Students can read their own rows; writes go through server actions.
 
 ---
 
@@ -505,7 +526,7 @@ Student requests for a due date extension on a specific assignment.
 | `reviewed_at` | timestamptz | Nullable |
 | `created_at` | timestamptz | Default: now() |
 
-Unique constraint on `(assignment_id, student_id)` — one request per student per assignment.
+Partial unique index on `(assignment_id, student_id) WHERE status <> 'denied'` — at most one pending or approved request per student per assignment. Denied requests are kept as history, so a student who was denied can request again (`20261009000000_extension_rerequest.sql`).
 
 ---
 
@@ -532,7 +553,7 @@ In-app notifications for students and instructors.
 |--------|------|-------|
 | `id` | uuid | Primary key |
 | `user_id` | uuid | FK → users, CASCADE DELETE |
-| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email) |
+| `type` | text | e.g. `extension_request`, `extension_approved`, `extension_denied`, `submission_comment`, `confidence_goal_what_helped` (Phase 6 reminder — bell only, never in the digest email), `readiness_note_shared` (a readiness note was shared with the student — bell only, links to `/student/readiness?course=`; removed when the note is unshared or deleted), `readiness_note_student_reply` (to the note's author when the student replies — bell only, links to `/instructor/students/[studentId]`), `readiness_note_staff_reply` (to the student when staff reply — bell only, links to `/student/readiness?course=`; removed when the note is unshared), `hardware_checkin` (equipment check-in sent or reminded — links to `/student/equipment-check-in`; cleared when the student answers), `hardware_return_reminder` (to a student asked to return equipment — links to `/account#equipment`), `hardware_renewal` and `hardware_ticket` (to `HARDWARE_ALERT_EMAILS` staff — link to Hardware → Needs attention). All hardware types are bell only |
 | `course_id` | uuid | FK → courses, nullable |
 | `assignment_id` | uuid | FK → assignments, nullable |
 | `extension_request_id` | uuid | FK → extension_requests, nullable |
@@ -541,37 +562,67 @@ In-app notifications for students and instructors.
 | `created_at` | timestamptz | Default: now() |
 | `emailed_at` | timestamptz | Nullable — set when included in a daily digest email; prevents re-sending |
 | `cleared_at` | timestamptz | Nullable — set when the user clears the notification; it is then hidden from the bell but the row stays (so the digest email is unaffected) |
+| `cutting_edge_event_id` | uuid | FK → cutting_edge_events, nullable — set on `cutting_edge_new_event` / `cutting_edge_question_reminder` / `cutting_edge_thanks_reminder` (bell only, never in the digest email) |
+| `readiness_note_id` | uuid | FK → readiness_notes, CASCADE DELETE, nullable — set on `readiness_note_shared` and both reply types; the student's are deleted when the note is unshared |
+| `readiness_note_reply_id` | uuid | FK → readiness_note_replies, CASCADE DELETE, nullable — set on both reply types |
 
 ---
 
-### confidence_skills
-Skills a student is personally tracking in the Confidence Tracker.
+### readiness_note_replies
+Back-and-forth replies under a readiness note shared with the student (`readiness_notes.visible_to_student`). The student and staff (instructor/staff/admin) can reply only while the note is shared; authors edit/delete their own, admins can delete any. No RLS policies — only the service client in `src/lib/readiness-notes-actions.ts`, after a role / ownership check.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
-| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
-| `name` | text | Skill name (e.g. `React`, `CSS Flexbox`) |
-| `created_at` | timestamptz | Default: now() |
+| `note_id` | uuid | FK → readiness_notes, CASCADE DELETE |
+| `author_id` | uuid | FK → users, SET NULL on delete |
+| `body` | text | Non-empty |
+| `created_at` / `updated_at` | timestamptz | Default: now() |
 
 ---
 
-### confidence_entries
-Individual score log entries per tracked skill.
+### cutting_edge_events
+Global Cutting Edge Talks (guest speakers), shared by every course. Each event owns its two checkbox assignments as columns — they are not rows in `assignments` and never touch gradebooks, missing/late or readiness. Written only by server actions (`src/lib/cutting-edge-actions.ts`) with the service client.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid | Primary key |
-| `skill_id` | uuid | FK → confidence_skills, CASCADE DELETE |
-| `user_id` | uuid | FK → auth.users, CASCADE DELETE |
-| `score` | int | 1–10 self-rating |
-| `goal_points` | int | Nullable, 1–5 — optional effort/goal points |
-| `created_at` | timestamptz | Default: now() |
+| `title` | text | Required |
+| `speaker` | text | Nullable |
+| `starts_at` | timestamptz | Entered in the creator's timezone, shown in each viewer's local timezone (bell/Slack text and due-date/reminder logic use Pacific) |
+| `location_text` / `location_url` | text | Usually the Focus Friday Zoom; never a physical address |
+| `about_html` | text | Rich HTML (sanitized on render) |
+| `audience_all` | boolean | true = students in every course active at the event (or now, while upcoming); false = only `cutting_edge_event_courses` |
+| `block` | text | Nullable — `A`/`B`/`C`/`D`, the part of the day; a label only |
+| `status` | text | `draft` / `published` — students only see published; publishing can skip the RSVP notification ("publish quietly") |
+| `first_published_at` | timestamptz | Set on first publish; the "new event" RSVP prompt is sent only then |
+| `question_due_date` / `thanks_due_date` | date | Pacific calendar dates; default 7 days before / after the event |
+| `question_html` / `thanks_html` | text | Assignment instructions |
+| `question_padlet_url` / `thanks_padlet_url` | text | Per-event Padlet links; nullable (can be added later) |
+| `created_by` | uuid | FK → users |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | Soft-deletable |
+
+### cutting_edge_event_courses
+Course limits for events with `audience_all = false`. PK `(event_id, course_id)`.
+
+### cutting_edge_rsvps
+One row per student per event. PK `(event_id, user_id)`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `response` | text | `yes` / `no` / null — changeable until `starts_at` |
+| `question_done_at` | timestamptz | Submit Your Question checked off (required only for yes) |
+| `thanks_done_at` | timestamptz | Say Thank You checked off (required only for yes, after the event) |
+| `missed_at` | timestamptz | "I did not make it" — excuses the thank-you; mutually exclusive with `thanks_done_at` |
+| `updated_by` | uuid | Unused (staff overrides were dropped before launch) |
+
+### cutting_edge_notifications_sent
+Sent-log making each notification once per student per event. PK `(event_id, user_id, kind)`; `kind` is `new_event` / `question_reminder` / `thanks_reminder`; `slack_sent` records whether the Slack DM went through.
 
 ---
 
 ### confidence_tracker_skills
-Canonical, shared skill taxonomy for Confidence Tracker v2 (Phase 1: assignment tagging). Deliberately separate from `confidence_skills` (the older per-student, free-text tracker) and from `assignments.skill_tags`/`modules.skill_tags` (the unrelated "Level Up Your Skills" preset+free-text tags).
+Canonical, shared skill taxonomy for Confidence Tracker v2 (Phase 1: assignment tagging). Deliberately separate from `assignments.skill_tags`/`modules.skill_tags` (the unrelated "Level Up Your Skills" preset+free-text tags).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -597,7 +648,7 @@ Unique on `(assignment_id, skill_id)`. Removing a tag deletes only this join row
 ---
 
 ### confidence_tracker_ratings
-Confidence Tracker v2, Phase 2: a student's self-rating on a tagged skill, captured once per student/assignment on their first-ever submission. Fully separate from `confidence_skills`/`confidence_entries` and from `assignments.skill_tags`/`modules.skill_tags`.
+Confidence Tracker v2, Phase 2: a student's self-rating on a tagged skill, captured once per student/assignment on their first-ever submission. Fully separate from `assignments.skill_tags`/`modules.skill_tags`.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -833,6 +884,61 @@ LP strategy tracking for VC/PE partners (one per partner). Firms with no row are
 | `updated_at` | timestamptz | Auto-updated via trigger |
 
 RLS: staff and admin only.
+### course_completions
+An instructor/staff/admin marked a student as having completed a course (the **Completed** checkbox on the course Users page). One row per student per course, PK `(course_id, user_id)`. Completing a "Tech Career Foundations …" **and** an "Intro to Programming …" course puts a loaned laptop on the hardware tracker's Ready to transfer list. Staff read all; students read their own; writes only via `setCourseCompleted` (service client).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `course_id` | uuid | FK → courses, CASCADE |
+| `user_id` | uuid | FK → users, CASCADE |
+| `completed_at` | timestamptz | Default now() |
+| `marked_by` | uuid | FK → users, SET NULL |
+
+---
+
+## Hardware tracker
+
+Loaner MacBooks, Franklin hotspots (Mission Telecom) and wifi boosters, at `/instructor/hardware`. See `_plans/hardware-tracker-roadmap.md`. All tables have RLS enabled with staff (`instructor`/`staff`/`admin`) `SELECT` policies only (survey recipients/responses also let a student read their own); every write goes through role-checked server actions, the `CRON_SECRET` cron, or the secret-checked Airtable webhook, using the service-role client. **No shipping addresses are stored anywhere.**
+
+### hardware_purchase_batches
+One row per purchase (bulk add): `kind`, `purchased_on`, `vendor`, `make_model`, `model_year`, `condition` (`new`/`refurbished`/`used`), `unit_cost`, `warranty_ends_on`, `notes`, `created_by`.
+
+### hardware_devices
+One row per physical device.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `kind` | text | `laptop` / `hotspot` / `booster` |
+| `asset_tag` | text | Unique. Set by a BEFORE INSERT trigger from per-kind sequences (`hardware_laptop_tag_seq` → `LAP-001`, `HOT-`, `BOOST-`); never reused |
+| `serial_number`, `imei`, `iccid`, `phone_number` | text | Serial unique ignoring case/space; IMEI unique |
+| `make_model`, `model_year`, `condition` | | Copied from the batch so one device can be corrected |
+| `purchase_batch_id` | uuid | FK → hardware_purchase_batches, SET NULL |
+| `status` | text | `in_stock`, `on_loan`, `owned_by_student`, `awaiting_return`, `received`, `needs_prep`, `needs_repair`, `lost`, `retired` |
+| `current_holder_id` | uuid | FK → users, SET NULL — the student who has it |
+
+### hardware_events
+Append-only history shown on device and student pages. `device_id` and/or `student_id` (at least one), `type` (labels in `EVENT_LABELS`, `src/lib/hardware.ts`), `notes`, `actor_id`, `created_at`.
+
+### hardware_return_requests
+One open row per device being chased back (unique on `device_id` where `closed_at` is null): `student_id`, `requested_at` (days waiting / 60-day likely lost), `next_reminder_at` (48h after asking, then +5 days, then weekly), `reminder_count`, `closed_at`, `closed_reason` (`received`/`lost`/`cancelled`).
+
+### hardware_replacements
+One laptop and one charger per student: `student_id`, `kind` (`laptop`/`charger`), `old_device_id`, `new_device_id`, `old_coming_back`, `write_off_reason` (required when not coming back), `override_note` (a second replacement), `notes`.
+
+### hardware_waitlist
+Staff-only waitlist: `student_id`, `kind`, `note`, `added_at`, `fulfilled_at` / `fulfilled_device_id` (set when that type is loaned to them), `removed_at`. One open entry per student per kind.
+
+### hardware_surveys / hardware_survey_recipients / hardware_survey_responses
+The equipment check-in. A survey (`title`, `closed_at`); recipients PK `(survey_id, user_id)` with `course_id` they came from and `last_nudged_at`; one response per student per survey (`has_laptop`, `laptop_serial`, `has_hotspot`, `hotspot_imei`, `hotspot_phone`, `has_booster`, `laptop_replaced`, `charger_replaced`, `notes`, `review_status` `pending`/`approved`/`dismissed`, `review_note`).
+
+### hardware_subscriptions
+Hotspot plan periods: `device_id`, `carrier` (default `Mission Telecom`), `plan`, `starts_on`, `ends_on`, `cost`, `account_number`, `line_number`, `notes`. Renewing adds a row; the current plan is the one ending last.
+
+### hardware_alerts_sent
+Sent-log for the daily job (`key` PK, e.g. `renewal:<subscription id>`, `likely-lost:<request id>`, `graduates:<break start>`), so each alert goes once.
+
+### hardware_tickets
+Equipment Support Form submissions from the Airtable webhook: `airtable_record_id` (unique) and `airtable_url` (the address lives there), `submitted_email`, `submitted_name`, `equipment_type`, `issue`, `other_info`, matched `student_id` / `device_id`, `status` (`open`/`in_progress`/`replacement_sent`/`resolved`), `last_activity_at`, `last_nudged_at` (48h nudge), `resolved_at`.
 
 ---
 

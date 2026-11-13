@@ -1,8 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import ImportDeckModal from './ImportDeckModal'
+import { readFlashcardsReturn, rememberFlashcardsReturn, returnLabel, safeReturnPath } from '@/lib/flashcards/return-to'
+
+const noopSubscribe = () => () => {}
 
 type Props = {
   deckCount: number
@@ -12,18 +15,26 @@ type Props = {
 export default function MyDecksHeader({ deckCount, cardsDueToday }: Props) {
   const [showImport, setShowImport] = useState(false)
   const searchParams = useSearchParams()
-  const from = searchParams.get('from')
+  const from = safeReturnPath(searchParams.get('from'))
+  // null on the server and during hydration, then the Level Up page remembered for this tab
+  const remembered = useSyncExternalStore(noopSubscribe, readFlashcardsReturn, () => null)
+  const returnTo = from ?? remembered
+
+  useEffect(() => { rememberFlashcardsReturn(from) }, [from])
 
   return (
     <>
-      <Link href={from ?? '/student/courses'} className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4">
-        {from ? '← Back to Course' : '← Back to Home'}
+      <Link
+        href={returnTo ?? '/student/courses'}
+        className="text-sm text-muted-text hover:text-dark-text flex items-center gap-1 w-fit mb-4"
+      >
+        ← {returnLabel(returnTo)}
       </Link>
       <header className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-dark-text">My Decks</h1>
           <p className="text-sm text-muted-text mt-1">
-            {deckCount} {deckCount === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} due today
+            {deckCount} {deckCount === 1 ? 'deck' : 'decks'} · {cardsDueToday} {cardsDueToday === 1 ? 'card' : 'cards'} to study today
           </p>
         </div>
         <div className="flex gap-2 shrink-0">

@@ -7,6 +7,7 @@ import SubmissionsList, { type StudentRow } from '@/components/ui/SubmissionsLis
 import AnswerKeyField from '@/components/ui/AnswerKeyField'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
+import { getAssignmentCourseId } from '@/lib/course-scope'
 import { formatDueDateWithTime } from '@/lib/date-utils'
 import { resolveMyStudentIds } from '@/lib/grading-utils'
 
@@ -27,6 +28,9 @@ export default async function InstructorSubmissionsPage({
   // Use service role for cross-user queries (bypasses RLS)
   let admin: ReturnType<typeof createServiceSupabaseClient>
   try { admin = createServiceSupabaseClient() } catch { redirect(`/instructor/courses/${id}`) }
+
+  // The assignment must be in the course access was checked against (TA scoping).
+  if ((await getAssignmentCourseId(admin, assignmentId)) !== id) redirect(`/instructor/courses/${id}`)
 
   const { data: assignment } = await admin
     .from('assignments')
@@ -56,6 +60,12 @@ export default async function InstructorSubmissionsPage({
 
   const submissionMap = new Map((submissions ?? []).map(s => [s.student_id, s]))
 
+  const { data: goalClaims } = await admin
+    .from('assignment_goal_claims')
+    .select('student_id, confirmed_at')
+    .eq('assignment_id', assignmentId)
+  const goalByStudent = new Map((goalClaims ?? []).map(c => [c.student_id, c.confirmed_at ? 'confirmed' as const : 'claimed' as const]))
+
   const students: StudentRow[] = (enrollments ?? [])
     .map(e => {
       const u = Array.isArray(e.users) ? e.users[0] : e.users
@@ -66,6 +76,7 @@ export default async function InstructorSubmissionsPage({
         submission: sub as StudentRow['submission'],
         historyCount: historyCountByStudent.get(e.user_id) ?? 0,
         latestSubmittedAt: sub?.submitted_at ?? null,
+        goal: goalByStudent.get(e.user_id) ?? null,
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -202,13 +213,17 @@ export default async function InstructorSubmissionsPage({
           <span className="text-border">/</span>
           <Link href={`/instructor/courses/${id}/submissions`} className="hover:text-teal-primary">{course?.name}</Link>
           <span className="text-border">/</span>
-          <span className="text-dark-text font-medium truncate max-w-[300px]">{assignment.title}</span>
+          <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="text-dark-text font-medium truncate max-w-[300px] hover:text-teal-primary hover:underline">{assignment.title}</Link>
           <span className="text-border">/</span>
           <span className="text-dark-text font-medium">Submissions</span>
         </div>
 
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-dark-text">{assignment.title}</h1>
+          <h1 className="text-2xl font-bold text-dark-text">
+            <Link href={`/instructor/courses/${id}/assignments/${assignmentId}`} className="hover:text-teal-primary hover:underline">
+              {assignment.title}
+            </Link>
+          </h1>
           {!assignment.submission_required && (
             <span className="status-late-badge text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0">
               No submission

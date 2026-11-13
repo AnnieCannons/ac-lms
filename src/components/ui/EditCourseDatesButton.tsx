@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import Modal from './Modal'
 import { updateCourseDates } from '@/lib/course-actions'
 import DatePickerField from './DatePickerField'
+import ReadinessInstructorsPicker, { type StaffOption } from './ReadinessInstructorsPicker'
+import ReadinessChannelSelect from './ReadinessChannelSelect'
+import { getInstructorUsers } from '@/lib/people-actions'
 
 const MONTH_CYCLE: Record<string, { next: string; yearDelta: number }> = {
   Jan:  { next: 'May',  yearDelta: 0 },
@@ -27,12 +30,16 @@ export default function EditCourseDatesButton({
   initialEndDate,
   initialAirtableCourseName,
   initialReadinessEnabled,
+  initialReadinessInstructorIds,
+  initialReadinessSlackChannel,
 }: {
   courseId: string
   initialStartDate: string | null
   initialEndDate: string | null
   initialAirtableCourseName: string | null
   initialReadinessEnabled: boolean
+  initialReadinessInstructorIds: string[]
+  initialReadinessSlackChannel: string | null
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -41,19 +48,31 @@ export default function EditCourseDatesButton({
   const [airtableName, setAirtableName] = useState(initialAirtableCourseName ?? '')
   const [airtableNameDirty, setAirtableNameDirty] = useState(false)
   const [readinessEnabled, setReadinessEnabled] = useState(initialReadinessEnabled)
+  const [readinessIds, setReadinessIds] = useState<Set<string>>(new Set(initialReadinessInstructorIds))
+  const [readinessChannel, setReadinessChannel] = useState(initialReadinessSlackChannel ?? '')
+  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([])
+  const [loadingStaff, setLoadingStaff] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const suggestion = initialAirtableCourseName ? advanceAirtableName(initialAirtableCourseName) : null
 
-  const handleOpen = () => {
+  const handleOpen = async () => {
     setStartDate(initialStartDate ?? '')
     setEndDate(initialEndDate ?? '')
     setAirtableName(initialAirtableCourseName ?? '')
     setAirtableNameDirty(false)
     setReadinessEnabled(initialReadinessEnabled)
+    setReadinessIds(new Set(initialReadinessInstructorIds))
+    setReadinessChannel(initialReadinessSlackChannel ?? '')
     setError(null)
     setOpen(true)
+
+    if (staffOptions.length === 0) {
+      setLoadingStaff(true)
+      setStaffOptions(await getInstructorUsers())
+      setLoadingStaff(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,6 +85,8 @@ export default function EditCourseDatesButton({
       endDate || null,
       airtableName || null,
       readinessEnabled,
+      Array.from(readinessIds),
+      readinessChannel || null,
     )
     setSaving(false)
     if (result.error) { setError(result.error); return }
@@ -152,6 +173,15 @@ export default function EditCourseDatesButton({
                 </span>
               </span>
             </label>
+
+            <ReadinessInstructorsPicker
+              options={staffOptions}
+              selected={readinessIds}
+              onChange={setReadinessIds}
+              loading={loadingStaff}
+            />
+
+            <ReadinessChannelSelect value={readinessChannel} onChange={setReadinessChannel} />
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>

@@ -1,25 +1,12 @@
 "use client";
 
-import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
-import { mergeAttributes } from "@tiptap/core";
+import { useEditor, EditorContent } from "@tiptap/react";
 import { useRef } from "react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { createLowlight } from "lowlight";
-import javascript from "highlight.js/lib/languages/javascript";
-import xml from "highlight.js/lib/languages/xml";
-import css from "highlight.js/lib/languages/css";
-import sql from "highlight.js/lib/languages/sql";
 import FileUpload from "@/components/ui/FileUpload";
-import CodeBlockNode from "@/components/ui/CodeBlockNode";
-
-const lowlight = createLowlight();
-lowlight.register("javascript", javascript);
-lowlight.register("jsx", javascript); // JSX uses the JS grammar
-lowlight.register("html", xml);
-lowlight.register("css", css);
-lowlight.register("sql", sql);
+import { codeBlockExtension } from "@/components/ui/codeBlockExtension";
+import { toggleCodeBlockMerged } from "@/lib/tiptap-code-block";
 
 type Props = {
   initialContent: string;
@@ -41,21 +28,7 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
         horizontalRule: false,
         blockquote: false,
       }),
-      CodeBlockLowlight.extend({
-        addNodeView() {
-          return ReactNodeViewRenderer(CodeBlockNode);
-        },
-        renderHTML({ node, HTMLAttributes }) {
-          return [
-            "pre",
-            mergeAttributes(HTMLAttributes),
-            ["code", { class: node.attrs.language ? `language-${node.attrs.language}` : null }, 0],
-          ];
-        },
-      }).configure({
-        lowlight,
-        defaultLanguage: "javascript",
-      }),
+      codeBlockExtension("javascript"),
       Placeholder.configure({ placeholder: "Question text…" }),
     ],
     content: initialContent,
@@ -189,26 +162,7 @@ export default function QuizQuestionEditor({ initialContent, onChange, storagePa
         </button>
         <button
           type="button"
-          onMouseDown={tool(() => {
-            if (editor.isActive('codeBlock')) {
-              editor.chain().focus().toggleCodeBlock().run()
-              return
-            }
-            const { from, to, empty } = editor.state.selection
-            if (!empty) {
-              const selectedText = editor.state.doc.textBetween(from, to, '\n', '\n')
-              editor.chain().focus()
-                .deleteSelection()
-                .insertContent({
-                  type: 'codeBlock',
-                  attrs: { language: 'javascript' },
-                  content: selectedText ? [{ type: 'text', text: selectedText }] : [],
-                })
-                .run()
-            } else {
-              editor.chain().focus().toggleCodeBlock().run()
-            }
-          })}
+          onMouseDown={tool(() => toggleCodeBlockMerged(editor))}
           className={btn(editor.isActive("codeBlock"))}
           aria-label="Code block"
           aria-pressed={editor.isActive("codeBlock")}

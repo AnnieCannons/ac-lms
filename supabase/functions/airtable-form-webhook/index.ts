@@ -1,9 +1,32 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Shared secret sent by the Airtable automation as the x-webhook-secret header.
+// Set it with: Supabase Dashboard → Edge Functions → Secrets → AIRTABLE_WEBHOOK_SECRET.
+// Fails closed: with the secret unset, every request is refused.
+async function hasValidSecret(req: Request): Promise<boolean> {
+  const expected = Deno.env.get("AIRTABLE_WEBHOOK_SECRET");
+  const got = req.headers.get("x-webhook-secret");
+  if (!expected || !got) return false;
+  // Compare SHA-256 digests in constant time so neither length nor content leaks.
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(got)),
+    crypto.subtle.digest("SHA-256", enc.encode(expected)),
+  ]);
+  const x = new Uint8Array(a), y = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  if (!(await hasValidSecret(req))) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
   let body: Record<string, unknown>;

@@ -1,7 +1,7 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
-import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModuleDay } from '@/lib/course-access'
+import { requireCourseInstructorAccess, isCourseAccessError, getCourseIdForModuleDay, linkedDayInCourse } from '@/lib/course-access'
 
 type ResourceData = {
   id: string
@@ -27,6 +27,7 @@ export async function createResource(params: {
 
   const access = await requireCourseInstructorAccess(courseId)
   if (isCourseAccessError(access)) return { error: access.error, code: access.code }
+  if (!(await linkedDayInCourse(admin, params.linkedDayId, courseId))) return { error: 'Linked day is not in this course' }
 
   const { count } = await admin
     .from('resources')
@@ -41,6 +42,7 @@ export async function createResource(params: {
       title: params.title,
       content: params.content,
       order: count ?? 0,
+      published: false,
       linked_day_id: params.linkedDayId ?? null,
     })
     .select('id, module_day_id, type, title, content, order, linked_day_id')

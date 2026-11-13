@@ -33,6 +33,13 @@ export async function addSelfAsInstructor(courseId: string): Promise<{ error?: s
 
 /** Look up a course's name for confirmation prompts before the user commits to self-enrolling. */
 export async function getCourseName(courseId: string): Promise<{ name?: string; error?: string }> {
+  // Only the staff roles that can self-enroll ever see this prompt.
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') return { error: 'Not authorized' }
+
   const admin = createServiceSupabaseClient()
   const { data: course } = await admin.from('courses').select('name').eq('id', courseId).single()
   if (!course) return { error: 'Course not found.' }

@@ -53,6 +53,9 @@ function calcStats(records: AttendanceRecord[]) {
   for (const r of records) {
     for (const block of [r.blockA, r.blockB, r.blockC, r.blockD]) {
       if (!block) continue
+      // Excused absences and holidays are shown but never counted
+      const status = blockStatus(block)
+      if (status === 'excused' || status === 'holiday') continue
       totalBlocks++
       if (block === 'On Time') onTimeBlocks++
       else if (block.includes('Tardy')) tardyBlocks++
@@ -63,10 +66,12 @@ function calcStats(records: AttendanceRecord[]) {
   return { totalBlocks, onTimeBlocks, tardyBlocks, absentBlocks, percentMissed }
 }
 
-type BlockStatus = 'onTime' | 'tardy' | 'absent'
+type BlockStatus = 'onTime' | 'tardy' | 'absent' | 'excused' | 'holiday'
 
 function blockStatus(block: string | null): BlockStatus | null {
   if (!block) return null
+  if (block === 'Excused Absence') return 'excused'
+  if (block === 'Holiday') return 'holiday'
   if (block.includes('Tardy')) return 'tardy'
   if (block.includes('Absent')) return 'absent'
   return 'onTime'
@@ -76,12 +81,17 @@ const pillClasses: Record<BlockStatus, string> = {
   onTime: 'bg-green-100 text-green-800',
   tardy: 'bg-yellow-100 text-yellow-800',
   absent: 'bg-red-100 text-red-800',
+  // Match the Airtable option colors
+  excused: 'bg-[#d1e2ff] text-[#1d1f25]',
+  holiday: 'bg-[#cb26a8] text-white',
 }
 
 const pillLabels: Record<BlockStatus, string> = {
   onTime: 'On time',
   tardy: 'Tardy',
   absent: 'Absent',
+  excused: 'Excused Absence',
+  holiday: 'Holiday',
 }
 
 function BlockPill({ label, status }: { label: string; status: BlockStatus }) {

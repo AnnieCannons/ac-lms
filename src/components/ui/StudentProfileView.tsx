@@ -16,7 +16,8 @@ import {
   type EscalationEventRecord,
   type PriorCourseMissing,
 } from '@/lib/readiness-actions'
-import { HowThisWorksSection, ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, PriorCourseMissingNote, READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
+import { HowThisWorksSection, ReadinessTrendChart, ReadinessZoneBadge, PriorCourseMissingNote, READINESS_COLOR } from '@/components/ui/ReadinessWidgets'
+import ReadinessNotesSection from '@/components/ui/ReadinessNotesSection'
 
 export type ProfileCourse = {
   id: string
@@ -196,7 +197,6 @@ export default function StudentProfileView({
             {history && <TrendChart history={history} />}
           </Card>
 
-          {readinessHistory.length > 0 && (
             <>
               <HowThisWorksSection audience="staff" />
               <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
@@ -213,15 +213,12 @@ export default function StudentProfileView({
                   })()}
                 </div>
                 <PriorCourseMissingNote prior={priorMissing} href={`/instructor/courses/${priorMissing?.courseId}/roster/${student.id}`} />
-                <ReadinessTrendChart history={readinessHistory} />
-                {escalationHistory.length > 0 && (
-                  <div className="mt-2">
-                    <EscalationHistorySection events={escalationHistory} />
-                  </div>
-                )}
+                {readinessHistory.length > 0
+                  ? <ReadinessTrendChart history={readinessHistory} />
+                  : <p className="text-sm text-muted-text py-2">Not scored yet.</p>}
+                <ReadinessNotesSection studentId={student.id} courseId={currentCourse.id} events={escalationHistory} />
               </div>
             </>
-          )}
         </>
       )}
 

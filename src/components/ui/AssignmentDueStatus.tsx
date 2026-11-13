@@ -45,3 +45,15 @@ export function DueDatePill({
     </span>
   )
 }
+
+// Neutral grey pill for excused work. Deliberately not amber/red: being excused is
+// nothing the student needs to act on.
+export function ExcusedBadge({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  return (
+    <span className={`shrink-0 font-semibold rounded-full bg-surface border border-border text-muted-text ${
+      size === 'md' ? 'text-sm px-4 py-1.5' : 'text-xs px-2.5 py-1'
+    }`}>
+      Excused
+    </span>
+  )
+}

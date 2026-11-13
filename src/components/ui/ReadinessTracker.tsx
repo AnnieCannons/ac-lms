@@ -1,15 +1,70 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote } from '@/components/ui/ReadinessWidgets'
-import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, getMyPriorCourseMissing, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord, type PriorCourseMissing } from '@/lib/readiness-actions'
+import { ReadinessTrendChart, ReadinessZoneBadge, EscalationHistorySection, HowThisWorksSection, PriorCourseMissingNote, NoteTimelineItem } from '@/components/ui/ReadinessWidgets'
+import NoteReplyThread from '@/components/ui/ReadinessNoteReplies'
+import { getMyReadinessHistory, getMyEscalationStatus, getMyEscalationHistory, getMyPriorCourseMissing, getMyReadinessPreview, submitCheckinForm, type ReadinessHistoryPoint, type EscalationEventRecord, type PriorCourseMissing } from '@/lib/readiness-actions'
+import ReadinessBreakdownDetails from '@/components/ui/ReadinessBreakdown'
+import type { StudentReadinessPreview } from '@/lib/readiness-score'
+import { formatDueDate } from '@/lib/date-utils'
 import type { EscalationStatus } from '@/lib/readiness'
+import { getMyReadinessNotes, type ReadinessNote } from '@/lib/readiness-notes-actions'
 
 function BreakdownStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-center px-3 py-2 rounded-xl bg-background border border-border">
       <div className="text-lg font-bold text-dark-text">{value}</div>
       <div className="text-xs text-muted-text">{label}</div>
+    </div>
+  )
+}
+
+/** The live "so far this week" score and what's costing points -- recomputed on every visit, never stored. */
+function ThisWeekSoFar({ preview, loading }: { preview: StudentReadinessPreview | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="bg-surface rounded-2xl border border-border p-6 mb-6">
+        <h2 className="text-lg font-bold text-dark-text mb-2">This week so far</h2>
+        <p className="text-sm text-muted-text">Adding up this week…</p>
+      </div>
+    )
+  }
+  if (!preview) return null
+  const { week, breakdown } = preview
+
+  return (
+    <div className="bg-surface rounded-2xl border-2 border-teal-primary/40 p-6 mb-6">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div>
+          <h2 className="text-lg font-bold text-dark-text">This week so far</h2>
+          <p className="text-xs text-muted-text">Week of {formatDueDate(week.start, { month: 'short', day: 'numeric' })}</p>
+        </div>
+        {breakdown && <ReadinessZoneBadge zone={breakdown.zone} />}
+      </div>
+
+      {!breakdown ? (
+        <p className="text-sm text-muted-text mt-3">
+          {week.onBreak ? 'It’s a break week, so there’s no score this week. Enjoy it!' : 'Your course isn’t in session this week.'}
+        </p>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2 mt-3">
+            <span className="text-5xl font-bold" style={{ color: '#6D2B5E' }}>{breakdown.score.toFixed(1)}</span>
+            <span className="text-muted-text text-sm">/ 5 right now</span>
+          </div>
+          <p className="text-xs text-muted-text mt-2 mb-5">
+            Not final yet — your score is recorded on the morning of {formatDueDate(week.scoredOn)}. Until then it can still change:
+            turning in missing work raises it.
+          </p>
+
+          <div className="rounded-xl bg-background border border-border p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-text mb-3">
+              {breakdown.score === 5 ? 'Nothing is costing you points right now — nice work!' : 'What’s costing you points'}
+            </p>
+            <ReadinessBreakdownDetails breakdown={breakdown} week={week} audience="student" />
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -182,24 +237,46 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
   const [status, setStatus] = useState<EscalationStatus | null>(null)
   const [escalationHistory, setEscalationHistory] = useState<EscalationEventRecord[]>([])
   const [priorMissing, setPriorMissing] = useState<PriorCourseMissing | null>(null)
+  const [notes, setNotes] = useState<ReadinessNote[]>([])
   const [loading, setLoading] = useState(true)
+  const [preview, setPreview] = useState<StudentReadinessPreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(true)
+
+  // Separate from load() -- the live score pulls attendance from Airtable and
+  // takes a few seconds, so the rest of the page shouldn't wait on it. (The
+  // page keys this component by course, so switching courses starts fresh.)
+  useEffect(() => {
+    let cancelled = false
+    getMyReadinessPreview(courseId)
+      .then(p => { if (!cancelled) setPreview(p) })
+      .catch(() => { if (!cancelled) setPreview(null) })
+      .finally(() => { if (!cancelled) setPreviewLoading(false) })
+    return () => { cancelled = true }
+  }, [courseId])
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [h, s, eh, pm] = await Promise.all([
+    const [h, s, eh, pm, n] = await Promise.all([
       getMyReadinessHistory(courseId),
       getMyEscalationStatus(courseId),
       getMyEscalationHistory(courseId),
       getMyPriorCourseMissing(courseId),
+      getMyReadinessNotes(courseId).catch(() => []),
     ])
     setHistory(h)
     setStatus(s?.status ?? 'none')
     setEscalationHistory(eh)
     setPriorMissing(pm)
+    setNotes(n)
     setLoading(false)
   }, [courseId])
 
   useEffect(() => { load() }, [load])
+
+  // After a reply, refresh just the notes so the page doesn't flash back to "Loading…".
+  const reloadNotes = useCallback(() => {
+    getMyReadinessNotes(courseId).then(setNotes).catch(() => {})
+  }, [courseId])
 
   if (loading) return <p className="text-sm text-muted-text py-10 text-center">Loading…</p>
 
@@ -226,11 +303,16 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
         <p className="text-muted-text">Welcome back, <span className="font-semibold" style={{ color: '#6D2B5E' }}>{userName}</span></p>
       </div>
 
+      <ThisWeekSoFar preview={preview} loading={previewLoading} />
+
       <HowThisWorksSection audience="student" />
 
       <div className="bg-surface rounded-2xl border border-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-dark-text">This week</h2>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-dark-text">Last recorded score</h2>
+            {latest && <p className="text-xs text-muted-text">Week of {formatDueDate(latest.weekStart, { month: 'short', day: 'numeric' })}</p>}
+          </div>
           <ReadinessZoneBadge zone={latest?.zone ?? null} />
         </div>
 
@@ -255,9 +337,19 @@ export default function ReadinessTracker({ courseId, userName }: { courseId: str
 
         <ReadinessTrendChart history={history} />
 
-        {escalationHistory.length > 0 && (
+        {(escalationHistory.length > 0 || notes.length > 0) && (
           <div className="mt-4">
-            <EscalationHistorySection events={escalationHistory} />
+            <EscalationHistorySection
+              events={escalationHistory}
+              notes={notes}
+              renderNote={(note, isLast) => (
+                <NoteTimelineItem
+                  note={note}
+                  isLast={isLast}
+                  footer={<NoteReplyThread note={note} audience="student" onChanged={reloadNotes} />}
+                />
+              )}
+            />
           </div>
         )}
       </div>

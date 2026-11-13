@@ -1,8 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getMyCuttingEdgeTaskCount } from '@/lib/cutting-edge-actions'
+import { CUTTING_EDGE_TASKS_CHANGED } from '@/lib/cutting-edge'
+import { getMyHardwareReturnCount } from '@/lib/hardware-student-actions'
 
 interface Props {
   courseId: string
@@ -12,6 +15,8 @@ interface Props {
 
 const TOP_ITEMS = [
   { label: 'General Info', slug: 'info' },
+  { label: 'Cutting Edge Talks', slug: 'cutting-edge-talks' },
+  { label: 'My Equipment', slug: 'equipment' },
 ]
 
 const COURSE_ITEMS = [
@@ -28,15 +33,39 @@ const PAID_ITEMS = [
   { label: 'Paid Time Off', slug: 'pto' },
 ]
 
+// "New" badge on Level Up Your Skills after its redesign: hidden once the student opens
+// Level Up, and switched off entirely after NEW_UNTIL so later cohorts never see it.
+// "Seen" is remembered per user in this browser — keyed by user id, so on a shared
+// classroom computer one student opening Level Up doesn't hide it for the next. Until
+// the user is known (and on the server) no badge shows.
+const LEVEL_UP_NEW_UNTIL = new Date('2026-11-30T23:59:59')
+const levelUpSeenKey = (userId: string) => `level-up-redesign-seen:${userId}`
+const seenListeners = new Set<() => void>()
+function readLevelUpSeen(userId: string | null) {
+  if (!userId) return true
+  try { return localStorage.getItem(levelUpSeenKey(userId)) === '1' } catch { return true }
+}
+function markLevelUpSeen(userId: string) {
+  try { localStorage.setItem(levelUpSeenKey(userId), '1') } catch {}
+  seenListeners.forEach(l => l())
+}
+function subscribeLevelUpSeen(listener: () => void) {
+  seenListeners.add(listener)
+  window.addEventListener('storage', listener)
+  return () => { seenListeners.delete(listener); window.removeEventListener('storage', listener) }
+}
+
 export default function StudentCourseNav({ courseId, courseName, paidLearners }: Props) {
   const pathname = usePathname()
   const [isTa, setIsTa] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
+      if (!cancelled) setUserId(user.id)
       supabase
         .from('course_enrollments')
         .select('role')
@@ -50,9 +79,39 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
     return () => { cancelled = true }
   }, [courseId])
 
+  // "Tasks due" badge on Cutting Edge Talks: refetched on navigation and whenever the
+  // student RSVPs or checks something off.
+  const [cuttingEdgeTasks, setCuttingEdgeTasks] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    const fetchCount = () => {
+      getMyCuttingEdgeTaskCount(courseId).then(n => { if (!cancelled) setCuttingEdgeTasks(n) }).catch(() => {})
+    }
+    fetchCount()
+    window.addEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount)
+    return () => { cancelled = true; window.removeEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount) }
+  }, [courseId, pathname])
+
+  // "Send back" badge on My Equipment when we've asked for something back.
+  const [returnsDue, setReturnsDue] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    getMyHardwareReturnCount().then(n => { if (!cancelled) setReturnsDue(n) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [pathname])
+
+  const getLevelUpSeen = useCallback(() => readLevelUpSeen(userId), [userId])
+  const levelUpSeen = useSyncExternalStore(subscribeLevelUpSeen, getLevelUpSeen, () => true)
+  const onLevelUp = pathname.startsWith(`/student/courses/${courseId}/level-up`)
+  useEffect(() => {
+    if (onLevelUp && userId && !readLevelUpSeen(userId)) markLevelUpSeen(userId)
+  }, [onLevelUp, userId])
+  const showLevelUpNew = !levelUpSeen && !onLevelUp && new Date() < LEVEL_UP_NEW_UNTIL
+
   const navLink = (label: string, slug: string) => {
     const href = `/student/courses/${courseId}${slug ? `/${slug}` : ''}`
     const isActive = pathname === href
+    const isNew = slug === 'level-up' && showLevelUpNew
     return (
       <Link
         key={label}
@@ -64,6 +123,21 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         }`}
       >
         {label}
+        {slug === 'cutting-edge-talks' && cuttingEdgeTasks > 0 && (
+          <span className="badge-orange ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5 whitespace-nowrap">
+            Tasks due
+          </span>
+        )}
+        {slug === 'equipment' && returnsDue > 0 && (
+          <span className="badge-orange ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5 whitespace-nowrap">
+            Send back
+          </span>
+        )}
+        {isNew && (
+          <span className="badge-amber ml-2 align-middle text-[10px] font-bold uppercase tracking-wide border rounded-full px-1.5 py-0.5">
+            New
+          </span>
+        )}
       </Link>
     )
   }
@@ -85,16 +159,6 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
         {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
         {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
-        <Link
-          href={`/flashcards?from=${encodeURIComponent(`/student/courses/${courseId}/level-up`)}`}
-          className={`pl-9 pr-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            pathname.startsWith('/flashcards')
-              ? 'bg-teal-light text-teal-primary'
-              : 'text-muted-text hover:text-dark-text hover:bg-border/20'
-          }`}
-        >
-          Flashcard App
-        </Link>
         {paidLearners && (
           <>
             <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Employment</p>

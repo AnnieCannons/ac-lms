@@ -1,14 +1,16 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import StudentCourseNav from '@/components/ui/StudentCourseNav'
 import ResizableSidebar from '@/components/ui/ResizableSidebar'
 import CourseOutlineAccordion from '@/components/ui/CourseOutlineAccordion'
+import { getStudentOverrides } from '@/lib/student-overrides'
 import PageRefresher from '@/components/ui/PageRefresher'
-import { isStudentPreview } from '@/lib/student-preview'
-import StudentViewBanner from '@/components/ui/StudentViewBanner'
+import StudentPageBanner from '@/components/ui/StudentPageBanner'
+import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { getCourseWeekNumber } from '@/lib/date-utils'
+import ReadinessPreviewCard from '@/components/ui/ReadinessPreviewCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,36 +20,12 @@ export default async function StudentCourseDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
-
-  const preview = await isStudentPreview(id)
-
-  if (!preview && (profile?.role === 'instructor' || profile?.role === 'admin')) {
-    redirect(`/instructor/courses/${id}`)
-  }
-
-  // Verify learner is enrolled in this course
-  const { data: enrollment } = await supabase
-    .from('course_enrollments')
-    .select('id, role')
-    .eq('user_id', user.id)
-    .eq('course_id', id)
-    .in('role', ['student', 'observer', 'ta'])
-    .maybeSingle()
-
-  if (!preview && !enrollment) redirect('/student/courses')
+  const viewer = await getStudentCourseViewer(id)
+  const { supabase, studentDb, readOnly } = viewer
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, start_date, end_date, paid_learners')
+    .select('id, name, code, start_date, end_date, paid_learners, readiness_enabled')
     .eq('id', id)
     .single()
 
@@ -55,7 +33,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: rawModules } = await supabase
     .from('modules')
-    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, is_optional, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
+    .select('*, module_days(id, day_name, order, deleted_at, assignments!module_day_id(id, title, due_date, published, order, skill_tags, is_bonus, is_optional, submission_required, deleted_at), resources!module_day_id(id, type, title, content, description, order, deleted_at, instructor_only, published))')
     .eq('course_id', id)
     .is('deleted_at', null)
     .not('title', 'ilike', '%DO NOT PUBLISH%')
@@ -69,7 +47,9 @@ export default async function StudentCourseDetailPage({
         .filter((d: { deleted_at: string | null }) => !d.deleted_at)
         .map((d: { assignments?: Array<{ deleted_at: string | null }>; resources?: Array<{ deleted_at: string | null }> }) => ({
           ...d,
-          assignments: (d.assignments ?? []).filter(a => !a.deleted_at),
+          // Unpublished assignments are dropped here, not just hidden by the client accordion,
+          // so their titles/due dates never reach the student's page payload.
+          assignments: (d.assignments ?? []).filter((a: { deleted_at: string | null; published?: boolean }) => !a.deleted_at && a.published === true),
           resources: (d.resources ?? []).filter((r: { deleted_at: string | null; instructor_only?: boolean; published?: boolean }) => !r.deleted_at && !r.instructor_only && r.published !== false),
         })),
     }))
@@ -80,12 +60,12 @@ export default async function StudentCourseDetailPage({
   const moduleIds = modules.map(m => m.id)
 
   const [{ data: submissions }, { data: stars }, { data: completions }, { data: quizData }, { data: crossAssignments }, { data: crossResources }, { data: moduleWikisData }, { data: dayWikisData }] = await Promise.all([
-    supabase.from('submissions').select('assignment_id, status, grade, submitted_at').eq('student_id', user.id),
-    supabase.from('resource_stars').select('resource_id').eq('user_id', user.id),
-    supabase.from('resource_completions').select('resource_id').eq('user_id', user.id),
-    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
+    studentDb.from('submissions').select('assignment_id, status, grade, submitted_at, is_late').eq('student_id', viewer.viewerId),
+    studentDb.from('resource_stars').select('resource_id').eq('user_id', viewer.viewerId),
+    studentDb.from('resource_completions').select('resource_id').eq('user_id', viewer.viewerId),
+    admin.from('quizzes').select('id, title, module_title, day_title, linked_day_id, max_attempts, due_at').eq('course_id', id).eq('published', true).eq('is_practice', false).is('deleted_at', null).or('day_title.not.is.null,linked_day_id.not.is.null'),
     dayIds.length > 0
-      ? supabase.from('assignments').select('id, title, due_date, published, is_optional, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
+      ? supabase.from('assignments').select('id, title, due_date, published, is_optional, submission_required, module_day_id, linked_day_id').in('linked_day_id', dayIds).eq('published', true).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
     dayIds.length > 0
       ? supabase.from('resources').select('id, type, title, content, description, order, linked_day_id').in('linked_day_id', dayIds).is('deleted_at', null).eq('instructor_only', false).eq('published', true)
@@ -110,6 +90,14 @@ export default async function StudentCourseDetailPage({
   const moduleWikis = (moduleWikisData ?? []) as ModuleWikiRow[]
   const dayWikis = (dayWikisData ?? []) as DayWikiRow[]
 
+  const overrides = await getStudentOverrides(viewer.viewerId, [
+    ...modules.flatMap(m => (m.module_days ?? []).flatMap((d: { assignments?: Array<{ id: string }> }) => (d.assignments ?? []).map(a => a.id))),
+    ...crossAssignmentsArr.map(a => a.id),
+  ])
+  // Show the student's own (extended) due date so Late uses it
+  const withOverrideDue = <T extends { id: string; due_date?: string | null }>(a: T): T =>
+    overrides.get(a.id)?.due_date ? { ...a, due_date: overrides.get(a.id)!.due_date } : a
+
   // Build a mutable copy of modules to inject cross-posted data and wikis
   const modulesWithCross = modules.map(m => ({
     ...m,
@@ -123,16 +111,20 @@ export default async function StudentCourseDetailPage({
         .map(r => ({ ...r, careerDev: true }))
       return {
         ...d,
-        assignments: [...(d.assignments ?? []), ...extraAssignments],
+        assignments: [...(d.assignments ?? []), ...extraAssignments].map(a => withOverrideDue(a as { id: string; due_date?: string | null })),
         resources: [...(d.resources ?? []), ...extraResources],
         wikis: dayWikis.filter(w => w.module_day_id === d.id),
       }
     }),
   }))
 
-  const submissionMap = Object.fromEntries(
-    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null }])
+  const submissionMap: Record<string, { status: 'draft' | 'submitted' | 'graded'; grade: 'complete' | 'incomplete' | null; submitted_at?: string | null; is_late?: boolean | null; excused?: boolean }> = Object.fromEntries(
+    (submissions ?? []).map(s => [s.assignment_id, { status: s.status, grade: s.grade ?? null, submitted_at: s.submitted_at ?? null, is_late: s.is_late ?? null, excused: !!overrides.get(s.assignment_id)?.excused }])
   )
+  // Excused assignments with no submission row still need an entry so they render as Excused
+  for (const [assignmentId, o] of overrides) {
+    if (o.excused && !submissionMap[assignmentId]) submissionMap[assignmentId] = { status: 'draft', grade: null, excused: true }
+  }
   const starredIds = (stars ?? []).map(s => s.resource_id)
   const completedIds = (completions ?? []).map(c => c.resource_id)
 
@@ -140,8 +132,8 @@ export default async function StudentCourseDetailPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <StudentTopNav name={profile?.name} role={profile?.role} />
-      {preview && <StudentViewBanner courseId={id} />}
+      <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
+      <StudentPageBanner viewer={viewer} courseId={id} />
 
       <div className="flex">
         {/* Left sidebar */}
@@ -188,6 +180,7 @@ export default async function StudentCourseDetailPage({
             </div>
 
             <PageRefresher />
+            {course.readiness_enabled && !readOnly && <ReadinessPreviewCard courseId={id} />}
             {modules.length > 0 ? (
               <CourseOutlineAccordion
                 modules={modulesWithCross as Parameters<typeof CourseOutlineAccordion>[0]['modules']}
@@ -198,6 +191,7 @@ export default async function StudentCourseDetailPage({
                 initialCompletedIds={completedIds}
                 quizzes={quizzes}
                 showBonusAssignments
+                readOnly={readOnly}
               />
             ) : (
               <div className="bg-surface rounded-2xl border border-border p-12 text-center">

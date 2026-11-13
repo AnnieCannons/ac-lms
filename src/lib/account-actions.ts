@@ -26,7 +26,10 @@ export async function updateUserAvatar(avatarUrl: string): Promise<{ error?: str
 
   // The upload API route already scopes uploads to the caller's own user id folder;
   // this just double-checks the URL actually points there before storing it.
-  if (!avatarUrl.includes(`/avatars/${user.id}/`)) return { error: 'Invalid avatar URL' }
+  // Must be our own storage bucket's public URL, not just any URL containing the path
+  // (which would let a student point their avatar at a tracking pixel on another host).
+  const avatarPrefix = `${(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '')}/storage/v1/object/public/avatars/${user.id}/`
+  if (!avatarUrl.startsWith(avatarPrefix) || avatarUrl.includes('..')) return { error: 'Invalid avatar URL' }
 
   const admin = createServiceSupabaseClient()
   const { error } = await admin

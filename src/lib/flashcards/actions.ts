@@ -1,7 +1,9 @@
 'use server'
+import { randomBytes } from 'crypto'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { parseCardsFromHtml } from '@/lib/flashcards/bulk-import-parse'
 
 async function getAuthUser() {
   const supabase = await createServerSupabaseClient()
@@ -74,7 +76,7 @@ export async function checkAndCreateDueCardsNotification(): Promise<boolean> {
   await service.from('notifications').insert({
     user_id: user.id,
     type: 'cards_due_today',
-    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} due today across ${deckLabel}.`,
+    message: `You have ${totalDue} ${totalDue === 1 ? 'card' : 'cards'} to study today across ${deckLabel}. Ready when you are!`,
     read: false,
   })
   return true
@@ -195,6 +197,25 @@ export async function updateCard(
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 
+/** Saves several edited cards in one go (Edit All Cards). Cloze groups go through updateClozeCards. */
+export async function updateCards(
+  deckId: string,
+  updates: { id: string; card_type: string; front_content: string; back_content: string }[]
+) {
+  const { supabase } = await getAuthUser()
+
+  const results = await Promise.all(updates.map(u =>
+    supabase
+      .from('cards')
+      .update({ card_type: u.card_type, front_content: u.front_content, back_content: u.back_content })
+      .eq('id', u.id)
+      .eq('deck_id', deckId)
+  ))
+  const failed = results.find(r => r.error)
+  if (failed?.error) throw new Error(failed.error.message)
+  revalidatePath(`/flashcards/decks/${deckId}`)
+}
+
 export async function createClozeCards(deckId: string, frontContent: string) {
   const { supabase } = await getAuthUser()
   const words = parseClozeWords(frontContent)
@@ -219,10 +240,16 @@ export async function createClozeCards(deckId: string, frontContent: string) {
   revalidatePath(`/flashcards/decks/${deckId}`)
 }
 
-export async function updateClozeCards(deckId: string, originalFrontContent: string, newFrontContent: string) {
+export async function updateClozeCards(deckId: string, originalFrontContent: string, newFrontContent: string, originalCardId?: string) {
   const { supabase } = await getAuthUser()
   const words = parseClozeWords(newFrontContent)
   if (words.length === 0) throw new Error('No blanks found')
+
+  // Delete the original non-cloze card if we're converting from another type
+  if (originalCardId) {
+    const { error: origDelError } = await supabase.from('cards').delete().eq('id', originalCardId)
+    if (origDelError) throw new Error(origDelError.message)
+  }
 
   // Delete all cards in this cloze group (same sentence)
   const { error: delError } = await supabase
@@ -278,7 +305,7 @@ export async function deleteCard(cardId: string, deckId: string) {
 export async function enableSharing(deckId: string): Promise<string> {
   const { supabase, user } = await getAuthUser()
 
-  const token = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
+  const token = randomBytes(12).toString('base64url')
 
   const { error } = await supabase
     .from('decks')
@@ -375,7 +402,9 @@ export async function importDeck(sourceDeckId: string) {
     supabase.from('decks').select('id').eq('owner_user_id', user.id).eq('original_deck_id', sourceDeckId).maybeSingle(),
   ])
 
-  if (!sourceDeck) throw new Error('Source deck not found')
+  // The service client bypasses RLS, so enforce RLS's own rule here: only a shared
+  // deck (or one of your own) can be copied.
+  if (!sourceDeck || (!sourceDeck.is_shared && sourceDeck.owner_user_id !== user.id)) throw new Error('Source deck not found')
   const cards = sourceCards ?? []
 
   if (existing) {
@@ -626,6 +655,16 @@ export async function applyDeckUpdates(
 
   if (!deck) throw new Error('Deck not found')
 
+  // The notification (and so its snapshots) must be the caller's own update for this deck.
+  const { data: notification } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('id', notificationId)
+    .eq('user_id', user.id)
+    .eq('deck_id', deckId)
+    .maybeSingle()
+  if (!notification) throw new Error('Update not found')
+
   // Re-fetch snapshots from DB (don't trust client-side content)
   const serviceClient = createServiceSupabaseClient()
   const { data: snapshots } = await serviceClient
@@ -703,16 +742,17 @@ export async function applyDeckUpdates(
 export async function bulkImportCards(deckId: string, html: string) {
   const { supabase, user } = await getAuthUser()
 
-  // Role check — admin only
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const isAdmin = ['instructor', 'staff', 'admin'].includes(profile?.role ?? '')
+  // Role check — flashcard admins (instructor/staff/admin, or anyone enrolled as instructor/TA),
+  // same rule as the bulk-import page
+  const { getIsFlashcardAdmin } = await import('@/lib/flashcards/queries')
+  const isAdmin = await getIsFlashcardAdmin(user.id)
   if (!isAdmin) throw new Error('Unauthorized')
 
   // Verify deck ownership
   const { data: deck } = await supabase.from('decks').select('id').eq('id', deckId).eq('owner_user_id', user.id).single()
   if (!deck) throw new Error('Deck not found')
 
-  // Parse HTML into card pairs: empty <p> = card separator, first element = front, rest = back
+  // Parse HTML into card pairs: blank line = card separator, first element = front, rest = back
   const cards = parseCardsFromHtml(html)
   if (cards.length === 0) throw new Error('No cards found')
 
@@ -731,21 +771,6 @@ export async function bulkImportCards(deckId: string, html: string) {
   )
 
   revalidatePath(`/flashcards/decks/${deckId}`)
-}
-
-function parseCardsFromHtml(html: string): Array<{ front: string; back: string }> {
-  // Split on empty paragraphs (card separators)
-  const sections = html.split(/<p>\s*<\/p>/i).map(s => s.trim()).filter(Boolean)
-
-  return sections.flatMap(section => {
-    // Match the first block element as the front
-    const match = section.match(/^(<(?:p|h[1-6]|pre|blockquote|ul|ol)[^>]*>[\s\S]*?<\/(?:p|h[1-6]|pre|blockquote|ul|ol)>)/i)
-    if (!match) return []
-    const front = match[1].trim()
-    const back = section.slice(match[0].length).trim()
-    if (!front) return []
-    return [{ front, back }]
-  })
 }
 
 export async function reorderCards(deckId: string, orderedCardIds: string[]) {

@@ -1,8 +1,9 @@
-import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorAttendanceView from './InstructorAttendanceView'
 import { fetchActiveClasses } from '@/lib/airtable'
+import { getAttendanceAccess, filterClasses } from '@/lib/attendance-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,25 +18,14 @@ export default async function InstructorAttendancePage() {
     .eq('id', user.id)
     .single()
 
-  const isInstructorOrAdmin =
-    profile?.role === 'instructor' || profile?.role === 'staff' || profile?.role === 'admin'
-
-  if (!isInstructorOrAdmin) {
-    const service = createServiceSupabaseClient()
-    const { data: taEnrollment } = await service
-      .from('course_enrollments')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('role', 'ta')
-      .limit(1)
-      .maybeSingle()
-    if (!taEnrollment) redirect('/unauthorized')
-  }
+  // Instructors/staff/admins see every class; TAs only their own courses' classes.
+  const access = await getAttendanceAccess()
+  if (!access) redirect('/unauthorized')
 
   let classes: string[] = []
   let airtableError = false
   try {
-    classes = await fetchActiveClasses()
+    classes = filterClasses(access, await fetchActiveClasses())
   } catch (err) {
     console.error('fetchActiveClasses error:', err)
     airtableError = true

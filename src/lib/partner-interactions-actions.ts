@@ -2,9 +2,10 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { pickFields } from '@/lib/pick-fields'
 import type { PartnerDepartment } from '@/lib/partner-constants'
 export type { PartnerDepartment } from '@/lib/partner-constants'
-import { notifyStaff, notifyByEmail, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
+import { notifyStaff, notifyByEmail, slackEscape, scheduleSlackDM, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 
 async function requireStaffOrAdmin() {
   const supabase = await createServerSupabaseClient()
@@ -348,13 +349,21 @@ export interface ReferralFormData {
   course_name?: string | null
 }
 
+// Columns the referral forms may write; logged_by and rating_request_sent_at are set
+// by the server.
+const REFERRAL_FIELDS = [
+  'student_identifier', 'direction', 'partner_id', 'referral_date', 'referral_type', 'outcome_rating',
+  'outcome_notes', 'student_city', 'open_to_relocation', 'is_veteran', 'is_neurodivergent', 'other_flags',
+  'student_user_id', 'service_category', 'outcome_success', 'staff_notes', 'course_name',
+] as const satisfies readonly (keyof ReferralFormData)[]
+
 export async function createReferral(data: ReferralFormData) {
   const { error, supabase, user } = await requireStaffOrAdmin()
   if (error || !supabase) return { error }
 
   const { data: inserted, error: dbError } = await supabase
     .from('student_referrals')
-    .insert({ ...data, logged_by: user!.id })
+    .insert({ ...pickFields(data, REFERRAL_FIELDS), logged_by: user!.id })
     .select('id')
     .single()
   if (dbError) return { error: dbError.message }
@@ -400,9 +409,9 @@ export async function createReferral(data: ReferralFormData) {
       if (studentRow && partnerRow) {
         const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
         const ratingUrl = `${APP_URL}/student/referrals/rate/${inserted.id}`
-        const categoryText = data.service_category ? ` for ${data.service_category}` : ''
+        const categoryText = data.service_category ? ` for ${slackEscape(data.service_category)}` : ''
         const studentMsg =
-          `Hi ${studentRow.name}! We referred you to ${partnerRow.name}${categoryText} a while back. ` +
+          `Hi ${slackEscape(studentRow.name)}! We referred you to ${slackEscape(partnerRow.name)}${categoryText} a while back. ` +
           `If you had a chance to connect with them, we'd love to hear how it went: ${ratingUrl}`
 
         // DM the student
@@ -412,7 +421,7 @@ export async function createReferral(data: ReferralFormData) {
 
         // Ping staff
         await notifyStaff(
-          `${studentRow.name} has received their invitation to rate their referral to ${partnerRow.name}${categoryText}.`
+          `${slackEscape(studentRow.name)} has received their invitation to rate their referral to ${slackEscape(partnerRow.name)}${categoryText}.`
         )
         console.log(`[referral] notifyStaff done`)
 
@@ -439,7 +448,7 @@ export async function updateReferral(id: string, data: Partial<ReferralFormData>
 
   const { error: dbError } = await supabase
     .from('student_referrals')
-    .update(data)
+    .update(pickFields(data, REFERRAL_FIELDS))
     .eq('id', id)
 
   if (dbError) return { error: dbError.message }

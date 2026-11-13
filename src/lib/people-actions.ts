@@ -23,6 +23,24 @@ async function getAuthedInstructorOrAdmin() {
   return { user, supabase, callerRole: profile.role as string }
 }
 
+// Shared guard for the add/invite paths: the role must be a known value and only
+// an admin may hand out `admin` (same rule updateUserRole/updateEnrollmentRole enforce).
+function checkAssignableRole(role: Role, callerRole: string): string | null {
+  if (!VALID_ROLES.includes(role)) return 'Invalid role'
+  if (role === 'admin' && callerRole !== 'admin') return 'Only admins can assign the admin role.'
+  return null
+}
+
+// Sync users.role for instructor/staff/admin so they appear in the Staff section.
+// Never lowers an existing admin: adding an admin to a course as instructor/staff
+// must not demote them (changing an admin's role is admin-only, via updateUserRole).
+async function syncStaffRole(admin: ReturnType<typeof createServiceSupabaseClient>, userId: string, role: Role) {
+  if (role !== 'instructor' && role !== 'staff' && role !== 'admin') return
+  const { data: current } = await admin.from('users').select('role').eq('id', userId).maybeSingle()
+  if (current?.role === 'admin' || current?.role === role) return
+  await admin.from('users').update({ role }).eq('id', userId)
+}
+
 export async function bulkAddPeopleToCourse(
   courseId: string,
   emails: string[],
@@ -30,6 +48,8 @@ export async function bulkAddPeopleToCourse(
 ): Promise<{ email: string; added?: boolean; invited?: boolean; error?: string }[]> {
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return emails.map(email => ({ email, error: auth.error }))
+  const roleError = checkAssignableRole(role, auth.callerRole)
+  if (roleError) return emails.map(email => ({ email, error: roleError }))
 
   const admin = createServiceSupabaseClient()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
@@ -57,10 +77,7 @@ export async function bulkAddPeopleToCourse(
 
       if (error) return { email, error: error.message }
 
-      // Sync users.role for instructor/staff/admin so they appear in the Staff section
-      if (role === 'instructor' || role === 'staff' || role === 'admin') {
-        await admin.from('users').update({ role }).eq('id', existingUser.id)
-      }
+      await syncStaffRole(admin, existingUser.id, role)
 
       return { email, added: true }
     }
@@ -84,9 +101,10 @@ export async function bulkAddPeopleToCourse(
       if (!userId) return { email, error: 'Could not locate existing account for this email.' }
 
       await admin.from('users').upsert(
-        { id: userId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
-        { onConflict: 'id' }
+        { id: userId, email, name: email, role: 'student' },
+        { onConflict: 'id', ignoreDuplicates: true }
       )
+      await syncStaffRole(admin, userId, role)
       const { error: enrollError } = await admin.from('course_enrollments').upsert(
         { course_id: courseId, user_id: userId, role },
         { onConflict: 'course_id,user_id' }
@@ -126,6 +144,8 @@ export async function addPersonToCourse(
 ): Promise<{ added?: boolean; invited?: boolean; error?: string }> {
   const auth = await getAuthedInstructorOrAdmin()
   if ('error' in auth) return { error: auth.error }
+  const roleError = checkAssignableRole(role, auth.callerRole)
+  if (roleError) return { error: roleError }
 
   const admin = createServiceSupabaseClient()
 
@@ -153,10 +173,7 @@ export async function addPersonToCourse(
 
     if (error) return { error: error.message }
 
-    // Sync users.role for instructor/staff/admin so they appear in the Staff section
-    if (role === 'instructor' || role === 'staff' || role === 'admin') {
-      await admin.from('users').update({ role }).eq('id', existingUser.id)
-    }
+    await syncStaffRole(admin, existingUser.id, role)
 
     return { added: true }
   }
@@ -180,9 +197,10 @@ export async function addPersonToCourse(
     if (!userId) return { error: 'Could not locate existing account for this email.' }
 
     await admin.from('users').upsert(
-      { id: userId, email, name: email, role: (role === 'instructor' || role === 'staff' || role === 'admin') ? role : 'student' },
-      { onConflict: 'id' }
+      { id: userId, email, name: email, role: 'student' },
+      { onConflict: 'id', ignoreDuplicates: true }
     )
+    await syncStaffRole(admin, userId, role)
     const { error: enrollError } = await admin.from('course_enrollments').upsert(
       { course_id: courseId, user_id: userId, role },
       { onConflict: 'course_id,user_id' }
@@ -286,6 +304,12 @@ export async function updateUserRole(
     return { error: 'Only admins can assign the admin role.' }
   }
 
+  // ...and only admins can change an existing admin's role (no demoting admins)
+  if (profile?.role !== 'admin') {
+    const { data: target } = await admin.from('users').select('role').eq('id', targetUserId).maybeSingle()
+    if (target?.role === 'admin') return { error: "Only admins can change an admin's role." }
+  }
+
   const { data: updated, error } = await admin
     .from('users')
     .update({ role })
@@ -372,6 +396,24 @@ export async function removeStudentUser(
   if ('error' in auth) return { error: auth.error }
 
   const admin = createServiceSupabaseClient()
+
+  // Deleting an instructor/staff/admin account is admin-only (see deleteStaffMember);
+  // without this, any instructor could delete an admin through this action.
+  const { data: target } = await admin.from('users').select('role').eq('id', targetUserId).maybeSingle()
+  if (target && target.role !== 'student' && auth.callerRole !== 'admin') {
+    return { error: 'Only admins can delete staff accounts.' }
+  }
+
+  // Deleting the account would leave loaned devices "on loan" to no one and strip their name
+  // from the hardware history, so loaned equipment has to be dealt with first (a laptop they
+  // own is theirs and doesn't block this).
+  const [{ count: holding }, { count: awaited }] = await Promise.all([
+    admin.from('hardware_devices').select('id', { count: 'exact', head: true }).eq('current_holder_id', targetUserId).neq('status', 'owned_by_student'),
+    admin.from('hardware_return_requests').select('id', { count: 'exact', head: true }).eq('student_id', targetUserId).is('closed_at', null),
+  ])
+  if ((holding ?? 0) > 0 || (awaited ?? 0) > 0) {
+    return { error: 'This student still has loaned equipment in Hardware. Mark it received or lost there before deleting their account.' }
+  }
 
   // Delete all FK-constrained rows before deleting the user row
   await Promise.all([

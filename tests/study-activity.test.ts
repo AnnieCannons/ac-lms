@@ -1,0 +1,167 @@
+import { describe, it, expect } from 'vitest'
+import { computeStudyActivity, expandQuizAttempts, rangeStart, weekStart, type QuizAttempt, type FlashcardSession } from '@/lib/study-activity'
+
+const students = [
+  { id: 'a', name: 'Ana' },
+  { id: 'b', name: 'Bo' },
+  { id: 'c', name: 'Cy' },
+]
+const quizzes = [{ id: 'q1', title: 'Flexbox', moduleTitle: 'Week 3' }]
+// Noon Pacific on a date, so the Pacific day is unambiguous.
+const at = (date: string) => `${date}T19:00:00Z`
+const TODAY = '2026-10-22' // a Thursday
+
+const run = (attempts: QuizAttempt[], sessions: FlashcardSession[], range: '7' | '28' | 'all' = '28') =>
+  computeStudyActivity({ students, quizzes, attempts, sessions, today: TODAY, courseStart: '2026-09-01', range })
+
+describe('expandQuizAttempts', () => {
+  it('uses attempt_history when present, else one attempt at submitted_at', () => {
+    const out = expandQuizAttempts([
+      { quiz_id: 'q1', student_id: 'a', submitted_at: at('2026-10-20'), score_percent: 90, attempt_history: [
+        { submitted_at: at('2026-10-10'), score_percent: 50 },
+        { submitted_at: at('2026-10-20'), score_percent: 90 },
+      ] },
+      { quiz_id: 'q1', student_id: 'b', submitted_at: at('2026-10-15'), score_percent: 70, attempt_history: [] },
+    ])
+    expect(out).toEqual([
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-10'), score: 50 },
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-20'), score: 90 },
+      { studentId: 'b', quizId: 'q1', at: at('2026-10-15'), score: 70 },
+    ])
+  })
+})
+
+describe('date helpers', () => {
+  it('weekStart is the Monday', () => {
+    expect(weekStart('2026-10-22')).toBe('2026-10-19')
+    expect(weekStart('2026-10-19')).toBe('2026-10-19')
+    expect(weekStart('2026-10-25')).toBe('2026-10-19') // Sunday
+  })
+  it('rangeStart never goes before the course start', () => {
+    expect(rangeStart('7', TODAY, '2026-09-01')).toBe('2026-10-16')
+    expect(rangeStart('28', TODAY, '2026-10-10')).toBe('2026-10-10')
+    expect(rangeStart('all', TODAY, '2026-09-01')).toBe('2026-09-01')
+  })
+})
+
+describe('computeStudyActivity', () => {
+  it('counts a day with both a quiz and flashcards as one active day', () => {
+    const r = run(
+      [{ studentId: 'a', quizId: 'q1', at: at('2026-10-21'), score: 80 }],
+      [{ studentId: 'a', at: at('2026-10-21'), cards: 40 }, { studentId: 'a', at: at('2026-10-15'), cards: 10 }],
+    )
+    const ana = r.students.find(s => s.id === 'a')!
+    expect(ana.activeDays).toBe(2)
+    expect(ana.quizAttempts).toBe(1)
+    expect(ana.cardsStudied).toBe(50)
+    expect(ana.flashcardSessions).toBe(2)
+    expect(ana.strip.at(-2)).toEqual({ date: '2026-10-21', quiz: true, cards: true })
+  })
+
+  it('sorts least active first and summarises the class', () => {
+    const r = run(
+      [{ studentId: 'a', quizId: 'q1', at: at('2026-10-21'), score: 80 }],
+      [{ studentId: 'b', at: at('2026-10-01'), cards: 5 }],
+    )
+    expect(r.students.map(s => s.id)).toEqual(['c', 'b', 'a'])
+    expect(r.summary).toMatchObject({ enrolled: 3, studied: 2, quiet7: 2, medianActiveDays: 1 })
+  })
+
+  it('uses Pacific days, not UTC', () => {
+    // 2026-10-22 03:00 UTC is still the evening of Oct 21 in Pacific.
+    const r = run([], [{ studentId: 'a', at: '2026-10-22T03:00:00Z', cards: 5 }], '7')
+    expect(r.students.find(s => s.id === 'a')!.strip.at(-2)).toEqual({ date: '2026-10-21', quiz: false, cards: true })
+  })
+
+  it('compares with the previous period for 7/28 days only', () => {
+    const sessions = [{ studentId: 'a', at: at('2026-10-10'), cards: 5 }, { studentId: 'b', at: at('2026-10-12'), cards: 5 }]
+    expect(run([], sessions, '7').summary.studiedPrev).toBe(2)
+    expect(run([], sessions, 'all').summary.studiedPrev).toBeNull()
+  })
+
+  it('reports per-quiz first vs best scores within the range', () => {
+    const r = run([
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-10'), score: 50 },
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-12'), score: 100 },
+      { studentId: 'b', quizId: 'q1', at: at('2026-10-11'), score: 70 },
+    ], [])
+    expect(r.quizzes[0]).toMatchObject({ students: 2, attempts: 3, avgFirst: 60, avgBest: 85 })
+  })
+
+  it('lists who took each quiz, most recent first', () => {
+    const r = run([
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-10'), score: 50 },
+      { studentId: 'b', quizId: 'q1', at: at('2026-10-11'), score: 70 },
+      { studentId: 'a', quizId: 'q1', at: at('2026-10-12'), score: 100 },
+      { studentId: 'b', quizId: 'q1', at: at('2026-08-01'), score: 90 }, // outside the range
+    ], [])
+    expect(r.quizzes[0].takers).toEqual([
+      { studentId: 'a', name: 'Ana', attempts: 2, first: 50, best: 100, lastAt: at('2026-10-12') },
+      { studentId: 'b', name: 'Bo', attempts: 1, first: 70, best: 70, lastAt: at('2026-10-11') },
+    ])
+  })
+
+  it('counts students active per week', () => {
+    const r = run([], [
+      { studentId: 'a', at: at('2026-10-20'), cards: 5 },
+      { studentId: 'b', at: at('2026-10-13'), cards: 5 },
+      { studentId: 'a', at: at('2026-10-14'), cards: 5 },
+    ], '28')
+    expect(r.weeks.at(-1)).toEqual({ week: '2026-10-19', studied: 1, quizStudents: 0, cardStudents: 1 })
+    expect(r.weeks.at(-2)).toEqual({ week: '2026-10-12', studied: 2, quizStudents: 0, cardStudents: 2 })
+  })
+
+  it('ignores activity from people not enrolled as students', () => {
+    const r = run([], [{ studentId: 'zz', at: at('2026-10-20'), cards: 5 }])
+    expect(r.summary.studied).toBe(0)
+  })
+})
+
+describe('one student over time', () => {
+  const attempts: QuizAttempt[] = [
+    { studentId: 'a', quizId: 'q1', at: at('2026-10-13'), score: 50 },
+    { studentId: 'a', quizId: 'q1', at: `2026-10-13T20:00:00Z`, score: 100 },
+    { studentId: 'a', quizId: 'q1', at: at('2026-10-21'), score: 100 },
+  ]
+  const sessions: FlashcardSession[] = [
+    { studentId: 'a', at: at('2026-10-14'), cards: 20, deck: 'CSS' },
+    { studentId: 'a', at: at('2026-10-21'), cards: 10, deck: 'CSS' },
+    { studentId: 'a', at: `2026-10-21T21:00:00Z`, cards: 5, deck: 'CSS' },
+    { studentId: 'b', at: at('2026-10-21'), cards: 99, deck: 'Other' },
+  ]
+  const ana = () => run(attempts, sessions, '28').students.find(s => s.id === 'a')!
+
+  it('counts days per week for each kind, with attempts and cards beside them', () => {
+    const weeks = ana().weeks
+    expect(weeks.map(w => w.week)).toEqual(['2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12', '2026-10-19'])
+    expect(weeks[3]).toMatchObject({ week: '2026-10-12', quizDays: 1, cardDays: 1, quizAttempts: 2, cards: 20 })
+    expect(weeks[4]).toMatchObject({ week: '2026-10-19', quizDays: 1, cardDays: 1, quizAttempts: 1, cards: 15 })
+    expect(weeks[0]).toMatchObject({ quizDays: 0, cardDays: 0 })
+  })
+
+  it('breaks each week into seven days, marking days after today as out of range', () => {
+    const days = ana().weeks[4].days
+    expect(days.map(d => d.date)).toEqual(['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'])
+    expect(days[2]).toEqual({ date: '2026-10-21', inRange: true, quizAttempts: 1, cards: 15 })
+    expect(days[0]).toEqual({ date: '2026-10-19', inRange: true, quizAttempts: 0, cards: 0 })
+    expect(days.filter(d => !d.inRange).map(d => d.date)).toEqual(['2026-10-23', '2026-10-24', '2026-10-25'])
+    expect(ana().weeks[3].days.slice(1, 3)).toEqual([
+      { date: '2026-10-13', inRange: true, quizAttempts: 2, cards: 0 },
+      { date: '2026-10-14', inRange: true, quizAttempts: 0, cards: 20 },
+    ])
+  })
+
+  it('lists each study day newest first with quiz scores in order and decks', () => {
+    expect(ana().timeline).toEqual([
+      { date: '2026-10-21', quizzes: [{ quizId: 'q1', title: 'Flexbox', scores: [100] }], decks: [{ title: 'CSS', sessions: 2, cards: 15 }] },
+      { date: '2026-10-14', quizzes: [], decks: [{ title: 'CSS', sessions: 1, cards: 20 }] },
+      { date: '2026-10-13', quizzes: [{ quizId: 'q1', title: 'Flexbox', scores: [50, 100] }], decks: [] },
+    ])
+  })
+
+  it('keeps to the selected range', () => {
+    const a = run(attempts, sessions, '7').students.find(s => s.id === 'a')!
+    expect(a.timeline.map(d => d.date)).toEqual(['2026-10-21'])
+    expect(a.weeks.map(w => w.week)).toEqual(['2026-10-12', '2026-10-19'])
+  })
+})

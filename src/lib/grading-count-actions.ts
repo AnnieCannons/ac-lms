@@ -1,8 +1,11 @@
 'use server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
+import { requireCourseInstructorAccess, isCourseAccessError } from '@/lib/course-access'
 
 export async function getNeedsGradingCount(courseId: string): Promise<number> {
+  // Public server action reading with the service client: staff or this course's TA only.
+  if (isCourseAccessError(await requireCourseInstructorAccess(courseId))) return 0
   const admin = createServiceSupabaseClient()
 
   // Get all published assignments for this course (exact same logic as submissions page)

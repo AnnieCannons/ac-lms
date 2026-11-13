@@ -1,4 +1,6 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { loadMyEquipment } from '@/lib/hardware-server'
+import MyEquipmentCard from '@/components/hardware/MyEquipmentCard'
 import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -18,6 +20,8 @@ export default async function AccountPage() {
     .single()
 
   const isInstructor = profile?.role === 'instructor' || profile?.role === 'admin'
+  // Only the signed-in user's own equipment (their id comes from auth, not the request).
+  const equipment = profile?.role === 'student' ? await loadMyEquipment(createServiceSupabaseClient(), user.id) : null
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,6 +43,11 @@ export default async function AccountPage() {
           initialEmail={user.email ?? ''}
           initialAvatarUrl={profile?.avatar_url ?? null}
         />
+        {equipment && equipment.devices.length > 0 && (
+          <div className="mt-6">
+            <MyEquipmentCard equipment={equipment} email={user.email ?? null} />
+          </div>
+        )}
         <div className="mt-6">
           <AccessibilitySettings />
         </div>

@@ -13,6 +13,9 @@
 }
 
 @theme {
+  /* Two-line study charts: checked for colorblind separation against the light surface */
+  --color-chart-quiz: #8E3A7B;
+  --color-chart-cards: #0E9A86;
   --color-teal-primary: #6D2B5E;
   --color-teal-light: #F5E6F3;
   --color-purple-primary: #7B3FB0;
@@ -47,6 +50,23 @@ button:disabled, input:disabled, select:disabled {
   cursor: not-allowed;
 }
 
+/* Native dropdowns: draw our own chevron with breathing room from the edge (the browser's
+   sits flush against the border). Unlayered, so the right padding wins over Tailwind px-*
+   utilities everywhere. Selects that already draw a custom chevron opt out with
+   .appearance-none; list boxes ([multiple]/[size]) have no arrow. */
+select:not([multiple]):not([size]):not(.appearance-none) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%236B5D80' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px 8px;
+}
+html.theme-dark select:not([multiple]):not([size]):not(.appearance-none) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23a898c0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
 body {
   background-color: #F8F6FC;
   color: #1a1030;
@@ -78,6 +98,8 @@ html.dyslexic * {
 
 /* Dark mode */
 html.theme-dark {
+  --color-chart-quiz: #c76fbb;
+  --color-chart-cards: #178f7c;
   --color-background: #120d1e;
   --color-surface: #1e1530;
   --color-dark-text: #f0eaf8;
@@ -365,6 +387,8 @@ html.theme-dark .badge-count {
 .status-late-badge    { background-color: #fffbeb; color: #b45309; border-color: #fde68a; }
 .status-draft-badge   { background-color: #fefce8; color: #a16207; border-color: #fde047; }
 .status-camera-badge  { background-color: #fef2f2; color: #dc2626; border-color: #fecaca; }
+/* Excused: same blue as the attendance "Excused Absence" pill */
+.status-excused-badge { background-color: #d1e2ff; color: #1d4ed8; border-color: #bfd4fb; }
 .status-needs-grading-btn { background-color: #fefce8; color: #a16207; border-color: #fde68a; }
 .status-needs-grading-btn:hover { background-color: #fef9c3; }
 
@@ -383,6 +407,7 @@ html.theme-dark .status-revision-btn:hover { background-color: #2d1010; }
 html.theme-dark .status-late-badge    { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
 html.theme-dark .status-draft-badge   { background-color: #1c1a00; color: #fcd34d; border-color: #3d3400; }
 html.theme-dark .status-camera-badge  { background-color: #1f0a0a; color: #f87171; border-color: #4a1515; }
+html.theme-dark .status-excused-badge { background-color: #0b1530; color: #93b4ff; border-color: #1e3a6e; }
 html.theme-dark .status-needs-grading-btn { background-color: #1c1200; color: #fbbf24; border-color: #3d2800; }
 html.theme-dark .status-needs-grading-btn:hover { background-color: #261a00; }
 
@@ -399,6 +424,10 @@ html.theme-dark .status-complete-text  { color: #4ade80 !important; }
 /* Amber/yellow badge or button — use .badge-amber instead of bg-amber-50 so dark mode works */
 .badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fcd34d; }
 html.theme-dark .badge-amber { background-color: #2a1800; color: #fbbf24; border-color: #78350f; }
+
+/* Orange "Tasks due" badge (Cutting Edge Talks in the student nav) — theme-aware */
+.badge-orange { background-color: #fff7ed; color: #c2410c; border-color: #fdba74; }
+html.theme-dark .badge-orange { background-color: #2a1205; color: #fb923c; border-color: #9a3412; }
 
 /* Ongoing escalation cycle card — use instead of bg-orange-50/border-orange-200 so dark mode works */
 .escalation-ongoing-card { background-color: #fff7ed; border-color: #fed7aa; }
@@ -492,4 +521,22 @@ html.theme-dark .quiz-html code:not(pre code) {
   background: none; /* override atom-one-dark .hljs background */
   padding: 0;
   display: block;
+}
+/* Confetti for the "I met my goal" check-off (Confetti.tsx). Pieces fall and spin once, then the
+   component removes them. Hidden entirely for reduced motion. */
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate3d(var(--confetti-drift, 0px), 105vh, 0) rotate(var(--confetti-spin, 720deg)); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.4, 0.5, 1);
+  animation-fill-mode: forwards;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { display: none; }
 }

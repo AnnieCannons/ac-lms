@@ -1,12 +1,13 @@
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import SmartBackLink from '@/components/ui/SmartBackLink'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import StudentDetailView, { type CategorizedAssignment } from '@/components/ui/StudentDetailView'
 import ViewAsStudentButton from '@/components/ui/ViewAsStudentButton'
 import { localDate, todayLocal } from '@/lib/date-utils'
+import { pacificDate } from '@/lib/cutting-edge'
 import { getReadinessHistory, getEscalationHistory, getPriorCourseMissing } from '@/lib/readiness-actions'
 
 export default async function StudentDetailPage({
@@ -111,6 +112,8 @@ export default async function StudentDetailPage({
       .select('id, title, module_title, due_at')
       .eq('course_id', courseId)
       .eq('published', true)
+      // Practice quizzes are ungraded, so never missing or incomplete
+      .eq('is_practice', false)
       .is('deleted_at', null),
     assignmentIds.length > 0
       ? admin
@@ -189,7 +192,8 @@ export default async function StudentDetailPage({
   const quizSubMap = new Map((quizSubmissions ?? []).map(s => [s.quiz_id, s]))
   for (const q of (quizzes ?? [])) {
     const sub = quizSubMap.get(q.id)
-    const duePassed = q.due_at ? localDate(q.due_at) < todayLocal() : false
+    // quizzes.due_at is a UTC instant; compare Pacific calendar days (07:59Z is 11:59pm Pacific the day before)
+    const duePassed = q.due_at ? pacificDate(q.due_at) < pacificDate(new Date()) : false
     const displayTitle = q.title?.startsWith('Quiz: ') ? q.title.slice(6) : q.title
     const isLate = !!(sub?.submitted_at && q.due_at && sub.submitted_at > q.due_at)
     let lateCurrentStatus: CategorizedAssignment['lateCurrentStatus']
@@ -200,7 +204,7 @@ export default async function StudentDetailPage({
     const entry: CategorizedAssignment = {
       id: q.id,
       title: displayTitle ?? '',
-      due_date: q.due_at ?? null,
+      due_date: q.due_at ? pacificDate(q.due_at) : null,
       moduleTitle: q.module_title ?? '',
       weekNumber: null,
       isLate,
@@ -229,12 +233,7 @@ export default async function StudentDetailPage({
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">
             <div className="mb-6 flex items-center justify-between gap-4">
-              <Link
-                href={`/instructor/courses/${courseId}/roster`}
-                className="text-sm text-muted-text hover:text-teal-primary"
-              >
-                ← Roster
-              </Link>
+              <SmartBackLink fallbackHref={`/instructor/courses/${courseId}/roster`} fallbackLabel="Roster" className="text-sm text-muted-text hover:text-teal-primary" />
               {profile?.role === 'admin' && (
                 <ViewAsStudentButton
                   studentId={student.id}

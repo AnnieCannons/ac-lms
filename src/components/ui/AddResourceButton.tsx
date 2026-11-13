@@ -82,7 +82,7 @@ export default function AddResourceButton({ courseId, className, variant = 'defa
     const category = section === 'career' ? 'career' : null
     const { data, error } = await supabase
       .from('modules')
-      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length })
+      .insert({ course_id: courseId, title: newModuleTitle.trim(), category, order: modules.length, published: false })
       .select('id, title, order, week_number, category')
       .single()
     if (error || !data) { setModuleError(error?.message ?? 'Failed to create module'); return }
@@ -118,7 +118,7 @@ export default function AddResourceButton({ courseId, className, variant = 'defa
     const order = (existing ?? []).length
     const { error: err } = await supabase
       .from('resources')
-      .insert({ module_day_id: targetDayId, type, title: title.trim(), content: url.trim() || null, order, instructor_only: instructorOnly })
+      .insert({ module_day_id: targetDayId, type, title: title.trim(), content: url.trim() || null, order, instructor_only: instructorOnly, published: false })
     setCreating(false)
     if (err) { setError(err.message); return }
     setOpen(false)

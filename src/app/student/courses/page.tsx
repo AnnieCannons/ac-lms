@@ -1,4 +1,8 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { DEVICE_COLUMNS } from '@/lib/hardware-server'
+import type { HardwareDevice } from '@/lib/hardware'
+import ReturnBanner from '@/components/hardware/ReturnBanner'
+import { hasUnansweredCheckin } from '@/lib/hardware-checkin-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StudentTopNav from '@/components/ui/StudentTopNav'
@@ -53,11 +57,23 @@ export default async function StudentCoursesPage() {
 
   const totalCount = sortedCourses.length
 
+  // Equipment we've asked this student to send back (their own id, from auth).
+  const { data: owed } = await createServiceSupabaseClient().from('hardware_devices').select(DEVICE_COLUMNS)
+    .eq('current_holder_id', user.id).eq('status', 'awaiting_return').order('asset_tag')
+  const checkinDue = await hasUnansweredCheckin(createServiceSupabaseClient(), user.id)
+
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={profile?.name} role={profile?.role} />
 
       <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 py-8 sm:px-6 md:px-8 md:py-12 focus:outline-none">
+        {checkinDue && (
+          <div role="status" className="badge-amber border rounded-xl px-4 py-3 mb-6 text-sm flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span><strong>Please fill out the equipment check-in.</strong> It takes about 2 minutes.</span>
+            <Link href="/student/equipment-check-in" className="font-semibold underline">Fill it out</Link>
+          </div>
+        )}
+        <ReturnBanner devices={(owed as HardwareDevice[] | null) ?? []} />
         <h1 className="text-xl sm:text-2xl font-bold text-dark-text mb-2">My Courses</h1>
         <p className="text-muted-text text-sm mb-8">
           {totalCount} course{totalCount !== 1 ? 's' : ''} enrolled

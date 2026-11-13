@@ -13,6 +13,8 @@ import Roster from '@/components/docs/instructor/Roster'
 import StudentPreview from '@/components/docs/instructor/StudentPreview'
 import Accessibility from '@/components/docs/instructor/Accessibility'
 import CareerDev from '@/components/docs/instructor/CareerDev'
+import CuttingEdgeTalks from '@/components/docs/instructor/CuttingEdgeTalks'
+import Hardware from '@/components/docs/instructor/Hardware'
 import Gradebook from '@/components/docs/instructor/Gradebook'
 import Partnerships from '@/components/docs/instructor/Partnerships'
 import Referrals from '@/components/docs/instructor/Referrals'
@@ -27,6 +29,8 @@ const SECTIONS: Record<string, React.ComponentType> = {
   'skill-confidence': SkillConfidence,
   'quizzes': Quizzes,
   'career-dev': CareerDev,
+  'cutting-edge-talks': CuttingEdgeTalks,
+  'hardware': Hardware,
   'people': People,
   'roster': Roster,
   'gradebook': Gradebook,

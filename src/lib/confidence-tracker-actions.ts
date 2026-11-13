@@ -258,6 +258,17 @@ export async function saveConfidenceRatings(
   } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  // Ratings are captured right after submitting, so require the caller's own submission
+  // for this assignment — otherwise any student could rate any tagged assignment in any
+  // course and pollute that course's instructor trends.
+  const { data: ownSubmission } = await supabase
+    .from('submissions')
+    .select('id')
+    .eq('student_id', user.id)
+    .eq('assignment_id', assignmentId)
+    .maybeSingle()
+  if (!ownSubmission) return { error: 'Submit this assignment before rating your confidence.' }
+
   // At most one rating-capture event per student per assignment, ever — if any rating
   // already exists here, this isn't the student's first submission anymore (or a
   // duplicate call), so silently no-op rather than error or backfill skipped skills.

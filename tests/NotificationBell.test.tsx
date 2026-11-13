@@ -78,4 +78,28 @@ describe('NotificationBell', () => {
     const item = screen.getByText(REMINDER.message).closest('li')!
     expect(within(item).getByRole('button', { name: /^Clear notification/ })).toBeInTheDocument()
   })
+
+  it('opens the student Weekly Readiness page for that course when a shared-note notification is clicked', async () => {
+    const NOTE = { ...base, id: 'n3', type: 'readiness_note_shared', course_id: 'c1', message: 'Catie shared a note with you on your Weekly Readiness page.' }
+    vi.mocked(getMyNotifications).mockResolvedValue([NOTE])
+    const user = userEvent.setup()
+    render(<NotificationBell />)
+    await openBell(user)
+    await user.click(screen.getByText(NOTE.message))
+    expect(push).toHaveBeenCalledWith('/student/readiness?course=c1')
+  })
+
+  it.each([
+    [{ type: 'readiness_note_staff_reply', course_id: 'c1' }, '/student/readiness?course=c1'],
+    [{ type: 'readiness_note_student_reply', course_id: 'c1', readiness_note_student_id: 's1' }, '/instructor/students/s1'],
+    [{ type: 'extension_request', course_id: 'c1', assignment_id: 'a1' }, '/instructor/courses/c1/extension-requests'],
+  ])('links %o to %s', async (fields, href) => {
+    const N = { ...base, id: 'n4', message: 'Something happened.', ...fields }
+    vi.mocked(getMyNotifications).mockResolvedValue([N])
+    const user = userEvent.setup()
+    render(<NotificationBell />)
+    await openBell(user)
+    await user.click(screen.getByText(N.message))
+    expect(push).toHaveBeenCalledWith(href)
+  })
 })

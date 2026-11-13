@@ -29,6 +29,18 @@ function relativeTime(dateStr: string): string {
 }
 
 function notificationHref(n: Notification): string | null {
+  if (n.type === 'hardware_checkin') {
+    return '/student/equipment-check-in'
+  }
+  if (n.type === 'hardware_return_reminder') {
+    return '/account#equipment'
+  }
+  if (n.type === 'hardware_ticket') {
+    return '/instructor/hardware?tab=attention#tickets'
+  }
+  if (n.type === 'hardware_renewal') {
+    return '/instructor/hardware?tab=attention#renewals'
+  }
   if (n.type === 'confidence_goal_what_helped') {
     return '/student/skill-confidence#what-helped'
   }
@@ -37,6 +49,22 @@ function notificationHref(n: Notification): string | null {
   }
   if (n.type === 'cards_due_today') {
     return '/flashcards'
+  }
+  // Staff-facing: these go to instructors/staff, so they link into the instructor area.
+  if (n.type === 'extension_request' && n.course_id) {
+    return `/instructor/courses/${n.course_id}/extension-requests`
+  }
+  if (n.type === 'readiness_note_student_reply') {
+    return n.readiness_note_student_id ? `/instructor/students/${n.readiness_note_student_id}` : null
+  }
+  if (n.type === 'readiness_note_shared' || n.type === 'readiness_note_staff_reply') {
+    return n.course_id ? `/student/readiness?course=${n.course_id}` : '/student/readiness'
+  }
+  if (n.type.startsWith('cutting_edge_') && n.course_id && n.cutting_edge_event_id) {
+    const base = `/student/courses/${n.course_id}/cutting-edge-talks/${n.cutting_edge_event_id}`
+    if (n.type === 'cutting_edge_question_reminder') return `${base}/question`
+    if (n.type === 'cutting_edge_thanks_reminder') return `${base}/thank-you`
+    return base
   }
   if (n.course_id && n.assignment_id) {
     return `/student/courses/${n.course_id}/assignments/${n.assignment_id}`

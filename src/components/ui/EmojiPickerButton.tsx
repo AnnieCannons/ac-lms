@@ -11,10 +11,13 @@ export default function EmojiPickerButton({
   onEmojiSelect,
   label = "Insert emoji",
   className,
+  showLabel = false,
 }: {
   onEmojiSelect: (emoji: string) => void;
   label?: string;
   className?: string;
+  /** Show the label next to the icon, so a lone 🙂 isn't mistaken for content. */
+  showLabel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -80,7 +83,7 @@ export default function EmojiPickerButton({
           "px-2 py-1 rounded text-xs font-medium text-muted-text hover:bg-border/40 hover:text-dark-text transition-colors"
         }
       >
-        🙂
+        🙂{showLabel && <span className="ml-1">{label}</span>}
       </button>
       {open &&
         position &&

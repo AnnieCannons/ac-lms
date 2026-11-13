@@ -14,7 +14,7 @@ function verifyCronSecret(authHeader: string | null): boolean {
   }
 }
 
-// Runs every few hours: nudges the track's student-monitor channel for any
+// Runs every few hours: nudges the course's readiness Slack channel for any
 // step1/step2 student who hasn't completed their check-in within 48 hours.
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req.headers.get('authorization'))) {

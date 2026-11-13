@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { checkAddonApiKey } from '@/lib/partnerships/addon-auth'
 import { scheduleSlackDM, scheduleSlackDMs, isSchedulableTime, SLACK_SCHEDULE_MAX_DAYS } from '@/lib/slack'
 import { normalizeDepartments, normalizeRemindDays } from '@/lib/partnerships/addon-multi-select'
 
-function checkApiKey(req: NextRequest) {
-  const key = req.headers.get('x-addon-api-key')
-  return !!(process.env.ADDON_API_KEY && key === process.env.ADDON_API_KEY)
-}
-
 export async function POST(req: NextRequest) {
-  if (!checkApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkAddonApiKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
   const { partner_id, contact_id, remind_at, user_email, interactions } = body
