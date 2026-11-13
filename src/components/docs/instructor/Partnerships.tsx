@@ -117,6 +117,7 @@ export default function Partnerships() {
                   <li><strong>Apprenticeship</strong> — organizations offering apprenticeship placements</li>
                   <li><strong>Media</strong> — press, media, or communications partners</li>
                   <li><strong>Admissions Referral</strong> — organizations that refer prospective students to the program</li>
+                  <li><strong>Venture Capital</strong> / <strong>Private Equity</strong> — investor firms that introduce us to their portfolio companies and may engage with our LP strategy (tracked on the Sales Pipeline page)</li>
                 </DocList>
                 <DocTip>
                   A partner can have multiple types — for example, a company might be both Corporate and Mentorship if

@@ -136,6 +136,8 @@ const TYPE_LABELS: Record<string, string> = {
   apprenticeship: 'Apprenticeship',
   media: 'Media',
   admissions_referral: 'Admissions Referral',
+  venture_capital: 'Venture Capital',
+  private_equity: 'Private Equity',
 }
 
 const ALL_DEPARTMENTS: PartnerDepartment[] = [

@@ -16,6 +16,8 @@ const PARTNER_TYPE_LABELS: Record<string, string> = {
   apprenticeship: 'Apprenticeship',
   media: 'Media',
   admissions_referral: 'Admissions Referral',
+  venture_capital: 'Venture Capital',
+  private_equity: 'Private Equity',
 }
 
 const ALL_PARTNER_TYPES = Object.keys(PARTNER_TYPE_LABELS)

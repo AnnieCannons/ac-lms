@@ -30,6 +30,8 @@ const PARTNER_TYPES: { value: PartnerType; label: string }[] = [
   { value: 'apprenticeship', label: 'Apprenticeship' },
   { value: 'media', label: 'Media' },
   { value: 'admissions_referral', label: 'Admissions Referral' },
+  { value: 'venture_capital', label: 'Venture Capital' },
+  { value: 'private_equity', label: 'Private Equity' },
 ]
 
 const STATUSES: { value: PartnerStatus; label: string }[] = [
