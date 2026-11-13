@@ -121,7 +121,7 @@ export default function Assignments() {
                 <DocList>
                   <li><strong>Link (URL)</strong> — paste a URL (e.g. a GitHub repo or live site); it must start with <code>http://</code> or <code>https://</code></li>
                   <li><strong>Text</strong> — type your response directly; supports <strong>bold</strong>, <em>italic</em>, <code>code</code>, lists, and links, with a <strong>Preview</strong> toggle to check the formatting</li>
-                  <li><strong>File upload</strong> — upload a document, spreadsheet, presentation, zip/tar archive, or image (10MB limit)</li>
+                  <li><strong>File upload</strong> — upload a document, spreadsheet, presentation, zip/tar archive, or image (20MB limit per file). You can drag files onto the upload area or click Choose file(s)</li>
                 </DocList>
 
                 <DocH3>Step-by-Step: Submitting</DocH3>
