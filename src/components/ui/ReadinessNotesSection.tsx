@@ -6,7 +6,9 @@ import {
   addReadinessNote,
   updateReadinessNote,
   deleteReadinessNote,
+  getReadinessNoteSlackOptions,
   type ReadinessNote,
+  type SlackTagPerson,
 } from '@/lib/readiness-notes-actions'
 import type { EscalationEventRecord } from '@/lib/readiness-actions'
 import { EscalationHistorySection, NoteTimelineItem } from '@/components/ui/ReadinessWidgets'
@@ -18,17 +20,85 @@ function todayLocal(): string {
 }
 
 type NoteInput = { noteDate: string; body: string; visibleToStudent: boolean }
+type SlackChoice = { postToSlack: boolean; mentionUserIds: string[] }
+type SlackOptions = { channelLabel: string | null; people: SlackTagPerson[] }
 
-function NoteForm({ initial, submitLabel, onSubmit, onCancel }: {
+/** Optional people to @mention in the note's Slack post: search, tick, shown as removable chips. */
+function SlackTagPicker({ people, selected, onChange }: {
+  people: SlackTagPerson[]
+  selected: string[]
+  onChange: (next: string[]) => void
+}) {
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const label = (p: SlackTagPerson) => p.name?.trim() || p.email
+  const matches = q
+    ? people.filter(p => !selected.includes(p.id) && (label(p).toLowerCase().includes(q) || p.email.toLowerCase().includes(q))).slice(0, 8)
+    : []
+  const chosen = selected.map(id => people.find(p => p.id === id)).filter((p): p is SlackTagPerson => !!p)
+
+  return (
+    <div className="pl-6 space-y-1.5">
+      {chosen.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chosen.map(p => (
+            <span key={p.id} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-teal-light text-teal-primary font-semibold">
+              @{label(p)}
+              <button
+                type="button"
+                onClick={() => onChange(selected.filter(id => id !== p.id))}
+                aria-label={`Don’t tag ${label(p)}`}
+                className="hover:opacity-70"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="relative sm:max-w-xs">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Tag people (optional)…"
+          aria-label="Tag people in the Slack post (optional)"
+          className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-dark-text text-xs placeholder:text-muted-text"
+        />
+        {matches.length > 0 && (
+          <ul className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-surface shadow-lg max-h-48 overflow-y-auto">
+            {matches.map(p => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => { onChange([...selected, p.id]); setSearch('') }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-dark-text hover:bg-border/30"
+                >
+                  {label(p)} <span className="text-muted-text">{p.email}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function NoteForm({ initial, submitLabel, onSubmit, onCancel, slack }: {
   initial: NoteInput
   submitLabel: string
-  onSubmit: (input: NoteInput) => Promise<string | undefined>
+  onSubmit: (input: NoteInput & SlackChoice) => Promise<string | undefined>
   onCancel?: () => void
+  /** Offer "Post to Slack" (new notes only). */
+  slack?: SlackOptions
 }) {
   const fieldId = useId()
   const [noteDate, setNoteDate] = useState(initial.noteDate)
   const [body, setBody] = useState(initial.body)
   const [visibleToStudent, setVisibleToStudent] = useState(initial.visibleToStudent)
+  const [postToSlack, setPostToSlack] = useState(false)
+  const [mentionUserIds, setMentionUserIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,10 +106,13 @@ function NoteForm({ initial, submitLabel, onSubmit, onCancel }: {
     e.preventDefault()
     setSaving(true)
     setError(null)
-    const err = await onSubmit({ noteDate, body, visibleToStudent })
+    const err = await onSubmit({ noteDate, body, visibleToStudent, postToSlack, mentionUserIds: postToSlack ? mentionUserIds : [] })
     setSaving(false)
     if (err) { setError(err); return }
-    if (!onCancel) { setBody(''); setNoteDate(todayLocal()); setVisibleToStudent(false) }
+    if (!onCancel) {
+      setBody(''); setNoteDate(todayLocal()); setVisibleToStudent(false)
+      setPostToSlack(false); setMentionUserIds([])
+    }
   }
 
   return (
@@ -75,6 +148,21 @@ function NoteForm({ initial, submitLabel, onSubmit, onCancel }: {
           />
           Share with student
         </label>
+        {slack && (
+          slack.channelLabel ? (
+            <label className="flex items-center gap-2 text-xs text-dark-text cursor-pointer">
+              <input
+                type="checkbox"
+                checked={postToSlack}
+                onChange={e => setPostToSlack(e.target.checked)}
+                className="accent-teal-primary"
+              />
+              Post to Slack ({slack.channelLabel})
+            </label>
+          ) : (
+            <span className="text-xs text-muted-text">No readiness Slack channel is set for this course</span>
+          )
+        )}
         <div className="flex gap-2 ml-auto">
           {onCancel && (
             <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-text hover:text-dark-text">
@@ -91,6 +179,9 @@ function NoteForm({ initial, submitLabel, onSubmit, onCancel }: {
           </button>
         </div>
       </div>
+      {slack?.channelLabel && postToSlack && (
+        <SlackTagPicker people={slack.people} selected={mentionUserIds} onChange={setMentionUserIds} />
+      )}
     </form>
   )
 }
@@ -163,6 +254,8 @@ export default function ReadinessNotesSection({ studentId, courseId, events }: {
 }) {
   const [notes, setNotes] = useState<ReadinessNote[]>([])
   const [loadError, setLoadError] = useState(false)
+  const [slackOptions, setSlackOptions] = useState<SlackOptions | undefined>(undefined)
+  const [slackWarning, setSlackWarning] = useState<string | null>(null)
 
   const load = useCallback(() => {
     return getReadinessNotes(studentId, courseId)
@@ -175,6 +268,9 @@ export default function ReadinessNotesSection({ studentId, courseId, events }: {
     getReadinessNotes(studentId, courseId)
       .then(n => { if (!cancelled) setNotes(n) })
       .catch(() => { if (!cancelled) setLoadError(true) })
+    getReadinessNoteSlackOptions(courseId)
+      .then(o => { if (!cancelled) setSlackOptions(o) })
+      .catch(() => { /* no Slack option -- the note form still works */ })
     return () => { cancelled = true }
   }, [studentId, courseId])
 
@@ -188,12 +284,16 @@ export default function ReadinessNotesSection({ studentId, courseId, events }: {
         <NoteForm
           initial={{ noteDate: todayLocal(), body: '', visibleToStudent: false }}
           submitLabel="Add note"
+          slack={slackOptions}
           onSubmit={async input => {
-            const { error } = await addReadinessNote({ studentId, courseId, ...input })
+            setSlackWarning(null)
+            const { error, slackError } = await addReadinessNote({ studentId, courseId, ...input })
             if (error) return error
+            if (slackError) setSlackWarning(slackError)
             await load()
           }}
         />
+        {slackWarning && <p className="text-xs text-amber-700 mt-2">{slackWarning}</p>}
         {loadError && <p className="text-xs text-red-600 mt-2">Couldn’t load notes.</p>}
       </div>
 

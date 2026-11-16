@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useEffect } from 'react'
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceArea } from 'recharts'
-import { Send, Bell, CheckCircle2, ArrowUpCircle, PartyPopper, MessageSquare, CalendarX, FileX, RotateCcw, type LucideIcon } from 'lucide-react'
+import { Send, Bell, CheckCircle2, ArrowUpCircle, PartyPopper, MessageSquare, CalendarX, FileX, RotateCcw, TrendingUp, type LucideIcon } from 'lucide-react'
 import { MISSING_COLOR, NEEDS_REVISION_COLOR, ABSENCE_COLOR } from '@/components/ui/StudentStatsWidgets'
 import Link from 'next/link'
 import type { ReadinessHistoryPoint, EscalationEventRecord, PriorCourseMissing } from '@/lib/readiness-actions'
@@ -121,6 +121,7 @@ export const ESCALATION_EVENT_LABEL: Record<string, string> = {
   step1_started: 'Step 1 check-in sent',
   step1_reminder: 'Step 1 reminder sent',
   step1_completed: 'Step 1 check-in completed',
+  step1_grace: 'Moving in the right direction',
   step2_started: 'Advanced to step 2 — reflection sent',
   step2_reminder: 'Step 2 reminder sent',
   step2_completed: 'Step 2 reflection completed',
@@ -133,6 +134,7 @@ const EVENT_ICON: Record<string, { icon: LucideIcon; color: string }> = {
   step1_started: { icon: Send, color: '#ea580c' },
   step1_reminder: { icon: Bell, color: '#f59e0b' },
   step1_completed: { icon: CheckCircle2, color: '#16a34a' },
+  step1_grace: { icon: TrendingUp, color: '#ca8a04' },
   step2_started: { icon: ArrowUpCircle, color: '#ea580c' },
   step2_reminder: { icon: Bell, color: '#f59e0b' },
   step2_completed: { icon: CheckCircle2, color: '#16a34a' },
