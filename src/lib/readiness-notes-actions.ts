@@ -2,6 +2,9 @@
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getReadinessChain } from '@/lib/readiness-chain'
+import { READINESS_SLACK_CHANNELS, validReadinessChannel } from '@/lib/readiness-channels'
+import { readinessNoteSlackMessage } from '@/lib/readiness-note-slack'
+import { slackLookupByEmail, slackPostMessage } from '@/lib/slack'
 
 // Dated notes staff leave on a student's Weekly Readiness card. Staff-only unless the note
 // is marked visible_to_student, in which case the student sees it on their own readiness
@@ -253,13 +256,98 @@ export async function getMyReadinessNotes(courseId: string): Promise<ReadinessNo
   return fetchNotes(me.userId, courseId, { userId: me.userId, role: 'student' }, true)
 }
 
+export type SlackTagPerson = { id: string; name: string | null; email: string }
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.anniecannons.com'
+const MAX_MENTIONS = 20
+
+/** The course's readiness channel, if it's set to one of the known channels. */
+async function noteChannel(admin: AdminClient, courseId: string): Promise<string | null> {
+  const { data } = await admin.from('courses').select('readiness_slack_channel').eq('id', courseId).maybeSingle()
+  return validReadinessChannel((data as { readiness_slack_channel: string | null } | null)?.readiness_slack_channel)
+}
+
+/** Who can be @mentioned on a note's Slack post: instructors, staff and admins, plus this course's TAs. */
+async function taggablePeople(admin: AdminClient, courseId: string): Promise<(SlackTagPerson & { slackEmail: string })[]> {
+  const { data: taRows } = await admin
+    .from('course_enrollments')
+    .select('user_id')
+    .eq('course_id', courseId)
+    .eq('role', 'ta')
+  const taIds = ((taRows as { user_id: string }[] | null) ?? []).map(r => r.user_id)
+
+  type Row = { id: string; name: string | null; email: string; slack_email: string | null }
+  const { data: staffRows } = await admin.from('users').select('id, name, email, slack_email').in('role', STAFF_ROLES)
+  const { data: taUsers } = taIds.length > 0
+    ? await admin.from('users').select('id, name, email, slack_email').in('id', taIds)
+    : { data: [] }
+
+  const byId = new Map<string, Row>()
+  for (const r of [...((staffRows as Row[] | null) ?? []), ...((taUsers as Row[] | null) ?? [])]) byId.set(r.id, r)
+  return [...byId.values()]
+    .map(r => ({ id: r.id, name: r.name, email: r.email, slackEmail: r.slack_email ?? r.email }))
+    .sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email))
+}
+
+/** What the add-note form needs to offer "Post to Slack": the channel's label (null when the
+ * course has no readiness channel) and who can be tagged. */
+export async function getReadinessNoteSlackOptions(courseId: string): Promise<{
+  channelLabel: string | null
+  people: SlackTagPerson[]
+}> {
+  const me = await requireStaff()
+  if (!me) return { channelLabel: null, people: [] }
+  const admin = createServiceSupabaseClient()
+  const channel = await noteChannel(admin, courseId)
+  if (!channel) return { channelLabel: null, people: [] }
+  const people = await taggablePeople(admin, courseId)
+  return {
+    channelLabel: READINESS_SLACK_CHANNELS.find(c => c.id === channel)?.label ?? 'readiness channel',
+    people: people.map(({ id, name, email }) => ({ id, name, email })),
+  }
+}
+
+/** Posts a new note to the course's readiness channel, @mentioning anyone picked. Returns
+ * false when it couldn't be posted (the note itself is already saved either way). */
+async function postNoteToSlack(
+  admin: AdminClient,
+  input: { studentId: string; courseId: string; body: string; visibleToStudent: boolean; mentionUserIds: string[] },
+  authorId: string,
+): Promise<boolean> {
+  const channel = await noteChannel(admin, input.courseId)
+  if (!channel) return false
+
+  const { data: nameRows } = await admin.from('users').select('id, name').in('id', [authorId, input.studentId])
+  const names = new Map(((nameRows as { id: string; name: string | null }[] | null) ?? []).map(r => [r.id, r.name]))
+
+  const wanted = new Set(input.mentionUserIds.slice(0, MAX_MENTIONS))
+  const mentionEmails = wanted.size > 0
+    ? (await taggablePeople(admin, input.courseId)).filter(p => wanted.has(p.id)).map(p => p.slackEmail)
+    : []
+  const mentionSlackIds = (await Promise.all(mentionEmails.map(slackLookupByEmail)))
+    .filter((id): id is string => !!id)
+
+  return slackPostMessage(channel, readinessNoteSlackMessage({
+    authorName: names.get(authorId) ?? null,
+    studentName: names.get(input.studentId) ?? null,
+    body: input.body,
+    link: `${APP_URL}/instructor/courses/${input.courseId}/roster/${input.studentId}`,
+    sharedWithStudent: input.visibleToStudent,
+    mentionSlackIds: [...new Set(mentionSlackIds)],
+  }))
+}
+
 export async function addReadinessNote(input: {
   studentId: string
   courseId: string
   noteDate: string
   body: string
   visibleToStudent: boolean
-}): Promise<{ error?: string }> {
+  /** Also post the note to the course's readiness Slack channel. */
+  postToSlack?: boolean
+  /** Optional people to @mention in that post. */
+  mentionUserIds?: string[]
+}): Promise<{ error?: string; slackError?: string }> {
   const me = await requireStaff()
   if (!me) return { error: 'You don’t have permission to add notes.' }
 
@@ -278,6 +366,16 @@ export async function addReadinessNote(input: {
   if (error || !data) return { error: 'Couldn’t save the note. Please try again.' }
   if (input.visibleToStudent === true) {
     await notifyNoteShared(admin, (data as { id: string }).id, input.studentId, input.courseId, me.userId)
+  }
+  if (input.postToSlack === true) {
+    const posted = await postNoteToSlack(admin, {
+      studentId: input.studentId,
+      courseId: input.courseId,
+      body: input.body,
+      visibleToStudent: input.visibleToStudent === true,
+      mentionUserIds: Array.isArray(input.mentionUserIds) ? input.mentionUserIds : [],
+    }, me.userId)
+    if (!posted) return { slackError: 'The note was saved, but it couldn’t be posted to Slack.' }
   }
   return {}
 }
