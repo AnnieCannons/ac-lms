@@ -36,7 +36,7 @@ type EscalationStateRow = {
 }
 
 type EscalationEventType =
-  | 'step1_started' | 'step1_reminder' | 'step1_completed'
+  | 'step1_started' | 'step1_reminder' | 'step1_completed' | 'step1_grace'
   | 'step2_started' | 'step2_reminder' | 'step2_completed'
   | 'step3_started'
   | 'reset' | 'manual_note'
@@ -91,6 +91,26 @@ async function sendStep2(admin: AdminClient, studentId: string, courseId: string
     `Hi ${slackEscape(student.name)}, since things haven't turned around yet, we'd like you to fill out a short goals & reflection check-in. ${APP_URL}/student/readiness`,
   )
   await notifyChannelOfStepStart(admin, courseId, student.name, 2)
+}
+
+/** Channel text for a step 1 grace week: the score improved but isn't green yet. */
+export function graceWeekMessage(studentName: string, fromZone: Zone, score: number, zone: Zone): string {
+  return `${slackEscape(studentName)}'s readiness score went up from ${fromZone} to ${zone} (${score}/5) this week. Nice progress! \u{1F389} They'll stay in step 1 for another week instead of moving to step 2. Two green weeks in a row will close out the process. A green week next week keeps the momentum going; otherwise they'll move to step 2.`
+}
+
+/** Posts to the course's readiness channel when a step 1 student gets their grace week. */
+async function notifyChannelOfGraceWeek(
+  admin: AdminClient,
+  studentId: string,
+  courseId: string,
+  fromZone: Zone,
+  result: { score: number; zone: Zone },
+): Promise<void> {
+  const channel = await courseReadinessChannel(admin, courseId)
+  if (!channel) return
+  const { data: studentRow } = await admin.from('users').select('name').eq('id', studentId).single()
+  const name = (studentRow as { name: string } | null)?.name ?? 'A student'
+  await slackPostMessage(channel, graceWeekMessage(name, fromZone, result.score, result.zone))
 }
 
 /** Posts to the course's readiness channel and DMs the student when 2 consecutive good weeks close out the process. */
@@ -376,7 +396,12 @@ async function evaluateEscalationForStudent(
   if (state.status === 'step1') {
     if (madeProgress && !state.grace_week_used) {
       // Some progress, but not yet green -- give one more week before advancing.
+      // Logged (and posted) so staff can see the week was looked at; the event
+      // also stops a re-run of this week from advancing the student.
+      const fromZone = state.zone_at_step_start ?? 'red'
       await admin.from('escalation_states').update({ grace_week_used: true }).eq('id', state.id)
+      await logEvent('step1_grace', `improved from ${fromZone} to ${result.zone}`)
+      await notifyChannelOfGraceWeek(admin, studentId, courseId, fromZone, result)
       return
     }
     await admin.from('escalation_states').update({
