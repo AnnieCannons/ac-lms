@@ -6,12 +6,13 @@ vi.mock('@/lib/slack', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/slack')>()),
   slackPostMessage: vi.fn(async () => true),
   slackLookupByEmail: vi.fn(async (email: string) => `U-${email}`),
+  notifyByEmail: vi.fn(async () => true),
 }))
 
 import { readinessNoteSlackMessage } from '@/lib/readiness-note-slack'
 import { addReadinessNote } from '@/lib/readiness-notes-actions'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
-import { slackPostMessage } from '@/lib/slack'
+import { notifyByEmail, slackPostMessage } from '@/lib/slack'
 
 const BASE = {
   authorName: 'Catie',
@@ -105,5 +106,55 @@ describe('addReadinessNote → Slack', () => {
       slackError: 'The note was saved, but it couldn’t be posted to Slack.',
     })
     expect(slackPostMessage).not.toHaveBeenCalled()
+  })
+})
+
+describe('readiness note Slack messages to and from students', () => {
+  function setupReply(viewerId: string, viewerRole: string) {
+    vi.mocked(createServerSupabaseClient).mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: viewerId } } }) },
+      from: () => chain({ data: { role: viewerRole } }),
+    } as never)
+    vi.mocked(createServiceSupabaseClient).mockReturnValue({
+      from: (table: string) => {
+        if (table === 'readiness_notes') {
+          return chain({ data: { id: 'note1', student_id: 's1', course_id: 'c1', author_id: 'staff1', visible_to_student: true } })
+        }
+        if (table === 'readiness_note_replies') return { insert: () => chain({ data: { id: 'r1' }, error: null }) }
+        if (table === 'courses') return chain({ data: { readiness_slack_channel: 'C09C56VL25D' } })
+        if (table === 'users') {
+          const name = viewerId === 's1' ? 'Amirah' : 'Catie'
+          return chain({ data: { name, email: 'a@x.org', slack_email: 'amirah@slack.org' } })
+        }
+        return { insert: () => Promise.resolve({ error: null }) }
+      },
+    } as never)
+  }
+
+  it("posts a student's reply to the course readiness channel", async () => {
+    setupReply('s1', 'student')
+    const { addReadinessNoteReply } = await import('@/lib/readiness-notes-actions')
+    expect(await addReadinessNoteReply({ noteId: 'note1', body: 'Thanks, will do!' })).toEqual({})
+    expect(slackPostMessage).toHaveBeenCalledTimes(1)
+    const [channel, text] = vi.mocked(slackPostMessage).mock.calls[0]
+    expect(channel).toBe('C09C56VL25D')
+    expect(text).toContain('*Amirah* replied to a readiness note')
+    expect(text).toContain('> Thanks, will do!')
+    expect(notifyByEmail).not.toHaveBeenCalled()
+  })
+
+  it('DMs the student on Slack when staff reply', async () => {
+    setupReply('staff1', 'instructor')
+    const { addReadinessNoteReply } = await import('@/lib/readiness-notes-actions')
+    await addReadinessNoteReply({ noteId: 'note1', body: 'Great work.' })
+    // DM goes to the student's Slack email, and nothing is posted to the channel.
+    expect(notifyByEmail).toHaveBeenCalledWith('amirah@slack.org', expect.stringContaining('Catie replied to a note on your Weekly Readiness page'))
+    expect(slackPostMessage).not.toHaveBeenCalled()
+  })
+
+  it('DMs the student on Slack when a note is shared with them', async () => {
+    setupReply('staff1', 'instructor')
+    expect(await addReadinessNote({ ...ADD, visibleToStudent: true })).toEqual({})
+    expect(notifyByEmail).toHaveBeenCalledWith('amirah@slack.org', expect.stringContaining('Catie shared a note with you'))
   })
 })

@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { getReadinessChain } from '@/lib/readiness-chain'
 import { READINESS_SLACK_CHANNELS, validReadinessChannel } from '@/lib/readiness-channels'
 import { readinessNoteSlackMessage } from '@/lib/readiness-note-slack'
-import { slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { notifyByEmail, slackEscape, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
 
 // Dated notes staff leave on a student's Weekly Readiness card. Staff-only unless the note
 // is marked visible_to_student, in which case the student sees it on their own readiness
@@ -75,6 +75,36 @@ type ReplyRow = {
 
 type AdminClient = ReturnType<typeof createServiceSupabaseClient>
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.anniecannons.com'
+
+/** Slack DM to the student (by their Slack email, else login email). Never fails the save. */
+async function dmStudent(admin: AdminClient, studentId: string, text: string) {
+  const { data } = await admin.from('users').select('email, slack_email').eq('id', studentId).maybeSingle()
+  const row = data as { email: string | null; slack_email: string | null } | null
+  const email = row?.slack_email ?? row?.email
+  if (!email) return
+  const sent = await notifyByEmail(email, text)
+  if (!sent) console.warn(`readiness-notes: could not Slack DM student ${studentId}`)
+}
+
+/** Posts a student's reply on a shared note to the note's course readiness channel. */
+async function postStudentReplyToChannel(
+  admin: AdminClient,
+  note: { student_id: string; course_id: string },
+  studentName: string | null,
+  body: string,
+) {
+  const { data } = await admin.from('courses').select('readiness_slack_channel').eq('id', note.course_id).maybeSingle()
+  const channel = validReadinessChannel((data as { readiness_slack_channel: string | null } | null)?.readiness_slack_channel)
+  if (!channel) return
+  const link = `${APP_URL}/instructor/courses/${note.course_id}/roster/${note.student_id}`
+  const quoted = slackEscape(body.trim()).split('\n').map(line => `> ${line}`).join('\n')
+  await slackPostMessage(
+    channel,
+    `*${slackEscape(studentName?.trim() || 'A student')}* replied to a readiness note: <${link}|View on roster>\n${quoted}`,
+  )
+}
+
 /** Bell-only (not in the digest email): tells the student a note was shared with them. Sent when
  * a note is saved as shared or switched from staff-only to shared, never on other edits. Linked
  * to the note, so it goes away when the note is unshared or deleted. A failure here never fails
@@ -96,6 +126,7 @@ async function notifyNoteShared(
     message: `${who} shared a note with you on your Weekly Readiness page.`,
   })
   if (error) console.error('readiness-notes: failed to insert bell notification', error)
+  await dmStudent(admin, studentId, `${slackEscape(who)} shared a note with you on your Weekly Readiness page: ${APP_URL}/student/readiness`)
 }
 
 /** Takes the student's bell notifications for a note (shared, and staff replies) away once
@@ -113,12 +144,17 @@ async function notifyReply(
   note: { id: string; student_id: string; course_id: string; author_id: string | null },
   replyId: string,
   me: Viewer,
+  body: string,
 ) {
   const fromStudent = me.userId === note.student_id
-  const recipient = fromStudent ? note.author_id : note.student_id
-  if (!recipient || recipient === me.userId) return
   const { data: author } = await admin.from('users').select('name').eq('id', me.userId).maybeSingle()
   const name = (author as { name: string | null } | null)?.name?.trim()
+  // Slack: a student's reply goes to the readiness channel; a staff reply is DMed to the student.
+  if (fromStudent) await postStudentReplyToChannel(admin, note, name ?? null, body)
+  else await dmStudent(admin, note.student_id, `${slackEscape(name || 'Your instructor')} replied to a note on your Weekly Readiness page: ${APP_URL}/student/readiness`)
+
+  const recipient = fromStudent ? note.author_id : note.student_id
+  if (!recipient || recipient === me.userId) return
   const { error } = await admin.from('notifications').insert({
     user_id: recipient,
     type: fromStudent ? READINESS_NOTE_STUDENT_REPLY_TYPE : READINESS_NOTE_STAFF_REPLY_TYPE,
@@ -258,7 +294,6 @@ export async function getMyReadinessNotes(courseId: string): Promise<ReadinessNo
 
 export type SlackTagPerson = { id: string; name: string | null; email: string }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.anniecannons.com'
 const MAX_MENTIONS = 20
 
 /** The course's readiness channel, if it's set to one of the known channels. */
@@ -458,7 +493,7 @@ export async function addReadinessNoteReply(input: { noteId: string; body: strin
     body: input.body.trim(),
   }).select('id').single()
   if (error || !data) return { error: 'Couldn’t save the reply. Please try again.' }
-  await notifyReply(admin, note, (data as { id: string }).id, me)
+  await notifyReply(admin, note, (data as { id: string }).id, me, input.body)
   return {}
 }
 
