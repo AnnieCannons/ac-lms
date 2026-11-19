@@ -31,6 +31,17 @@ export default function InstructorChecklist({
     new Map(initialResponses.map((r) => [r.checklist_item_id, r.checked]))
   );
   const [saving, setSaving] = useState<string | null>(null);
+
+  // Re-sync when the server data changes (e.g. marking Complete checks every item).
+  const responsesKey = initialResponses
+    .map((r) => `${r.checklist_item_id}:${r.checked}`)
+    .sort()
+    .join(",");
+  const [syncedKey, setSyncedKey] = useState(responsesKey);
+  if (syncedKey !== responsesKey) {
+    setSyncedKey(responsesKey);
+    setResponseMap(new Map(initialResponses.map((r) => [r.checklist_item_id, r.checked])));
+  }
   const [error, setError] = useState<string | null>(null);
 
   const toggle = async (itemId: string) => {

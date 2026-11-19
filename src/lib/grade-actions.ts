@@ -41,6 +41,28 @@ export async function saveAnswerKey(
   return {}
 }
 
+// Marking a submission Complete checks off every checklist item for it, so
+// graders don't have to click each box. Unchecking items afterwards still works.
+async function checkAllChecklistItems(
+  admin: ReturnType<typeof createServiceSupabaseClient>,
+  submissionId: string,
+  assignmentId: string,
+  graderId: string,
+): Promise<void> {
+  const { data: items } = await admin
+    .from('checklist_items')
+    .select('id')
+    .eq('assignment_id', assignmentId)
+  if (!items || items.length === 0) return
+  const { error } = await admin
+    .from('checklist_responses')
+    .upsert(
+      items.map(i => ({ submission_id: submissionId, checklist_item_id: i.id, checked: true, graded_by: graderId })),
+      { onConflict: 'submission_id,checklist_item_id' }
+    )
+  if (error) console.error('Failed to auto-check checklist items:', error.message)
+}
+
 export async function markCompleteNoSubmission(
   assignmentId: string,
   studentId: string,
@@ -102,6 +124,7 @@ export async function markCompleteNoSubmission(
 
   if (grade) {
     await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
+    await checkAllChecklistItems(admin, submissionId, assignmentId, user.id)
 
     // Notify student
     if (courseId) {
@@ -164,6 +187,10 @@ export async function saveGrade(
 
   const assignmentCourseId = await getAssignmentCourseId(admin, current.assignment_id)
   if (courseId && assignmentCourseId !== courseId) return { error: 'Not authorized' }
+
+  if (grade === 'complete') {
+    await checkAllChecklistItems(admin, submissionId, current.assignment_id, user.id)
+  }
 
   if (current.grade === grade) return {}
 
