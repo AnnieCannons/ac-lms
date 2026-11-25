@@ -21,7 +21,8 @@ interface FileUploadProps {
 }
 
 const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.tar,.gz,image/*";
-const DEFAULT_MAX_MB = 10;
+// Matches MAX_FILE_SIZE_BYTES in /api/upload and the buckets' file_size_limit.
+const DEFAULT_MAX_MB = 20;
 
 /** Does `file` match an <input accept> list (".pdf", "image/*", "text/plain")? */
 function matchesAccept(file: File, accept: string): boolean {
