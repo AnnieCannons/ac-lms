@@ -19,7 +19,7 @@ export default async function CoursePage({
   const admin = createServiceSupabaseClient();
 
   const [{ data: course }, { data: modules }, { data: quizzesData }] = await Promise.all([
-    supabase.from("courses").select("id, name, code, start_date").eq("id", id).single(),
+    supabase.from("courses").select("id, name, code, start_date, is_enrollment_readiness").eq("id", id).single(),
     admin.from("modules")
       .select("*, module_days(*, assignments!module_day_id(*))")
       .eq("course_id", id)
