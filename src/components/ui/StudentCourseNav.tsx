@@ -18,6 +18,7 @@ interface Props {
 
 const TOP_ITEMS = [
   { label: 'General Info', slug: 'info' },
+  { label: 'Class Catch Up Form', slug: 'catch-up' },
   { label: 'Cutting Edge Talks', slug: 'cutting-edge-talks' },
   { label: 'My Equipment', slug: 'equipment' },
 ]

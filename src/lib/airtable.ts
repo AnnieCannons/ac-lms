@@ -510,6 +510,52 @@ export async function fetchClassAttendanceWeekly(
     .sort((a, b) => a.preferredName.localeCompare(b.preferredName))
 }
 
+// ─── Absences (used by the catch-up form cron) ───────────────────────────────
+
+export type AbsenceRow = {
+  airtableStudentId: string
+  date: string // YYYY-MM-DD
+  record: AttendanceRecord
+}
+
+/**
+ * Every attendance row with at least one Absent block between two dates (inclusive),
+ * keyed by the student's stable S### code. Rows whose student has no code are skipped,
+ * since there's no safe way to match them to an LMS account.
+ */
+export async function fetchAbsencesBetween(since: string, until: string): Promise<AbsenceRow[]> {
+  const absentAny = ['Block A', 'Block B', 'Block C', 'Block D']
+    .map(b => `FIND('Absent', {${b}} & '')`)
+    .join(', ')
+  const p = new URLSearchParams()
+  p.set('filterByFormula', `AND(${dateRangeFormula(since, until)}, OR(${absentAny}))`)
+  const records = await paginate(ATTENDANCE_TABLE, p)
+  if (!records.length) return []
+
+  // The Student link gives Airtable record ids; resolve those to S### codes in batches.
+  const studentRecordIds = [...new Set(records.flatMap(r => (r.fields['Student'] as string[] | undefined) ?? []))]
+  const codeByRecordId = new Map<string, string>()
+  for (let i = 0; i < studentRecordIds.length; i += 50) {
+    const batch = studentRecordIds.slice(i, i + 50)
+    const sp = new URLSearchParams()
+    sp.set('filterByFormula', `OR(${batch.map(id => `RECORD_ID()='${escapeAirtableString(id)}'`).join(', ')})`)
+    for (const s of await paginate('Students', sp)) {
+      const code = extractCode(s.fields)
+      if (code) codeByRecordId.set(s.id, code)
+    }
+  }
+
+  const mapped = mapAttendanceRecords(records)
+  const out: AbsenceRow[] = []
+  records.forEach((r, i) => {
+    const studentId = (r.fields['Student'] as string[] | undefined)?.[0]
+    const code = studentId ? codeByRecordId.get(studentId) : undefined
+    const date = mapped[i].date?.slice(0, 10)
+    if (code && date) out.push({ airtableStudentId: code, date, record: mapped[i] })
+  })
+  return out
+}
+
 // ─── Name sync helpers (used by scripts/check-name-sync.ts) ──────────────────
 
 export async function fetchAllAirtableStudentNames(): Promise<string[]> {
