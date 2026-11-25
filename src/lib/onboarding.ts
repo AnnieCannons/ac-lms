@@ -201,3 +201,10 @@ export function describeNeeds(kinds: string[]): string {
   if (words.length === 1) return words[0]
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }
+
+/** "Dec 9" (or "Dec 9, 2026") in Pacific time, for timestamps. */
+export function pacificShortDate(iso: string, withYear = false): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' as const } : {}),
+  })
+}

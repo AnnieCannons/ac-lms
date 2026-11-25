@@ -337,3 +337,71 @@ export async function loadMyOnboarding(admin: Admin, studentId: string, today: s
 function addDaysIso(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
 }
+
+// ── The New Student Onboarding page ──────────────────────────────────────────
+
+export type OnboardingRow = {
+  student: Person
+  progress: OnboardingProgress
+  /** When they finished (their Completed tick for this course), if they have */
+  finishedAt: string | null
+  /** Already enrolled in the cohort's next course */
+  inNextCourse: boolean
+}
+
+export type OnboardingCohort = {
+  assignments: OnboardingAssignment[]
+  rows: OnboardingRow[]
+  invites: PendingInvite[]
+}
+
+/** Student ids already handled by finishOnboardingIfDone for this course. */
+async function loadFinishedClaims(admin: Admin, courseId: string): Promise<Set<string>> {
+  const prefix = `onboarding-finished:${courseId}:`
+  const { data } = await admin.from('hardware_alerts_sent').select('key').like('key', `${prefix}%`)
+  return new Set(((data ?? []) as { key: string }[]).map(r => r.key.slice(prefix.length)))
+}
+
+/**
+ * Everything the onboarding page shows for one cohort. Anyone who has finished without the
+ * finish steps having run (e.g. their last assignment was excused rather than marked
+ * Complete) gets them now.
+ */
+export async function loadOnboardingCohort(admin: Admin, course: CohortCourse, today: string = pacificToday()): Promise<OnboardingCohort> {
+  const [students, invites] = await Promise.all([loadCohortStudents(admin, course.id), loadPendingInvites(admin, course.id)])
+  const ids = students.map(s => s.id)
+  const [{ assignments, progress }, claims] = await Promise.all([
+    loadCohortProgress(admin, course.id, ids, today),
+    loadFinishedClaims(admin, course.id),
+  ])
+
+  const unclaimed = students.filter(s => progress.get(s.id)?.finished && !claims.has(s.id))
+  for (const s of unclaimed) {
+    try {
+      await finishOnboardingIfDone(admin, course.id, s.id, null, progress.get(s.id))
+    } catch (e) {
+      console.error('onboarding: finish on page load failed', e)
+    }
+  }
+
+  const finishedAt = await loadFinishedAt(admin, course.id)
+  const nextIds = new Set<string>()
+  if (course.onboarding_next_course_id && ids.length) {
+    for (const part of chunks(ids)) {
+      const { data } = await admin.from('course_enrollments').select('user_id')
+        .eq('course_id', course.onboarding_next_course_id).in('user_id', part)
+      for (const r of (data ?? []) as { user_id: string }[]) nextIds.add(r.user_id)
+    }
+  }
+
+  return {
+    assignments,
+    invites,
+    rows: students.map(student => ({
+      student,
+      progress: progress.get(student.id)!,
+      finishedAt: finishedAt.get(student.id) ?? null,
+      inNextCourse: nextIds.has(student.id),
+    })),
+  }
+}
