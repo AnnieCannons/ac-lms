@@ -179,7 +179,7 @@ export type OnboardingStage = 'invited' | 'in_progress' | 'done' | 'moved_on'
 export const ONBOARDING_STAGE_LABELS: Record<OnboardingStage, string> = {
   invited: 'Invited',
   in_progress: 'In progress',
-  done: 'Done',
+  done: 'Prework done',
   moved_on: 'Moved on',
 }
 

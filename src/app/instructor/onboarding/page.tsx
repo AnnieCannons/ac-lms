@@ -19,11 +19,11 @@ export const dynamic = 'force-dynamic'
 const FILTERS = ['all', 'invited', 'in_progress', 'done', 'moved_on', 'to_mark', 'to_ship', 'comcast'] as const
 type Filter = (typeof FILTERS)[number]
 
-function ProgressBar({ done, total }: { done: number; total: number }) {
+function ProgressBar({ done, total, allDone }: { done: number; total: number; allDone: boolean }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-border/40" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={`${done} of ${total} complete`}>
-      <div className={`h-full rounded-full ${done === total && total > 0 ? 'bg-green-600' : 'bg-teal-primary'}`} style={{ width: `${pct}%` }} />
+      <div className={`h-full rounded-full ${allDone ? 'bg-green-600' : 'bg-teal-primary'}`} style={{ width: `${pct}%` }} />
     </div>
   )
 }
@@ -188,6 +188,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                 const shippedIds = new Set((equipment.shipments.get(r.student.id) ?? []).flatMap(s => s.device_ids))
                 const unshipped = held.filter(d => !shippedIds.has(d.id) && ['on_loan', 'owned_by_student'].includes(d.status))
                 const name = r.student.name ?? r.student.email
+                // Work that comes after the laptop arrives (doesn't count toward finishing)
+                const afterLaptop = lastTasks(p)
                 return (
                   <li key={r.student.id} className="bg-surface rounded-2xl border border-border p-4 sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
@@ -200,17 +202,22 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                       <div className="flex-1 basis-56 min-w-0">
                         <div className="flex items-baseline justify-between gap-2 mb-1.5 text-sm">
                           <span className="font-semibold text-dark-text">{p.done} of {p.total} complete</span>
-                          {stage === 'done' && <span className="text-xs font-semibold text-green-700">✓ Done{r.finishedAt ? ` ${pacificShortDate(r.finishedAt)}` : ''}</span>}
+                          {stage === 'done' && afterLaptop.length > 0 && (
+                            <span className="text-xs font-semibold text-amber-700" title="Prework is complete, so their laptop can ship. They still have work to do once it arrives.">
+                              <span aria-hidden="true">💻 </span>Ready for laptop{r.finishedAt ? ` · ${pacificShortDate(r.finishedAt)}` : ''}
+                            </span>
+                          )}
+                          {stage === 'done' && afterLaptop.length === 0 && <span className="text-xs font-semibold text-green-700">✓ Done{r.finishedAt ? ` ${pacificShortDate(r.finishedAt)}` : ''}</span>}
                           {stage === 'invited' && <span className="text-xs font-semibold text-muted-text">Hasn&apos;t signed in yet</span>}
                           {stage === 'moved_on' && <span className="text-xs font-semibold text-teal-primary">In {nextOptions.find(o => o.id === course.onboarding_next_course_id)?.name ?? 'the next course'}</span>}
                         </div>
-                        <ProgressBar done={p.done} total={p.total} />
+                        <ProgressBar done={p.done} total={p.total} allDone={r.finished && afterLaptop.length === 0} />
                         <p className="mt-1.5 text-xs text-muted-text flex flex-wrap gap-x-3">
                           {p.toMark > 0 && <span className="font-semibold text-amber-700">{p.toMark} to mark Complete</span>}
                           {p.needsRevision > 0 && <span>{p.needsRevision} needs revision</span>}
                           {p.overdue > 0 && <span className="font-semibold text-red-600">{p.overdue} overdue</span>}
                           {p.notStarted > 0 && <span>{p.notStarted} not started</span>}
-                          {r.finished && lastTasks(p).length > 0 && <span>Still to do: {lastTasks(p).map(a => a.title).join(', ')}</span>}
+                          {r.finished && afterLaptop.length > 0 && <span>After the laptop arrives: {afterLaptop.map(a => a.title).join(', ')}</span>}
                         </p>
                       </div>
                       <Link href={`/instructor/onboarding/${course.id}/students/${r.student.id}`} className="self-center whitespace-nowrap text-sm font-semibold text-teal-primary hover:underline">
