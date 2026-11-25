@@ -13,7 +13,8 @@ describe('OnboardingProgressCard', () => {
     expect(screen.getByText(/When it arrives, come back here to finish your last task/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Receiving Your Laptop/ })).toHaveAttribute('href', '/student/courses/c1/assignments/a9')
     expect(screen.queryByText(/you finished Enrollment Readiness!/)).toBeNull()
-    expect(screen.getByRole('link', { name: /Learn HTML on Codecademy/ })).toBeInTheDocument()
+    // no practice links until the laptop has arrived
+    expect(screen.queryByRole('link', { name: /Codecademy/ })).toBeNull()
   })
 
   it('while it’s on the way: asks them to click I got it first', () => {
@@ -26,6 +27,7 @@ describe('OnboardingProgressCard', () => {
     render(<OnboardingProgressCard {...base} shipping="arrived" lastTasks={receiving} />)
     expect(heading()).toContain("you're almost done!")
     expect(screen.getByText(/Your laptop arrived. Finish your last task/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Learn HTML on Codecademy/ })).toBeInTheDocument()
   })
 
   it('with nothing left: the full congratulations', () => {

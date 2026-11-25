@@ -60,6 +60,8 @@ export default function OnboardingProgressCard({
   lastTasks: { id: string; title: string }[]
 }) {
   const equipment = equipmentToShip ?? 'equipment'
+  // Practice links only once their laptop has arrived (or they had nothing to wait for)
+  const hasLaptop = shipping === 'arrived' || shipping === 'nothing'
   const isAre = equipmentToShip?.includes(' and ') ? 'are' : 'is'
   const myEquipment = (
     <Link href={`/student/courses/${courseId}/equipment`} className="font-semibold text-teal-primary hover:underline">My Equipment</Link>
@@ -97,7 +99,7 @@ export default function OnboardingProgressCard({
         {shipping === 'to_ship' && (
           <p className="mt-3 text-sm text-muted-text">Watch {myEquipment} for the tracking number once it ships.</p>
         )}
-        <PracticeLinks />
+        {hasLaptop && <PracticeLinks />}
       </section>
     )
   }
@@ -111,7 +113,7 @@ export default function OnboardingProgressCard({
         <p className="mt-2 text-sm text-dark-text">
           We are so excited for you to start this journey with us.
         </p>
-        <PracticeLinks />
+        {hasLaptop && <PracticeLinks />}
         {shipping === 'to_ship' && (
           <p className="mt-4 text-sm text-muted-text">Watch {myEquipment} for the tracking number once we ship your {equipment}.</p>
         )}
