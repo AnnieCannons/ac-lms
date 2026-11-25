@@ -56,6 +56,8 @@ type Assignment = {
   published: boolean;
   submission_required?: boolean;
   is_bonus: boolean;
+  /** Enrollment Readiness courses: false = "Doesn't count toward finishing" */
+  counts_toward_onboarding?: boolean | null;
   order: number;
 };
 
@@ -485,9 +487,11 @@ function AssignmentFullView({
   onToggleBonus,
   defaultTemplateId,
   onDirtyChange,
+  enrollmentReadiness = false,
 }: {
   view: ActiveView;
   courseId: string;
+  enrollmentReadiness?: boolean;
   onClose: () => void;
   onAdd: (dayId: string, title: string, description: string, howToTurnIn: string, dueDate: string | null, checklistItems: RubricItem[]) => Promise<void>;
   onEdit: (id: string, updates: Partial<Pick<Assignment, "title" | "description" | "how_to_turn_in" | "due_date">>) => void;
@@ -710,6 +714,14 @@ function AssignmentFullView({
             ← Back to Module
           </button>
           <div className="flex items-center gap-3">
+            {view.mode === "view" && !editing && assignment && enrollmentReadiness && assignment.counts_toward_onboarding === false && (
+              <span
+                className="whitespace-nowrap text-xs font-medium px-3 py-1 rounded-full border border-border text-muted-text"
+                title="Students can finish Enrollment Readiness without this one. Change it with Edit."
+              >
+                Doesn&apos;t count toward finishing
+              </span>
+            )}
             {view.mode === "view" && !editing && assignment && (
               <>
                 <button
@@ -3891,6 +3903,7 @@ export default function CourseEditor({
           onToggleBonus={toggleBonus}
           defaultTemplateId={defaultTemplateId}
           onDirtyChange={dirty => { assignmentDirtyRef.current = dirty; }}
+          enrollmentReadiness={!!course.is_enrollment_readiness}
         />
       )}
       {isMounted && (
