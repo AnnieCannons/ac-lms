@@ -1,13 +1,16 @@
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { notifyByEmail, openGroupDM, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { slackLookupByEmail, slackPostMessage } from '@/lib/slack'
 import { formatDateOnly } from '@/lib/hardware'
 import { isPlanCurrent } from '@/lib/hardware-shipping'
-import { pacificToday } from '@/lib/hardware-reminders'
+import { HARDWARE_SLACK_CHANNEL_DEFAULT, pacificToday } from '@/lib/hardware-reminders'
 
 // Slack messages for Comcast NOW plans (AnnieCannons pays $10/month and needs the receipt).
-// The staff contact is COMCAST_NOW_CONTACT_EMAIL when set, else whoever recorded the plan.
+// Every message posts in #student-hardware and tags the staff contact (Catie): COMCAST_NOW_CONTACT_EMAIL
+// when set, else whoever recorded the plan.
 
 type Admin = ReturnType<typeof createServiceSupabaseClient>
+const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL ?? 'https://lms.anniecannons.com').replace(/\/$/, '')
+const hardwareChannel = () => process.env.SLACK_HARDWARE_CHANNEL || HARDWARE_SLACK_CHANNEL_DEFAULT
 type PlanRow = { id: string; student_id: string; starts_on: string; ends_on: string | null; created_by: string | null }
 
 async function contactEmail(admin: Admin, plan: Pick<PlanRow, 'created_by'>): Promise<string | null> {
@@ -18,35 +21,25 @@ async function contactEmail(admin: Admin, plan: Pick<PlanRow, 'created_by'>): Pr
   return (data as { email: string | null } | null)?.email ?? null
 }
 
-/**
- * The monthly receipt reminder: a Slack group message with the staff contact and the student.
- * Falls back to a DM to the contact when the student isn't on Slack. Returns whether it posted.
- */
+/** "<@U123> " when the contact is on Slack, so the channel post notifies them. */
+async function mention(admin: Admin, plan: Pick<PlanRow, 'created_by'>): Promise<string> {
+  const email = await contactEmail(admin, plan)
+  const id = email ? await slackLookupByEmail(email) : null
+  return id ? `<@${id}> ` : ''
+}
+
+/** The monthly receipt reminder, posted in #student-hardware tagging the contact. Returns whether it posted. */
 export async function sendReceiptReminder(admin: Admin, plan: PlanRow): Promise<boolean> {
-  const [{ data: student }, contact] = await Promise.all([
-    admin.from('users').select('name, email').eq('id', plan.student_id).maybeSingle(),
-    contactEmail(admin, plan),
-  ])
+  const { data: student } = await admin.from('users').select('name, email').eq('id', plan.student_id).maybeSingle()
   const person = student as { name: string | null; email: string | null } | null
-  const first = person?.name?.split(' ')[0] ?? 'there'
-  const [contactId, studentId] = await Promise.all([
-    contact ? slackLookupByEmail(contact) : null,
-    person?.email ? slackLookupByEmail(person.email) : null,
-  ])
-  const text = `Hi ${first}! Your Comcast NOW internet renewed today. Please send this month's receipt here so we can submit it. Thank you!`
-  if (contactId && studentId) {
-    const channel = await openGroupDM([contactId, studentId])
-    if (channel && await slackPostMessage(channel, text)) return true
-  }
-  if (contact) {
-    return notifyByEmail(contact, `Comcast NOW renewed today for ${person?.name ?? person?.email ?? 'a student'}, but I couldn't message them on Slack. Please ask them for this month's receipt.`)
-  }
-  return false
+  const name = person?.name ?? person?.email ?? 'a student'
+  return slackPostMessage(hardwareChannel(),
+    `${await mention(admin, plan)}💳 Comcast NOW renewed today for <${appUrl()}/instructor/hardware/students/${plan.student_id}|${name}>. Time to get this month's receipt.`)
 }
 
 /**
- * When a student with a current Comcast NOW plan is changed to observer: DM the contact to
- * cancel the card paying for it. Never throws.
+ * When a student with a current Comcast NOW plan is changed to observer: ask the contact (in
+ * #student-hardware) to cancel the card paying for it. Never throws.
  */
 export async function notifyPlanCancelOnObserver(admin: Admin, studentId: string, courseId: string): Promise<void> {
   try {
@@ -58,14 +51,11 @@ export async function notifyPlanCancelOnObserver(admin: Admin, studentId: string
       admin.from('courses').select('name').eq('id', courseId).maybeSingle(),
     ])
     const name = (student as { name: string | null; email: string } | null)?.name ?? (student as { email: string } | null)?.email ?? 'A student'
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://lms.anniecannons.com').replace(/\/$/, '')
     for (const plan of plans) {
-      const contact = await contactEmail(admin, plan)
-      if (!contact) continue
-      await notifyByEmail(contact,
-        `💳 ${name} was changed to observer in ${(course as { name: string } | null)?.name ?? 'a course'}. ` +
+      await slackPostMessage(hardwareChannel(),
+        `${await mention(admin, plan)}💳 ${name} was changed to observer in ${(course as { name: string } | null)?.name ?? 'a course'}. ` +
         `Please cancel the credit card for their Comcast NOW plan (since ${formatDateOnly(plan.starts_on)}), then end the plan on their hardware page: ` +
-        `${appUrl}/instructor/hardware/students/${studentId}`)
+        `${appUrl()}/instructor/hardware/students/${studentId}`)
     }
   } catch (e) {
     console.error('comcast: observer cancel notice failed', e)

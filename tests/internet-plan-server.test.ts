@@ -2,12 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const slackIds: Record<string, string> = {}
 const posts: [string, string][] = []
-const dms: [string, string][] = []
 vi.mock('@/lib/slack', () => ({
   slackLookupByEmail: vi.fn(async (email: string) => slackIds[email] ?? null),
-  openGroupDM: vi.fn(async (ids: string[]) => `G-${ids.join('-')}`),
   slackPostMessage: vi.fn(async (channel: string, text: string) => { posts.push([channel, text]); return true }),
-  notifyByEmail: vi.fn(async (email: string, text: string) => { dms.push([email, text]); return true }),
 }))
 
 import { notifyPlanCancelOnObserver, sendReceiptReminder } from '@/lib/internet-plan-server'
@@ -24,54 +21,47 @@ function db(results: Record<string, unknown>) {
 }
 
 const plan = { id: 'p1', student_id: 'st', starts_on: '2026-11-25', ends_on: null, created_by: 'catie' }
+const CHANNEL = 'C0ABALJLBFU'
 
 beforeEach(() => {
   posts.length = 0
-  dms.length = 0
   for (const k of Object.keys(slackIds)) delete slackIds[k]
-  delete process.env.COMCAST_NOW_CONTACT_EMAIL
+  process.env.COMCAST_NOW_CONTACT_EMAIL = 'catie@example.org'
+  delete process.env.SLACK_HARDWARE_CHANNEL
 })
 
 describe('sendReceiptReminder', () => {
-  it('asks for the receipt in a group message with whoever recorded the plan and the student', async () => {
-    Object.assign(slackIds, { 'catie@example.org': 'UCATIE', 'jordan@example.com': 'UJORDAN' })
-    const admin = db({ users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } })
-    // users is read for both the student and the contact; the contact's email comes from the same fake row,
-    // so pin the contact with the setting instead
-    process.env.COMCAST_NOW_CONTACT_EMAIL = 'catie@example.org'
-    expect(await sendReceiptReminder(admin, plan)).toBe(true)
-    expect(posts).toEqual([['G-UCATIE-UJORDAN', expect.stringContaining("Hi Jordan! Your Comcast NOW internet renewed today. Please send this month's receipt here")]])
+  it('posts in #student-hardware tagging Catie', async () => {
+    slackIds['catie@example.org'] = 'UCATIE'
+    expect(await sendReceiptReminder(db({ users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } }), plan)).toBe(true)
+    expect(posts).toHaveLength(1)
+    expect(posts[0][0]).toBe(CHANNEL)
+    expect(posts[0][1]).toMatch(/^<@UCATIE> 💳 Comcast NOW renewed today for <.*\|Jordan Rivera>\. Time to get this month's receipt\.$/)
   })
 
-  it('DMs the contact instead when the student isn’t on Slack', async () => {
-    Object.assign(slackIds, { 'catie@example.org': 'UCATIE' })
-    process.env.COMCAST_NOW_CONTACT_EMAIL = 'catie@example.org'
-    const admin = db({ users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } })
-    expect(await sendReceiptReminder(admin, plan)).toBe(true)
-    expect(posts).toEqual([])
-    expect(dms[0][0]).toBe('catie@example.org')
-    expect(dms[0][1]).toContain('ask them for this month')
+  it('still posts (without a tag) if Catie can’t be found on Slack', async () => {
+    await sendReceiptReminder(db({ users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } }), plan)
+    expect(posts[0][1].startsWith('💳')).toBe(true)
   })
 })
 
 describe('notifyPlanCancelOnObserver', () => {
-  it('DMs the contact to cancel the card when the plan is still running', async () => {
-    process.env.COMCAST_NOW_CONTACT_EMAIL = 'catie@example.org'
-    const admin = db({
+  it('asks Catie in #student-hardware to cancel the card when the plan is still running', async () => {
+    slackIds['catie@example.org'] = 'UCATIE'
+    await notifyPlanCancelOnObserver(db({
       hardware_internet_plans: { data: [plan] },
       users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } },
       courses: { data: { name: 'Tech Career Foundations (Jan 2027)' } },
-    })
-    await notifyPlanCancelOnObserver(admin, 'st', 'c1')
-    expect(dms).toHaveLength(1)
-    expect(dms[0][1]).toContain('Jordan Rivera was changed to observer in Tech Career Foundations (Jan 2027)')
-    expect(dms[0][1]).toContain('cancel the credit card')
+    }), 'st', 'c1')
+    expect(posts).toHaveLength(1)
+    expect(posts[0][0]).toBe(CHANNEL)
+    expect(posts[0][1]).toContain('<@UCATIE> 💳 Jordan Rivera was changed to observer in Tech Career Foundations (Jan 2027)')
+    expect(posts[0][1]).toContain('cancel the credit card')
   })
 
   it('stays quiet when there’s no current plan', async () => {
-    process.env.COMCAST_NOW_CONTACT_EMAIL = 'catie@example.org'
     await notifyPlanCancelOnObserver(db({ hardware_internet_plans: { data: [{ ...plan, starts_on: '2026-09-01', ends_on: '2026-11-01' }] } }), 'st', 'c1')
     await notifyPlanCancelOnObserver(db({ hardware_internet_plans: { data: [] } }), 'st', 'c1')
-    expect(dms).toEqual([])
+    expect(posts).toEqual([])
   })
 })

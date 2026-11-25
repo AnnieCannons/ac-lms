@@ -61,7 +61,7 @@ function PlanForm({ studentId, plan, today, onDone }: { studentId: string; plan:
 }
 
 /**
- * Comcast NOW plans AnnieCannons pays for ($10/month). A Slack group message with the staff contact and the student asks for the receipt on each
+ * Comcast NOW plans AnnieCannons pays for ($10/month).  A reminder in #student-hardware, tagging the staff contact, asks for the receipt on each
  * monthly billing day so the receipt gets submitted.
  */
 export default function InternetPlanCard({
