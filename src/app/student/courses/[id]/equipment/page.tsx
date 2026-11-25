@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { loadMyEquipment } from '@/lib/hardware-server'
+import { loadMyEquipmentExtras } from '@/lib/onboarding-server'
 import { supportFormUrl } from '@/lib/hardware'
 import StudentCuttingEdgeShell from '@/components/cutting-edge/StudentCuttingEdgeShell'
-import MyEquipmentCard from '@/components/hardware/MyEquipmentCard'
+import MyEquipmentCard, { hasEquipmentToShow } from '@/components/hardware/MyEquipmentCard'
 import Link from 'next/link'
 import { hasUnansweredCheckin } from '@/lib/hardware-checkin-server'
 
@@ -24,6 +25,7 @@ export default async function StudentEquipmentPage({ params }: { params: Promise
         admin.from('users').select('email').eq('id', viewer.viewerId).maybeSingle(),
       ])
   const email = (person as { email: string } | null)?.email ?? null
+  const extras = equipment ? await loadMyEquipmentExtras(admin, viewer.viewerId, equipment.devices) : null
   const checkinDue = !viewer.preview && !viewer.readOnly && await hasUnansweredCheckin(admin, viewer.viewerId)
 
   return (
@@ -38,8 +40,8 @@ export default async function StudentEquipmentPage({ params }: { params: Promise
       )}
       {viewer.preview ? (
         <p className="text-sm text-muted-text">In preview there&apos;s no student, so there&apos;s no equipment to show.</p>
-      ) : equipment && equipment.devices.length > 0 ? (
-        <MyEquipmentCard equipment={equipment} email={email} />
+      ) : equipment && hasEquipmentToShow(equipment, extras) ? (
+        <MyEquipmentCard equipment={equipment} extras={extras} email={email} readOnly={viewer.readOnly} />
       ) : (
         <div className="bg-surface rounded-2xl border border-border p-5 flex flex-col gap-3 text-sm">
           <p className="text-dark-text">You don&apos;t have any AnnieCannons equipment recorded yet.</p>

@@ -2,7 +2,8 @@ import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getResend } from '@/lib/resend'
 import { notifyByEmail, slackPostMessage } from '@/lib/slack'
 import { daysSince, formatDateOnly, KIND_LABELS, LIKELY_LOST_DAYS, type DeviceKind } from '@/lib/hardware'
-import { loadHotspotPlans, loadOpenReturns, type HotspotPlanStatus } from '@/lib/hardware-server'
+import { loadHotspotPlans, loadOpenReturns, loadPeople, type HotspotPlanStatus } from '@/lib/hardware-server'
+import { INTERNET_RENEWAL_NOTIFICATION_TYPE, internetRenewalKey, renewsToday } from '@/lib/hardware-shipping'
 import { loadOpenTickets } from '@/lib/hardware-tickets-server'
 import { TICKET_NUDGE_HOURS, TICKET_STATUS_LABELS, ticketNeedsNudge } from '@/lib/hardware-tickets'
 import {
@@ -46,6 +47,7 @@ async function alertStaffIds(admin: Admin): Promise<string[]> {
 
 export type ReminderRunResult = {
   renewalsAlerted: number
+  internetRenewalsAlerted: number
   studentsReminded: number
   likelyLostAlerted: number
   ticketsNudged: number
@@ -54,7 +56,7 @@ export type ReminderRunResult = {
 
 export async function runHardwareReminders(admin: Admin, now: Date = new Date()): Promise<ReminderRunResult> {
   const today = pacificToday(now)
-  const result: ReminderRunResult = { renewalsAlerted: 0, studentsReminded: 0, likelyLostAlerted: 0, ticketsNudged: 0, graduateReview: null }
+  const result: ReminderRunResult = { renewalsAlerted: 0, internetRenewalsAlerted: 0, studentsReminded: 0, likelyLostAlerted: 0, ticketsNudged: 0, graduateReview: null }
   const staffIds = await alertStaffIds(admin)
 
   // 1. Hotspot plans ending within 45 days (or already ended): once per plan period.
@@ -77,6 +79,35 @@ export async function runHardwareReminders(admin: Admin, now: Date = new Date())
       })))
     }
     result.renewalsAlerted = due.length
+  }
+
+  // 1b. Comcast NOW plans billing today (AnnieCannons pays monthly and submits a receipt):
+  //     once per plan per month.
+  type PlanRow = { id: string; student_id: string; account_number: string | null; monthly_cost: number | null; starts_on: string; ends_on: string | null }
+  const { data: planRows } = await admin.from('hardware_internet_plans').select('id, student_id, account_number, monthly_cost, starts_on, ends_on')
+  const internetDue: PlanRow[] = []
+  for (const p of ((planRows ?? []) as PlanRow[]).filter(p => renewsToday(p, today))) {
+    if (await claimAlert(admin, internetRenewalKey(p.id, today))) internetDue.push(p)
+  }
+  if (internetDue.length) {
+    const people = await loadPeople(admin, internetDue.map(p => p.student_id))
+    const lines = internetDue.map(p => {
+      const person = people.get(p.student_id)
+      const details = [
+        p.monthly_cost !== null ? `$${Number(p.monthly_cost).toFixed(2)}` : null,
+        p.account_number ? `account ${p.account_number}` : null,
+      ].filter(Boolean).join(', ')
+      return `• <${appUrl()}/instructor/hardware/students/${p.student_id}|${person?.name ?? person?.email ?? 'Student'}>${details ? ` (${details})` : ''}`
+    })
+    const receipts = internetDue.length === 1 ? 'this month’s receipt' : 'this month’s receipts'
+    await slackPostMessage(channel(), [`💳 *Comcast NOW renewed today.* Time to submit ${receipts}:`, ...lines].join('\n'))
+    if (staffIds.length) {
+      await admin.from('notifications').insert(staffIds.map(user_id => ({
+        user_id, type: INTERNET_RENEWAL_NOTIFICATION_TYPE,
+        message: `Comcast NOW renewed today for ${internetDue.length} ${internetDue.length === 1 ? 'student' : 'students'}: submit ${receipts}.`,
+      })))
+    }
+    result.internetRenewalsAlerted = internetDue.length
   }
 
   // 2. Return reminders that are due, grouped per student. Claim each request by moving its

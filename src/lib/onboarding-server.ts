@@ -17,9 +17,15 @@ import {
 import {
   DEFAULT_NEEDS,
   deviceKindsNeeded,
+  inTransit,
   isLaptopNeed,
+  isPlanCurrent,
+  PLAN_COLUMNS,
+  SHIPMENT_COLUMNS,
   isWifiChoice,
+  pendingEquipment,
   type InternetPlan,
+  type PendingItem,
   type Shipment,
   type StudentNeeds,
 } from '@/lib/hardware-shipping'
@@ -219,8 +225,8 @@ export type CohortEquipment = {
   plans: Map<string, InternetPlan[]>
 }
 
-const SHIPMENT_COLUMNS = 'id, student_id, device_ids, carrier, tracking_number, shipped_on, received_at, received_by, notes, created_at'
-const PLAN_COLUMNS = 'id, student_id, provider, account_number, monthly_cost, starts_on, ends_on, notes, created_at'
+
+
 
 export async function loadCohortEquipment(admin: Admin, studentIds: string[]): Promise<CohortEquipment> {
   const result: CohortEquipment = { needs: await loadNeeds(admin, studentIds), held: new Map(), waiting: new Map(), shipments: new Map(), plans: new Map() }
@@ -403,5 +409,38 @@ export async function loadOnboardingCohort(admin: Admin, course: CohortCourse, t
       finishedAt: finishedAt.get(student.id) ?? null,
       inNextCourse: nextIds.has(student.id),
     })),
+  }
+}
+
+// ── A student's own My Equipment ─────────────────────────────────────────────
+
+export type MyEquipmentExtras = {
+  /** Equipment they're still waiting for (not shipped yet) */
+  pending: PendingItem[]
+  /** Boxes on their way (not confirmed arrived), newest first */
+  inTransit: Shipment[]
+  wifi: StudentNeeds['wifi']
+  /** A current Comcast NOW plan */
+  hasInternetPlan: boolean
+}
+
+/**
+ * The onboarding side of My Equipment for the signed-in student: what's coming, what's on
+ * its way and their wifi. Callers pass the student's own id (from auth), never one from the request.
+ */
+export async function loadMyEquipmentExtras(admin: Admin, userId: string, devices: HardwareDevice[], today: string = pacificToday()): Promise<MyEquipmentExtras> {
+  const [equipment, onboarding] = await Promise.all([loadCohortEquipment(admin, [userId]), loadMyOnboarding(admin, userId, today)])
+  const needs = needsFor(equipment.needs, userId)
+  const shipments = equipment.shipments.get(userId) ?? []
+  return {
+    pending: pendingEquipment({
+      needs,
+      heldKinds: devices.filter(d => d.status !== 'awaiting_return').map(d => d.kind),
+      waitingKinds: [...(equipment.waiting.get(userId)?.keys() ?? [])],
+      onboarding: onboarding ? (onboarding.finished ? 'finished' : 'in_progress') : null,
+    }),
+    inTransit: inTransit(shipments).filter(s => s.device_ids.some(id => devices.some(d => d.id === id))),
+    wifi: needs.wifi,
+    hasInternetPlan: (equipment.plans.get(userId) ?? []).some(p => isPlanCurrent(p, today)),
   }
 }

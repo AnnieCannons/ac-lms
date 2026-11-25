@@ -2,15 +2,20 @@ import Link from 'next/link'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import CohortPicker from '@/components/onboarding/CohortPicker'
+import EquipmentStatusList from '@/components/onboarding/EquipmentStatusList'
+import NeedsControls from '@/components/hardware/NeedsControls'
+import ShipButton from '@/components/hardware/ShipButton'
 import { getOnboardingViewer } from '@/lib/onboarding-access'
-import { loadCohorts, loadOnboardingCohort, type OnboardingRow } from '@/lib/onboarding-server'
+import { loadCohortEquipment, loadCohorts, loadOnboardingCohort, needsFor, type OnboardingRow } from '@/lib/onboarding-server'
+import { loadDevices } from '@/lib/hardware-server'
 import { ONBOARDING_STAGE_LABELS, onboardingStage, pacificShortDate, pickDefaultCohort, sortCohorts, type OnboardingStage } from '@/lib/onboarding'
 import { pacificToday } from '@/lib/hardware-reminders'
 import { formatDateOnly } from '@/lib/hardware'
+import { equipmentStatus, isPlanCurrent, type EquipmentState } from '@/lib/hardware-shipping'
 
 export const dynamic = 'force-dynamic'
 
-const FILTERS = ['all', 'invited', 'in_progress', 'done', 'moved_on', 'to_mark'] as const
+const FILTERS = ['all', 'invited', 'in_progress', 'done', 'moved_on', 'to_mark', 'to_ship', 'comcast'] as const
 type Filter = (typeof FILTERS)[number]
 
 function ProgressBar({ done, total }: { done: number; total: number }) {
@@ -49,6 +54,23 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   }
 
   const { rows, invites, assignments } = await loadOnboardingCohort(admin, course, today)
+  const [equipment, inStockAll] = await Promise.all([
+    loadCohortEquipment(admin, rows.map(r => r.student.id)),
+    loadDevices(admin, { status: 'in_stock' }),
+  ])
+  const inStock = inStockAll.filter(d => !d.current_holder_id)
+  const equipmentOf = (id: string, finished: boolean): EquipmentState[] => equipmentStatus({
+    needs: needsFor(equipment.needs, id),
+    held: equipment.held.get(id) ?? [],
+    waitingKinds: [...(equipment.waiting.get(id)?.keys() ?? [])],
+    shipments: equipment.shipments.get(id) ?? [],
+    hasInternetPlan: (equipment.plans.get(id) ?? []).some(p => isPlanCurrent(p, today)),
+    finished,
+  })
+  const states = new Map(rows.map(r => [r.student.id, equipmentOf(r.student.id, r.progress.finished)]))
+  const toShip = (r: OnboardingRow) => (states.get(r.student.id) ?? []).some(s => s.state === 'to_ship')
+  const comcastToSetUp = (r: OnboardingRow) => (states.get(r.student.id) ?? []).some(s => s.state === 'to_set_up')
+
   const stageOf = (r: OnboardingRow): OnboardingStage => onboardingStage(r.progress.finished, r.inNextCourse)
   const counts: Record<Filter, number> = {
     all: rows.length + invites.length,
@@ -57,11 +79,15 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     done: rows.filter(r => stageOf(r) === 'done').length,
     moved_on: rows.filter(r => stageOf(r) === 'moved_on').length,
     to_mark: rows.filter(r => r.progress.toMark > 0).length,
+    to_ship: rows.filter(toShip).length,
+    comcast: rows.filter(comcastToSetUp).length,
   }
   const shown = rows.filter(r =>
     filter === 'all' ? true
     : filter === 'invited' ? false
     : filter === 'to_mark' ? r.progress.toMark > 0
+    : filter === 'to_ship' ? toShip(r)
+    : filter === 'comcast' ? comcastToSetUp(r)
     : stageOf(r) === filter,
   )
   const toMarkTotal = rows.reduce((n, r) => n + r.progress.toMark, 0)
@@ -86,12 +112,24 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           <CohortPicker cohorts={cohorts.map(c => ({ id: c.id, name: c.name }))} selectedId={course.id} />
         </div>
 
-        {toMarkTotal > 0 && (
+        {(toMarkTotal > 0 || counts.to_ship > 0 || counts.comcast > 0) && (
           <section aria-label="Needs you" className="badge-amber border rounded-xl px-4 py-3 mb-6 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
             <strong>Needs you</strong>
-            <Link href={href('to_mark')} className="underline font-semibold">
-              {toMarkTotal} {toMarkTotal === 1 ? 'assignment' : 'assignments'} to mark Complete ({counts.to_mark} {counts.to_mark === 1 ? 'student' : 'students'})
-            </Link>
+            {toMarkTotal > 0 && (
+              <Link href={href('to_mark')} className="underline font-semibold">
+                {toMarkTotal} {toMarkTotal === 1 ? 'assignment' : 'assignments'} to mark Complete ({counts.to_mark} {counts.to_mark === 1 ? 'student' : 'students'})
+              </Link>
+            )}
+            {counts.to_ship > 0 && (
+              <Link href={href('to_ship')} className="underline font-semibold">
+                {counts.to_ship} {counts.to_ship === 1 ? 'student' : 'students'} ready to ship
+              </Link>
+            )}
+            {counts.comcast > 0 && (
+              <Link href={href('comcast')} className="underline font-semibold">
+                {counts.comcast} Comcast NOW {counts.comcast === 1 ? 'plan' : 'plans'} to record
+              </Link>
+            )}
           </section>
         )}
 
@@ -108,8 +146,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
               {f === 'all' ? 'All' : ONBOARDING_STAGE_LABELS[f]} <span className="font-normal">({counts[f]})</span>
             </Link>
           ))}
-          {filter === 'to_mark' && (
-            <span className="whitespace-nowrap px-3 py-2.5 text-sm font-semibold border-b-2 -mb-px border-teal-primary text-teal-primary">To mark Complete ({counts.to_mark})</span>
+          {(filter === 'to_mark' || filter === 'to_ship' || filter === 'comcast') && (
+            <span className="whitespace-nowrap px-3 py-2.5 text-sm font-semibold border-b-2 -mb-px border-teal-primary text-teal-primary">
+              {filter === 'to_mark' ? 'To mark Complete' : filter === 'to_ship' ? 'Ready to ship' : 'Comcast NOW to record'} ({counts[filter]})
+            </span>
           )}
         </nav>
 
@@ -135,6 +175,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
               {shown.map(r => {
                 const p = r.progress
                 const stage = stageOf(r)
+                const held = equipment.held.get(r.student.id) ?? []
+                const shippedIds = new Set((equipment.shipments.get(r.student.id) ?? []).flatMap(s => s.device_ids))
+                const unshipped = held.filter(d => !shippedIds.has(d.id) && ['on_loan', 'owned_by_student'].includes(d.status))
+                const name = r.student.name ?? r.student.email
                 return (
                   <li key={r.student.id} className="bg-surface rounded-2xl border border-border p-4 sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
@@ -161,6 +205,24 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                       <Link href={`/instructor/onboarding/${course.id}/students/${r.student.id}`} className="self-center whitespace-nowrap text-sm font-semibold text-teal-primary hover:underline">
                         Checklist →
                       </Link>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                      <div className="flex-1 basis-56">
+                        <NeedsControls studentId={r.student.id} needs={needsFor(equipment.needs, r.student.id)} canManage studentName={name} />
+                      </div>
+                      <div className="flex-1 basis-56 min-w-0">
+                        <EquipmentStatusList states={states.get(r.student.id) ?? []} studentId={r.student.id} />
+                      </div>
+                      {(toShip(r) || unshipped.length > 0) && (
+                        <ShipButton
+                          studentId={r.student.id}
+                          studentName={name}
+                          needs={needsFor(equipment.needs, r.student.id)}
+                          inStock={inStock}
+                          unshipped={unshipped}
+                          today={today}
+                        />
+                      )}
                     </div>
                   </li>
                 )

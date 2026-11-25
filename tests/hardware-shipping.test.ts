@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_NEEDS,
+  equipmentStatus,
   deviceKindsNeeded,
   inTransit,
   kindList,
@@ -146,5 +147,32 @@ describe('Comcast NOW plans', () => {
   it('writes billing days as ordinals', () => {
     expect(['2026-12-01', '2026-12-02', '2026-12-03', '2026-12-11', '2026-12-22', '2026-12-31'].map(ordinalDay))
       .toEqual(['1st', '2nd', '3rd', '11th', '22nd', '31st'])
+  })
+})
+
+describe('equipmentStatus', () => {
+  const laptop = { id: 'd1', kind: 'laptop' as const, asset_tag: 'LAP-012', status: 'on_loan' }
+  const box = { id: 'b1', student_id: 'st', device_ids: ['d1'], carrier: 'usps' as const, tracking_number: '9400', shipped_on: '2026-12-12', received_at: null, received_by: null, notes: null, created_at: '2026-12-12T10:00:00Z' }
+
+  it('shows what still needs shipping once they finish, and waits before that', () => {
+    const needs = { laptop: 'needs', wifi: 'hotspot' } as const
+    expect(equipmentStatus({ needs, held: [], waitingKinds: [], shipments: [], hasInternetPlan: false, finished: false }))
+      .toEqual([{ kind: 'laptop', state: 'after_finish' }, { kind: 'hotspot', state: 'after_finish' }])
+    expect(equipmentStatus({ needs, held: [], waitingKinds: ['laptop'], shipments: [], hasInternetPlan: false, finished: true }))
+      .toEqual([{ kind: 'laptop', state: 'to_ship' }, { kind: 'hotspot', state: 'to_ship' }])
+  })
+
+  it('pairs what they have with the box it went out in', () => {
+    const [held] = equipmentStatus({ needs: DEFAULT_NEEDS, held: [laptop], waitingKinds: [], shipments: [box], hasInternetPlan: false, finished: true })
+    expect(held).toMatchObject({ kind: 'laptop', state: 'held', shipment: { id: 'b1' } })
+  })
+
+  it('tracks Comcast NOW setup', () => {
+    const needs = { laptop: 'own', wifi: 'comcast_now' } as const
+    const status = (finished: boolean, hasInternetPlan: boolean) =>
+      equipmentStatus({ needs, held: [], waitingKinds: [], shipments: [], hasInternetPlan, finished })
+    expect(status(false, false)).toEqual([{ kind: 'comcast_now', state: 'after_finish' }])
+    expect(status(true, false)).toEqual([{ kind: 'comcast_now', state: 'to_set_up' }])
+    expect(status(true, true)).toEqual([{ kind: 'comcast_now', state: 'set_up' }])
   })
 })

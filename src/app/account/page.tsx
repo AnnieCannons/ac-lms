@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { loadMyEquipment } from '@/lib/hardware-server'
-import MyEquipmentCard from '@/components/hardware/MyEquipmentCard'
+import { loadMyEquipmentExtras } from '@/lib/onboarding-server'
+import MyEquipmentCard, { hasEquipmentToShow } from '@/components/hardware/MyEquipmentCard'
 import { redirect } from 'next/navigation'
 import StudentTopNav from '@/components/ui/StudentTopNav'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
@@ -21,7 +22,9 @@ export default async function AccountPage() {
 
   const isInstructor = profile?.role === 'instructor' || profile?.role === 'admin'
   // Only the signed-in user's own equipment (their id comes from auth, not the request).
-  const equipment = profile?.role === 'student' ? await loadMyEquipment(createServiceSupabaseClient(), user.id) : null
+  const admin = profile?.role === 'student' ? createServiceSupabaseClient() : null
+  const equipment = admin ? await loadMyEquipment(admin, user.id) : null
+  const extras = admin && equipment ? await loadMyEquipmentExtras(admin, user.id, equipment.devices) : null
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,9 +46,9 @@ export default async function AccountPage() {
           initialEmail={user.email ?? ''}
           initialAvatarUrl={profile?.avatar_url ?? null}
         />
-        {equipment && equipment.devices.length > 0 && (
+        {equipment && hasEquipmentToShow(equipment, extras) && (
           <div className="mt-6">
-            <MyEquipmentCard equipment={equipment} email={user.email ?? null} />
+            <MyEquipmentCard equipment={equipment} extras={extras} email={user.email ?? null} />
           </div>
         )}
         <div className="mt-6">

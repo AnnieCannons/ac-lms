@@ -49,6 +49,11 @@ export function wifiKindsNotNeeded(wifi: WifiChoice): DeviceKind[] {
 
 // ── Shipping ─────────────────────────────────────────────────────────────────
 
+/** Bell notification a student gets when their box ships (links to My Equipment). */
+export const SHIPPED_NOTIFICATION_TYPE = 'hardware_shipped'
+/** Bell notification staff get when a Comcast NOW plan renews (receipt due). */
+export const INTERNET_RENEWAL_NOTIFICATION_TYPE = 'hardware_internet_renewal'
+
 export const CARRIERS = ['usps', 'ups', 'fedex', 'other'] as const
 export type Carrier = (typeof CARRIERS)[number]
 export const CARRIER_LABELS: Record<Carrier, string> = {
@@ -273,3 +278,47 @@ export function ordinalDay(date: string): string {
   const suffix = d % 10 === 1 && d !== 11 ? 'st' : d % 10 === 2 && d !== 12 ? 'nd' : d % 10 === 3 && d !== 13 ? 'rd' : 'th'
   return `${d}${suffix}`
 }
+
+// ── Equipment status on the onboarding page ──────────────────────────────────
+
+type HeldDevice = { id: string; kind: DeviceKind; asset_tag: string | null; status: string }
+
+export type EquipmentState =
+  /** They have it; `shipment` is the latest box it went out in (on its way while received_at is null) */
+  | { kind: DeviceKind; state: 'held'; device: HeldDevice; shipment: Shipment | null }
+  /** Needed and they've finished (or are waitlisted): staff should ship it */
+  | { kind: DeviceKind; state: 'to_ship' }
+  /** Needed, but they haven't finished Enrollment Readiness yet */
+  | { kind: DeviceKind; state: 'after_finish' }
+  | { kind: 'comcast_now'; state: 'set_up' | 'to_set_up' | 'after_finish' }
+
+export function equipmentStatus(input: {
+  needs: StudentNeeds
+  held: HeldDevice[]
+  waitingKinds: DeviceKind[]
+  shipments: Shipment[]
+  hasInternetPlan: boolean
+  finished: boolean
+}): EquipmentState[] {
+  const out: EquipmentState[] = input.held.map(device => ({ kind: device.kind, state: 'held' as const, device, shipment: latestShipmentFor(device.id, input.shipments) }))
+  const heldKinds = new Set(input.held.filter(d => d.status !== 'awaiting_return').map(d => d.kind))
+  const waiting = new Set(input.waitingKinds)
+  for (const kind of [...new Set([...deviceKindsNeeded(input.needs), ...input.waitingKinds])]) {
+    if (heldKinds.has(kind)) continue
+    out.push({ kind, state: input.finished || waiting.has(kind) ? 'to_ship' : 'after_finish' })
+  }
+  if (input.needs.wifi === 'comcast_now') {
+    out.push({ kind: 'comcast_now', state: input.hasInternetPlan ? 'set_up' : input.finished ? 'to_set_up' : 'after_finish' })
+  }
+  return out
+}
+
+// ── Columns (shared by the loaders) ──────────────────────────────────────────
+
+export const SHIPMENT_COLUMNS = 'id, student_id, device_ids, carrier, tracking_number, shipped_on, received_at, received_by, notes, created_at'
+export const PLAN_COLUMNS = 'id, student_id, provider, account_number, monthly_cost, starts_on, ends_on, notes, created_at'
+
+/** Days after shipping before a box nobody has confirmed shows on Needs attention. */
+export const SHIPMENT_CHECK_DAYS = 7
+/** How far ahead Needs attention lists Comcast NOW billing days. */
+export const INTERNET_SOON_DAYS = 3
