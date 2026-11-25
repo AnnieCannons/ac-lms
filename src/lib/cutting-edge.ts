@@ -47,6 +47,8 @@ export type CourseWindow = {
   name: string
   start_date: string | null
   end_date: string | null
+  /** Enrollment Readiness (prework) courses are never in a talk's audience */
+  is_enrollment_readiness?: boolean | null
 }
 
 // ── Templates (wording copied from the existing per-course assignments) ─────────────────
@@ -155,14 +157,17 @@ export function isCourseActiveAt(course: Pick<CourseWindow, 'start_date' | 'end_
 export function audienceCourseIds(
   event: Pick<CuttingEdgeEvent, 'audience_all' | 'starts_at'>,
   limitedCourseIds: string[],
-  courses: Pick<CourseWindow, 'id' | 'start_date' | 'end_date'>[],
+  courses: Pick<CourseWindow, 'id' | 'start_date' | 'end_date' | 'is_enrollment_readiness'>[],
   now: Date,
 ): Set<string> {
-  if (!event.audience_all) return new Set(limitedCourseIds)
+  // Students doing Enrollment Readiness (prework) hear nothing about talks until they're in class.
+  const prework = new Set(courses.filter(c => c.is_enrollment_readiness).map(c => c.id))
+  if (!event.audience_all) return new Set(limitedCourseIds.filter(id => !prework.has(id)))
   const startsAt = new Date(event.starts_at)
   const upcoming = startsAt.getTime() > now.getTime()
   return new Set(
     courses
+      .filter(c => !c.is_enrollment_readiness)
       .filter(c => isCourseActiveAt(c, startsAt) || (upcoming && isCourseActiveAt(c, now)))
       .map(c => c.id),
   )

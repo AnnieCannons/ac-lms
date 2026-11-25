@@ -48,6 +48,8 @@ A course offered on the platform.
 | `airtable_course_name` | text | Nullable — Airtable course name (e.g. `May 2026 - Advanced Frontend`); used to scope attendance lookups by enrollment |
 | `readiness_instructor_ids` | uuid[] | Default: `{}` — the course's actual instructors ("Accountability Instructors"), set in course setup / Edit Course Settings; readiness step 3 group DMs and 48h check-in reminders go to them, not to every `role='instructor'` enrollment |
 | `readiness_slack_channel` | text | Nullable — Slack channel id for this course's readiness posts (step 1/2 started, check-in completed, 48h overdue, process completed); options in `src/lib/readiness-channels.ts`. Null skips those posts |
+| `is_enrollment_readiness` | boolean | Default false — an Enrollment Readiness (prework) course for New Student Onboarding: shorter student sidebar, finishing tracked, left out of Cutting Edge audiences and check-ins. Copied on duplicate |
+| `onboarding_next_course_id` | uuid | Nullable, FK → courses (SET NULL) — the course an Enrollment Readiness cohort moves on to (usually Tech Career Foundations). Reset on duplicate |
 | `created_at` | timestamptz | Default: now() |
 
 ---
@@ -137,6 +139,7 @@ An assignment attached to a module day.
 | `deleted_at` | timestamptz | Nullable — soft-deleted items (in trash); `IS NULL` = active |
 | `series_id` | uuid | Nullable — links the weekly copies of a repeating assignment (no FK; a series is just its members). Each copy keeps its own due date and grades |
 | `goal_checkoff_label` | text | Nullable — when set, students see an "I met my goal" checkbox with this label (see `assignment_goal_claims`) |
+| `counts_toward_onboarding` | boolean | Default true — in an Enrollment Readiness course, whether it must be marked Complete for the student to finish (the editor's "Counts toward finishing") |
 
 ---
 
@@ -885,7 +888,7 @@ LP strategy tracking for VC/PE partners (one per partner). Firms with no row are
 
 RLS: staff and admin only.
 ### course_completions
-An instructor/staff/admin marked a student as having completed a course (the **Completed** checkbox on the course Users page). One row per student per course, PK `(course_id, user_id)`. Completing a "Tech Career Foundations …" **and** an "Intro to Programming …" course puts a loaned laptop on the hardware tracker's Ready to transfer list. Staff read all; students read their own; writes only via `setCourseCompleted` (service client).
+An instructor/staff/admin marked a student as having completed a course (the **Completed** checkbox on the course Users page). One row per student per course, PK `(course_id, user_id)`. In an Enrollment Readiness course the row is also written automatically when the student finishes (every counted assignment marked Complete). Completing a "Tech Career Foundations …" **and** an "Intro to Programming …" course puts a loaned laptop on the hardware tracker's Ready to transfer list. Staff read all; students read their own; writes only via `setCourseCompleted` (service client).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -935,7 +938,23 @@ The equipment check-in. A survey (`title`, `closed_at`); recipients PK `(survey_
 Hotspot plan periods: `device_id`, `carrier` (default `Mission Telecom`), `plan`, `starts_on`, `ends_on`, `cost`, `account_number`, `line_number`, `notes`. Renewing adds a row; the current plan is the one ending last.
 
 ### hardware_alerts_sent
-Sent-log for the daily job (`key` PK, e.g. `renewal:<subscription id>`, `likely-lost:<request id>`, `graduates:<break start>`), so each alert goes once.
+Sent-log for the daily job (`key` PK, e.g. `renewal:<subscription id>`, `likely-lost:<request id>`, `graduates:<break start>`, `internet:<plan id>:<billing date>`), so each alert goes once. Also `onboarding-finished:<course id>:<student id>`: the New Student Onboarding finish steps (waitlist add, #student-hardware post) ran for that student.
+
+### hardware_student_needs
+What a student needs (New Student Onboarding), set by staff. PK `student_id` (FK → users, CASCADE). No row = needs a laptop, wifi None.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `laptop` | text | `needs` (default) / `own` |
+| `wifi` | text | `none` (default) / `comcast_now` / `booster` / `hotspot` |
+| `updated_by` | uuid | FK → users, SET NULL |
+| `updated_at` | timestamptz | |
+
+### hardware_shipments
+One box sent to a student (the Ship step): `student_id`, `device_ids` (uuid[], GIN-indexed), `carrier` (`usps`/`ups`/`fedex`/`other`), `tracking_number` (spaces removed), `shipped_on` (date), `received_at` / `received_by` (the student's **I got it**, or staff Mark arrived), `notes`, `created_by`. Still no addresses.
+
+### hardware_internet_plans
+Comcast NOW plans AnnieCannons pays for monthly: `student_id`, `provider` (default `Comcast NOW`), `account_number`, `monthly_cost`, `starts_on` (its day of month is the billing day), `ends_on`, `notes`, `created_by`. The daily job posts a receipt reminder in #student-hardware on each monthly billing day.
 
 ### hardware_tickets
 Equipment Support Form submissions from the Airtable webhook: `airtable_record_id` (unique) and `airtable_url` (the address lives there), `submitted_email`, `submitted_name`, `equipment_type`, `issue`, `other_info`, matched `student_id` / `device_id`, `status` (`open`/`in_progress`/`replacement_sent`/`resolved`), `last_activity_at`, `last_nudged_at` (48h nudge), `resolved_at`.

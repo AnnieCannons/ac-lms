@@ -43,7 +43,7 @@ function chunks<T>(list: T[], size = IN_CHUNK): T[][] {
 
 export async function loadCourses(admin: Admin): Promise<CourseWindow[]> {
   return fetchAllRows<CourseWindow>((from, to) =>
-    admin.from('courses').select('id, name, start_date, end_date').order('id').range(from, to),
+    admin.from('courses').select('id, name, start_date, end_date, is_enrollment_readiness').order('id').range(from, to),
   )
 }
 
@@ -272,7 +272,7 @@ export async function loadEventReport(admin: Admin, event: CuttingEdgeEvent, now
 /** Published events a student in `courseId` can see, with their own RSVP row. */
 export async function loadStudentEvents(admin: Admin, courseId: string, userId: string | null, now: Date) {
   const [{ data: course }, { data: limited }, { data: events, error }] = await Promise.all([
-    admin.from('courses').select('id, name, start_date, end_date').eq('id', courseId).single(),
+    admin.from('courses').select('id, name, start_date, end_date, is_enrollment_readiness').eq('id', courseId).single(),
     admin.from('cutting_edge_event_courses').select('event_id').eq('course_id', courseId),
     admin.from('cutting_edge_events').select(EVENT_COLUMNS)
       .eq('status', 'published').is('deleted_at', null).order('starts_at', { ascending: true }),

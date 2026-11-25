@@ -21,7 +21,7 @@ export default async function InstructorAssignmentEditPage({
 
   const { data: course } = await supabase
     .from("courses")
-    .select("id, name")
+    .select("id, name, is_enrollment_readiness")
     .eq("id", id)
     .single();
 
@@ -32,7 +32,7 @@ export default async function InstructorAssignmentEditPage({
 
   const { data: assignment } = await supabase
     .from("assignments")
-    .select("id, title, description, how_to_turn_in, due_date, published, answer_key_url, submission_required, skill_tags, is_bonus, is_optional, series_id, goal_checkoff_label")
+    .select("id, title, description, how_to_turn_in, due_date, published, answer_key_url, submission_required, skill_tags, is_bonus, is_optional, series_id, goal_checkoff_label, counts_toward_onboarding")
     .eq("id", assignmentId)
     .single();
 
@@ -124,6 +124,7 @@ export default async function InstructorAssignmentEditPage({
               prevAssignment={prevAssignment}
               nextAssignment={nextAssignment}
               seriesInfo={seriesInfo}
+              enrollmentReadiness={!!course.is_enrollment_readiness}
             />
           </main>
         </div>

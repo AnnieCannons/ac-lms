@@ -1,6 +1,7 @@
 'use server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { resolveAirtableStudentIdByEmail } from '@/lib/airtable'
+import { notifyPlanCancelOnObserver } from '@/lib/internet-plan-server'
 
 type Role = 'student' | 'instructor' | 'staff' | 'admin' | 'observer' | 'ta'
 const VALID_ROLES: Role[] = ['student', 'instructor', 'staff', 'admin', 'observer', 'ta']
@@ -342,6 +343,8 @@ export async function updateEnrollmentRole(
     .eq('user_id', userId)
 
   if (error) return { error: error.message }
+  // A student with Comcast NOW changed to observer: DM the staff contact to cancel the card.
+  if (role === 'observer') await notifyPlanCancelOnObserver(admin, userId, courseId)
   return {}
 }
 

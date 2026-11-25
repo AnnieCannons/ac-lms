@@ -18,6 +18,7 @@ export default function NewCourseForm() {
   const [endDate, setEndDate] = useState('')
   const [syllabus, setSyllabus] = useState('')
   const [paidLearners, setPaidLearners] = useState(false)
+  const [enrollmentReadiness, setEnrollmentReadiness] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
@@ -66,6 +67,7 @@ export default function NewCourseForm() {
       endDate: endDate || null,
       syllabusContent: syllabus || null,
       paidLearners,
+      enrollmentReadiness,
       instructorIds: Array.from(selectedIds),
       readinessInstructorIds: Array.from(readinessIds),
       readinessSlackChannel: readinessChannel || null,
@@ -199,6 +201,27 @@ export default function NewCourseForm() {
                   )}
                 </span>
                 Paid learners (enables Benefits &amp; PTO in student sidebar)
+              </button>
+              <button
+                type="button"
+                onClick={() => setEnrollmentReadiness(v => !v)}
+                aria-pressed={enrollmentReadiness}
+                className={`mt-2 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors w-full text-left ${
+                  enrollmentReadiness
+                    ? 'border-teal-primary bg-teal-light text-teal-primary'
+                    : 'border-border text-muted-text hover:border-teal-primary'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
+                  enrollmentReadiness ? 'bg-teal-primary border-teal-primary' : 'border-border'
+                }`}>
+                  {enrollmentReadiness && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+                Enrollment Readiness course (prework for accepted students: shorter student sidebar, tracked on New Student Onboarding)
               </button>
             </div>
             <button

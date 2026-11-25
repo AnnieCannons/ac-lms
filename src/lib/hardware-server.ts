@@ -2,6 +2,15 @@ import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { currentSubscription, type Subscription } from '@/lib/hardware-reminders'
 import {
+  INTERNET_SOON_DAYS,
+  PLAN_COLUMNS,
+  SHIPMENT_CHECK_DAYS,
+  SHIPMENT_COLUMNS,
+  nextRenewal,
+  type InternetPlan,
+  type Shipment,
+} from '@/lib/hardware-shipping'
+import {
   sanitizeSearch,
   type DeviceKind,
   type DeviceStatus,
@@ -271,4 +280,36 @@ export async function loadHotspotPlans(admin: Admin): Promise<HotspotPlanStatus[
     holder: d.current_holder_id ? people.get(d.current_holder_id) ?? null : null,
     current: currentSubscription(subs.filter(s => s.device_id === d.id)),
   }))
+}
+
+// ── Shipping and Comcast NOW on Needs attention (New Student Onboarding) ─────
+
+export type ShippingAttention = {
+  /** Boxes shipped a while ago that nobody has confirmed arrived */
+  unconfirmed: { shipment: Shipment; student: Person; tags: string[] }[]
+  /** Comcast NOW plans billing soon, soonest first */
+  internetSoon: { plan: InternetPlan; student: Person; next: string }[]
+}
+
+export async function loadShippingAttention(admin: Admin, today: string): Promise<ShippingAttention> {
+  const cutoff = new Date(Date.parse(`${today}T00:00:00Z`) - SHIPMENT_CHECK_DAYS * 86_400_000).toISOString().slice(0, 10)
+  const soon = new Date(Date.parse(`${today}T00:00:00Z`) + INTERNET_SOON_DAYS * 86_400_000).toISOString().slice(0, 10)
+  const [{ data: shipments }, { data: plans }] = await Promise.all([
+    admin.from('hardware_shipments').select(SHIPMENT_COLUMNS).is('received_at', null).lte('shipped_on', cutoff).order('shipped_on'),
+    admin.from('hardware_internet_plans').select(PLAN_COLUMNS),
+  ])
+  const late = (shipments as Shipment[] | null) ?? []
+  const billing = ((plans as InternetPlan[] | null) ?? [])
+    .map(plan => ({ plan, next: nextRenewal(plan, today) }))
+    .filter((p): p is { plan: InternetPlan; next: string } => !!p.next && p.next <= soon)
+    .sort((a, b) => a.next.localeCompare(b.next))
+  const deviceIds = [...new Set(late.flatMap(s => s.device_ids))]
+  const { data: devices } = deviceIds.length ? await admin.from('hardware_devices').select('id, asset_tag').in('id', deviceIds) : { data: [] }
+  const tagById = new Map(((devices ?? []) as { id: string; asset_tag: string | null }[]).map(d => [d.id, d.asset_tag ?? '']))
+  const people = await loadPeople(admin, [...late.map(s => s.student_id), ...billing.map(b => b.plan.student_id)])
+  const person = (id: string) => people.get(id) ?? { id, name: null, email: '' }
+  return {
+    unconfirmed: late.map(shipment => ({ shipment, student: person(shipment.student_id), tags: shipment.device_ids.map(id => tagById.get(id) ?? '') })),
+    internetSoon: billing.map(b => ({ ...b, student: person(b.plan.student_id) })),
+  }
 }

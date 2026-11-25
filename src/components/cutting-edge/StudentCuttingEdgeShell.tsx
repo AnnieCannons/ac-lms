@@ -10,7 +10,7 @@ export default function StudentCuttingEdgeShell({
   children,
 }: {
   viewer: StudentCourseViewer
-  course: { id: string; name: string; paid_learners: boolean | null }
+  course: { id: string; name: string; paid_learners: boolean | null; is_enrollment_readiness?: boolean | null }
   children: React.ReactNode
 }) {
   return (
@@ -19,7 +19,7 @@ export default function StudentCuttingEdgeShell({
       <StudentPageBanner viewer={viewer} courseId={course.id} />
       <div className="flex">
         <ResizableSidebar>
-          <StudentCourseNav courseId={course.id} courseName={course.name} paidLearners={!!course.paid_learners} />
+          <StudentCourseNav courseId={course.id} courseName={course.name} paidLearners={!!course.paid_learners} enrollmentReadiness={!!course.is_enrollment_readiness} />
         </ResizableSidebar>
         <div className="flex-1 min-w-0">
           <main id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-4 sm:px-8 py-10 focus:outline-none">

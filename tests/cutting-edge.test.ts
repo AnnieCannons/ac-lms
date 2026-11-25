@@ -73,6 +73,12 @@ describe('audience', () => {
     expect([...audienceCourseIds({ ...event, audience_all: false }, ['ended'], courses, before)]).toEqual(['ended'])
   })
 
+  it('never includes an Enrollment Readiness (prework) course, even one running or chosen', () => {
+    const withPrework = [...courses, { id: 'prework', start_date: '2026-09-20', end_date: null, is_enrollment_readiness: true }]
+    expect([...audienceCourseIds(event, [], withPrework, before)].sort()).toEqual(['current', 'future'])
+    expect([...audienceCourseIds({ ...event, audience_all: false }, ['prework', 'current'], withPrework, before)]).toEqual(['current'])
+  })
+
   it('groups a student under their most recently started audience course', () => {
     const map = new Map(courses.map(c => [c.id, c]))
     expect(primaryCourseFor(['current', 'future'], new Set(['current', 'future']), map)).toBe('future')

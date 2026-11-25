@@ -39,6 +39,7 @@ interface Assignment {
   is_optional: boolean
   series_id?: string | null
   goal_checkoff_label?: string | null
+  counts_toward_onboarding?: boolean | null
 }
 
 interface Props {
@@ -50,6 +51,8 @@ interface Props {
   prevAssignment?: { id: string; title: string } | null
   nextAssignment?: { id: string; title: string } | null
   seriesInfo?: SeriesInfo | null
+  /** The course is an Enrollment Readiness course (offers "Counts toward finishing") */
+  enrollmentReadiness?: boolean
 }
 
 const HTML_CLASSES = `text-sm text-dark-text leading-relaxed
@@ -66,7 +69,7 @@ function decodeHtml(str: string) {
   return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
 }
 
-export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment, seriesInfo }: Props) {
+export default function AssignmentViewEdit({ courseId, assignment: initialAssignment, initialChecklist, enrolledStudents, initialOverrides, prevAssignment, nextAssignment, seriesInfo, enrollmentReadiness = false }: Props) {
   const searchParams = useSearchParams()
   const [editing, setEditing] = useState(searchParams.get('edit') === '1')
   const [assignment, setAssignment] = useState(initialAssignment)
@@ -109,6 +112,7 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
       <>
         <AssignmentEditor
           courseId={courseId}
+          enrollmentReadiness={enrollmentReadiness}
           assignment={assignment}
           initialChecklist={checklist}
           enrolledStudents={enrolledStudents}
@@ -143,6 +147,11 @@ export default function AssignmentViewEdit({ courseId, assignment: initialAssign
             )}
             {assignment.is_optional && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light">Optional</span>
+            )}
+            {enrollmentReadiness && assignment.counts_toward_onboarding === false && (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-border text-muted-text" title="Students can finish Enrollment Readiness without this one">
+                Doesn&apos;t count toward finishing
+              </span>
             )}
             {assignment.goal_checkoff_label && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-teal-primary/30 text-teal-primary bg-teal-light" title={assignment.goal_checkoff_label}>

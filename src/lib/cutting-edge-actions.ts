@@ -154,9 +154,9 @@ async function courseInAudience(
   event: CuttingEdgeEvent,
   courseId: string,
 ): Promise<boolean> {
+  const { data: course } = await admin.from('courses').select('start_date, end_date, is_enrollment_readiness').eq('id', courseId).single()
+  if (!course || course.is_enrollment_readiness) return false
   if (!event.audience_all) return (await loadLimitedCourseIds(admin, event.id)).includes(courseId)
-  const { data: course } = await admin.from('courses').select('start_date, end_date').eq('id', courseId).single()
-  if (!course) return false
   const now = new Date()
   const startsAt = new Date(event.starts_at)
   return isCourseActiveAt(course, startsAt) || (startsAt > now && isCourseActiveAt(course, now))

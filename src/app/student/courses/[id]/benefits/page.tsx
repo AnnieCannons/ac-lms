@@ -31,7 +31,7 @@ export default async function StudentBenefitsPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, paid_learners')
+    .select('id, name, code, paid_learners, is_enrollment_readiness')
     .eq('id', id)
     .single()
 
@@ -52,7 +52,7 @@ export default async function StudentBenefitsPage({
 
       <div className="flex">
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={true} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={true} enrollmentReadiness={course.is_enrollment_readiness ?? false} />
         </ResizableSidebar>
 
         <div className="flex-1 min-w-0">

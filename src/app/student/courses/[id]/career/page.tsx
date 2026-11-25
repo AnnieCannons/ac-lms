@@ -19,11 +19,15 @@ export default async function StudentCareerPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, paid_learners')
+    .select('id, name, code, paid_learners, is_enrollment_readiness')
     .eq('id', id)
     .single()
 
   if (!course) redirect('/student/courses')
+
+  // Enrollment Readiness courses don't have this section
+
+  if (course.is_enrollment_readiness) redirect(`/student/courses/${id}`)
 
   const { data: rawModules } = await supabase
     .from('modules')
@@ -66,7 +70,7 @@ export default async function StudentCareerPage({
 
       <div className="flex">
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} enrollmentReadiness={course.is_enrollment_readiness ?? false} />
         </ResizableSidebar>
 
         <div className="flex-1 min-w-0">

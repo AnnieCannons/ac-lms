@@ -163,6 +163,9 @@ export async function POST(req: NextRequest) {
       // Readiness needs an Airtable name for attendance (updateCourseDates
       // enforces this); without one it would score on assignments alone.
       readiness_enabled: false,
+      // An Enrollment Readiness cohort's next course is per cohort (is_enrollment_readiness
+      // and each assignment's counts_toward_onboarding carry over like every other column)
+      onboarding_next_course_id: null,
       readiness_instructor_ids: validReadinessInstructorIds,
       readiness_slack_channel: validReadinessChannel(readinessSlackChannel),
     }))

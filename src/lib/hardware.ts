@@ -58,6 +58,12 @@ export const EVENT_LABELS: Record<string, string> = {
   plan_removed: 'Plan removed',
   ticket_opened: 'Support form submitted',
   ticket_updated: 'Ticket updated',
+  shipped: 'Shipped',
+  arrived: 'Arrived',
+  needs_updated: 'Laptop / wifi choice changed',
+  internet_plan_added: 'Comcast NOW plan added',
+  internet_plan_edited: 'Comcast NOW plan updated',
+  internet_plan_ended: 'Comcast NOW plan ended',
 }
 
 // ── Ownership, replacements and waitlist (Phase 3b) ──────────────────────────

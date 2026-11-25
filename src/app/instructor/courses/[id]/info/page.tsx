@@ -4,6 +4,7 @@ import Link from 'next/link'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import InstructorSidebar from '@/components/ui/InstructorSidebar'
 import GeneralInfoEditor from '@/components/ui/GeneralInfoEditor'
+import EnrollmentReadinessToggle from '@/components/ui/EnrollmentReadinessToggle'
 import PaidLearnersToggle from '@/components/ui/PaidLearnersToggle'
 import { getInstructorOrTaAccess } from '@/lib/instructor-access'
 
@@ -51,7 +52,7 @@ export default async function InstructorGeneralInfoPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, paid_learners')
+    .select('id, name, code, paid_learners, is_enrollment_readiness')
     .eq('id', id)
     .single()
 
@@ -96,7 +97,12 @@ export default async function InstructorGeneralInfoPage({
               </Link>
             </div>
 
-            {!isTa && <PaidLearnersToggle courseId={id} initialValue={course.paid_learners ?? false} />}
+            {!isTa && (
+              <div className="flex flex-col gap-4">
+                <PaidLearnersToggle courseId={id} initialValue={course.paid_learners ?? false} />
+                <EnrollmentReadinessToggle courseId={id} initialValue={course.is_enrollment_readiness ?? false} />
+              </div>
+            )}
             <div className="mt-6">
               <GeneralInfoEditor courseId={id} initialSections={sections ?? []} readOnly={false} />
             </div>

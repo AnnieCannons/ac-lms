@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getHardwareViewer } from '@/lib/hardware-access'
-import { loadDevices, loadHolders, loadHotspotPlans, loadOpenReturns, loadPeople, loadReadyToTransfer, loadWaitlist, searchStudents } from '@/lib/hardware-server'
+import { loadDevices, loadHolders, loadHotspotPlans, loadOpenReturns, loadPeople, loadReadyToTransfer, loadShippingAttention, loadWaitlist, searchStudents } from '@/lib/hardware-server'
+import { CARRIER_LABELS, INTERNET_SOON_DAYS, SHIPMENT_CHECK_DAYS, trackingUrl } from '@/lib/hardware-shipping'
 import { daysBetween, pacificToday, RENEWAL_ALERT_DAYS, renewalState } from '@/lib/hardware-reminders'
 import { loadOpenTickets } from '@/lib/hardware-tickets-server'
 import { TICKET_STATUS_LABELS, ticketNeedsNudge } from '@/lib/hardware-tickets'
@@ -151,16 +152,17 @@ export default async function HardwarePage({
   } else if (tab === 'waitlist') {
     body = <WaitlistManager entries={await loadWaitlist(admin)} />
   } else {
-    const [returns, repair, prep, readyToTransfer, hotspotPlans, tickets] = await Promise.all([
+    const today = pacificToday()
+    const [returns, repair, prep, readyToTransfer, hotspotPlans, tickets, shipping] = await Promise.all([
       loadOpenReturns(admin),
       loadDevices(admin, { status: 'needs_repair' }),
       loadDevices(admin, { status: 'needs_prep' }),
       loadReadyToTransfer(admin),
       loadHotspotPlans(admin),
       loadOpenTickets(admin),
+      loadShippingAttention(admin, today),
     ])
     const now = new Date()
-    const today = pacificToday()
     const renewals = hotspotPlans
       .filter(h => h.current && renewalState(h.current.ends_on, today) !== 'ok')
       .sort((a, b) => a.current!.ends_on.localeCompare(b.current!.ends_on))
@@ -222,6 +224,42 @@ export default async function HardwarePage({
             <AttentionRow key={device.id} device={device} student={holder}
               meta={left < 0 ? `Ended ${-left} days ago` : left === 0 ? 'Ends today' : `Ends in ${left} days`} metaTone={left <= 14 ? 'urgent' : undefined}
               action={<Link href={`/instructor/hardware/devices/${device.id}`} className="text-xs font-semibold text-teal-primary hover:underline">Renew</Link>} />
+          )
+        }),
+      },
+      {
+        id: 'internet', title: 'Comcast NOW billing soon', count: shipping.internetSoon.length,
+        hint: `Plans billing in the next ${INTERNET_SOON_DAYS} days. On the day, you and the student get a Slack group message asking for the receipt.`,
+        rows: shipping.internetSoon.map(({ plan, student, next }) => {
+          const left = daysBetween(today, next)
+          const details = [plan.monthly_cost !== null ? `$${Number(plan.monthly_cost).toFixed(2)}` : null, plan.account_number ? `account ${plan.account_number}` : null].filter(Boolean).join(' · ')
+          return (
+            <li key={plan.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0 text-sm">
+              <Link href={`/instructor/hardware/students/${student.id}`} className="min-w-0 flex-1 font-semibold text-dark-text hover:text-teal-primary">{student.name ?? student.email}</Link>
+              {details && <span className="text-muted-text">{details}</span>}
+              <span className={`whitespace-nowrap ${left === 0 ? 'text-red-600 font-semibold' : 'text-muted-text'}`}>{left === 0 ? 'Bills today' : `Bills in ${left} ${left === 1 ? 'day' : 'days'}`}</span>
+            </li>
+          )
+        }),
+      },
+      {
+        id: 'unconfirmed', title: 'Shipped, not confirmed', count: shipping.unconfirmed.length,
+        hint: `Shipped ${SHIPMENT_CHECK_DAYS} or more days ago and the student hasn't clicked "I got it". Check the tracking, then mark it arrived on their page.`,
+        rows: shipping.unconfirmed.map(({ shipment, student, tags }) => {
+          const url = trackingUrl(shipment.carrier, shipment.tracking_number)
+          const days = daysBetween(shipment.shipped_on, today)
+          const label = `${CARRIER_LABELS[shipment.carrier]} ${shipment.tracking_number}`
+          return (
+            <li key={shipment.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0 text-sm">
+              <Link href={`/instructor/hardware/students/${student.id}`} className="min-w-0 sm:w-56 font-semibold text-dark-text hover:text-teal-primary">{student.name ?? student.email}</Link>
+              <span className="min-w-0 flex-1 text-muted-text">
+                {tags.filter(Boolean).join(', ')}{tags.some(Boolean) ? ' · ' : ''}
+                {url
+                  ? <a href={url} target="_blank" rel="noopener noreferrer" className="font-mono text-teal-primary hover:underline">{label}<span className="sr-only"> (opens in a new tab)</span></a>
+                  : <span className="font-mono">{label}</span>}
+              </span>
+              <span className="whitespace-nowrap text-muted-text">Shipped {days} days ago</span>
+            </li>
           )
         }),
       },

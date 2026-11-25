@@ -5,6 +5,26 @@ import { RETURN_STEPS } from '@/lib/hardware-reminders'
 export default function Equipment() {
   const items: DocAccordionItem[] = [
     {
+      id: 'getting-your-laptop',
+      title: 'Getting Your Laptop (New Students)',
+      content: (
+        <>
+          <DocP>
+            Once every assignment in <strong>Enrollment Readiness</strong> is marked Complete, we start getting your laptop
+            (and hotspot or wifi booster, if you need one) ready to ship. Until then, My Equipment says what&apos;s left to do.
+          </DocP>
+          <DocList>
+            <li><strong>We&apos;re preparing to ship</strong>: you&apos;re finished and we&apos;re packing it up.</li>
+            <li><strong>On the way</strong>: it shipped. You&apos;ll get a Slack message and an email, and My Equipment shows the tracking number.</li>
+          </DocList>
+          <DocP>
+            When it arrives, click <strong>I got it</strong> on My Equipment so we know. Then do the <em>Receiving Your Laptop</em>{' '}
+            assignment in your course.
+          </DocP>
+        </>
+      ),
+    },
+    {
       id: 'my-equipment',
       title: 'My Equipment',
       content: (

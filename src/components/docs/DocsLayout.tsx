@@ -34,6 +34,7 @@ const INSTRUCTOR_SECTIONS = [
   { slug: 'career-dev', label: 'Career Development' },
   { slug: 'cutting-edge-talks', label: 'Cutting Edge Talks' },
   { slug: 'hardware', label: 'Hardware' },
+  { slug: 'onboarding', label: 'New Student Onboarding' },
   { slug: 'people', label: 'People & Enrollment' },
   { slug: 'roster', label: 'Roster & Progress' },
   { slug: 'gradebook', label: 'Gradebook' },

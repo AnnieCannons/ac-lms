@@ -17,11 +17,15 @@ export default async function GeneralInfoPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, paid_learners, start_date')
+    .select('id, name, code, paid_learners, is_enrollment_readiness, start_date')
     .eq('id', id)
     .single()
 
   if (!course) redirect('/student/courses')
+
+  // Enrollment Readiness courses don't have this section
+
+  if (course.is_enrollment_readiness) redirect(`/student/courses/${id}`)
 
   const { data: sections } = await supabase
     .from('course_sections')
@@ -37,7 +41,7 @@ export default async function GeneralInfoPage({
 
       <div className="flex">
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} enrollmentReadiness={course.is_enrollment_readiness ?? false} />
         </ResizableSidebar>
 
         <div className="flex-1 min-w-0">

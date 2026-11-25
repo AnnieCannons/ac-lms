@@ -23,6 +23,8 @@ export async function createCourse(params: {
   endDate: string | null
   syllabusContent: string | null
   paidLearners: boolean
+  /** An Enrollment Readiness course (New Student Onboarding): trimmed student sidebar, finishing tracked */
+  enrollmentReadiness?: boolean
   instructorIds?: string[]
   readinessInstructorIds?: string[]
   readinessSlackChannel?: string | null
@@ -47,6 +49,7 @@ export async function createCourse(params: {
       end_date: params.endDate,
       syllabus_content: params.syllabusContent,
       paid_learners: params.paidLearners,
+      ...(params.enrollmentReadiness ? { is_enrollment_readiness: true } : {}),
       readiness_instructor_ids: readinessInstructorIds,
       readiness_slack_channel: validReadinessChannel(params.readinessSlackChannel),
     })
@@ -141,6 +144,32 @@ export async function updateCourseDates(
     .eq('id', courseId)
 
   if (error) return { error: error.message }
+  return {}
+}
+
+/**
+ * Marks a course as an Enrollment Readiness course (or not). Instructors, staff and admins
+ * only: instructors are trusted on every course, TAs never change course settings.
+ */
+export async function setEnrollmentReadiness(courseId: string, enabled: boolean): Promise<{ error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'instructor' && profile?.role !== 'staff' && profile?.role !== 'admin') {
+    return { error: 'Not authorized' }
+  }
+  const { data, error } = await createServiceSupabaseClient()
+    .from('courses')
+    .update({ is_enrollment_readiness: enabled })
+    .eq('id', courseId)
+    .select('id')
+  if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Course not found' }
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath(`/instructor/courses/${courseId}`, 'layout')
+  revalidatePath(`/student/courses/${courseId}`, 'layout')
   return {}
 }
 
