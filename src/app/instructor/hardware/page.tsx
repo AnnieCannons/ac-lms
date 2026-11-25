@@ -229,7 +229,7 @@ export default async function HardwarePage({
       },
       {
         id: 'internet', title: 'Comcast NOW billing soon', count: shipping.internetSoon.length,
-        hint: `Plans billing in the next ${INTERNET_SOON_DAYS} days. On the day, a reminder to submit the receipt also posts in #student-hardware.`,
+        hint: `Plans billing in the next ${INTERNET_SOON_DAYS} days. On the day, you and the student get a Slack group message asking for the receipt.`,
         rows: shipping.internetSoon.map(({ plan, student, next }) => {
           const left = daysBetween(today, next)
           const details = [plan.monthly_cost !== null ? `$${Number(plan.monthly_cost).toFixed(2)}` : null, plan.account_number ? `account ${plan.account_number}` : null].filter(Boolean).join(' · ')

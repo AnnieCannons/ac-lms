@@ -2,8 +2,9 @@ import type { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getResend } from '@/lib/resend'
 import { notifyByEmail, slackPostMessage } from '@/lib/slack'
 import { daysSince, formatDateOnly, KIND_LABELS, LIKELY_LOST_DAYS, type DeviceKind } from '@/lib/hardware'
-import { loadHotspotPlans, loadOpenReturns, loadPeople, type HotspotPlanStatus } from '@/lib/hardware-server'
+import { loadHotspotPlans, loadOpenReturns, type HotspotPlanStatus } from '@/lib/hardware-server'
 import { INTERNET_RENEWAL_NOTIFICATION_TYPE, internetRenewalKey, renewsToday } from '@/lib/hardware-shipping'
+import { sendReceiptReminder } from '@/lib/internet-plan-server'
 import { loadOpenTickets } from '@/lib/hardware-tickets-server'
 import { TICKET_NUDGE_HOURS, TICKET_STATUS_LABELS, ticketNeedsNudge } from '@/lib/hardware-tickets'
 import {
@@ -83,24 +84,16 @@ export async function runHardwareReminders(admin: Admin, now: Date = new Date())
 
   // 1b. Comcast NOW plans billing today (AnnieCannons pays monthly and submits a receipt):
   //     once per plan per month.
-  type PlanRow = { id: string; student_id: string; account_number: string | null; monthly_cost: number | null; starts_on: string; ends_on: string | null }
-  const { data: planRows } = await admin.from('hardware_internet_plans').select('id, student_id, account_number, monthly_cost, starts_on, ends_on')
+  //     Each goes to a Slack group message with the staff contact and the student, asking for the receipt.
+  type PlanRow = { id: string; student_id: string; starts_on: string; ends_on: string | null; created_by: string | null }
+  const { data: planRows } = await admin.from('hardware_internet_plans').select('id, student_id, starts_on, ends_on, created_by')
   const internetDue: PlanRow[] = []
   for (const p of ((planRows ?? []) as PlanRow[]).filter(p => renewsToday(p, today))) {
     if (await claimAlert(admin, internetRenewalKey(p.id, today))) internetDue.push(p)
   }
   if (internetDue.length) {
-    const people = await loadPeople(admin, internetDue.map(p => p.student_id))
-    const lines = internetDue.map(p => {
-      const person = people.get(p.student_id)
-      const details = [
-        p.monthly_cost !== null ? `$${Number(p.monthly_cost).toFixed(2)}` : null,
-        p.account_number ? `account ${p.account_number}` : null,
-      ].filter(Boolean).join(', ')
-      return `• <${appUrl()}/instructor/hardware/students/${p.student_id}|${person?.name ?? person?.email ?? 'Student'}>${details ? ` (${details})` : ''}`
-    })
+    for (const p of internetDue) await sendReceiptReminder(admin, p)
     const receipts = internetDue.length === 1 ? 'this month’s receipt' : 'this month’s receipts'
-    await slackPostMessage(channel(), [`💳 *Comcast NOW renewed today.* Time to submit ${receipts}:`, ...lines].join('\n'))
     if (staffIds.length) {
       await admin.from('notifications').insert(staffIds.map(user_id => ({
         user_id, type: INTERNET_RENEWAL_NOTIFICATION_TYPE,

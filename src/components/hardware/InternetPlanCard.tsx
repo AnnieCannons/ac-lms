@@ -14,7 +14,8 @@ function PlanForm({ studentId, plan, today, onDone }: { studentId: string; plan:
   const router = useRouter()
   const [input, setInput] = useState<InternetPlanInput>({
     accountNumber: plan?.account_number ?? '',
-    monthlyCost: plan?.monthly_cost !== null && plan?.monthly_cost !== undefined ? String(plan.monthly_cost) : '',
+    // Comcast NOW is $10/month
+    monthlyCost: plan?.monthly_cost !== null && plan?.monthly_cost !== undefined ? Number(plan.monthly_cost).toFixed(2) : plan ? '' : '10.00',
     startsOn: plan?.starts_on ?? today,
     endsOn: plan?.ends_on ?? '',
     notes: plan?.notes ?? '',
@@ -40,10 +41,7 @@ function PlanForm({ studentId, plan, today, onDone }: { studentId: string; plan:
         <input type="date" className={`${inputCls} mt-1`} value={input.startsOn} onChange={set('startsOn')} required />
       </label>
       <label className={labelCls}>Monthly cost
-        <input className={`${inputCls} mt-1`} value={input.monthlyCost} onChange={set('monthlyCost')} placeholder="e.g. 30.00" inputMode="decimal" />
-      </label>
-      <label className={labelCls}>Account number
-        <input className={`${inputCls} mt-1`} value={input.accountNumber} onChange={set('accountNumber')} />
+        <input className={`${inputCls} mt-1`} value={input.monthlyCost} onChange={set('monthlyCost')} placeholder="10.00" inputMode="decimal" />
       </label>
       {plan && (
         <label className={labelCls}>Ended on
@@ -63,7 +61,7 @@ function PlanForm({ studentId, plan, today, onDone }: { studentId: string; plan:
 }
 
 /**
- * Comcast NOW plans AnnieCannons pays for. A reminder posts in #student-hardware on each
+ * Comcast NOW plans AnnieCannons pays for ($10/month). A Slack group message with the staff contact and the student asks for the receipt on each
  * monthly billing day so the receipt gets submitted.
  */
 export default function InternetPlanCard({

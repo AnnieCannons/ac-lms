@@ -1,0 +1,73 @@
+import type { createServiceSupabaseClient } from '@/lib/supabase/server'
+import { notifyByEmail, openGroupDM, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { formatDateOnly } from '@/lib/hardware'
+import { isPlanCurrent } from '@/lib/hardware-shipping'
+import { pacificToday } from '@/lib/hardware-reminders'
+
+// Slack messages for Comcast NOW plans (AnnieCannons pays $10/month and needs the receipt).
+// The staff contact is COMCAST_NOW_CONTACT_EMAIL when set, else whoever recorded the plan.
+
+type Admin = ReturnType<typeof createServiceSupabaseClient>
+type PlanRow = { id: string; student_id: string; starts_on: string; ends_on: string | null; created_by: string | null }
+
+async function contactEmail(admin: Admin, plan: Pick<PlanRow, 'created_by'>): Promise<string | null> {
+  const fixed = process.env.COMCAST_NOW_CONTACT_EMAIL?.trim()
+  if (fixed) return fixed
+  if (!plan.created_by) return null
+  const { data } = await admin.from('users').select('email').eq('id', plan.created_by).maybeSingle()
+  return (data as { email: string | null } | null)?.email ?? null
+}
+
+/**
+ * The monthly receipt reminder: a Slack group message with the staff contact and the student.
+ * Falls back to a DM to the contact when the student isn't on Slack. Returns whether it posted.
+ */
+export async function sendReceiptReminder(admin: Admin, plan: PlanRow): Promise<boolean> {
+  const [{ data: student }, contact] = await Promise.all([
+    admin.from('users').select('name, email').eq('id', plan.student_id).maybeSingle(),
+    contactEmail(admin, plan),
+  ])
+  const person = student as { name: string | null; email: string | null } | null
+  const first = person?.name?.split(' ')[0] ?? 'there'
+  const [contactId, studentId] = await Promise.all([
+    contact ? slackLookupByEmail(contact) : null,
+    person?.email ? slackLookupByEmail(person.email) : null,
+  ])
+  const text = `Hi ${first}! Your Comcast NOW internet renewed today. Please send this month's receipt here so we can submit it. Thank you!`
+  if (contactId && studentId) {
+    const channel = await openGroupDM([contactId, studentId])
+    if (channel && await slackPostMessage(channel, text)) return true
+  }
+  if (contact) {
+    return notifyByEmail(contact, `Comcast NOW renewed today for ${person?.name ?? person?.email ?? 'a student'}, but I couldn't message them on Slack. Please ask them for this month's receipt.`)
+  }
+  return false
+}
+
+/**
+ * When a student with a current Comcast NOW plan is changed to observer: DM the contact to
+ * cancel the card paying for it. Never throws.
+ */
+export async function notifyPlanCancelOnObserver(admin: Admin, studentId: string, courseId: string): Promise<void> {
+  try {
+    const { data } = await admin.from('hardware_internet_plans').select('id, student_id, starts_on, ends_on, created_by').eq('student_id', studentId)
+    const plans = ((data ?? []) as PlanRow[]).filter(p => isPlanCurrent(p, pacificToday()))
+    if (plans.length === 0) return
+    const [{ data: student }, { data: course }] = await Promise.all([
+      admin.from('users').select('name, email').eq('id', studentId).maybeSingle(),
+      admin.from('courses').select('name').eq('id', courseId).maybeSingle(),
+    ])
+    const name = (student as { name: string | null; email: string } | null)?.name ?? (student as { email: string } | null)?.email ?? 'A student'
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://lms.anniecannons.com').replace(/\/$/, '')
+    for (const plan of plans) {
+      const contact = await contactEmail(admin, plan)
+      if (!contact) continue
+      await notifyByEmail(contact,
+        `💳 ${name} was changed to observer in ${(course as { name: string } | null)?.name ?? 'a course'}. ` +
+        `Please cancel the credit card for their Comcast NOW plan (since ${formatDateOnly(plan.starts_on)}), then end the plan on their hardware page: ` +
+        `${appUrl}/instructor/hardware/students/${studentId}`)
+    }
+  } catch (e) {
+    console.error('comcast: observer cancel notice failed', e)
+  }
+}
