@@ -12,7 +12,7 @@ import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { getCourseWeekNumber } from '@/lib/date-utils'
 import ReadinessPreviewCard from '@/components/ui/ReadinessPreviewCard'
 import OnboardingProgressCard from '@/components/onboarding/OnboardingProgressCard'
-import { loadNeeds, loadStudentProgress, needsFor } from '@/lib/onboarding-server'
+import { loadNeeds, loadStudentOnboarding, needsFor } from '@/lib/onboarding-server'
 import { deviceKindsNeeded, kindList } from '@/lib/hardware-shipping'
 
 export const dynamic = 'force-dynamic'
@@ -136,7 +136,7 @@ export default async function StudentCourseDetailPage({
   // Enrollment Readiness: how far the student has got (nothing to show in preview, which has no student)
   const enrollmentReadiness = !!course.is_enrollment_readiness
   const onboarding = enrollmentReadiness && !viewer.preview && viewer.enrollmentRole === 'student'
-    ? await Promise.all([loadStudentProgress(admin, id, viewer.viewerId), loadNeeds(admin, [viewer.viewerId])])
+    ? await Promise.all([loadStudentOnboarding(admin, id, viewer.viewerId), loadNeeds(admin, [viewer.viewerId])])
     : null
   const toShip = onboarding ? deviceKindsNeeded(needsFor(onboarding[1], viewer.viewerId)) : []
 
@@ -196,11 +196,11 @@ export default async function StudentCourseDetailPage({
             {onboarding && (
               <OnboardingProgressCard
                 courseId={id}
-                done={onboarding[0].done}
-                total={onboarding[0].total}
+                done={onboarding[0].progress.done}
+                total={onboarding[0].progress.total}
                 finished={onboarding[0].finished}
-                waitingOnStaff={onboarding[0].toMark}
-                needsRevision={onboarding[0].needsRevision}
+                waitingOnStaff={onboarding[0].progress.toMark}
+                needsRevision={onboarding[0].progress.needsRevision}
                 equipmentToShip={toShip.length ? kindList(toShip) : null}
               />
             )}

@@ -90,7 +90,7 @@ describe('shipToStudent', () => {
     expect(writes.find(w => w.table === 'hardware_devices')?.row).toMatchObject({ status: 'on_loan', current_holder_id: 'st' })
     expect(writes.find(w => w.table === 'hardware_shipments')?.row).toMatchObject({ student_id: 'st', device_ids: ['lap'], carrier: 'usps', tracking_number: '94001234', shipped_on: '2026-12-12' })
     expect(writes.filter(w => w.table === 'hardware_events').map(w => w.row)).toEqual([
-      expect.objectContaining({ device_id: 'lap', type: 'loaned' }),
+      [expect.objectContaining({ device_id: 'lap', type: 'loaned' })],
       [expect.objectContaining({ device_id: 'lap', type: 'shipped', notes: 'USPS 94001234' })],
     ])
     expect(writes.find(w => w.table === 'hardware_waitlist')?.row).toMatchObject({ fulfilled_device_id: 'lap' })
@@ -107,6 +107,23 @@ describe('shipToStudent', () => {
       : normal(table, ops))
     expect(await shipToStudent(ship)).toEqual({ ok: false, error: "LAP-012 isn't in stock any more." })
     expect(writes).toEqual([])
+  })
+
+  it('if a device is taken between checking and loaning, puts the others back and ships nothing', async () => {
+    as('staff')
+    const hotspot = { id: 'hot', kind: 'hotspot', asset_tag: 'HOT-003', status: 'in_stock', current_holder_id: null }
+    const writes = db((table, ops) => {
+      if (table === 'hardware_devices' && has(ops, 'update')) {
+        // the loan only got the laptop; the hotspot went to someone else a moment ago
+        return has(ops, 'select') ? { data: [{ id: 'lap' }], error: null } : { data: null, error: null }
+      }
+      if (table === 'hardware_devices') return { data: [laptop, hotspot] }
+      return normal(table, ops)
+    })
+    expect(await shipToStudent({ ...ship, loanDeviceIds: ['lap', 'hot'] })).toEqual({ ok: false, error: 'HOT-003 was just taken by someone else. Nothing was shipped.' })
+    const deviceWrites = writes.filter(w => w.table === 'hardware_devices').map(w => w.row)
+    expect(deviceWrites[1]).toMatchObject({ status: 'in_stock', current_holder_id: null })
+    expect(writes.some(w => ['hardware_shipments', 'hardware_events', 'hardware_waitlist', 'notifications'].includes(w.table))).toBe(false)
   })
 
   it('only includes already-loaned devices that are with this student', async () => {
@@ -172,6 +189,17 @@ describe('setStudentNeeds', () => {
     const writes = db(resolver(true))
     expect(await setStudentNeeds('st', { wifi: 'hotspot' })).toEqual({ ok: true })
     expect(writes.filter(w => w.table === 'hardware_waitlist' && w.op === 'insert').map(w => (w.row as { kind: string }).kind)).toEqual(['laptop', 'hotspot'])
+  })
+
+  it('changing Laptop never drops a hotspot or booster someone was waitlisted for by hand', async () => {
+    as('staff')
+    const writes = db((table, ops) => {
+      if (table === 'hardware_student_needs') return { data: [] } // no row: needs a laptop, wifi None
+      return resolver(false)(table, ops)
+    })
+    expect(await setStudentNeeds('st', { laptop: 'own' })).toEqual({ ok: true })
+    const dropped = writes.find(w => w.table === 'hardware_waitlist' && w.op === 'update')
+    expect(dropped?.ops).toContainEqual(['in', ['kind', ['laptop']]])
   })
 
   it('does nothing when the choice is unchanged', async () => {

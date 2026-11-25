@@ -183,9 +183,14 @@ export const ONBOARDING_STAGE_LABELS: Record<OnboardingStage, string> = {
   moved_on: 'Moved on',
 }
 
-export function onboardingStage(finished: boolean, inNextCourse: boolean): Exclude<OnboardingStage, 'invited'> {
+/**
+ * Moved on beats done; someone who has never signed in is still "invited" (inviting a
+ * student enrolls them straight away, before they make their account).
+ */
+export function onboardingStage(finished: boolean, inNextCourse: boolean, signedIn = true): OnboardingStage {
   if (inNextCourse) return 'moved_on'
-  return finished ? 'done' : 'in_progress'
+  if (finished) return 'done'
+  return signedIn ? 'in_progress' : 'invited'
 }
 
 // ── Finishing ────────────────────────────────────────────────────────────────

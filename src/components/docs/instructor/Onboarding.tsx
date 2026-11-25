@@ -46,6 +46,11 @@ export default function Onboarding() {
             <li>they go on the Hardware <strong>Waitlist</strong> for a laptop (unless they have their own) and for a hotspot or booster if that&apos;s their wifi;</li>
             <li>a message posts in <strong>#student-hardware</strong> saying what they need.</li>
           </DocList>
+          <DocP>
+            Finishing sticks: if you add or unmark work afterwards, they stay finished. To undo it, untick{' '}
+            <strong>Completed</strong> on the course&apos;s Users page. Ticking Completed there yourself finishes a student by hand,
+            with the same waitlist and Slack steps. Only published assignments count, so publish the whole course before students start.
+          </DocP>
           <DocNote>
             The DocuSign is the <em>Equipment Use &amp; Responsibility Agreement</em> assignment. Students submit
             &ldquo;Finished&rdquo;; check DocuSign before you mark it Complete.
@@ -64,7 +69,7 @@ export default function Onboarding() {
           </DocP>
           <DocList>
             <li><strong>Needs you</strong>: work waiting to be marked Complete, students ready to ship, and Comcast NOW plans to record. Click one to see just those students.</li>
-            <li><strong>Invited</strong>: students who were invited but haven&apos;t made their account yet.</li>
+            <li><strong>Invited</strong>: students who haven&apos;t signed in yet (inviting someone adds them to the course straight away).</li>
             <li>Each student shows their progress, what&apos;s overdue, their Laptop and Wifi choices, and where their equipment is.</li>
           </DocList>
           <DocH3>A student&apos;s checklist</DocH3>

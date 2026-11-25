@@ -142,6 +142,11 @@ describe('onboardingStage', () => {
     expect(onboardingStage(true, false)).toBe('done')
     expect(onboardingStage(true, true)).toBe('moved_on')
   })
+
+  it('someone who has never signed in is still invited, unless staff finished them', () => {
+    expect(onboardingStage(false, false, false)).toBe('invited')
+    expect(onboardingStage(true, false, false)).toBe('done')
+  })
 })
 
 describe('describeNeeds', () => {

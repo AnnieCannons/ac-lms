@@ -69,14 +69,14 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     hasInternetPlan: (equipment.plans.get(id) ?? []).some(p => isPlanCurrent(p, today)),
     finished,
   })
-  const states = new Map(rows.map(r => [r.student.id, equipmentOf(r.student.id, r.progress.finished)]))
+  const states = new Map(rows.map(r => [r.student.id, equipmentOf(r.student.id, r.finished)]))
   const toShip = (r: OnboardingRow) => (states.get(r.student.id) ?? []).some(s => s.state === 'to_ship')
   const comcastToSetUp = (r: OnboardingRow) => (states.get(r.student.id) ?? []).some(s => s.state === 'to_set_up')
 
-  const stageOf = (r: OnboardingRow): OnboardingStage => onboardingStage(r.progress.finished, r.inNextCourse)
+  const stageOf = (r: OnboardingRow): OnboardingStage => onboardingStage(r.finished, r.inNextCourse, r.signedIn)
   const counts: Record<Filter, number> = {
     all: rows.length + invites.length,
-    invited: invites.length,
+    invited: rows.filter(r => stageOf(r) === 'invited').length + invites.length,
     in_progress: rows.filter(r => stageOf(r) === 'in_progress').length,
     done: rows.filter(r => stageOf(r) === 'done').length,
     moved_on: rows.filter(r => stageOf(r) === 'moved_on').length,
@@ -86,7 +86,6 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   }
   const shown = rows.filter(r =>
     filter === 'all' ? true
-    : filter === 'invited' ? false
     : filter === 'to_mark' ? r.progress.toMark > 0
     : filter === 'to_ship' ? toShip(r)
     : filter === 'comcast' ? comcastToSetUp(r)
@@ -107,7 +106,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
               <Link href={`/instructor/courses/${course.id}`} className="font-semibold text-dark-text hover:text-teal-primary">{course.name}</Link>
               {course.start_date && <> · {formatDateOnly(course.start_date.slice(0, 10))}{course.end_date && <> – {formatDateOnly(course.end_date.slice(0, 10))}</>}</>}
               {' · '}{rows.length} {rows.length === 1 ? 'student' : 'students'}
-              {invites.length > 0 && <> · {invites.length} invited</>}
+              {counts.invited > 0 && <> · {counts.invited} {counts.invited === 1 ? 'hasn’t' : 'haven’t'} signed in yet</>}
               {' · '}{countedTotal} {countedTotal === 1 ? 'assignment counts' : 'assignments count'} toward finishing
             </p>
           </div>
@@ -139,8 +138,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           courseId={course.id}
           nextCourseId={course.onboarding_next_course_id}
           options={nextOptions}
-          finished={rows.filter(r => r.progress.finished).length}
-          finishedNotThere={rows.filter(r => r.progress.finished && !r.inNextCourse).length}
+          finished={rows.filter(r => r.finished).length}
+          finishedNotThere={rows.filter(r => r.finished && !r.inNextCourse).length}
         />
 
         <nav aria-label="Filter students" className="flex gap-1 overflow-x-auto border-b border-border mb-4">
@@ -165,7 +164,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
         {(filter === 'all' || filter === 'invited') && invites.length > 0 && (
           <section aria-labelledby="invited-heading" className="mb-6">
-            <h2 id="invited-heading" className="text-xs font-bold uppercase tracking-wide text-muted-text mb-2">Invited, hasn&apos;t signed up yet</h2>
+            <h2 id="invited-heading" className="text-xs font-bold uppercase tracking-wide text-muted-text mb-2">Invited, not in the course yet</h2>
             <ul className="bg-surface rounded-2xl border border-border divide-y divide-border">
               {invites.map(i => (
                 <li key={i.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm">
@@ -177,7 +176,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           </section>
         )}
 
-        {filter !== 'invited' && (
+        {!(filter === 'invited' && shown.length === 0 && invites.length > 0) && (
           shown.length === 0 ? (
             <p className="bg-surface rounded-2xl border border-border p-6 text-sm text-muted-text">No students here.</p>
           ) : (
@@ -202,6 +201,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                         <div className="flex items-baseline justify-between gap-2 mb-1.5 text-sm">
                           <span className="font-semibold text-dark-text">{p.done} of {p.total} complete</span>
                           {stage === 'done' && <span className="text-xs font-semibold text-green-700">✓ Done{r.finishedAt ? ` ${pacificShortDate(r.finishedAt)}` : ''}</span>}
+                          {stage === 'invited' && <span className="text-xs font-semibold text-muted-text">Hasn&apos;t signed in yet</span>}
                           {stage === 'moved_on' && <span className="text-xs font-semibold text-teal-primary">In {nextOptions.find(o => o.id === course.onboarding_next_course_id)?.name ?? 'the next course'}</span>}
                         </div>
                         <ProgressBar done={p.done} total={p.total} />
@@ -230,6 +230,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                           needs={needsFor(equipment.needs, r.student.id)}
                           inStock={inStock}
                           unshipped={unshipped}
+                          heldKinds={held.filter(d => d.status !== 'awaiting_return').map(d => d.kind)}
                           today={today}
                         />
                       )}

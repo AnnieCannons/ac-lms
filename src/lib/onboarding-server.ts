@@ -279,15 +279,26 @@ export async function addNeededToWaitlist(admin: Admin, studentId: string, needs
  * assignment marked Complete, or the onboarding page loading). If every counted assignment
  * is Complete, the first call: ticks Completed for the course, adds them to the hardware
  * waitlist for what they need, and posts in #student-hardware. Returns whether they're finished.
+ *
+ * `force` skips the assignment check: staff ticked Completed by hand on the Users page.
  */
-export async function finishOnboardingIfDone(admin: Admin, courseId: string, studentId: string, actorId: string | null, progress?: OnboardingProgress): Promise<boolean> {
+export async function finishOnboardingIfDone(
+  admin: Admin,
+  courseId: string,
+  studentId: string,
+  actorId: string | null,
+  progress?: OnboardingProgress,
+  { force = false }: { force?: boolean } = {},
+): Promise<boolean> {
   const { data: course } = await admin.from('courses').select('id, name, is_enrollment_readiness').eq('id', courseId).maybeSingle()
   if (!(course as { is_enrollment_readiness?: boolean } | null)?.is_enrollment_readiness) return false
   const { data: enrollment } = await admin.from('course_enrollments').select('role').eq('course_id', courseId).eq('user_id', studentId).maybeSingle()
   if ((enrollment as { role?: string } | null)?.role !== 'student') return false
 
-  const current = progress ?? await loadStudentProgress(admin, courseId, studentId)
-  if (!current.finished) return false
+  if (!force) {
+    const current = progress ?? await loadStudentProgress(admin, courseId, studentId)
+    if (!current.finished) return false
+  }
   if (!(await claimOnce(admin, onboardingFinishedKey(courseId, studentId)))) return true
 
   await admin.from('course_completions').upsert(
@@ -336,8 +347,23 @@ export async function loadMyOnboarding(admin: Admin, studentId: string, today: s
   const course = ((courses ?? []) as { id: string; start_date: string | null; end_date: string | null }[])
     .find(c => !c.end_date || c.end_date.slice(0, 10) >= addDaysIso(today, -60))
   if (!course) return null
-  const progress = await loadStudentProgress(admin, course.id, studentId, today)
-  return { courseId: course.id, finished: progress.finished }
+  const { finished } = await loadStudentOnboarding(admin, course.id, studentId, today)
+  return { courseId: course.id, finished }
+}
+
+/**
+ * One student's progress plus whether they count as finished: every counted assignment is
+ * Complete, or they already finished once (their Completed tick for the course). Finishing
+ * sticks, so work added or unmarked later doesn't take back equipment that's on its way;
+ * unticking Completed on the Users page is how staff undo it.
+ */
+export async function loadStudentOnboarding(admin: Admin, courseId: string, studentId: string, today: string = pacificToday()): Promise<{ progress: OnboardingProgress; finished: boolean; finishedAt: string | null }> {
+  const [progress, { data: completion }] = await Promise.all([
+    loadStudentProgress(admin, courseId, studentId, today),
+    admin.from('course_completions').select('completed_at').eq('course_id', courseId).eq('user_id', studentId).maybeSingle(),
+  ])
+  const finishedAt = (completion as { completed_at: string } | null)?.completed_at ?? null
+  return { progress, finished: progress.finished || !!finishedAt, finishedAt }
 }
 
 function addDaysIso(date: string, days: number): string {
@@ -349,10 +375,28 @@ function addDaysIso(date: string, days: number): string {
 export type OnboardingRow = {
   student: Person
   progress: OnboardingProgress
+  /** Every counted assignment Complete, or finished once already (see loadStudentOnboarding) */
+  finished: boolean
   /** When they finished (their Completed tick for this course), if they have */
   finishedAt: string | null
+  /** Has signed in at least once (invited students are enrolled straight away, before they sign up) */
+  signedIn: boolean
   /** Already enrolled in the cohort's next course */
   inNextCourse: boolean
+}
+
+/** Whether each user has ever signed in, from Supabase auth (a few at a time). */
+async function loadSignedIn(admin: Admin, ids: string[]): Promise<Set<string>> {
+  const signedIn = new Set<string>()
+  for (let i = 0; i < ids.length; i += 10) {
+    const results = await Promise.all(ids.slice(i, i + 10).map(id =>
+      admin.auth.admin.getUserById(id).catch(() => ({ data: { user: null } })),
+    ))
+    results.forEach((r, j) => {
+      if ((r as { data: { user: { last_sign_in_at?: string | null } | null } }).data?.user?.last_sign_in_at) signedIn.add(ids[i + j])
+    })
+  }
+  return signedIn
 }
 
 export type OnboardingCohort = {
@@ -390,7 +434,7 @@ export async function loadOnboardingCohort(admin: Admin, course: CohortCourse, t
     }
   }
 
-  const finishedAt = await loadFinishedAt(admin, course.id)
+  const [finishedAt, signedIn] = await Promise.all([loadFinishedAt(admin, course.id), loadSignedIn(admin, ids)])
   const nextIds = new Set<string>()
   if (course.onboarding_next_course_id && ids.length) {
     for (const part of chunks(ids)) {
@@ -400,13 +444,17 @@ export async function loadOnboardingCohort(admin: Admin, course: CohortCourse, t
     }
   }
 
+  // Inviting someone enrolls them straight away, so only list invitations nobody enrolled matches.
+  const enrolledEmails = new Set(students.map(s => s.email.toLowerCase()))
   return {
     assignments,
-    invites,
+    invites: invites.filter(i => !enrolledEmails.has(i.email.toLowerCase())),
     rows: students.map(student => ({
       student,
       progress: progress.get(student.id)!,
+      finished: progress.get(student.id)!.finished || finishedAt.has(student.id),
       finishedAt: finishedAt.get(student.id) ?? null,
+      signedIn: signedIn.has(student.id),
       inNextCourse: nextIds.has(student.id),
     })),
   }

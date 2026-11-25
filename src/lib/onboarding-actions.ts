@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getOnboardingActor } from '@/lib/onboarding-access'
-import { loadCohortProgress, loadCohortStudents } from '@/lib/onboarding-server'
+import { loadCohortProgress, loadCohortStudents, loadFinishedAt } from '@/lib/onboarding-server'
 
 // Moving an Enrollment Readiness cohort on to its next course (New Student Onboarding, phase 4).
 
@@ -48,8 +48,12 @@ export async function addFinishersToNextCourse(courseId: string): Promise<Result
   if (!nextId) return { ok: false, error: 'Choose the next course first.' }
 
   const students = await loadCohortStudents(admin, courseId)
-  const { progress } = await loadCohortProgress(admin, courseId, students.map(s => s.id))
-  const finished = students.filter(s => progress.get(s.id)?.finished).map(s => s.id)
+  const [{ progress }, finishedAt] = await Promise.all([
+    loadCohortProgress(admin, courseId, students.map(s => s.id)),
+    loadFinishedAt(admin, courseId),
+  ])
+  // Finished = every counted assignment Complete, or finished once already (their Completed tick)
+  const finished = students.filter(s => progress.get(s.id)?.finished || finishedAt.has(s.id)).map(s => s.id)
   if (finished.length === 0) return { ok: true, added: 0, alreadyThere: 0 }
 
   const { data: existing } = await admin.from('course_enrollments').select('user_id').eq('course_id', nextId).in('user_id', finished)

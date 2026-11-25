@@ -20,6 +20,7 @@ export default function ShipForm({
   needs,
   inStock,
   unshipped,
+  heldKinds,
   today,
   onDone,
   onCancel,
@@ -31,18 +32,21 @@ export default function ShipForm({
   inStock: HardwareDevice[]
   /** Devices the student already has that haven't gone out in a shipment */
   unshipped: HardwareDevice[]
+  /** Every kind of device the student has right now (no picker is offered for these) */
+  heldKinds: DeviceKind[]
   /** YYYY-MM-DD, Pacific */
   today: string
   onDone: () => void
   onCancel: () => void
 }) {
   const router = useRouter()
-  const heldKinds = new Set(unshipped.map(d => d.kind))
-  // One picker per device their needs call for that isn't already in the box
-  const neededKinds = useMemo(() => deviceKindsNeeded(needs).filter(k => !heldKinds.has(k)), [needs]) // eslint-disable-line react-hooks/exhaustive-deps
+  // One picker per device their needs call for that they don't already have
+  const neededKinds = useMemo(() => deviceKindsNeeded(needs).filter(k => !heldKinds.includes(k)), [needs, heldKinds])
   const [picked, setPicked] = useState<Record<string, string>>({})
   const [extra, setExtra] = useState('')
-  const [held, setHeld] = useState<Set<string>>(new Set(unshipped.map(d => d.id)))
+  // Nothing they already have is ticked: devices handed over before shipping existed would
+  // otherwise go out in every box.
+  const [held, setHeld] = useState<Set<string>>(new Set())
   const [carrier, setCarrier] = useState<Carrier>('usps')
   const [tracking, setTracking] = useState('')
   const [shippedOn, setShippedOn] = useState(today)
@@ -68,8 +72,9 @@ export default function ShipForm({
       notes,
     })
     setBusy(false)
-    if (!res.ok) { setError(res.error); return }
+    // Refresh either way, so a device someone else just took drops out of the lists
     router.refresh()
+    if (!res.ok) { setError(res.error); return }
     onDone()
   }
 
@@ -86,7 +91,7 @@ export default function ShipForm({
               checked={held.has(d.id)}
               onChange={e => setHeld(prev => { const next = new Set(prev); if (e.target.checked) next.add(d.id); else next.delete(d.id); return next })}
             />
-            {KIND_LABELS[d.kind]} {deviceLabel(d)} <span className="text-xs text-muted-text">(already loaned to them)</span>
+            {KIND_LABELS[d.kind]} {deviceLabel(d)} <span className="text-xs text-muted-text">(already theirs; tick only if it&apos;s in this box)</span>
           </label>
         ))}
         {neededKinds.map(kind => (

@@ -118,6 +118,13 @@ describe('finishOnboardingIfDone', () => {
     expect(second.writes.filter(w => w.table === 'hardware_waitlist')).toEqual([])
   })
 
+  it('runs the finish steps when staff tick Completed by hand, even with work outstanding', async () => {
+    const { admin, writes } = db({ grades: ['complete', null] })
+    expect(await finishOnboardingIfDone(admin, 'er', 'st', 'staff', undefined, { force: true })).toBe(true)
+    expect(writes.find(w => w.table === 'hardware_alerts_sent')?.row).toEqual({ key: 'onboarding-finished:er:st' })
+    expect(posted).toHaveLength(1)
+  })
+
   it('only acts once per student and course', async () => {
     const { admin, writes } = db({ alreadyClaimed: true })
     expect(await finishOnboardingIfDone(admin, 'er', 'st', 'staff')).toBe(true)

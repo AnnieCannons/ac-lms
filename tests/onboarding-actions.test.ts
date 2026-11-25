@@ -4,10 +4,12 @@ vi.mock('@/lib/supabase/server', () => ({ createServerSupabaseClient: vi.fn(), c
 vi.mock('@/lib/onboarding-access', () => ({ getOnboardingActor: vi.fn() }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/onboarding-server', () => ({
-  loadCohortStudents: vi.fn(async () => [{ id: 'done-1' }, { id: 'done-2' }, { id: 'working' }]),
+  loadCohortStudents: vi.fn(async () => [{ id: 'done-1' }, { id: 'done-2' }, { id: 'ticked' }, { id: 'working' }]),
   loadCohortProgress: vi.fn(async () => ({
-    progress: new Map([['done-1', { finished: true }], ['done-2', { finished: true }], ['working', { finished: false }]]),
+    progress: new Map([['done-1', { finished: true }], ['done-2', { finished: true }], ['ticked', { finished: false }], ['working', { finished: false }]]),
   })),
+  // 'ticked' finished earlier (Completed is ticked) even though new work has been added since
+  loadFinishedAt: vi.fn(async () => new Map([['ticked', '2026-12-09T18:00:00Z']])),
 }))
 
 import { addFinishersToNextCourse, setOnboardingNextCourse } from '@/lib/onboarding-actions'
@@ -81,8 +83,11 @@ describe('setOnboardingNextCourse', () => {
 describe('addFinishersToNextCourse', () => {
   it('adds only finished students who aren’t already there', async () => {
     const writes = db({ er, tcf }, ['done-2'])
-    expect(await addFinishersToNextCourse('er')).toEqual({ ok: true, added: 1, alreadyThere: 1 })
-    expect(writes).toEqual([{ table: 'course_enrollments', op: 'insert', row: [{ course_id: 'tcf', user_id: 'done-1', role: 'student' }] }])
+    expect(await addFinishersToNextCourse('er')).toEqual({ ok: true, added: 2, alreadyThere: 1 })
+    expect(writes).toEqual([{ table: 'course_enrollments', op: 'insert', row: [
+      { course_id: 'tcf', user_id: 'done-1', role: 'student' },
+      { course_id: 'tcf', user_id: 'ticked', role: 'student' },
+    ] }])
   })
 
   it('needs the next course picked first', async () => {

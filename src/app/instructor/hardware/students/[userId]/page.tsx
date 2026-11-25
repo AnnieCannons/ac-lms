@@ -75,6 +75,7 @@ export default async function StudentHardwarePage({ params }: { params: Promise<
               needs={needs}
               inStock={inStock.filter(d => !d.current_holder_id)}
               unshipped={unshipped}
+              heldKinds={currentDevices.filter(d => d.status !== 'awaiting_return').map(d => d.kind)}
               today={today}
             />
           ) : undefined}

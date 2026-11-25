@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
+import { finishOnboardingIfDone, isEnrollmentReadinessCourse } from '@/lib/onboarding-server'
 
 type Result = { ok: true } | { ok: false; error: string }
 
@@ -32,5 +33,16 @@ export async function setCourseCompleted(courseId: string, userId: string, compl
     { course_id: courseId, user_id: userId, marked_by: editor.userId },
     { onConflict: 'course_id,user_id', ignoreDuplicates: true },
   )
-  return error ? { ok: false, error: error.message } : { ok: true }
+  if (error) return { ok: false, error: error.message }
+
+  // Ticking Completed in an Enrollment Readiness course finishes them by hand: the same
+  // waitlist add and #student-hardware post as finishing every assignment (once only).
+  try {
+    if (await isEnrollmentReadinessCourse(admin, courseId)) {
+      await finishOnboardingIfDone(admin, courseId, userId, editor.userId, undefined, { force: true })
+    }
+  } catch (e) {
+    console.error('onboarding: finish on manual completion failed', e)
+  }
+  return { ok: true }
 }

@@ -104,8 +104,12 @@ export async function setStudentNeeds(studentId: string, change: Partial<Student
   ].filter(Boolean).join(' · ')
   await admin.from('hardware_events').insert({ student_id: studentId, type: 'needs_updated', notes, actor_id: staff.userId })
 
-  // Drop waiting entries the new choice rules out.
-  const notNeeded: DeviceKind[] = [...wifiKindsNotNeeded(next.wifi), ...(next.laptop === 'own' ? ['laptop' as const] : [])]
+  // Drop waiting entries the change rules out, and only those: changing Laptop never touches a
+  // hotspot or booster someone was waitlisted for by hand, and vice versa.
+  const notNeeded: DeviceKind[] = [
+    ...(next.wifi !== before.wifi ? wifiKindsNotNeeded(next.wifi) : []),
+    ...(next.laptop !== before.laptop && next.laptop === 'own' ? ['laptop' as const] : []),
+  ]
   const stillNeeded = new Set(deviceKindsNeeded(next))
   const drop = notNeeded.filter(k => !stillNeeded.has(k))
   if (drop.length) {
@@ -152,22 +156,27 @@ export async function shipToStudent(input: ShipInput): Promise<Result<{ shipment
     if (devices.get(id)?.current_holder_id !== student.id) return { ok: false, error: 'One of the devices isn’t with this student.' }
   }
 
-  // Loan each in-stock device. Conditional, so two people shipping the same device can't both succeed.
-  const loaned: string[] = []
-  for (const id of clean.loanDeviceIds) {
+  // Loan every in-stock device in one conditional update, so two people shipping the same
+  // device can't both succeed. If any was taken meanwhile, put the rest back and change nothing.
+  if (clean.loanDeviceIds.length) {
     const { data: updated, error } = await admin.from('hardware_devices')
       .update({ status: 'on_loan', current_holder_id: student.id, updated_at: now() })
-      .eq('id', id).eq('status', 'in_stock').is('current_holder_id', null).select('id, kind')
-    if (error || !updated?.length) {
-      const tag = devices.get(id)?.asset_tag ?? 'A device'
-      const done = loaned.map(l => devices.get(l)?.asset_tag).filter(Boolean).join(', ')
-      return { ok: false, error: `${tag} couldn't be loaned${error ? `: ${error.message}` : ' (no longer in stock)'}.${done ? ` Already loaned: ${done}.` : ''}` }
+      .in('id', clean.loanDeviceIds).eq('status', 'in_stock').is('current_holder_id', null).select('id')
+    const got = new Set(((updated ?? []) as { id: string }[]).map(d => d.id))
+    if (error || got.size !== clean.loanDeviceIds.length) {
+      if (got.size) {
+        await admin.from('hardware_devices').update({ status: 'in_stock', current_holder_id: null, updated_at: now() })
+          .in('id', [...got]).eq('status', 'on_loan').eq('current_holder_id', student.id)
+      }
+      const missing = clean.loanDeviceIds.filter(id => !got.has(id)).map(id => devices.get(id)?.asset_tag ?? 'A device')
+      return { ok: false, error: error ? error.message : `${missing.join(', ')} ${missing.length === 1 ? 'was' : 'were'} just taken by someone else. Nothing was shipped.` }
     }
-    loaned.push(id)
-    await admin.from('hardware_events').insert({ device_id: id, student_id: student.id, type: 'loaned', notes: 'Shipped', actor_id: actor.userId })
-    await admin.from('hardware_waitlist')
-      .update({ fulfilled_at: now(), fulfilled_device_id: id })
-      .eq('student_id', student.id).eq('kind', (updated[0] as { kind: string }).kind).is('fulfilled_at', null).is('removed_at', null)
+    await admin.from('hardware_events').insert(clean.loanDeviceIds.map(id => ({ device_id: id, student_id: student.id, type: 'loaned', notes: 'Shipped', actor_id: actor.userId })))
+    for (const id of clean.loanDeviceIds) {
+      await admin.from('hardware_waitlist')
+        .update({ fulfilled_at: now(), fulfilled_device_id: id })
+        .eq('student_id', student.id).eq('kind', devices.get(id)!.kind).is('fulfilled_at', null).is('removed_at', null)
+    }
   }
 
   const { data: shipment, error: shipError } = await admin.from('hardware_shipments').insert({
@@ -179,7 +188,11 @@ export async function shipToStudent(input: ShipInput): Promise<Result<{ shipment
     notes: blankOr(clean.notes),
     created_by: actor.userId,
   }).select('id').single()
-  if (shipError || !shipment) return { ok: false, error: shipError?.message ?? 'The shipment could not be saved.' }
+  if (shipError || !shipment) {
+    // The devices are loaned; Ship again with them ticked (under "already loaned") to record the box.
+    refresh(student.id)
+    return { ok: false, error: `The devices were loaned, but the shipment couldn't be saved (${shipError?.message ?? 'unknown error'}). Ship again with them ticked.` }
+  }
 
   const label = `${CARRIER_LABELS[clean.carrier]} ${clean.trackingNumber}`
   await admin.from('hardware_events').insert(ids.map(id => ({ device_id: id, student_id: student.id, type: 'shipped', notes: label, actor_id: actor.userId })))

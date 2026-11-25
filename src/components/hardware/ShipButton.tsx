@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { HardwareDevice } from '@/lib/hardware'
+import type { DeviceKind, HardwareDevice } from '@/lib/hardware'
 import type { StudentNeeds } from '@/lib/hardware-shipping'
 import ShipForm from './ShipForm'
 
@@ -12,6 +12,7 @@ export default function ShipButton(props: {
   needs: StudentNeeds
   inStock: HardwareDevice[]
   unshipped: HardwareDevice[]
+  heldKinds: DeviceKind[]
   today: string
   label?: string
 }) {

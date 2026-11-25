@@ -87,6 +87,8 @@ export default async function OnboardingStudentPage({ params }: { params: Promis
     }
   }
   const { data: completion } = await admin.from('course_completions').select('completed_at').eq('course_id', courseId).eq('user_id', userId).maybeSingle()
+  // Finishing sticks once it happened (see loadStudentOnboarding)
+  const finished = progress.finished || !!completion?.completed_at
 
   const counted = progress.items.filter(i => i.counts)
   const notCounted = progress.items.filter(i => !i.counts)
@@ -113,7 +115,7 @@ export default async function OnboardingStudentPage({ params }: { params: Promis
         <section className="bg-surface rounded-2xl border border-border p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-sm font-bold text-dark-text">{progress.done} of {progress.total} complete</p>
-            {progress.finished
+            {finished
               ? <p className="text-sm font-semibold text-green-700">✓ Finished{completion?.completed_at ? ` ${pacificShortDate(completion.completed_at, true)}` : ''}</p>
               : <p className="text-sm text-muted-text">{[
                   progress.toMark > 0 && `${progress.toMark} to mark Complete`,
