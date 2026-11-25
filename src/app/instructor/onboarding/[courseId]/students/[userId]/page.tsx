@@ -7,6 +7,7 @@ import { getOnboardingViewer } from '@/lib/onboarding-access'
 import { finishOnboardingIfDone, loadStudentProgress } from '@/lib/onboarding-server'
 import {
   ONBOARDING_STATUS_LABELS,
+  lastTasks,
   onboardingFinishedKey,
   pacificShortDate,
   type OnboardingItem,
@@ -116,7 +117,9 @@ export default async function OnboardingStudentPage({ params }: { params: Promis
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-sm font-bold text-dark-text">{progress.done} of {progress.total} complete</p>
             {finished
-              ? <p className="text-sm font-semibold text-green-700">✓ Finished{completion?.completed_at ? ` ${pacificShortDate(completion.completed_at, true)}` : ''}</p>
+              ? lastTasks(progress).length > 0
+                ? <p className="text-sm font-semibold text-amber-700"><span aria-hidden="true">💻 </span>Ready for laptop{completion?.completed_at ? ` · ${pacificShortDate(completion.completed_at, true)}` : ''} · then {lastTasks(progress).map(a => a.title).join(', ')}</p>
+                : <p className="text-sm font-semibold text-green-700">✓ Finished{completion?.completed_at ? ` ${pacificShortDate(completion.completed_at, true)}` : ''}</p>
               : <p className="text-sm text-muted-text">{[
                   progress.toMark > 0 && `${progress.toMark} to mark Complete`,
                   progress.needsRevision > 0 && `${progress.needsRevision} needs revision`,
