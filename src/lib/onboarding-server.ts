@@ -444,3 +444,18 @@ export async function loadMyEquipmentExtras(admin: Admin, userId: string, device
     hasInternetPlan: (equipment.plans.get(userId) ?? []).some(p => isPlanCurrent(p, today)),
   }
 }
+
+/**
+ * Courses a cohort can move on to: not templates, archived or Enrollment Readiness, and not
+ * long over. Tech Career Foundations courses first, newest first; the current choice always shows.
+ */
+export async function loadNextCourseOptions(admin: Admin, today: string, keepId: string | null): Promise<{ id: string; name: string }[]> {
+  const { data } = await admin.from('courses').select('id, name, start_date, end_date, is_template, archived, is_enrollment_readiness')
+  const cutoff = addDaysIso(today, -30)
+  type Row = { id: string; name: string; start_date: string | null; end_date: string | null; is_template: boolean | null; archived: boolean | null; is_enrollment_readiness: boolean | null }
+  const tcf = (r: Row) => /^tech career foundations/i.test(r.name.trim())
+  return ((data ?? []) as Row[])
+    .filter(r => r.id === keepId || (!r.is_template && !r.archived && !r.is_enrollment_readiness && (!r.end_date || r.end_date.slice(0, 10) >= cutoff)))
+    .sort((a, b) => Number(tcf(b)) - Number(tcf(a)) || (b.start_date ?? '').localeCompare(a.start_date ?? '') || a.name.localeCompare(b.name))
+    .map(r => ({ id: r.id, name: r.name }))
+}

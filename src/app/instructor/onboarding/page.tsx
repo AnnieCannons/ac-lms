@@ -3,10 +3,11 @@ import { createServiceSupabaseClient } from '@/lib/supabase/server'
 import InstructorTopNav from '@/components/ui/InstructorTopNav'
 import CohortPicker from '@/components/onboarding/CohortPicker'
 import EquipmentStatusList from '@/components/onboarding/EquipmentStatusList'
+import NextCoursePanel from '@/components/onboarding/NextCoursePanel'
 import NeedsControls from '@/components/hardware/NeedsControls'
 import ShipButton from '@/components/hardware/ShipButton'
 import { getOnboardingViewer } from '@/lib/onboarding-access'
-import { loadCohortEquipment, loadCohorts, loadOnboardingCohort, needsFor, type OnboardingRow } from '@/lib/onboarding-server'
+import { loadCohortEquipment, loadCohorts, loadNextCourseOptions, loadOnboardingCohort, needsFor, type OnboardingRow } from '@/lib/onboarding-server'
 import { loadDevices } from '@/lib/hardware-server'
 import { ONBOARDING_STAGE_LABELS, onboardingStage, pacificShortDate, pickDefaultCohort, sortCohorts, type OnboardingStage } from '@/lib/onboarding'
 import { pacificToday } from '@/lib/hardware-reminders'
@@ -54,9 +55,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   }
 
   const { rows, invites, assignments } = await loadOnboardingCohort(admin, course, today)
-  const [equipment, inStockAll] = await Promise.all([
+  const [equipment, inStockAll, nextOptions] = await Promise.all([
     loadCohortEquipment(admin, rows.map(r => r.student.id)),
     loadDevices(admin, { status: 'in_stock' }),
+    loadNextCourseOptions(admin, today, course.onboarding_next_course_id),
   ])
   const inStock = inStockAll.filter(d => !d.current_holder_id)
   const equipmentOf = (id: string, finished: boolean): EquipmentState[] => equipmentStatus({
@@ -133,6 +135,14 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           </section>
         )}
 
+        <NextCoursePanel
+          courseId={course.id}
+          nextCourseId={course.onboarding_next_course_id}
+          options={nextOptions}
+          finished={rows.filter(r => r.progress.finished).length}
+          finishedNotThere={rows.filter(r => r.progress.finished && !r.inNextCourse).length}
+        />
+
         <nav aria-label="Filter students" className="flex gap-1 overflow-x-auto border-b border-border mb-4">
           {(['all', 'invited', 'in_progress', 'done', 'moved_on'] as const).map(f => (
             <Link
@@ -192,7 +202,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                         <div className="flex items-baseline justify-between gap-2 mb-1.5 text-sm">
                           <span className="font-semibold text-dark-text">{p.done} of {p.total} complete</span>
                           {stage === 'done' && <span className="text-xs font-semibold text-green-700">✓ Done{r.finishedAt ? ` ${pacificShortDate(r.finishedAt)}` : ''}</span>}
-                          {stage === 'moved_on' && <span className="text-xs font-semibold text-teal-primary">Moved on</span>}
+                          {stage === 'moved_on' && <span className="text-xs font-semibold text-teal-primary">In {nextOptions.find(o => o.id === course.onboarding_next_course_id)?.name ?? 'the next course'}</span>}
                         </div>
                         <ProgressBar done={p.done} total={p.total} />
                         <p className="mt-1.5 text-xs text-muted-text flex flex-wrap gap-x-3">
