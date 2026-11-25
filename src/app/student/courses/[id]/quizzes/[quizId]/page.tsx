@@ -61,11 +61,15 @@ export default async function TakeQuizPage({
 
   const { data: course } = await supabase
     .from("courses")
-    .select("id, name, paid_learners")
+    .select("id, name, paid_learners, is_enrollment_readiness")
     .eq("id", id)
     .single();
 
   if (!course) redirect("/student/courses");
+
+  // Enrollment Readiness courses don't have this section
+
+  if (course.is_enrollment_readiness) redirect(`/student/courses/${id}`)
 
   const admin = createServiceSupabaseClient();
 
@@ -169,7 +173,7 @@ export default async function TakeQuizPage({
       <StudentPageBanner viewer={viewer} courseId={id} />
       <div className="flex">
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} enrollmentReadiness={course.is_enrollment_readiness ?? false} />
         </ResizableSidebar>
         <div className="flex-1 min-w-0">
         <main id="main-content" tabIndex={-1} aria-label="Quiz" className="max-w-3xl mx-auto px-4 py-8 sm:px-8 sm:py-10 focus:outline-none">

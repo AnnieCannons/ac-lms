@@ -7,8 +7,10 @@ import { loadStudentEvents } from '@/lib/cutting-edge-server'
 export async function getStudentCuttingEdge(courseId: string) {
   const viewer = await getStudentCourseViewer(courseId)
   const { data: course } = await viewer.supabase
-    .from('courses').select('id, name, paid_learners').eq('id', courseId).single()
+    .from('courses').select('id, name, paid_learners, is_enrollment_readiness').eq('id', courseId).single()
   if (!course) redirect('/student/courses')
+  // Enrollment Readiness students aren't part of Cutting Edge Talks
+  if (course.is_enrollment_readiness) redirect(`/student/courses/${courseId}`)
   const now = new Date()
   // Preview has no student of its own; everyone else sees the viewed student's RSVPs.
   const items = await loadStudentEvents(createServiceSupabaseClient(), courseId, viewer.preview ? null : viewer.viewerId, now)

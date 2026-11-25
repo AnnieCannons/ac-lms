@@ -11,6 +11,9 @@ import StudentPageBanner from '@/components/ui/StudentPageBanner'
 import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { getCourseWeekNumber } from '@/lib/date-utils'
 import ReadinessPreviewCard from '@/components/ui/ReadinessPreviewCard'
+import OnboardingProgressCard from '@/components/onboarding/OnboardingProgressCard'
+import { loadNeeds, loadStudentProgress, needsFor } from '@/lib/onboarding-server'
+import { deviceKindsNeeded, kindList } from '@/lib/hardware-shipping'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +28,7 @@ export default async function StudentCourseDetailPage({
 
   const { data: course } = await supabase
     .from('courses')
-    .select('id, name, code, start_date, end_date, paid_learners, readiness_enabled')
+    .select('id, name, code, start_date, end_date, paid_learners, readiness_enabled, is_enrollment_readiness')
     .eq('id', id)
     .single()
 
@@ -130,6 +133,13 @@ export default async function StudentCourseDetailPage({
 
   const currentWeek = getCourseWeekNumber(course.start_date, course.end_date ?? null)
 
+  // Enrollment Readiness: how far the student has got (nothing to show in preview, which has no student)
+  const enrollmentReadiness = !!course.is_enrollment_readiness
+  const onboarding = enrollmentReadiness && !viewer.preview && viewer.enrollmentRole === 'student'
+    ? await Promise.all([loadStudentProgress(admin, id, viewer.viewerId), loadNeeds(admin, [viewer.viewerId])])
+    : null
+  const toShip = onboarding ? deviceKindsNeeded(needsFor(onboarding[1], viewer.viewerId)) : []
+
   return (
     <div className="min-h-screen bg-background">
       <StudentTopNav name={viewer.viewerName} role={viewer.viewerRole} />
@@ -138,7 +148,7 @@ export default async function StudentCourseDetailPage({
       <div className="flex">
         {/* Left sidebar */}
         <ResizableSidebar>
-          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} />
+          <StudentCourseNav courseId={id} courseName={course.name} paidLearners={course.paid_learners ?? false} enrollmentReadiness={enrollmentReadiness} />
         </ResizableSidebar>
 
         {/* Main content */}
@@ -171,16 +181,34 @@ export default async function StudentCourseDetailPage({
                   )}
                 </div>
               </div>
-              <a
-                href={`/student/courses/${id}/info#syllabus`}
-                className="text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors shrink-0"
-              >
-                Syllabus
-              </a>
+              {!enrollmentReadiness && (
+                <a
+                  href={`/student/courses/${id}/info#syllabus`}
+                  className="text-sm font-medium text-teal-primary border border-teal-primary/40 px-4 py-2 rounded-lg hover:bg-teal-light transition-colors shrink-0"
+                >
+                  Syllabus
+                </a>
+              )}
             </div>
 
             <PageRefresher />
             {course.readiness_enabled && !readOnly && <ReadinessPreviewCard courseId={id} />}
+            {onboarding && (
+              <OnboardingProgressCard
+                courseId={id}
+                done={onboarding[0].done}
+                total={onboarding[0].total}
+                finished={onboarding[0].finished}
+                waitingOnStaff={onboarding[0].toMark}
+                needsRevision={onboarding[0].needsRevision}
+                equipmentToShip={toShip.length ? kindList(toShip) : null}
+              />
+            )}
+            {enrollmentReadiness && viewer.preview && (
+              <p className="mb-8 rounded-2xl border border-dashed border-border bg-surface p-4 text-sm text-muted-text">
+                Students see their Enrollment Readiness progress here, and a congratulations card with Codecademy links once everything is marked Complete.
+              </p>
+            )}
             {modules.length > 0 ? (
               <CourseOutlineAccordion
                 modules={modulesWithCross as Parameters<typeof CourseOutlineAccordion>[0]['modules']}

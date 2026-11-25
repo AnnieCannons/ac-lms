@@ -7,6 +7,7 @@ export async function loadPickableCourses(admin: ReturnType<typeof createService
   const now = new Date()
   const courses = await loadCourses(admin)
   return courses
+    .filter(c => !c.is_enrollment_readiness)
     .filter(c => selected.includes(c.id) || isCourseActiveAt(c, now) || (c.start_date && new Date(c.start_date) > now))
     .sort((a, b) => (b.start_date ?? '').localeCompare(a.start_date ?? ''))
     .map(c => ({ id: c.id, name: c.name }))

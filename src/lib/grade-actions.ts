@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase/server'
 import { getAssignmentCourseId } from '@/lib/course-scope'
+import { checkOnboardingAfterGrade } from '@/lib/onboarding-server'
 
 export async function saveAnswerKey(
   assignmentId: string,
@@ -125,6 +126,8 @@ export async function markCompleteNoSubmission(
   if (grade) {
     await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
     await checkAllChecklistItems(admin, submissionId, assignmentId, user.id)
+    // Marking this complete may finish the student's Enrollment Readiness course
+    await checkOnboardingAfterGrade(admin, courseId ?? await getAssignmentCourseId(admin, assignmentId), studentId, user.id)
 
     // Notify student
     if (courseId) {
@@ -209,6 +212,7 @@ export async function saveGrade(
 
   if (grade) {
     await admin.from('grade_history').insert({ submission_id: submissionId, grade, graded_at: now })
+    if (grade === 'complete') await checkOnboardingAfterGrade(admin, assignmentCourseId, current.student_id, user.id)
 
     // Notify student
     if (assignmentCourseId) {
@@ -294,6 +298,7 @@ export async function undoNeedsRevision(
   if (error) return { error: error.message }
 
   await admin.from('grade_history').insert({ submission_id: submissionId, grade: 'complete', graded_at: now })
+  await checkOnboardingAfterGrade(admin, assignmentCourseId, current.student_id, user.id)
 
   if (assignmentCourseId) {
     const { data: asgn } = await admin
@@ -385,6 +390,7 @@ export async function deleteGradeHistoryEntry(
       .update({ grade: 'complete', status: 'graded', graded_at: now, graded_by: user.id })
       .eq('id', entry.submission_id)
     await admin.from('grade_history').insert({ submission_id: entry.submission_id, grade: 'complete', graded_at: now })
+    await checkOnboardingAfterGrade(admin, assignmentCourseId, submission.student_id, user.id)
   }
 
   // An accidental "Complete" that's still the current grade: fall back to the

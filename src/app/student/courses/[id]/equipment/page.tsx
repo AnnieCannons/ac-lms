@@ -12,7 +12,7 @@ import { hasUnansweredCheckin } from '@/lib/hardware-checkin-server'
 export default async function StudentEquipmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const viewer = await getStudentCourseViewer(id)
-  const { data: course } = await viewer.supabase.from('courses').select('id, name, paid_learners').eq('id', id).single()
+  const { data: course } = await viewer.supabase.from('courses').select('id, name, paid_learners, is_enrollment_readiness').eq('id', id).single()
   if (!course) redirect('/student/courses')
 
   // Preview has no student of its own; otherwise the viewed student's own equipment.

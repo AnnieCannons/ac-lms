@@ -45,6 +45,8 @@ interface Override {
 
 interface Props {
   courseId: string
+  /** An Enrollment Readiness course: offers "Counts toward finishing" */
+  enrollmentReadiness?: boolean
   assignment: {
     id: string
     title: string
@@ -59,14 +61,15 @@ interface Props {
     is_optional: boolean
     series_id?: string | null
     goal_checkoff_label?: string | null
+    counts_toward_onboarding?: boolean | null
   }
   initialChecklist: ChecklistItem[]
   enrolledStudents: { id: string; name: string }[]
   initialOverrides: Override[]
-  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; is_optional: boolean; skill_tags: string[]; answer_key_url: string | null; goal_checkoff_label?: string | null }, updatedChecklist: ChecklistItem[]) => void
+  onSaved?: (updated: { title: string; description: string | null; how_to_turn_in: string | null; due_date: string | null; published: boolean; submission_required: boolean; is_bonus: boolean; is_optional: boolean; skill_tags: string[]; answer_key_url: string | null; goal_checkoff_label?: string | null; counts_toward_onboarding?: boolean }, updatedChecklist: ChecklistItem[]) => void
 }
 
-export default function AssignmentEditor({ courseId, assignment, initialChecklist, enrolledStudents, initialOverrides, onSaved }: Props) {
+export default function AssignmentEditor({ courseId, enrollmentReadiness = false, assignment, initialChecklist, enrolledStudents, initialOverrides, onSaved }: Props) {
   const supabase = createClient()
   const router = useRouter()
 
@@ -78,6 +81,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
   const [submissionRequired, setSubmissionRequired] = useState(assignment.submission_required)
   const [isBonus, setIsBonus] = useState(assignment.is_bonus)
   const [isOptional, setIsOptional] = useState(assignment.is_optional)
+  const [countsTowardOnboarding, setCountsTowardOnboarding] = useState(assignment.counts_toward_onboarding !== false)
   // "I met my goal" checkbox — only offered on repeating assignments, since confirming it
   // excuses the student from the later weeks
   const repeats = !!assignment.series_id
@@ -247,6 +251,7 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
         skill_tags: skillTags,
         answer_key_url: answerKeyUrl.trim() || null,
         ...(repeats ? { goal_checkoff_label: goalOn ? normalizeGoalLabel(goalLabel) : null } : {}),
+        ...(enrollmentReadiness ? { counts_toward_onboarding: countsTowardOnboarding } : {}),
       })
       .eq('id', assignment.id)
     if (error) { setSaving(false); alert(error.message); return }
@@ -257,7 +262,8 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
     if (onSaved) {
       onSaved(
         { title, description: description || null, how_to_turn_in: howToTurnIn || null, due_date: dueDate || null, published, submission_required: submissionRequired, is_bonus: isBonus, is_optional: isOptional, skill_tags: skillTags, answer_key_url: answerKeyUrl.trim() || null,
-          ...(repeats ? { goal_checkoff_label: goalOn ? normalizeGoalLabel(goalLabel) : null } : {}) },
+          ...(repeats ? { goal_checkoff_label: goalOn ? normalizeGoalLabel(goalLabel) : null } : {}),
+          ...(enrollmentReadiness ? { counts_toward_onboarding: countsTowardOnboarding } : {}) },
         checklist
       )
     }
@@ -431,6 +437,22 @@ export default function AssignmentEditor({ courseId, assignment, initialChecklis
           {isOptional && <span className="w-2 h-2 rounded-full bg-teal-primary" />}
           {isOptional ? 'Optional' : 'Optional?'}
         </button>
+        {enrollmentReadiness && (
+          <button
+            type="button"
+            onClick={() => { setCountsTowardOnboarding(c => !c); setIsDirty(true) }}
+            aria-pressed={countsTowardOnboarding}
+            title="Whether students must have this marked Complete to finish Enrollment Readiness"
+            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${
+              countsTowardOnboarding
+                ? 'bg-teal-light text-teal-primary border-teal-primary/30'
+                : 'bg-background text-muted-text border-border hover:border-muted-text'
+            }`}
+          >
+            {countsTowardOnboarding && <span className="w-2 h-2 rounded-full bg-teal-primary" />}
+            {countsTowardOnboarding ? 'Counts toward finishing' : 'Doesn’t count toward finishing'}
+          </button>
+        )}
         <button
           type="button"
           onClick={deleteAssignment}

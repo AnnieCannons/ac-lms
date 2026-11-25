@@ -6,11 +6,14 @@ import { createClient } from '@/lib/supabase/client'
 import { getMyCuttingEdgeTaskCount } from '@/lib/cutting-edge-actions'
 import { CUTTING_EDGE_TASKS_CHANGED } from '@/lib/cutting-edge'
 import { getMyHardwareReturnCount } from '@/lib/hardware-student-actions'
+import { ENROLLMENT_READINESS_HIDDEN_SECTIONS } from '@/lib/onboarding'
 
 interface Props {
   courseId: string
   courseName: string
   paidLearners?: boolean
+  /** An Enrollment Readiness course: only My Equipment, Course Outline, Grades and Profile */
+  enrollmentReadiness?: boolean
 }
 
 const TOP_ITEMS = [
@@ -55,7 +58,11 @@ function subscribeLevelUpSeen(listener: () => void) {
   return () => { seenListeners.delete(listener); window.removeEventListener('storage', listener) }
 }
 
-export default function StudentCourseNav({ courseId, courseName, paidLearners }: Props) {
+const ER_HIDDEN = new Set<string>(ENROLLMENT_READINESS_HIDDEN_SECTIONS)
+
+export default function StudentCourseNav({ courseId, courseName, paidLearners, enrollmentReadiness = false }: Props) {
+  const shown = (items: { label: string; slug: string }[]) =>
+    enrollmentReadiness ? items.filter(i => !ER_HIDDEN.has(i.slug)) : items
   const pathname = usePathname()
   const [isTa, setIsTa] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -83,6 +90,8 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
   // student RSVPs or checks something off.
   const [cuttingEdgeTasks, setCuttingEdgeTasks] = useState(0)
   useEffect(() => {
+    // Enrollment Readiness courses have no Cutting Edge Talks link
+    if (enrollmentReadiness) return
     let cancelled = false
     const fetchCount = () => {
       getMyCuttingEdgeTaskCount(courseId).then(n => { if (!cancelled) setCuttingEdgeTasks(n) }).catch(() => {})
@@ -90,7 +99,7 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
     fetchCount()
     window.addEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount)
     return () => { cancelled = true; window.removeEventListener(CUTTING_EDGE_TASKS_CHANGED, fetchCount) }
-  }, [courseId, pathname])
+  }, [courseId, pathname, enrollmentReadiness])
 
   // "Send back" badge on My Equipment when we've asked for something back.
   const [returnsDue, setReturnsDue] = useState(0)
@@ -156,9 +165,9 @@ export default function StudentCourseNav({ courseId, courseName, paidLearners }:
             TA / Instructor View →
           </Link>
         )}
-        {TOP_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+        {shown(TOP_ITEMS).map(({ label, slug }) => navLink(label, slug))}
         <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-8 mb-1 px-3">Course</p>
-        {COURSE_ITEMS.map(({ label, slug }) => navLink(label, slug))}
+        {shown(COURSE_ITEMS).map(({ label, slug }) => navLink(label, slug))}
         {paidLearners && (
           <>
             <p className="text-xs font-extrabold text-dark-text uppercase tracking-widest mt-4 mb-1 px-3">Employment</p>

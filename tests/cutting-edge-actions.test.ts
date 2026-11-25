@@ -84,7 +84,7 @@ describe('publishing', () => {
 })
 
 describe('student actions', () => {
-  function studentWith({ enrolled = true, startsAt }: { enrolled?: boolean; startsAt: string }) {
+  function studentWith({ enrolled = true, startsAt, prework = false }: { enrolled?: boolean; startsAt: string; prework?: boolean }) {
     vi.mocked(createServerSupabaseClient).mockResolvedValue({
       auth: { getUser: async () => ({ data: { user: { id: 'me' } } }) },
     } as never)
@@ -93,6 +93,7 @@ describe('student actions', () => {
     vi.mocked(createServiceSupabaseClient).mockReturnValue({
       from: (table: string) => {
         if (table === 'course_enrollments') return chain({ data: enrolled ? { role: 'student' } : null })
+        if (table === 'courses') return chain({ data: { start_date: '2026-01-05', end_date: null, is_enrollment_readiness: prework } })
         if (table === 'cutting_edge_events') return chain({ data: event })
         if (table === 'cutting_edge_event_courses') return chain({ data: [{ course_id: 'c1' }] })
         return chain({ error: null }, log)
@@ -100,6 +101,12 @@ describe('student actions', () => {
     } as never)
     return log
   }
+
+  it('treats a student in an Enrollment Readiness course as outside every talk', async () => {
+    const log = studentWith({ startsAt: '2099-01-01T00:00:00Z', prework: true })
+    expect(await setMyCuttingEdgeRsvp('c1', 'e1', 'yes')).toMatchObject({ ok: false })
+    expect(log.find(([m]) => m === 'upsert')).toBeUndefined()
+  })
 
   it('rejects someone who is not enrolled as a student (e.g. an instructor previewing)', async () => {
     studentWith({ enrolled: false, startsAt: '2099-01-01T00:00:00Z' })
