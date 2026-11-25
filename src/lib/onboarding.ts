@@ -84,7 +84,7 @@ export type OnboardingItem = {
   counts: boolean
   /** The student's own due date (their extension, if any) */
   dueDate: string | null
-  /** Still to do and its due date has passed (date-only compare in the given "today") */
+  /** The student still owes it (not started, or needs revision) and its due date has passed (date-only compare in the given "today") */
   overdue: boolean
   submissionId: string | null
 }
@@ -119,7 +119,8 @@ export function onboardingProgress(
     const override = overrides.get(a.id)
     const status = onboardingItemStatus(a, sub, override)
     const dueDate = override?.due_date ?? a.due_date
-    const outstanding = status !== 'complete' && status !== 'excused'
+    // Overdue = the student still owes it. Work waiting on staff (turned in, check-offs) isn't.
+    const outstanding = status === 'not_started' || status === 'needs_revision'
     return {
       assignment: a,
       status,

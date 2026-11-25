@@ -40,7 +40,7 @@ describe('onboardingItemStatus', () => {
     expect(onboardingItemStatus(a, sub('a', 'draft'), undefined)).toBe('not_started')
     expect(onboardingItemStatus(a, undefined, undefined)).toBe('not_started')
   })
-  it('treats excused work as excused unless it was already marked Complete', () => {
+  it('treats excused work as excused, whether or not anything was turned in', () => {
     expect(onboardingItemStatus(a, undefined, { due_date: null, excused: true })).toBe('excused')
     expect(onboardingItemStatus(a, sub('a', 'submitted'), { due_date: null, excused: true })).toBe('excused')
   })
@@ -106,10 +106,17 @@ describe('onboardingProgress', () => {
     expect(p.items.find(i => i.assignment.id === 'checklist')).toMatchObject({ dueDate: '2026-12-15', overdue: false })
   })
 
-  it('never flags finished work as overdue', () => {
-    const subs = new Map([['checklist', sub('checklist', 'graded', 'complete')]])
-    const p = onboardingProgress(assignments, subs, new Map(), '2027-02-01')
-    expect(p.items.find(i => i.assignment.id === 'checklist')?.overdue).toBe(false)
+  it('never flags finished work, or work waiting on staff, as overdue', () => {
+    const subs = new Map([
+      ['checklist', sub('checklist', 'graded', 'complete')],
+      ['agreement', sub('agreement', 'submitted')],
+      ['calendar', sub('calendar', 'graded', 'incomplete')],
+    ])
+    const p = onboardingProgress([...assignments, asg('office', { submission_required: false })], subs, new Map(), '2027-02-01')
+    const overdue = Object.fromEntries(p.items.map(i => [i.assignment.id, i.overdue]))
+    // only Needs revision is still on the student
+    expect(overdue).toMatchObject({ checklist: false, agreement: false, calendar: true, office: false })
+    expect(p.overdue).toBe(1)
   })
 })
 

@@ -219,6 +219,7 @@ export default async function StudentCourseDetailPage({
                 initialCompletedIds={completedIds}
                 quizzes={quizzes}
                 showBonusAssignments
+                hideLevelUpBanner={enrollmentReadiness}
                 readOnly={readOnly}
               />
             ) : (
