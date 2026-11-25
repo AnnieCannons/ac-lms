@@ -41,6 +41,7 @@ All new tables: RLS on with staff-only SELECT; every write goes through role-che
 ## Phases
 
 ### Phase 1 — Enrollment Readiness courses and finishing
+**Status (2026-11-25): committed on `claude/feat/new-student-onboarding`.** Migration not applied yet.
 - Migration (whole feature) `20261125000000_new_student_onboarding.sql`, which also checks the box on *Enrollment Readiness (2027)* and turns off "counts" on its *Receiving Your Laptop*.
 - Checkbox on New Course and on the instructor General Info page (next to Paid Learners).
 - Student sidebar trimmed and hidden pages redirected. Syllabus button hidden.
@@ -51,12 +52,14 @@ All new tables: RLS on with staff-only SELECT; every write goes through role-che
 - Cutting Edge audiences and the check-in course list skip ER courses.
 
 ### Phase 2 — New Student Onboarding page
+**Status (2026-11-25): committed.**
 - Dashboard card → `/instructor/onboarding` (instructor/staff/admin).
 - Cohort picker (ER courses, current first). Filters: Invited / In progress / Done / Moved on. "Needs you" strip: work to mark complete, finished but not shipped, Comcast NOW to set up.
 - One row per student: progress, to mark complete, laptop and wifi choices, equipment status, next course.
 - Student checklist page `/instructor/onboarding/[courseId]/students/[userId]`: every assignment with status and due date (not yet due included), **Mark complete** for turned-in and check-off work, links to the grader.
 
 ### Phase 3 — Hardware: needs, shipping, Comcast NOW
+**Status (2026-11-25): committed.** Also on Hardware → Needs attention: "Comcast NOW billing soon" (next 3 days) and "Shipped, not confirmed" (7+ days).
 - Laptop and Wifi choices on the onboarding page and the Hardware student page. Changing them after a student has finished updates their waitlist entries.
 - **Ship** form (onboarding row and Hardware student page): in-stock device(s) or ones already loaned, carrier, tracking number, date → loans, shipment, history events, student bell + Slack DM + email.
 - Tracking links: USPS, UPS, FedEx. Staff can also mark a shipment arrived.
@@ -64,6 +67,7 @@ All new tables: RLS on with staff-only SELECT; every write goes through role-che
 - My Equipment: "Finish your Enrollment Readiness tasks…", "We're preparing to ship your laptop", shipped with tracking link and **I got it**, and the wifi choice.
 
 ### Phase 4 — Moving on to TCF
+**Status (2026-11-25): committed.** One PR for all four phases.
 - Next course picker on the onboarding page (TCF courses first). **Add N finished students** enrolls those not already in it.
 - Rows show "In Tech Career Foundations (…)" once they're there.
 
