@@ -1,11 +1,12 @@
 import type { createServiceSupabaseClient } from '@/lib/supabase/server'
-import { slackLookupByEmail, slackPostMessage } from '@/lib/slack'
+import { openGroupDM, slackLookupByEmail, slackPostMessage } from '@/lib/slack'
 import { formatDateOnly } from '@/lib/hardware'
 import { isPlanCurrent } from '@/lib/hardware-shipping'
 import { HARDWARE_SLACK_CHANNEL_DEFAULT, pacificToday } from '@/lib/hardware-reminders'
 
 // Slack messages for Comcast NOW plans (AnnieCannons pays $10/month and needs the receipt).
-// Every message posts in #student-hardware and tags the staff contact (Catie): COMCAST_NOW_CONTACT_EMAIL
+// Receipt reminders are a group message with the staff contact (Catie) and the student; the
+// cancel-the-card notice posts in #student-hardware tagging the contact: COMCAST_NOW_CONTACT_EMAIL
 // when set, else whoever recorded the plan.
 
 type Admin = ReturnType<typeof createServiceSupabaseClient>
@@ -28,13 +29,29 @@ async function mention(admin: Admin, plan: Pick<PlanRow, 'created_by'>): Promise
   return id ? `<@${id}> ` : ''
 }
 
-/** The monthly receipt reminder, posted in #student-hardware tagging the contact. Returns whether it posted. */
+/**
+ * The monthly receipt reminder: a Slack group message with the contact (Catie) and the student.
+ * If either can't be found on Slack, it posts in #student-hardware tagging the contact instead.
+ * Returns whether it posted.
+ */
 export async function sendReceiptReminder(admin: Admin, plan: PlanRow): Promise<boolean> {
-  const { data: student } = await admin.from('users').select('name, email').eq('id', plan.student_id).maybeSingle()
+  const [{ data: student }, contact] = await Promise.all([
+    admin.from('users').select('name, email').eq('id', plan.student_id).maybeSingle(),
+    contactEmail(admin, plan),
+  ])
   const person = student as { name: string | null; email: string | null } | null
+  const [contactId, studentId] = await Promise.all([
+    contact ? slackLookupByEmail(contact) : null,
+    person?.email ? slackLookupByEmail(person.email) : null,
+  ])
+  if (contactId && studentId) {
+    const channel = await openGroupDM([contactId, studentId])
+    const first = person?.name?.split(' ')[0] ?? 'there'
+    if (channel && await slackPostMessage(channel, `Hi ${first}! Your Comcast NOW internet renewed today. Please send this month's receipt here so we can submit it. Thank you!`)) return true
+  }
   const name = person?.name ?? person?.email ?? 'a student'
   return slackPostMessage(hardwareChannel(),
-    `${await mention(admin, plan)}💳 Comcast NOW renewed today for <${appUrl()}/instructor/hardware/students/${plan.student_id}|${name}>. Time to get this month's receipt.`)
+    `${contactId ? `<@${contactId}> ` : ''}💳 Comcast NOW renewed today for <${appUrl()}/instructor/hardware/students/${plan.student_id}|${name}>, but I couldn't message them on Slack. Please ask them for this month's receipt.`)
 }
 
 /**

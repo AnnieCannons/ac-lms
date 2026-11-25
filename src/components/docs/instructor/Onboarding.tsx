@@ -109,7 +109,7 @@ export default function Onboarding() {
           <DocH3>Comcast NOW</DocH3>
           <DocP>
             Once the plan is set up, record it on the student&apos;s Hardware page (<strong>Set up plan</strong>): the start date is
-            the billing day. On that day each month a reminder to get the receipt posts in #student-hardware, tagging you. If a student with a plan is changed to observer, a message there asks you to cancel the card.
+            the billing day. On that day each month you and the student get a Slack group message asking them for the receipt. If a student with a plan is changed to observer, a message there asks you to cancel the card.
           </DocP>
           <DocTip>
             Changing a student&apos;s wifi after they&apos;ve finished updates the Waitlist for you: the new device is added and the old

@@ -4,6 +4,7 @@ const slackIds: Record<string, string> = {}
 const posts: [string, string][] = []
 vi.mock('@/lib/slack', () => ({
   slackLookupByEmail: vi.fn(async (email: string) => slackIds[email] ?? null),
+  openGroupDM: vi.fn(async (ids: string[]) => `G-${ids.join('-')}`),
   slackPostMessage: vi.fn(async (channel: string, text: string) => { posts.push([channel, text]); return true }),
 }))
 
@@ -31,17 +32,20 @@ beforeEach(() => {
 })
 
 describe('sendReceiptReminder', () => {
-  it('posts in #student-hardware tagging Catie', async () => {
-    slackIds['catie@example.org'] = 'UCATIE'
-    expect(await sendReceiptReminder(db({ users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } }), plan)).toBe(true)
-    expect(posts).toHaveLength(1)
-    expect(posts[0][0]).toBe(CHANNEL)
-    expect(posts[0][1]).toMatch(/^<@UCATIE> 💳 Comcast NOW renewed today for <.*\|Jordan Rivera>\. Time to get this month's receipt\.$/)
+  const student = { users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } }
+
+  it('asks for the receipt in a group message with Catie and the student', async () => {
+    Object.assign(slackIds, { 'catie@example.org': 'UCATIE', 'jordan@example.com': 'UJORDAN' })
+    expect(await sendReceiptReminder(db(student), plan)).toBe(true)
+    expect(posts).toEqual([['G-UCATIE-UJORDAN', expect.stringContaining("Hi Jordan! Your Comcast NOW internet renewed today. Please send this month's receipt here")]])
   })
 
-  it('still posts (without a tag) if Catie can’t be found on Slack', async () => {
-    await sendReceiptReminder(db({ users: { data: { name: 'Jordan Rivera', email: 'jordan@example.com' } } }), plan)
-    expect(posts[0][1].startsWith('💳')).toBe(true)
+  it('falls back to #student-hardware, tagging Catie, when the student isn’t on Slack', async () => {
+    slackIds['catie@example.org'] = 'UCATIE'
+    await sendReceiptReminder(db(student), plan)
+    expect(posts).toHaveLength(1)
+    expect(posts[0][0]).toBe(CHANNEL)
+    expect(posts[0][1]).toMatch(/^<@UCATIE> 💳 Comcast NOW renewed today for <.*\|Jordan Rivera>, but I couldn't message them on Slack/)
   })
 })
 
