@@ -87,9 +87,9 @@ export default function Onboarding() {
       content: (
         <>
           <DocP>
-            After you meet with a student, set their <strong>Wifi</strong> (None, Comcast NOW, Booster or Hotspot) and, if they
-            have their own computer, set <strong>Laptop</strong> to Has their own. Both are on the onboarding page and on the
-            student&apos;s Hardware page.
+            Every student gets a laptop. After you meet with a student, set their <strong>Wifi</strong> (None, Comcast NOW,
+            Booster or Hotspot) on the onboarding page or the student&apos;s Hardware page. Next to it you can see where their laptop
+            is: ships once they finish, ready to ship, shipped (with tracking) or arrived.
           </DocP>
           <DocH3>Shipping</DocH3>
           <DocStep number={1}>Buy and print the label on Pirate Ship, and box everything up.</DocStep>

@@ -214,3 +214,15 @@ export function pacificShortDate(iso: string, withYear = false): string {
     timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' as const } : {}),
   })
 }
+
+/**
+ * Work the student still has to do after finishing: assignments that don't count toward
+ * finishing (e.g. Receiving Your Laptop, done once it arrives) that they haven't turned in yet.
+ * Optional and bonus work is never listed.
+ */
+export function lastTasks(progress: Pick<OnboardingProgress, 'items'>): OnboardingAssignment[] {
+  return progress.items
+    .filter(i => i.assignment.counts_toward_onboarding === false && !i.assignment.is_optional && !i.assignment.is_bonus)
+    .filter(i => i.status === 'not_started' || i.status === 'needs_revision')
+    .map(i => i.assignment)
+}

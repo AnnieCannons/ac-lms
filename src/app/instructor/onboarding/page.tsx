@@ -9,7 +9,7 @@ import ShipButton from '@/components/hardware/ShipButton'
 import { getOnboardingViewer } from '@/lib/onboarding-access'
 import { loadCohortEquipment, loadCohorts, loadNextCourseOptions, loadOnboardingCohort, needsFor, type OnboardingRow } from '@/lib/onboarding-server'
 import { loadDevices } from '@/lib/hardware-server'
-import { ONBOARDING_STAGE_LABELS, onboardingStage, pacificShortDate, pickDefaultCohort, sortCohorts, type OnboardingStage } from '@/lib/onboarding'
+import { ONBOARDING_STAGE_LABELS, lastTasks, onboardingStage, pacificShortDate, pickDefaultCohort, sortCohorts, type OnboardingStage } from '@/lib/onboarding'
 import { pacificToday } from '@/lib/hardware-reminders'
 import { formatDateOnly } from '@/lib/hardware'
 import { equipmentStatus, isPlanCurrent, type EquipmentState } from '@/lib/hardware-shipping'
@@ -210,6 +210,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                           {p.needsRevision > 0 && <span>{p.needsRevision} needs revision</span>}
                           {p.overdue > 0 && <span className="font-semibold text-red-600">{p.overdue} overdue</span>}
                           {p.notStarted > 0 && <span>{p.notStarted} not started</span>}
+                          {r.finished && lastTasks(p).length > 0 && <span>Still to do: {lastTasks(p).map(a => a.title).join(', ')}</span>}
                         </p>
                       </div>
                       <Link href={`/instructor/onboarding/${course.id}/students/${r.student.id}`} className="self-center whitespace-nowrap text-sm font-semibold text-teal-primary hover:underline">

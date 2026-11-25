@@ -13,7 +13,7 @@ Built as a phased rollout like the Hardware Tracker: each phase committed on `cl
 - **Finished = every counted assignment marked Complete** (by staff). Submitted isn't enough. Excused assignments don't count against them. Optional and bonus assignments never count.
 - **"Counts toward finishing"** is a per-assignment setting shown only in Enrollment Readiness courses, on by default. *Receiving Your Laptop* (its checklist is done after the laptop arrives) is set to not count.
 - The DocuSign assignment is **Equipment Use & Responsibility Agreement**. Students check the list and submit "Finished"; staff check DocuSign and mark it Complete like any other assignment.
-- **Laptop:** every student needs one unless staff set **Has their own**.
+- **Laptop:** every student gets one (Catie, 2026-11-25), so there's no laptop choice in the UI; the row shows where it is (ships once they finish / ready to ship / shipped / arrived). `hardware_student_needs.laptop` stays at its default `needs`.
 - **Wifi:** staff pick it after meeting with the student: **None** (default), **Comcast NOW**, **Booster** or **Hotspot**.
 - When a student finishes, they go on the Hardware Tracker **waitlist** for a laptop (unless they have their own) and for a hotspot/booster if that's their wifi, and **#student-hardware** gets a post.
 - **Comcast NOW:** AnnieCannons pays monthly and submits a receipt each month, so the plan is tracked (start date, account, monthly cost) and a monthly reminder posts in #student-hardware. Students don't need instructions.

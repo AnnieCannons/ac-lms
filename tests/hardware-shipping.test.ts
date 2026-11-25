@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_NEEDS,
   equipmentStatus,
+  shippingStage,
   deviceKindsNeeded,
   inTransit,
   kindList,
@@ -174,5 +175,27 @@ describe('equipmentStatus', () => {
     expect(status(false, false)).toEqual([{ kind: 'comcast_now', state: 'after_finish' }])
     expect(status(true, false)).toEqual([{ kind: 'comcast_now', state: 'to_set_up' }])
     expect(status(true, true)).toEqual([{ kind: 'comcast_now', state: 'set_up' }])
+  })
+})
+
+describe('shippingStage', () => {
+  const laptop = { id: 'd1', kind: 'laptop' as const, status: 'on_loan' }
+  const box = (received: string | null) => ({ id: 'b1', student_id: 'st', device_ids: ['d1'], carrier: 'usps' as const, tracking_number: '9400', shipped_on: '2026-12-12', received_at: received, received_by: null, notes: null, created_at: '2026-12-12T10:00:00Z' })
+
+  it('follows the laptop from waiting to arrived', () => {
+    expect(shippingStage({ needs: DEFAULT_NEEDS, held: [], shipments: [] })).toBe('to_ship')
+    expect(shippingStage({ needs: DEFAULT_NEEDS, held: [laptop], shipments: [box(null)] })).toBe('on_the_way')
+    expect(shippingStage({ needs: DEFAULT_NEEDS, held: [laptop], shipments: [box('2026-12-15T18:00:00Z')] })).toBe('arrived')
+    // handed over in person, no box
+    expect(shippingStage({ needs: DEFAULT_NEEDS, held: [laptop], shipments: [] })).toBe('arrived')
+  })
+
+  it('is still shipping while any needed device is missing', () => {
+    expect(shippingStage({ needs: { laptop: 'needs', wifi: 'hotspot' }, held: [laptop], shipments: [box('2026-12-15T18:00:00Z')] })).toBe('to_ship')
+  })
+
+  it('has nothing to say when they need nothing and have nothing', () => {
+    expect(shippingStage({ needs: { laptop: 'own', wifi: 'none' }, held: [], shipments: [] })).toBe('nothing')
+    expect(shippingStage({ needs: { laptop: 'own', wifi: 'comcast_now' }, held: [], shipments: [] })).toBe('nothing')
   })
 })

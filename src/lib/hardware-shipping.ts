@@ -322,3 +322,20 @@ export const PLAN_COLUMNS = 'id, student_id, provider, account_number, monthly_c
 export const SHIPMENT_CHECK_DAYS = 7
 /** How far ahead Needs attention lists Comcast NOW billing days. */
 export const INTERNET_SOON_DAYS = 3
+
+/** Where a student's equipment is, for their congratulations card. */
+export type ShippingStage = 'nothing' | 'to_ship' | 'on_the_way' | 'arrived'
+
+export function shippingStage(input: {
+  needs: StudentNeeds
+  held: { id: string; kind: DeviceKind; status: string }[]
+  shipments: Shipment[]
+}): ShippingStage {
+  const needed = deviceKindsNeeded(input.needs)
+  const held = input.held.filter(d => d.status !== 'awaiting_return')
+  if (needed.length === 0 && held.length === 0) return 'nothing'
+  const heldKinds = new Set(held.map(d => d.kind))
+  if (needed.some(k => !heldKinds.has(k))) return 'to_ship'
+  if (held.some(d => { const s = latestShipmentFor(d.id, input.shipments); return !!s && !s.received_at })) return 'on_the_way'
+  return 'arrived'
+}

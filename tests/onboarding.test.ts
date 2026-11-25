@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   countsTowardFinishing,
+  lastTasks,
   describeNeeds,
   onboardingItemStatus,
   onboardingProgress,
@@ -155,5 +156,27 @@ describe('describeNeeds', () => {
     expect(describeNeeds(['laptop', 'hotspot'])).toBe('a laptop and a hotspot')
     expect(describeNeeds(['laptop', 'booster', 'comcast_now'])).toBe('a laptop, a wifi booster and Comcast NOW')
     expect(describeNeeds([])).toBe('')
+  })
+})
+
+describe('lastTasks', () => {
+  const assignments = [
+    asg('checklist'),
+    asg('receiving', { counts_toward_onboarding: false }),
+    asg('bonus', { counts_toward_onboarding: false, is_bonus: true }),
+  ]
+  it('lists work that doesn’t count but the student still owes', () => {
+    const p = onboardingProgress(assignments, new Map([['checklist', sub('checklist', 'graded', 'complete')]]), new Map(), '2026-12-20')
+    expect(lastTasks(p).map(a => a.id)).toEqual(['receiving'])
+  })
+  it('drops it once it’s turned in, Complete or excused', () => {
+    const turnedIn = onboardingProgress(assignments, new Map([['receiving', sub('receiving', 'submitted')]]), new Map(), '2026-12-20')
+    expect(lastTasks(turnedIn)).toEqual([])
+    const excused = onboardingProgress(assignments, new Map(), new Map([['receiving', { due_date: null, excused: true }]]), '2026-12-20')
+    expect(lastTasks(excused)).toEqual([])
+  })
+  it('puts it back when it needs revision', () => {
+    const p = onboardingProgress(assignments, new Map([['receiving', sub('receiving', 'graded', 'incomplete')]]), new Map(), '2026-12-20')
+    expect(lastTasks(p).map(a => a.id)).toEqual(['receiving'])
   })
 })

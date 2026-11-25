@@ -12,8 +12,9 @@ import { getStudentCourseViewer } from '@/lib/student-course-viewer'
 import { getCourseWeekNumber } from '@/lib/date-utils'
 import ReadinessPreviewCard from '@/components/ui/ReadinessPreviewCard'
 import OnboardingProgressCard from '@/components/onboarding/OnboardingProgressCard'
-import { loadNeeds, loadStudentOnboarding, needsFor } from '@/lib/onboarding-server'
-import { deviceKindsNeeded, kindList } from '@/lib/hardware-shipping'
+import { loadCohortEquipment, loadStudentOnboarding, needsFor } from '@/lib/onboarding-server'
+import { deviceKindsNeeded, kindList, shippingStage } from '@/lib/hardware-shipping'
+import { lastTasks } from '@/lib/onboarding'
 
 export const dynamic = 'force-dynamic'
 
@@ -136,9 +137,13 @@ export default async function StudentCourseDetailPage({
   // Enrollment Readiness: how far the student has got (nothing to show in preview, which has no student)
   const enrollmentReadiness = !!course.is_enrollment_readiness
   const onboarding = enrollmentReadiness && !viewer.preview && viewer.enrollmentRole === 'student'
-    ? await Promise.all([loadStudentOnboarding(admin, id, viewer.viewerId), loadNeeds(admin, [viewer.viewerId])])
+    ? await Promise.all([loadStudentOnboarding(admin, id, viewer.viewerId), loadCohortEquipment(admin, [viewer.viewerId])])
     : null
-  const toShip = onboarding ? deviceKindsNeeded(needsFor(onboarding[1], viewer.viewerId)) : []
+  const needs = onboarding ? needsFor(onboarding[1].needs, viewer.viewerId) : null
+  const toShip = needs ? deviceKindsNeeded(needs) : []
+  const shipping = onboarding && needs
+    ? shippingStage({ needs, held: onboarding[1].held.get(viewer.viewerId) ?? [], shipments: onboarding[1].shipments.get(viewer.viewerId) ?? [] })
+    : 'nothing'
 
   return (
     <div className="min-h-screen bg-background">
@@ -202,6 +207,8 @@ export default async function StudentCourseDetailPage({
                 waitingOnStaff={onboarding[0].progress.toMark}
                 needsRevision={onboarding[0].progress.needsRevision}
                 equipmentToShip={toShip.length ? kindList(toShip) : null}
+                shipping={shipping}
+                lastTasks={lastTasks(onboarding[0].progress).map(a => ({ id: a.id, title: a.title }))}
               />
             )}
             {enrollmentReadiness && viewer.preview && (
